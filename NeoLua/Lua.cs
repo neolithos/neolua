@@ -6,7 +6,6 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using System.Text;
-using TecWare.Core.Compile;
 
 namespace Neo.IronLua
 {
@@ -131,9 +130,8 @@ namespace Neo.IronLua
 
     private Delegate CompileChunk(ScannerBuffer code, IEnumerable<KeyValuePair<string, Type>> args)
     { 
-      using (LuaLexer l = new LuaLexer())
+      using (LuaLexer l = new LuaLexer(code))
       {
-        l.Init(code, 1);
         LambdaExpression expr = Parser.ParseChunk(this, l, args);
 
         if (lPrintExpressionTree)

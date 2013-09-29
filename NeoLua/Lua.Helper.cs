@@ -6,7 +6,6 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
-using TecWare.Core.Compile;
 
 namespace Neo.IronLua
 {
@@ -35,7 +34,7 @@ namespace Neo.IronLua
 
     #region -- ParseNumer, ParseHexNumber ---------------------------------------------
 
-    internal static Expression ParseNumber(Token<LuaToken> t)
+    internal static Expression ParseNumber(Token t)
     {
       int i;
       double d;
@@ -50,7 +49,7 @@ namespace Neo.IronLua
         return ThrowExpression(String.Format("Die Zahl '{0}' konnte nicht konvertiert werden.", sNumber));
     } // func ParseNumber
 
-    internal static Expression ParseHexNumber(Token<LuaToken> t)
+    internal static Expression ParseHexNumber(Token t)
     {
       int i;
       //double d;

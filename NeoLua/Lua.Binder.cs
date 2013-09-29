@@ -6,7 +6,6 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
-using TecWare.Core.Compile;
 
 namespace Neo.IronLua
 {

@@ -8,7 +8,6 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
-using TecWare.Core.Compile;
 
 namespace Neo.IronLua
 {
@@ -309,7 +308,7 @@ namespace Neo.IronLua
     /// <summary>Mini-Parse-Tree für die Prefixauflösung</summary>
     private class PrefixMemberInfo
     {
-      public PrefixMemberInfo(Token<LuaToken> position, Expression instance, string sMember, Expression[] indices, Expression[] arguments)
+      public PrefixMemberInfo(Token position, Expression instance, string sMember, Expression[] indices, Expression[] arguments)
       {
         this.Position = position;
         this.Instance = instance;
@@ -390,7 +389,7 @@ namespace Neo.IronLua
         return Instance;
       } // func GenerateInstance
 
-      public Token<LuaToken> Position { get; set; }
+      public Token Position { get; set; }
       public Expression Instance { get; private set; }
       public string Member { get; set; }
       public Expression[] Indices { get; set; }
@@ -741,7 +740,7 @@ namespace Neo.IronLua
     {
       // prefix ::= Identifier suffix_opt |  '(' exp ')' suffix | literal | tablector
 
-      Token<LuaToken> tStart = code.Current;
+      Token tStart = code.Current;
       PrefixMemberInfo info;
       switch (tStart.Typ)
       {
@@ -1151,7 +1150,7 @@ namespace Neo.IronLua
         return ParsePrefix(scope, code).GenerateGet(scope);
     } // func ParseExpressionCast
 
-    private static Type GetType(Token<LuaToken> t, string sTypeName)
+    private static Type GetType(Token t, string sTypeName)
     {
       switch (sTypeName)
       {
@@ -1557,7 +1556,7 @@ Note the following:
         );
 
       }
-      else if (code.Current.Typ == LuaToken.Identifier && code.GetLookahead(1).Typ == LuaToken.Assign)
+      else if (code.Current.Typ == LuaToken.Identifier && code.LookAhead.Typ == LuaToken.Assign)
       {
         // Lies den Identifier
         string sMember = code.Current.Value;
@@ -1603,7 +1602,7 @@ Note the following:
 
     #region -- FetchToken, ParseError -------------------------------------------------
 
-    private static Token<LuaToken> FetchToken(LuaToken typ, LuaLexer code, bool lOptional = false)
+    private static Token FetchToken(LuaToken typ, LuaLexer code, bool lOptional = false)
     {
       if (code.Current.Typ == typ)
       {
@@ -1617,7 +1616,7 @@ Note the following:
         throw ParseError(code.Current, String.Format("Unerwarteter Token {0} anstatt {1} gefunden.", code.Current.Typ, typ));
     } // proc FetchToken
 
-    private static LuaParseException ParseError(Token<LuaToken> start, string sMessage)
+    private static LuaParseException ParseError(Token start, string sMessage)
     {
       return new LuaParseException(start.Start, sMessage, null);
     } // func ParseError

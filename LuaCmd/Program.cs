@@ -7,7 +7,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Dynamic;
 using Neo.IronLua;
-using TecWare.Core.Compile;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading;
@@ -39,7 +38,6 @@ namespace LuaCmd
       //TestExpression();
       //TestMemory();
       TestParser();
-      //TestBdeParser();
       //TestLexer();
       Console.ReadLine();
     }
@@ -104,39 +102,27 @@ namespace LuaCmd
         Console.WriteLine("NoResult"); ;
     }
 
-    private static void TestBdeParser()
-    {
-      Lua l = new Lua();
-      l.PrintExpressionTree = true;
-     
-      Delegate dlg = l.CompileChunk(@"C:\Projects\LuaDLR\LuaCmd\Bde.Kersten.lua");
-
-    }
-
-    private static void TestLexer()
-    {
-      string sText = File.ReadAllText(@"C:\Projects\LuaDLR\LuaCmd\Bde.Kersten.lua");
-      //string sText = File.ReadAllText(@"C:\Projects\LuaDLR\LuaCmd\Tests\Lexer.txt");
-      Stopwatch sw = new Stopwatch();
-      sw.Start();
-      for (int i = 0; i < 1000; i++)
-      {
-        Console.Write(".");
-        using (LuaLexer l = new LuaLexer())
-        {
-          l.Init(ScannerBuffer.CreateFromString(sText, "Test.txt"));
-          l.Next();
-          while (l.Current.Typ != LuaToken.Eof)
-          {
-            //Console.WriteLine(l.Current.ToString());
-            l.Next();
-          }
-        }
-        GC.WaitForPendingFinalizers();
-        GC.Collect(2, GCCollectionMode.Forced);
-      }
-      sw.Stop();
-      Console.WriteLine("{0:N0} ms", sw.ElapsedMilliseconds / 1000);
-    } // proc TestLexer
+    //private static void TestLexer()
+    //{
+    //  Stopwatch sw = new Stopwatch();
+    //  sw.Start();
+    //  for (int i = 0; i < 1000; i++)
+    //  {
+    //    Console.Write(".");
+    //    using (LuaLexer l = new LuaLexer(ScannerBuffer.CreateFromString(sText, "Test.txt")))
+    //    {
+    //      l.Next();
+    //      while (l.Current.Typ != LuaToken.Eof)
+    //      {
+    //        //Console.WriteLine(l.Current.ToString());
+    //        l.Next();
+    //      }
+    //    }
+    //    GC.WaitForPendingFinalizers();
+    //    GC.Collect(2, GCCollectionMode.Forced);
+    //  }
+    //  sw.Stop();
+    //  Console.WriteLine("{0:N0} ms", sw.ElapsedMilliseconds / 1000);
+    //} // proc TestLexer
   }
 }

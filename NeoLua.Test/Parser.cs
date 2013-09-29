@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Neo.IronLua;
-using TecWare.Core.Compile;
 
 namespace LuaDLR.Test
 {
@@ -21,9 +20,8 @@ namespace LuaDLR.Test
 
     private bool TokenTest(string sToken, params KeyValuePair<LuaToken, string>[] token)
     {
-      using (LuaLexer l = new LuaLexer())
+      using (LuaLexer l = new LuaLexer(ScannerBuffer.CreateFromString(sToken, "test.lua")))
       {
-        l.Init(ScannerBuffer.CreateFromString(sToken, "test.lua"));
         l.Next();
 
         for (int i = 0; i < token.Length; i++)
