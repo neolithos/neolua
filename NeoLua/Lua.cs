@@ -46,7 +46,7 @@ namespace Neo.IronLua
     /// <returns>Ergebnis der Ausführung.</returns>
     public object[] DoChunk(string sFileName, params KeyValuePair<string, object>[] args)
     {
-      return DoChunk(ScannerBuffer.Create(sFileName), args);
+      return DoChunk(sFileName, new StreamReader(sFileName), args);
     } // proc DoFile
 
     /// <summary>Führt den angegebene Stream aus.</summary>
@@ -56,7 +56,7 @@ namespace Neo.IronLua
     /// <returns>Ergebnis der Ausführung.</returns>
     public object[] DoChunk(TextReader sr, string sName, params KeyValuePair<string, object>[] args)
     {
-      return DoChunk(ScannerBuffer.Create(null, sr, 0, sName), args);
+      return DoChunk(sName, sr, args);
     } // proc DoChunk
 
     /// <summary>Führt die angegebene Zeichenfolge aus.</summary>
@@ -66,10 +66,10 @@ namespace Neo.IronLua
     /// <returns>Ergebnis der Ausführung.</returns>
     public object[] DoChunk(string sCode, string sName, params KeyValuePair<string, object>[] args)
     {
-      return DoChunk(ScannerBuffer.CreateFromString(sCode, sName), args);
+      return DoChunk(sName, new StringReader(sCode), args);
     } // func DoChunk
 
-    private object[] DoChunk(ScannerBuffer code, KeyValuePair<string, object>[] args)
+    private object[] DoChunk(string sChunkName, TextReader tr, KeyValuePair<string, object>[] args)
     {
       // Erzeuge die Parameter
       object[] callArgs;
@@ -91,7 +91,7 @@ namespace Neo.IronLua
       }
 
       // Führe den Block aus
-      Delegate dlg = CompileChunk(code, callTypes);
+      Delegate dlg = CompileChunk(sChunkName, tr, callTypes);
       return ExecuteCompiledChunk(dlg, callArgs);
     } // func DoChunk
 
@@ -105,7 +105,7 @@ namespace Neo.IronLua
     /// <returns>Delegate, welches erzeugt wurde.</returns>
     public Delegate CompileChunk(string sFileName, params KeyValuePair<string, Type>[] args)
     {
-      return CompileChunk(ScannerBuffer.Create(sFileName), args);
+      return CompileChunk(sFileName, new StreamReader(sFileName), args);
     } // func CompileChunk
 
     /// <summary>Erzeugt ein Delegate aus dem Code, ohne ihn auszuführen.</summary>
@@ -115,7 +115,7 @@ namespace Neo.IronLua
     /// <returns>Delegate, welches erzeugt wurde.</returns>
     public Delegate CompileChunk(TextReader tr, string sName, params KeyValuePair<string, Type>[] args)
     {
-      return CompileChunk(ScannerBuffer.Create(null, tr, 0, sName), args);
+      return CompileChunk(sName, tr, args);
     } // func CompileChunk
 
     /// <summary>Erzeugt ein Delegate aus dem Code, ohne ihn auszuführen.</summary>
@@ -125,12 +125,12 @@ namespace Neo.IronLua
     /// <returns>Delegate, welches erzeugt wurde.</returns>
     public Delegate CompileChunk(string sCode, string sName, params KeyValuePair<string, Type>[] args)
     {
-      return CompileChunk(ScannerBuffer.CreateFromString(sCode, sName), args);
+      return CompileChunk(sName, new StringReader(sCode), args);
     } // func CompileChunk
 
-    private Delegate CompileChunk(ScannerBuffer code, IEnumerable<KeyValuePair<string, Type>> args)
+    private Delegate CompileChunk(string sChunkName, TextReader tr, IEnumerable<KeyValuePair<string, Type>> args)
     { 
-      using (LuaLexer l = new LuaLexer(code))
+      using (LuaLexer l = new LuaLexer(sChunkName, tr))
       {
         LambdaExpression expr = Parser.ParseChunk(this, l, args);
 

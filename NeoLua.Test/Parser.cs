@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Neo.IronLua;
 
@@ -20,7 +21,7 @@ namespace LuaDLR.Test
 
     private bool TokenTest(string sToken, params KeyValuePair<LuaToken, string>[] token)
     {
-      using (LuaLexer l = new LuaLexer(ScannerBuffer.CreateFromString(sToken, "test.lua")))
+      using (LuaLexer l = new LuaLexer("test.lua", new StringReader(sToken)))
       {
         l.Next();
 
@@ -59,9 +60,10 @@ namespace LuaDLR.Test
       Assert.IsTrue(TokenTest("2",T( LuaToken.Number, "2")));
       Assert.IsTrue(TokenTest("0xA3", T(LuaToken.HexNumber, "0xA3")));
 
-      Assert.IsTrue(TokenTest("and break do else elseif end false for function goto if in local nil not or repeat return then true until while",
+      Assert.IsTrue(TokenTest("and break cast do else elseif end false for function goto if in local nil not or repeat return then true until while",
         T(LuaToken.KwAnd, "and"),
         T(LuaToken.KwBreak, "break"),
+        T(LuaToken.KwBreak, "cast"),
         T(LuaToken.KwDo, "do"),
         T(LuaToken.KwElse, "else"),
         T(LuaToken.KwElseif, "elseif"),

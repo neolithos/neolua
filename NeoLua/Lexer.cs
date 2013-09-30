@@ -13,78 +13,78 @@ namespace Neo.IronLua
   /// <summary>Tokens</summary>
   internal enum LuaToken
   {
-    /// <summary>Nicht definierter Token</summary>
+    /// <summary>Not defined token</summary>
     None,
-    /// <summary>Ende der Datei.</summary>
+    /// <summary>End of file</summary>
     Eof,
 
-    /// <summary>Ungültiges Zeichen</summary>
+    /// <summary>Invalid char</summary>
     InvalidChar,
-    /// <summary>Ungültige Zeichenkette</summary>
+    /// <summary>Invalid string</summary>
     InvalidString,
-    /// <summary>Ungültiger Kommentar</summary>
+    /// <summary>Invalid comment</summary>
     InvalidComment,
 
-    /// <summary>Zeilenumbruch</summary>
+    /// <summary>NewLine</summary>
     NewLine,
-    /// <summary>Leerzeichen</summary>
+    /// <summary>Space</summary>
     Whitespace,
-    /// <summary>Kommentar</summary>
+    /// <summary>Comment</summary>
     Comment,
-    /// <summary>Zeichenkette</summary>
+    /// <summary>string</summary>
     String,
-    /// <summary>Zahl</summary>
+    /// <summary>Integer or floating point number</summary>
     Number,
-    /// <summary>Zahl</summary>
+    /// <summary>Hexadecimal number</summary>
     HexNumber,
-    /// <summary>Bezeichner.</summary>
+    /// <summary>Identifier</summary>
     Identifier,
 
-    /// <summary>Schlüsselwort and</summary>
+    /// <summary>Keyword and</summary>
     KwAnd,
-    /// <summary>Schlüsselwort break</summary>
+    /// <summary>Keyword break</summary>
     KwBreak,
-    /// <summary>Schlüsselwort cast</summary>
+    /// <summary>Keyword cast</summary>
     KwCast,
-    /// <summary>Schlüsselwort do</summary>
+    /// <summary>Keyword do</summary>
     KwDo,
-    /// <summary>Schlüsselwort else</summary>
+    /// <summary>Keyword else</summary>
     KwElse,
-    /// <summary>Schlüsselwort elseif</summary>
+    /// <summary>Keyword elseif</summary>
     KwElseif,
-    /// <summary>Schlüsselwort end</summary>
+    /// <summary>Keyword end</summary>
     KwEnd,
-    /// <summary>Schlüsselwort false</summary>
+    /// <summary>Keyword false</summary>
     KwFalse,
-    /// <summary>Schlüsselwort for</summary>
+    /// <summary>Keyword for</summary>
     KwFor,
-    /// <summary>Schlüsselwort function</summary>
+    /// <summary>Keyword function</summary>
     KwFunction,
-    /// <summary>Schlüsselwort goto</summary>
+    /// <summary>Keyword goto</summary>
     KwGoto,
-    /// <summary>Schlüsselwort if</summary>
+    /// <summary>Keyword if</summary>
     KwIf,
-    /// <summary>Schlüsselwort in</summary>
+    /// <summary>Keyword in</summary>
     KwIn,
-    /// <summary>Schlüsselwort local</summary>
+    /// <summary>Keyword local</summary>
     KwLocal,
-    /// <summary>Schlüsselwort nil</summary>
+    /// <summary>Keyword nil</summary>
     KwNil,
-    /// <summary>Schlüsselwort not</summary>
+    /// <summary>Keyword not</summary>
     KwNot,
-    /// <summary>Schlüsselwort or</summary>
+    /// <summary>Keyword or</summary>
     KwOr,
-    /// <summary>Schlüsselwort repeat</summary>
+    /// <summary>Keyword repeat</summary>
     KwRepeat,
-    /// <summary>Schlüsselwort return</summary>
+    /// <summary>Keyword return</summary>
     KwReturn,
-    /// <summary>Schlüsselwort then</summary>
+    /// <summary>Keyword then</summary>
     KwThen,
-    /// <summary>Schlüsselwort true</summary>
+    /// <summary>Keyword true</summary>
     KwTrue,
-    /// <summary>Schlüsselwort until</summary>
+    /// <summary>Keyword until</summary>
     KwUntil,
-    /// <summary>Schlüsselwort while</summary>
+    /// <summary>Keyword while</summary>
     KwWhile,
 
     /// <summary>+</summary>
@@ -145,274 +145,24 @@ namespace Neo.IronLua
 
   #endregion
 
-  #region -- ScannerBuffer ------------------------------------------------------------
-
-  ///////////////////////////////////////////////////////////////////////////////
-  /// <summary>Daten-Buffer für Text-Dateien, der über Zeilen und Spalten
-  /// wacht.</summary>
-  internal abstract class ScannerBuffer : IDisposable
-  {
-    #region -- class TextReaderScannerBuffer ------------------------------------------
-
-    ///////////////////////////////////////////////////////////////////////////////
-    /// <summary></summary>
-    private class TextReaderScannerBuffer : ScannerBuffer
-    {
-      private bool lEof;
-      private TextReader tr;    // Text-Reader
-
-      public TextReaderScannerBuffer(TextReader tr, int iLine, int iCol, long iOffset, string sFileName)
-        : base(iLine, iCol, iOffset, sFileName)
-      {
-        lEof = false;
-        this.tr = tr;
-      } // ctor
-
-      protected override void Dispose(bool lDisposing)
-      {
-        if (lDisposing)
-          Procs.FreeAndNil<TextReader>(ref tr);
-        base.Dispose(lDisposing);
-      } // proc Dispose
-
-      protected override char InternalRead()
-      {
-        int iChar = tr.Read();
-        if (iChar == -1)
-        {
-          lEof = true;
-          return '\0';
-        }
-        else
-          return (char)iChar;
-      } // func InternalRead
-
-      public override bool Eof { get { return lEof; } }
-    } // class TextReaderScannerBuffer
-
-    #endregion
-
-    #region -- class StringScannerBuffer ----------------------------------------------
-
-    ///////////////////////////////////////////////////////////////////////////////
-    /// <summary></summary>
-    private class StringScannerBuffer : ScannerBuffer
-    {
-      private int iPos;
-      private int iLength;
-      private string sData;    // Text-Reader
-
-      public StringScannerBuffer(string sData, int iStrOffset, int iStrLength, int iLine, int iCol, long iOffset, string sFileName)
-        : base(iLine, iCol, iOffset, sFileName)
-      {
-        this.iPos = iStrOffset;
-        this.iLength = iStrOffset + iStrLength;
-        this.sData = sData;
-      } // ctor
-
-      protected override void Dispose(bool lDisposing)
-      {
-        sData = null;
-        base.Dispose(lDisposing);
-      } // proc Dispose
-
-      protected override char InternalRead()
-      {
-        if (Eof)
-          return '\0';
-        else
-          return sData[iPos++];
-      } // func InternalRead
-
-      public override bool Eof { get { return iPos >= iLength; } }
-    } // class StringScannerBuffer
-
-    #endregion
-
-    private ScannerBuffer oPrev = null;    // Vorheriger Buffer, aus dem gelesen wurde
-    private string sFileName;       // Quelle der Daten
-    private int iCol;               // Spalte in den Daten
-    private int iLine;              // Zeile in den Daten
-
-    private long iIdx;              // Index des Zeichens innerhalb der Datei
-
-    /// <summary>Initialisiert den TextBuffer</summary>
-    /// <param name="iLine">Startzeile, sollte 1 sein.</param>
-    /// <param name="iCol">Startspalte, sollte 1 sein.</param>
-    /// <param name="iOffset">Startindex, sollte 0 sein.</param>
-    /// <param name="sFileName">Dateiname des TextReaders</param>
-    protected ScannerBuffer(int iLine, int iCol, long iOffset, string sFileName)
-    {
-      this.sFileName = sFileName;
-
-      this.iCol = iCol;
-      this.iLine = iLine;
-      this.iIdx = iOffset;
-    } // ctor
-
-    /// <summary>Destructor der Dispose ruft.</summary>
-    ~ScannerBuffer()
-    {
-      Dispose(false);
-    } // dtor
-
-    /// <summary>Gibt den TextReader wieder frei.</summary>
-    public void Dispose()
-    {
-      GC.SuppressFinalize(this);
-      Dispose(true);
-    } // proc Dispose
-
-    /// <summary>Wird aufgerufen, wenn die Klasse freigeben werden soll.</summary>
-    /// <param name="lDisposing"><c>true</c>, es wurde explicit Dispose gerufen.</param>
-    protected virtual void Dispose(bool lDisposing)
-    {
-    } // proc Dispose
-
-    /// <summary>Gibt ein Zeichen aus dem Buffer zurück.</summary>
-    /// <returns>Zeichen, welches gelesen wurde.</returns>
-    protected abstract char InternalRead();
-
-    /// <summary>Gibt ein Zeichen aus dem Buffer zurück.</summary>
-    /// <returns>Zeichen, welches gelesen wurde.</returns>
-    public char Read()
-    {
-      char c = InternalRead();
-      iIdx++;
-      if (c == '\n')
-      {
-        iCol = 1;
-        iLine++;
-      }
-      else
-        iCol++;
-      if (c == '\r')
-        return Read();
-      else
-        return c;
-    } // func Read
-
-    /// <summary>Dateiname</summary>
-    public string FileName { get { return sFileName; } }
-    /// <summary>Spalte, beginnend bei 1.</summary>
-    public int Col { get { return iCol; } }
-    /// <summary>Zeile, beginnend bei 1.</summary>
-    public int Line { get { return iLine; } }
-    /// <summary>Index innerhalb der Daten</summary>
-    public long Index { get { return iIdx; } }
-
-    /// <summary>Vorheriger Buffer</summary>
-    public ScannerBuffer Prev { get { return oPrev; } set { oPrev = value; } }
-    /// <summary>Ende diese Buffers erreicht.</summary>
-    public abstract bool Eof { get; }
-
-    // -- Static --------------------------------------------------------------
-
-    /// <summary>Erzeugt einen Buffer.</summary>
-    /// <param name="sFileName">Dateiname des Buffers</param>
-    /// <returns>Erzeugter Buffer</returns>
-    public static ScannerBuffer Create(string sFileName)
-    {
-      return Create(null, sFileName);
-    } // func Create
-
-    /// <summary>Erzeugt einen Buffer.</summary>
-    /// <param name="oPrev">Vorheriger Buffer</param>
-    /// <param name="sFileName">Dateiname des Buffers</param>
-    /// <returns>Erzeugter Buffer</returns>
-    public static ScannerBuffer Create(ScannerBuffer oPrev, string sFileName)
-    {
-      return Create(oPrev, new StreamReader(sFileName), 1, 1, 0, sFileName);
-    } // func Create
-
-    /// <summary>Erzeugt einen Buffer.</summary>
-    /// <param name="oPrev">Vorheriger Buffer</param>
-    /// <param name="tr"><c>TextReader</c></param>
-    /// <param name="iOffset">Offset bei 0 beginnend, auf dem der TextReader steht.</param>
-    /// <param name="sFileName">Dateiname des Buffers</param>
-    /// <returns>Erzeugter Buffer</returns>
-    public static ScannerBuffer Create(ScannerBuffer oPrev, TextReader tr, long iOffset, string sFileName)
-    {
-      return Create(oPrev, tr, 1, 1, iOffset, sFileName);
-    } // func Create
-
-    /// <summary>Erzeugt einen Buffer.</summary>
-    /// <param name="oPrev">Vorheriger Buffer</param>
-    /// <param name="tr"><c>TextReader</c></param>
-    /// <param name="iLine">Startzeile</param>
-    /// <param name="iCol">Startspalte</param>
-    /// <param name="iOffset">Offset bei 0 beginnend, auf dem der TextReader steht.</param>
-    /// <param name="sFileName">Dateiname des Buffers</param>
-    /// <returns>Erzeugter Buffer</returns>
-    public static ScannerBuffer Create(ScannerBuffer oPrev, TextReader tr, int iLine, int iCol, long iOffset, string sFileName)
-    {
-      return new TextReaderScannerBuffer(tr, iLine, iCol, iOffset, sFileName);
-    } // func Create
-
-    /// <summary>Erzeugt einen Buffer.</summary>
-    /// <param name="sText">Text von dem Buffer erzeugt wird.</param>
-    /// <param name="sFileName">Dateiname von dem der Text kommt.</param>
-    /// <returns>Erzeugter Buffer</returns>
-    public static ScannerBuffer CreateFromString(string sText, string sFileName)
-    {
-      return new StringScannerBuffer(sText, 0, sText.Length, 1, 1, 0, sFileName);
-    } // func CreateFromString
-
-    /// <summary>Erzeugt einen Buffer.</summary>
-    /// <param name="sText">Text von dem Buffer erzeugt wird.</param>
-    /// <param name="iOffset">Offset bei 0 beginned.</param>
-    /// <param name="sFileName">Dateiname von dem der Text kommt.</param>
-    /// <returns>Erzeugter Buffer</returns>
-    public static ScannerBuffer CreateFromString(string sText, int iOffset, string sFileName)
-    {
-      return new StringScannerBuffer(sText, iOffset, sText.Length - iOffset, 1, 1, iOffset, sFileName);
-    } // func CreateFromString
-
-    /// <summary>Erzeugt einen Buffer.</summary>
-    /// <param name="sText">Text von dem Buffer erzeugt wird.</param>
-    /// <param name="iLine">Startzeile</param>
-    /// <param name="iCol">Startspalte</param>
-    /// <param name="iOffset">Offset bei 0 beginned.</param>
-    /// <param name="sFileName">Dateiname von dem der Text kommt.</param>
-    /// <returns>Erzeugter Buffer</returns>
-    public static ScannerBuffer CreateFromString(string sText, int iLine, int iCol, int iOffset, string sFileName)
-    {
-      return new StringScannerBuffer(sText, iOffset, sText.Length - iOffset, iLine, iCol, iOffset, sFileName);
-    } // func CreateFromString
-  } // class ScannerBuffer
-
-  #endregion
-
   #region -- struct Position ----------------------------------------------------------
 
   ///////////////////////////////////////////////////////////////////////////////
-  /// <summary>Position innerhalb einer Textdatei</summary>
+  /// <summary>Position in the source file</summary>
   [TypeConverter(typeof(ExpandableObjectConverter))]
   internal struct Position
   {
     private string sFileName;
-    private long iIdx;
-    private int iCol;
+    private int iColumn;
     private int iLine;
+    private long iIndex;
 
-    /// <summary>Erzeugt eine Position</summary>
-    /// <param name="oBuf">Buffer von dem die Position ausgelesen werden soll.</param>
-    public Position(ScannerBuffer oBuf)
+    public Position(string sFileName, int iLine, int iColumn, long iIndex)
     {
-      if (oBuf == null)
-      {
-        this.sFileName = null;
-        this.iLine = 0;
-        this.iCol = 0;
-        this.iIdx = 0;
-      }
-      else
-      {
-        this.sFileName = oBuf.FileName;
-        this.iLine = oBuf.Line;
-        this.iCol = oBuf.Col;
-        this.iIdx = oBuf.Index;
-      }
+      this.sFileName = sFileName;
+      this.iLine = iLine;
+      this.iColumn = iColumn;
+      this.iIndex = iIndex;
     } // ctor
 
     /// <summary>Umwandlung in ein übersichtliche Darstellung.</summary>
@@ -427,9 +177,9 @@ namespace Neo.IronLua
     /// <summary>Zeile, bei 1 beginnent.</summary>
     public int Line { get { return iLine; } }
     /// <summary>Spalte, bei 1 beginnent.</summary>
-    public int Col { get { return iCol; } }
+    public int Col { get { return iColumn; } }
     /// <summary>Index bei 0 beginnend.</summary>
-    public long Index { get { return iIdx; } }
+    public long Index { get { return iIndex; } }
   } // struct Position
 
   #endregion
@@ -447,22 +197,18 @@ namespace Neo.IronLua
     // -- Token-Wert --
     private LuaToken iKind;
     private string sValue;
-    // -- Fehlerhafter Token --
-    private object oError = null;
 
     /// <summary>Erzeugt einen Token.</summary>
     /// <param name="iKind">Type des Wertes.</param>
     /// <param name="sValue">Der Wert.</param>
-    /// <param name="oError"><c>null</c>, wenn der Token komplett ist, sonst eine Fehlerbeschreibung.</param>
     /// <param name="fStart">Beginn des Tokens</param>
     /// <param name="fEnd">Ende des Tokens</param>
-    public Token(LuaToken iKind, string sValue, object oError, Position fStart, Position fEnd)
+    public Token(LuaToken iKind, string sValue, Position fStart, Position fEnd)
     {
       this.iKind = iKind;
       this.fStart = fStart;
       this.fEnd = fEnd;
       this.sValue = sValue;
-      this.oError = oError;
     } // ctor
 
     /// <summary>Umwandlung in ein übersichtliche Darstellung.</summary>
@@ -483,11 +229,6 @@ namespace Neo.IronLua
     public Position End { get { return fEnd; } }
     /// <summary>Länge des Tokens</summary>
     public int Length { get { unchecked { return (int)(fEnd.Index - fStart.Index); } } }
-
-    /// <summary>Fehlertoken</summary>
-    public bool IsError { get { return oError != null; } }
-    /// <summary>Fehlerobjekt</summary>
-    public object Error { get { return oError; } }
   } // class Token
 
   #endregion
@@ -495,39 +236,45 @@ namespace Neo.IronLua
   #region -- class LuaLexer -----------------------------------------------------------
 
   ///////////////////////////////////////////////////////////////////////////////
-  /// <summary></summary>
-  internal class LuaLexer : IDisposable
+  /// <summary>Lexer for the lua syntax.</summary>
+  internal sealed class LuaLexer : IDisposable
   {
-    private bool lSkipWhitespaces = true;     // Sollen Whitespaces übersprungen werden
-    private bool lSkipComments = true;        // Sollen Kommentare übersprungen werden
-
     private Token lookahead = null;
     private Token current = null;
 
-    private Position fStart;                  // Start des aktuellen Tokens 
-    private Position fEnd;                    // Mögliches Ende des aktuellen Tokens
-    private char cCur;                        // Aktuelles Zeichen
-    private int iState;                       // Aktueller Status
-    private StringBuilder sbCur = null;       // Aktueller Wert
+    private Position fStart;                  // Start of the current token
+    private Position fEnd;                    // Posible end of the current token
+    private char cCur;                        // Current char
+    private int iState;                       // Current state
+    private StringBuilder sbCur = null;       // Currently collected chars
     
-    private ScannerBuffer buffer;    
-    
+    private TextReader tr;                    // Source for the lexer
+    private string sFileName;                 // Name of the source
+    private int iCurrentLine = 1;             // Line in the source file
+    private int iCurrentColumn = 1;           // Column in the source file
+    private long iCurrentIndex = 0;           // Index in the source file
+
     #region -- Ctor/Dtor --------------------------------------------------------------
 
-    /// <summary></summary>
-    /// <param name="buffer">Daten die vom Scanner geparst werden sollen.</param>
-    public LuaLexer(ScannerBuffer buffer)
+    /// <summary>Creates the lexer für the lua parser</summary>
+    /// <param name="sFileName">Filename</param>
+    /// <param name="tr">Input for the scanner, will be disposed on the lexer dispose.</param>
+    public LuaLexer(string sFileName, TextReader tr)
     {
-      this.buffer = buffer;
+      this.tr = tr;
 
       fStart =
-        fEnd = new Position(buffer);
+        fEnd = new Position(sFileName, iCurrentLine, iCurrentColumn, iCurrentIndex);
       cCur = Read(); // Lies das erste Zeichen aus dem Buffer
     } // ctor
 
     public void Dispose()
     {
-      Procs.FreeAndNil(ref buffer);
+      if (tr != null)
+      {
+        tr.Dispose();
+        tr = null;
+      }
     } // proc Dispose
 
     #endregion
@@ -536,14 +283,52 @@ namespace Neo.IronLua
 
     /// <summary>Liest Zeichen aus den Buffer</summary>
     /// <returns>Zeichen oder <c>\0</c>, für das Ende.</returns>
-    protected virtual char Read()
+    private char Read()
     {
-      char c;
-      if (buffer == null)
-        return '\0';
+      int i = -1;
+      if (tr == null) // Source file is readed
+        return '\0'; 
       else
-        c = buffer.Read();
-      return c;
+      {
+        i = tr.Read();
+        if (i == -1) // End of file reached
+        {
+          tr.Dispose();
+          tr = null;
+          return '\0';
+        }
+        else
+        {
+          char c = (char)i;
+
+          iCurrentIndex++;
+
+          // Normalize new line
+          if (c == '\n')
+          {
+            if (tr.Peek() == 13)
+              tr.Read();
+
+            iCurrentColumn = 1;
+            iCurrentLine++;
+
+            return '\n';
+          }
+          else if (c == '\r')
+          {
+            iCurrentColumn = 1;
+            iCurrentLine++;
+           
+            return '\n';
+          }
+          else
+          {
+            iCurrentColumn++;
+            
+            return c;
+          }
+        }
+      }
     } // func Read
 
     #endregion
@@ -552,7 +337,7 @@ namespace Neo.IronLua
 
     /// <summary>Fügt einen Wert an.</summary>
     /// <param name="cCur"></param>
-    protected void AppendValue(char cCur)
+    private void AppendValue(char cCur)
     {
       if (sbCur == null)
         sbCur = new StringBuilder();
@@ -564,7 +349,7 @@ namespace Neo.IronLua
 
     /// <summary>Kopiert das Zeichen in den Wert-Buffer</summary>
     /// <param name="iNewState">Neuer Status des Scanners</param>
-    protected void EatChar(int iNewState)
+    private void EatChar(int iNewState)
     {
       AppendValue(cCur);
       NextChar(iNewState);
@@ -572,23 +357,21 @@ namespace Neo.IronLua
 
     /// <summary>Nächstes Zeichen ohne eine Kopie anzufertigen</summary>
     /// <param name="iNewState">Neuer Status des Scanners</param>
-    protected void NextChar(int iNewState)
+    private void NextChar(int iNewState)
     {
-      if (cCur != '\0' && buffer != null)
-        fEnd = new Position(buffer);
+      fEnd = new Position(sFileName, iCurrentLine, iCurrentColumn, iCurrentIndex);
       cCur = Read();
       iState = iNewState;
     } // proc NextChar
 
     /// <summary>Erzeugt einen Token</summary>
-    /// <param name="iNewState">Neuer Status</param>
     /// <param name="iKind">Art des Tokens</param>
-    /// <param name="oError">Fehlerbeschreibung</param>
+    /// <param name="iNewState"></param>
     /// <returns>Token</returns>
-    protected virtual Token CreateToken(int iNewState, LuaToken iKind, object oError)
+    private Token CreateToken(int iNewState, LuaToken iKind)
     {
       iState = iNewState;
-      Token tok = new Token(iKind, CurValue, oError, fStart, fEnd);
+      Token tok = new Token(iKind, CurValue, fStart, fEnd);
       fStart = fEnd;
       sbCur = null;
       return tok;
@@ -598,73 +381,28 @@ namespace Neo.IronLua
     /// <param name="iKind">Art des Tokens</param>
     /// <param name="iNewState"></param>
     /// <returns>Token</returns>
-    protected Token CreateToken(int iNewState, LuaToken iKind)
-    {
-      return CreateToken(iNewState, iKind, null);
-    } // func CreateToken
-
-    /// <summary>Erzeugt einen Token</summary>
-    /// <param name="iKind">Art des Tokens</param>
-    /// <param name="iNewState"></param>
-    /// <returns>Token</returns>
-    protected Token NextCharAndCreateToken(int iNewState, LuaToken iKind)
+    private Token NextCharAndCreateToken(int iNewState, LuaToken iKind)
     {
       NextChar(iNewState);
-      return CreateToken(iNewState, iKind, null);
-    } // func CreateToken
-
-    /// <summary>Erzeugt einen Token</summary>
-    /// <param name="iKind">Art des Tokens</param>
-    /// <param name="iNewState"></param>
-    /// <param name="oError">Fehlerbeschreibung</param>
-    /// <returns>Token</returns>
-    protected Token NextCharAndCreateToken(int iNewState, LuaToken iKind, object oError)
-    {
-      NextChar(iNewState);
-      return CreateToken(iNewState, iKind, oError);
+      return CreateToken(iNewState, iKind);
     } // func CreateToken
 
     /// <summary>Erzeugt einen Token</summary>
     /// <param name="iKind">Art des Tokens</param>
     /// <param name="iNewState"></param>
     /// <returns>Token</returns>
-    protected Token EatCharAndCreateToken(int iNewState, LuaToken iKind)
+    private Token EatCharAndCreateToken(int iNewState, LuaToken iKind)
     {
       EatChar(iNewState);
-      return CreateToken(iNewState, iKind, null);
+      return CreateToken(iNewState, iKind);
     } // func CreateToken
-
-    /// <summary>Erzeugt einen Token</summary>
-    /// <param name="iKind">Art des Tokens</param>
-    /// <param name="iNewState"></param>
-    /// <param name="oError">Fehlerbeschreibung</param>
-    /// <returns>Token</returns>
-    protected Token EatCharAndCreateToken(int iNewState, LuaToken iKind, object oError)
-    {
-      EatChar(iNewState);
-      return CreateToken(iNewState, iKind, oError);
-    } // func CreateToken
-
-    /// <summary>Entfernt den gesammelten Puffer</summary>
-    public void ClearCurValue()
-    {
-      sbCur = null;
-    } // proc ClearCurValue
-
-    /// <summary>Entfernt Zeichen vom Puffer</summary>
-    /// <param name="iCount">Anzahl der Zeichen</param>
-    protected void RemoveLastChars(int iCount)
-    {
-      if (sbCur != null)
-        sbCur.Remove(sbCur.Length - iCount, iCount);
-    } // proc RemoveLastChars
 
     /// <summary>Akuelles Zeichen</summary>
-    protected char Cur { get { return cCur; } }
+    private char Cur { get { return cCur; } }
     /// <summary>Aktueller Wert</summary>
-    protected string CurValue { get { return sbCur == null ? "" : sbCur.ToString(); } }
+    private string CurValue { get { return sbCur == null ? "" : sbCur.ToString(); } }
     /// <summary>Aktueller Status des Scanners</summary>
-    public int CurState { get { return iState; } set { iState = value; } }
+    private int CurState { get { return iState; } }
 
     #endregion
 
@@ -672,19 +410,19 @@ namespace Neo.IronLua
 
     private Token NextTokenWithSkipRules()
     {
-      Token oNext = NextToken();
-      if (SkipComments && IsComment(oNext.Typ))
+      Token next = NextToken();
+      if (next.Typ == LuaToken.Comment)
       {
-        oNext = NextTokenWithSkipRules();
-        if (IsNewLine(oNext.Typ))
+        next = NextTokenWithSkipRules();
+        if (next.Typ == LuaToken.NewLine)
           return NextTokenWithSkipRules();
         else
-          return oNext;
+          return next;
       }
-      else if (SkipWhitespaces && IsWhitespace(oNext.Typ))
+      else if (next.Typ == LuaToken.Whitespace || next.Typ == LuaToken.NewLine)
         return NextTokenWithSkipRules();
       else
-        return oNext;
+        return next;
     } // func NextTokenWithSkipRules
 
     /// <summary>Liest den nächsten Knoten</summary>
@@ -709,7 +447,7 @@ namespace Neo.IronLua
 
     #region -- NextToken --------------------------------------------------------------
 
-    protected Token NextToken()
+    private Token NextToken()
     {
       char cStringMode = '\0';
       byte bChar = 0;
@@ -1271,26 +1009,6 @@ namespace Neo.IronLua
     } // proc ReadTextBlock
 
     #endregion
-
-    protected bool IsComment(LuaToken iKind)
-    {
-      return iKind == LuaToken.Comment;
-    } // func IsComment
-
-    protected bool IsNewLine(LuaToken iKind)
-    {
-      return iKind == LuaToken.NewLine;
-    } // func IsNewLine
-
-    protected bool IsWhitespace(LuaToken iKind)
-    {
-      return iKind == LuaToken.Whitespace || iKind == LuaToken.NewLine;
-    } // func IsWhitespace
-
-    /// <summary>Sollen Whitespaces übersprungen werden</summary>
-    public bool SkipWhitespaces { get { return lSkipWhitespaces; } set { lSkipWhitespaces = value; } }
-    /// <summary>Sollen Kommentare übersprungen werden</summary>
-    public bool SkipComments { get { return lSkipComments; } set { lSkipComments = value; } }
   } // class LuaLexer
 
   #endregion
