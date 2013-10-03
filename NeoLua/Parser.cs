@@ -339,7 +339,7 @@ namespace Neo.IronLua
           return Expression.Assign(Instance, Expression.Convert(exprToSet, typeof(object)));
         }
         else
-          throw ParseError(Position, "Auf einen Ausdruck kann nichts zugewiesen werden.");
+          throw ParseError(Position, "Expression is not assignable");
       } // func GenerateSet
 
       public Expression GenerateGet(Scope scope)
@@ -384,7 +384,7 @@ namespace Neo.IronLua
           Arguments = null;
         }
         else
-          throw ParseError(Position, "Ausdruck hat kein Ergebnis.");
+          throw ParseError(Position, "Expression as no result.");
 
         return Instance;
       } // func GenerateInstance
@@ -422,7 +422,7 @@ namespace Neo.IronLua
       ParseBlock(globalScope, code);
 
       if (code.Current.Typ != LuaToken.Eof)
-        throw new ArgumentException(); // Todo: LuaException EOF
+        throw ParseError(code.Current, "Unexpected eof.");
 
       // Lese den Chunk ein
       return Expression.Lambda(globalScope.ExpressionBlock, sChunkName, parameters);
@@ -561,11 +561,11 @@ namespace Neo.IronLua
           return true;
 
         case LuaToken.InvalidString:
-          throw ParseError(code.Current, "Zeilenvorschub in Konstante.");
+          throw ParseError(code.Current, "Newline in string constant.");
         case LuaToken.InvalidComment:
-          throw ParseError(code.Current, "Nicht geschlossener Kommentar.");
+          throw ParseError(code.Current, "Comment not closed.");
         case LuaToken.InvalidChar:
-          throw ParseError(code.Current, "Unerwartetes Zeichen.");
+          throw ParseError(code.Current, "Unexpected char.");
 
         default:
           return false;
@@ -798,7 +798,7 @@ namespace Neo.IronLua
           break;
 
         default:
-          throw ParseError(code.Current, "Literal, function oder TableCtor erwartet.");
+          throw ParseError(code.Current, "Literal, function or tablector expected.");
       }
 
       return ParseSuffix(scope, code, info);
@@ -1135,6 +1135,7 @@ namespace Neo.IronLua
         sbTypeName.Append(FetchToken(LuaToken.Identifier, code).Value);
         while (code.Current.Typ == LuaToken.Dot)
         {
+          code.Next();
           sbTypeName.Append('.');
           sbTypeName.Append(FetchToken(LuaToken.Identifier, code).Value);
         }
@@ -1185,9 +1186,9 @@ namespace Neo.IronLua
         case "type":
           return typeof(Type);
         default:
-          Type type = Type.GetType(sTypeName, false);
+          Type type = Lua.GetType(sTypeName);
           if (type == null)
-            throw ParseError(t, String.Format("Type '{0}' nicht gefunden.", sTypeName));
+            throw ParseError(t, String.Format("Type '{0}' not found.", sTypeName));
           else
             return type;
       }
@@ -1613,7 +1614,7 @@ Note the following:
       else if (lOptional)
         return null;
       else
-        throw ParseError(code.Current, String.Format("Unerwarteter Token {0} anstatt {1} gefunden.", code.Current.Typ, typ));
+        throw ParseError(code.Current, String.Format("Unexpected token '{0}'. '{1}' expected.", code.Current.Typ, typ));
     } // proc FetchToken
 
     private static LuaParseException ParseError(Token start, string sMessage)

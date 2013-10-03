@@ -165,7 +165,7 @@ namespace Neo.IronLua
             iAssemblyCount >= 0 && // Dieser Knoten wurde als Namespace identifiziert
             AppDomain.CurrentDomain.GetAssemblies().Length != iAssemblyCount) // Anzahl der Assemblies hat sich geändert
         {
-          type = Type.GetType(FullName, false);
+          type = Lua.GetType(FullName);
         }
         return type;
       } // func GetItemType
@@ -663,16 +663,51 @@ namespace Neo.IronLua
 
     // -- Static --------------------------------------------------------------
 
+    private static object luaStaticLock = new object();
     private static IDynamicMetaObjectProvider luaStringProxy = null;
     private static IDynamicMetaObjectProvider luaMathProxy = null;
     private static IDynamicMetaObjectProvider luaOsProxy = null;
+
+    private static Dictionary<string, Type> knownTypes = null;
+
+    internal static Type GetType(string sTypeName)
+    {
+      Type type = Type.GetType(sTypeName, false);
+      if (type == null)
+        lock (luaStaticLock)
+        {
+          // Lookup the type in the cache
+          if (knownTypes != null && knownTypes.TryGetValue(sTypeName, out type))
+            return type;
+
+          // Lookup the type in all loaded assemblies
+          var asms = AppDomain.CurrentDomain.GetAssemblies();
+          for (int i = 0; i < asms.Length; i++)
+          {
+            if ((type = asms[i].GetType(sTypeName, false)) != null)
+              break;
+          }
+
+          // Put the type in the cache
+          if (type != null)
+          {
+            if (knownTypes == null)
+              knownTypes = new Dictionary<string, Type>();
+            knownTypes[sTypeName] = type;
+          }
+        }
+      return type;
+    } // func GetType
 
     private static IDynamicMetaObjectProvider LuaStringProxy
     {
       get
       {
-        if (luaStringProxy == null)
-          luaStringProxy = new LuaPackageProxy(typeof(LuaString));
+        lock (luaStaticLock)
+        {
+          if (luaStringProxy == null)
+            luaStringProxy = new LuaPackageProxy(typeof(LuaString));
+        }
         return luaStringProxy;
       }
     } // prop LuaOs
@@ -681,8 +716,11 @@ namespace Neo.IronLua
     {
       get
       {
-        if (luaMathProxy == null)
-          luaMathProxy = new LuaPackageProxy(typeof(LuaMath));
+        lock (luaStaticLock)
+        {
+          if (luaMathProxy == null)
+            luaMathProxy = new LuaPackageProxy(typeof(LuaMath));
+        }
         return luaMathProxy;
       }
     } // prop LuaMathProxy
@@ -691,9 +729,12 @@ namespace Neo.IronLua
     {
       get
       {
-        if (luaOsProxy == null)
-          luaOsProxy = new LuaPackageProxy(typeof(LuaOS));
-        return luaOsProxy;
+        lock (luaStaticLock)
+        {
+          if (luaOsProxy == null)
+            luaOsProxy = new LuaPackageProxy(typeof(LuaOS));
+          return luaOsProxy;
+        }
       }
     } // prop LuaOs
   } // class Lua

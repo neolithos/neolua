@@ -141,8 +141,21 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject FallbackGetIndex(DynamicMetaObject target, DynamicMetaObject[] indexes, DynamicMetaObject errorSuggestion)
       {
-        throw new NotImplementedException();
-      }
+        // Defer the parameters
+        if (!target.HasValue || indexes.Any(c => !c.HasValue))
+        {
+          DynamicMetaObject[] def = new DynamicMetaObject[indexes.Length + 1];
+          def[0] = target;
+          Array.Copy(indexes, 0, def, 1, indexes.Length);
+          return Defer(def);
+        }
+
+        Expression expr;
+        if (GetIndexAccessExpression(target, indexes, out expr))
+          return new DynamicMetaObject(Expression.Convert(expr, typeof(object)), Lua.GetMethodSignatureRestriction(target, indexes));
+        else
+          return errorSuggestion ?? new DynamicMetaObject(expr, Lua.GetMethodSignatureRestriction(target, indexes));
+      } // func FallbackGetIndex
     } // class LuaGetIndexBinder
 
     #endregion
@@ -160,8 +173,28 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject FallbackSetIndex(DynamicMetaObject target, DynamicMetaObject[] indexes, DynamicMetaObject value, DynamicMetaObject errorSuggestion)
       {
-        throw new NotImplementedException();
-      }
+        // Defer the parameters
+        if (!target.HasValue || indexes.Any(c => !c.HasValue))
+        {
+          DynamicMetaObject[] def = new DynamicMetaObject[indexes.Length + 1];
+          def[0] = target;
+          Array.Copy(indexes, 0, def, 1, indexes.Length);
+          return Defer(def);
+        }
+
+        // Get the GetIndex-Expression
+        Expression expr;
+        if (!GetIndexAccessExpression(target, indexes, out expr))
+          return errorSuggestion ?? new DynamicMetaObject(expr, Lua.GetMethodSignatureRestriction(target, indexes));
+
+        // Create the Assign
+        expr = Expression.Convert(Expression.Assign(expr, Lua.ConvertTypeExpression(value.Expression, value.LimitType, expr.Type)), typeof(object));
+
+        return new DynamicMetaObject(expr, 
+          Lua.GetMethodSignatureRestriction(target, indexes)
+            .Merge(BindingRestrictions.GetTypeRestriction(value.Expression, value.LimitType))
+          );
+      } // func FallbackSetIndex
     } // class LuaSetIndexBinder
 
     #endregion
@@ -596,6 +629,11 @@ namespace Neo.IronLua
           expr = Expression.Constant(dlg, typeof(Delegate));
           return BindResult.Ok;
         }
+        else if (member.MemberType == MemberTypes.NestedType)
+        {
+          expr = Lua.ThrowExpression(String.Format("'{0}' kann nicht gelesen werden.", binder.Name));
+          return BindResult.MemberNotFound;
+        }
         else // Member kann nicht gelesen werden
         {
           expr = Lua.ThrowExpression(String.Format("'{0}' kann nicht gelesen werden.", binder.Name));
@@ -612,7 +650,9 @@ namespace Neo.IronLua
 
     private static BindResult TryBindInvokeMember(InvokeMemberBinder binder, bool lUseCtor, DynamicMetaObject target, DynamicMetaObject[] arguments, out Expression expr)
     {
-      MethodBase miBind = BindFindInvokeMember(binder, lUseCtor, target, arguments);
+      MethodBase miBind = lUseCtor ?
+        (MethodBase)BindFindInvokeMember<ConstructorInfo>(null, false, target, arguments) :
+        (MethodBase)BindFindInvokeMember<MethodInfo>(binder.Name, binder.IgnoreCase, target, arguments);
 
       // Wurde ein Member gefunden
       if (miBind == null)
@@ -631,94 +671,7 @@ namespace Neo.IronLua
       Expression expr;
       List<ParameterExpression> vars = new List<ParameterExpression>(); // Variablen für die Rückgabe
       List<Expression> callBlock = new List<Expression>();              // Instructions für den Ruf
-      ParameterInfo[] parameters = miBind.GetParameters();              // Parameter der zu rufenden Funktion
-      Expression[] exprPara = new Expression[parameters.Length];        // Parameter für die Funktion
-
-      int iLastArgIndex = -1;   // Index auf das letzten object[] Argument
-      int iLastIndexCount = -1; // Index für den letzten object[] Argument
-
-      for (int i = 0; i < exprPara.Length; i++)
-      {
-        var p = parameters[i];
-
-        // es handelt sich um ein Array, also strecke die restlichen Parameter
-        if (i == exprPara.Length - 1 && p.ParameterType.IsArray)
-        {
-          Type elementType = p.ParameterType.GetElementType();
-
-          if (arguments.Length <= i && iLastArgIndex == -1) // Es gibt keine Parameter mehr, erzeuge ein leeres Array
-            exprPara[i] = Expression.NewArrayInit(elementType);
-          else
-          {
-            List<Expression> exprArray = new List<Expression>(); // Sammelt die Array Elemente
-
-            // Es sind noch Argumente übrig, füge Sie ins Array ein
-            if (iLastArgIndex == -1)
-            {
-              int iCount = arguments.Length - i;
-              for (int j = 0; j < iCount; j++)
-              {
-                Expression c = arguments[i + j].Expression;
-                if (j == iCount - 1 && c.Type == typeof(object[])) // Beginne die Array-Zählung
-                {
-                  iLastArgIndex = i + j;
-                  iLastIndexCount = 0;
-                  break;
-                }
-                exprArray.Add(Lua.RuntimeHelperConvertExpression(c, elementType));
-              }
-            }
-            // Erzeuge eine Funktion, die ein neues Array zusammen baut
-            if (iLastArgIndex >= 0)
-            {
-              exprPara[i] = Expression.Convert(
-                Lua.RuntimeHelperExpression(
-                  RuntimeHelper.ConcatArrays,
-                  Expression.Constant(elementType, typeof(Type)),
-                  Expression.Convert(Expression.NewArrayInit(elementType, exprArray), typeof(Array)),
-                  Expression.Convert(arguments[iLastArgIndex].Expression, typeof(Array)),
-                  Expression.Constant(iLastIndexCount, typeof(int))
-                ),
-                p.ParameterType);
-            }
-            else
-              exprPara[i] = Expression.NewArrayInit(elementType, exprArray);
-          }
-        }
-        else
-        {
-          // Erzeuge den GetParameter
-          Expression exprParameterGet;
-
-          // Das letzte Argument wurde getroffen und es ist ein Array, dann starte das abrollen des Arrays
-          if (i == arguments.Length - 1 && arguments[i].LimitType == typeof(object[]))
-          {
-            iLastArgIndex = i;
-            iLastIndexCount = 0;
-          }
-
-          // Erzeuge die Expression für den Parameter
-          if (iLastArgIndex >= 0)
-            exprParameterGet = Lua.RuntimeHelperExpression(RuntimeHelper.GetObject, arguments[iLastArgIndex].Expression, Expression.Constant(iLastIndexCount++, typeof(int)));
-          else if (i < arguments.Length)
-            exprParameterGet = Lua.RuntimeHelperConvertExpression(arguments[i].Expression, p.ParameterType);
-          else if (p.IsOptional)
-            exprParameterGet = Expression.Constant(p.DefaultValue, p.ParameterType);
-          else
-            exprParameterGet = Expression.Default(p.ParameterType);
-
-          // Erzeuge Variable für die Rückgabe
-          if (p.IsOut)
-          {
-            ParameterExpression r = Expression.Variable(p.ParameterType, "r" + i.ToString());
-            vars.Add(r);
-            callBlock.Add(Expression.Assign(r, exprParameterGet));
-            exprPara[i] = r;
-          }
-          else
-            exprPara[i] = exprParameterGet;
-        }
-      }
+      Expression[] exprPara = BindInvokeParameters(miBind.GetParameters(), arguments, vars, callBlock);
 
       // Rückgabe
       Type returnType;
@@ -751,9 +704,9 @@ namespace Neo.IronLua
       else
       {
         Expression[] r = new Expression[vars.Count + 1];
-        r[0] = exprCall;
+        r[0] = Lua.ToObjectExpression(exprCall);
         for (int i = 0; i < vars.Count; i++)
-          r[i + 1] = vars[i];
+          r[i + 1] = Lua.ToObjectExpression(vars[i]);
         callBlock.Add(Expression.NewArrayInit(typeof(object), r));
         expr = Expression.Block(vars, callBlock);
       }
@@ -761,20 +714,129 @@ namespace Neo.IronLua
       return expr;
     } // func InvokeMemberExpression
 
-    private static MethodBase BindFindInvokeMember(InvokeMemberBinder binder, bool lUseCtor, DynamicMetaObject target, DynamicMetaObject[] arguments)
+    private static Expression[] BindInvokeParameters(ParameterInfo[] parameters, DynamicMetaObject[] arguments, List<ParameterExpression> vars, List<Expression> callBlock)
+    {
+      Expression[] exprPara = new Expression[parameters.Length]; // Parameters for the function
+
+      int iLastArgIndex = -1;   // Index to the last object[] argument
+      int iLastIndexCount = -1; // Index for the last object[] argument
+
+      for (int i = 0; i < exprPara.Length; i++)
+      {
+        var p = parameters[i];
+
+        // the last parameter is an array, stretch the argument list
+        if (i == exprPara.Length - 1 && p.ParameterType.IsArray)
+        {
+          Type elementType = p.ParameterType.GetElementType();
+
+          if (arguments.Length <= i && iLastArgIndex == -1) // No arguments left, create an empty array
+            exprPara[i] = Expression.NewArrayInit(elementType);
+          else
+          {
+            List<Expression> exprArray = new List<Expression>(); // Collect the last arguments
+
+            // Attach the last arguments to the array
+            if (iLastArgIndex == -1)
+            {
+              int iCount = arguments.Length - i;
+              for (int j = 0; j < iCount; j++)
+              {
+                Expression c = arguments[i + j].Expression;
+                if (j == iCount - 1 && c.Type == typeof(object[])) // Start the array counting
+                {
+                  iLastArgIndex = i + j;
+                  iLastIndexCount = 0;
+                  break;
+                }
+                exprArray.Add(Lua.RuntimeHelperConvertExpression(c, elementType));
+              }
+            }
+            // Create the function that creates an complete array with all arguments
+            if (iLastArgIndex >= 0)
+            {
+              exprPara[i] = Expression.Convert(
+                Lua.RuntimeHelperExpression(
+                  RuntimeHelper.ConcatArrays,
+                  Expression.Constant(elementType, typeof(Type)),
+                  Expression.Convert(Expression.NewArrayInit(elementType, exprArray), typeof(Array)),
+                  Expression.Convert(arguments[iLastArgIndex].Expression, typeof(Array)),
+                  Expression.Constant(iLastIndexCount, typeof(int))
+                ),
+                p.ParameterType);
+            }
+            else // Create the array with the arguments
+              exprPara[i] = Expression.NewArrayInit(elementType, exprArray);
+          }
+        }
+        else
+        {
+          // Holds the argument get
+          Expression exprGet;
+
+          // The last argument is an array (object[] eg. function), start the stretching of the array
+          if (i == arguments.Length - 1 && arguments[i].LimitType == typeof(object[]))
+          {
+            iLastArgIndex = i;
+            iLastIndexCount = 0;
+          }
+
+          Type typeParameter;
+          if (p.ParameterType.IsByRef)
+            typeParameter = p.ParameterType.GetElementType();
+          else
+            typeParameter = p.ParameterType;
+
+          // get-Expression for the argument
+          if (iLastArgIndex >= 0)
+            exprGet = Lua.RuntimeHelperExpression(RuntimeHelper.GetObject, arguments[iLastArgIndex].Expression, Expression.Constant(iLastIndexCount++, typeof(int))); // We stretch the last argument
+          else if (i < arguments.Length)
+            exprGet = Lua.RuntimeHelperConvertExpression(arguments[i].Expression, typeParameter); // Convert the Argument
+          else if (p.IsOptional)
+            exprGet = Expression.Constant(p.DefaultValue, typeParameter); // No argument, but we have a default value -> use it
+          else
+            exprGet = Expression.Default(typeParameter); // No argument, No default value -> use default of type
+
+          // Create a variable for the byref parameters
+          if (p.ParameterType.IsByRef)
+            if (vars != null && callBlock != null)
+            {
+              ParameterExpression r = Expression.Variable(typeParameter, "r" + i.ToString());
+              vars.Add(r);
+              callBlock.Add(Expression.Assign(r, exprGet));
+              exprPara[i] = r;
+            }
+            else
+              throw new ArgumentNullException("vars and callblock");
+          else
+            exprPara[i] = exprGet; // Normal byval parameter
+        }
+      }
+      return exprPara;
+    } // func BindInvokeParameters
+
+    private static T BindFindInvokeMember<T>(string sName, bool lIgnoreCase, DynamicMetaObject target, DynamicMetaObject[] arguments)
+      where T : MemberInfo
     {
       Type type = target.LimitType;
-      MemberInfo[] members = lUseCtor ? 
-        type.GetConstructors() : 
-        type.GetMember(binder.Name, GetBindingFlags(target.Value != null, binder.IgnoreCase));
+      MemberInfo[] members;
 
-      // Suche den passenden Member anhand der Parameter und sammle sie
-      int iMaxParameterLength = 0;
-      MethodBase miBind = null;
-      int iCurParameterLength = 0;
-      int iCurMatchCount = -1;
+      // Collect the member info's
+      if (typeof(T) == typeof(ConstructorInfo))
+        members = type.GetConstructors();
+      else if (typeof(T) == typeof(MethodInfo))
+        members = type.GetMember(sName, GetBindingFlags(target.Value != null, lIgnoreCase) | BindingFlags.InvokeMethod);
+      else if (typeof(T) == typeof(PropertyInfo))
+        members = type.GetMember(sName, GetBindingFlags(target.Value != null, lIgnoreCase) | BindingFlags.GetProperty | BindingFlags.SetProperty);
+      else
+        throw new ArgumentException();
 
-      // Ermittle die Anzahl der Parameter
+      int iMaxParameterLength = 0;    // Max length of the argument list, can also MaxInt for variable argument length
+      T miBind = null;                // Member that matches best
+      int iCurParameterLength = 0;    // Length of the arguments of the current match
+      int iCurMatchCount = -1;        // How many arguments match of this list
+
+      // Get the max. list of arguments we want to consume
       if (arguments.Length > 0)
       {
         iMaxParameterLength =
@@ -785,23 +847,32 @@ namespace Neo.IronLua
 
       for (int i = 0; i < members.Length; i++)
       {
-        MethodBase miCur = members[i] as MethodBase;
-        if (miCur != null) // MethodInfo
+        T miCur = members[i] as T;
+        if (miCur != null)
         {
-          // Wird die Anzahl erreicht
-          ParameterInfo[] parameters = miCur.GetParameters();
+          // Get the Parameters
+          ParameterInfo[] parameters = GetMemberParameter<T>(miCur);
 
-          // Haben wir schon einen Member gefunden, ist die aktuelle Instanz besser
+          // How many parameters we have
+          int iParametersLength = parameters.Length;
+          if (iParametersLength > 0 && parameters[iParametersLength - 1].ParameterType.IsArray)
+            iParametersLength = Int32.MaxValue;
+
+          // We have already a match, is the new one better
           if (miBind != null)
           {
-            if (parameters.Length == iMaxParameterLength) // Prüfe den Objekttyp
+            if (iParametersLength == iMaxParameterLength && iCurParameterLength == iMaxParameterLength)
             {
-              ParameterInfo[] curParameters = iCurMatchCount == -1 ? miBind.GetParameters() : null;
+              // Get the parameter of the current match
+              ParameterInfo[] curParameters = iCurMatchCount == -1 ? GetMemberParameter<T>(miBind) : null;
               int iNewMatchCount = 0;
               int iCount;
+
+              // Count the parameters of the current match, because they are not collected
               if (curParameters != null)
                 iCurMatchCount = 0;
 
+              // Max length of the parameters
               if (iCurParameterLength == Int32.MaxValue)
               {
                 iCount = parameters.Length;
@@ -811,7 +882,8 @@ namespace Neo.IronLua
               else
                 iCount = iCurParameterLength;
 
-              for (int j = 0; j < iCurParameterLength; j++)
+              // Check the matches
+              for (int j = 0; j < iCount; j++)
               {
                 if (curParameters != null && IsMatchParameter(j, curParameters, arguments))
                   iCurMatchCount++;
@@ -821,27 +893,43 @@ namespace Neo.IronLua
               if (iNewMatchCount > iCurMatchCount)
               {
                 miBind = miCur;
-                iCurParameterLength = parameters.Length;
+                iCurParameterLength = iParametersLength;
                 iCurMatchCount = iNewMatchCount;
               }
             }
-            else if (iMaxParameterLength != iCurParameterLength && iCurParameterLength < parameters.Length) // Ist die Anzahl der Parameter größer
+            else if (iMaxParameterLength != iCurParameterLength && iCurParameterLength < iParametersLength)
             {
+              // if the new parameter length is greater then the old one, it matches best
               miBind = miCur;
-              iCurParameterLength = parameters.Length;
+              iCurParameterLength = iParametersLength;
               iCurMatchCount = -1;
             }
           }
           else
           {
+            // First match, take it
             miBind = miCur;
-            iCurParameterLength = parameters.Length;
+            iCurParameterLength = iParametersLength;
             iCurMatchCount = -1;
           }
         }
       }
       return miBind;
     } // proc BindFindInvokeMember
+
+    private static ParameterInfo[] GetMemberParameter<T>(T mi)
+      where T : MemberInfo
+    {
+      MethodBase mb = mi as MethodBase;
+      PropertyInfo pi = mi as PropertyInfo;
+
+      if (mb != null)
+        return mb.GetParameters();
+      else if (pi != null)
+        return pi.GetIndexParameters();
+      else
+        throw new ArgumentException();
+    } // func GetMemberParameter
 
     private static bool IsMatchParameter(int j, ParameterInfo[] parameters, DynamicMetaObject[] arguments)
     {
@@ -907,6 +995,38 @@ namespace Neo.IronLua
             Lua.ThrowExpression(String.Format("Typ '{0}' kann nicht aufgerufen werden.", target.LimitType.Name)),
             restrictions);
     } // proc BindFallbackInvoke
+
+    private static bool GetIndexAccessExpression(DynamicMetaObject target, DynamicMetaObject[] indexes, out Expression expr)
+    {
+      
+      if (typeof(Array).IsAssignableFrom(target.LimitType)) // Is the target an array
+      {
+        Expression[] args = new Expression[indexes.Length];
+
+        // The indexes should be casted on integer
+        for (int i = 0; i < args.Length; i++)
+          args[i] = Lua.ConvertTypeExpression(indexes[i].Expression, indexes[i].LimitType, typeof(int));
+
+        expr = Expression.ArrayAccess(Expression.Convert(target.Expression, target.LimitType), args);
+        return true;
+      }
+      else
+      {
+        PropertyInfo pi = BindFindInvokeMember<PropertyInfo>("Item", false, target, indexes);
+
+        if (pi == null) // No Index found
+        {
+          expr = Lua.ThrowExpression(String.Format("No index found for type '{0}'.", target.LimitType.Name));
+          return false;
+        }
+        else // Create the index expression
+        {
+          Expression[] args = BindInvokeParameters(pi.GetIndexParameters(), indexes, null, null);
+          expr = Expression.MakeIndex(Expression.Convert(target.Expression, target.LimitType), pi, args);
+          return true;
+        }
+      }
+    } // func GetIndexAccessExpression
 
     #endregion
 

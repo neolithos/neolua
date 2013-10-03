@@ -261,6 +261,7 @@ namespace Neo.IronLua
     /// <param name="tr">Input for the scanner, will be disposed on the lexer dispose.</param>
     public LuaLexer(string sFileName, TextReader tr)
     {
+      this.sFileName = sFileName;
       this.tr = tr;
 
       fStart =

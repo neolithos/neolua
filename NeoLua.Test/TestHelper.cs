@@ -74,6 +74,11 @@ namespace LuaDLR.Test
       l.PrintExpressionTree = true;
       object[] r = l.DoChunk(sCode, "test.lua");
 
+      return TestReturn(result, r);
+    } // func TestReturn
+
+    protected static bool TestReturn(object[] result, params object[] r)
+    {
       if (r.Length != result.Length)
         return false;
 
@@ -83,7 +88,7 @@ namespace LuaDLR.Test
         { }
         else
         {
-          Debug.Print("{0} != {1}", r[0], result);
+          Debug.Print("{0} != {1}", r[i], result[i]);
           return false;
         }
       return true;
