@@ -315,10 +315,10 @@ namespace Neo.IronLua
         object[] v = (object[])value;
 
         for (int i = 0; i < v.Length; i++)
-          t.SetValue(iStartIndex++, v[i]);
+          t[iStartIndex++] = v[i];
       }
       else
-        t.SetValue(iStartIndex, value);
+        t[iStartIndex] = value;
       return t;
     } // func RtTableSetObjects
 

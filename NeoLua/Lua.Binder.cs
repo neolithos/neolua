@@ -214,12 +214,7 @@ namespace Neo.IronLua
       {
         // Lösche die Parameter auf
         if (!target.HasValue || args.Any(c => !c.HasValue))
-        {
-          DynamicMetaObject[] def = new DynamicMetaObject[args.Length + 1];
-          def[0] = target;
-          Array.Copy(args, 0, def, 1, args.Length);
-          return Defer(def);
-        }
+          return Defer(target, args);
 
         if (target.Value == null) // Invoke auf null
           return new DynamicMetaObject(ThrowExpression("Nullwert kann nicht aufgerufen werden."), BindingRestrictions.GetInstanceRestriction(target.Expression, target.Value));
@@ -244,28 +239,15 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject FallbackInvoke(DynamicMetaObject target, DynamicMetaObject[] args, DynamicMetaObject errorSuggestion)
       {
-        // Lösche die Parameter auf
-        if (!target.HasValue || args.Any(c => !c.HasValue))
-        {
-          DynamicMetaObject[] def = new DynamicMetaObject[args.Length + 1];
-          def[0] = target;
-          Array.Copy(args, 0, def, 1, args.Length);
-          return Defer(def);
-        }
-
-        return BindFallbackInvoke(target, args, errorSuggestion);
+        LuaInvokeBinder binder = new LuaInvokeBinder(CallInfo);
+        return binder.Defer(target, args);
       } // func FallbackInvoke
 
       public override DynamicMetaObject FallbackInvokeMember(DynamicMetaObject target, DynamicMetaObject[] args, DynamicMetaObject errorSuggestion)
       {
         // Lösche die Parameter auf
         if (!target.HasValue || args.Any(c => !c.HasValue))
-        {
-          DynamicMetaObject[] def = new DynamicMetaObject[args.Length + 1];
-          def[0] = target;
-          Array.Copy(args, 0, def, 1, args.Length);
-          return Defer(def);
-        }
+          return Defer(target, args);
 
         var restrictions = GetMethodSignatureRestriction(target, args);
         Expression expr;
@@ -276,7 +258,6 @@ namespace Neo.IronLua
           default:
             return errorSuggestion ?? new DynamicMetaObject(expr, restrictions);
         }
-        //return BindInvoke(new Position(), this, Name, target, args, errorSuggestion);
       } // func FallbackInvokeMember
     } // class LuaInvokeMemberBinder
 
@@ -397,12 +378,12 @@ namespace Neo.IronLua
         if (!target.HasValue)
           return Defer(target);
 
-        var restrictions = target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
-
         if (target.LimitType == typeof(object[]) || typeof(object[]).IsAssignableFrom(target.LimitType))
-          return new DynamicMetaObject(Expression.Convert(target.Expression, typeof(object[])), restrictions);
+          return new DynamicMetaObject(Expression.Convert(target.Expression, typeof(object[])), target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType)));
+        else if (target.Value != null)
+          return new DynamicMetaObject(Expression.NewArrayInit(typeof(object), Expression.Convert(target.Expression, typeof(object))), target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType)));
         else
-          return new DynamicMetaObject(Expression.NewArrayInit(typeof(object[]), Expression.Convert(target.Expression, typeof(object))), restrictions);
+          return new DynamicMetaObject(Expression.Constant(emptyResult, typeof(object[])), target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, target.Value)));
       } // func FallbackConvert
     } // class LuaConvertFunctionResultBinder
 

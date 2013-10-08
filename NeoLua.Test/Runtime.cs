@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Neo.IronLua;
 
 namespace LuaDLR.Test
 {
@@ -55,5 +57,23 @@ namespace LuaDLR.Test
     {
       Assert.IsTrue(TestReturn("local a = clr.LuaDLR.Test.Runtime.SubClass:ctor(4); return a.Value;", (byte)4));
     } // proc TestRuntimeClrClass02
+
+    [TestMethod]
+    public void TestRuntimeLua01()
+    {
+      Assert.IsTrue(TestReturn("print('Hallo Welt');"));
+    } // proc TestRuntimeLua01
+
+    [TestMethod]
+    public void TestRuntimeLua02()
+    {
+      Assert.IsTrue(TestReturn("local p = print; print = function() p('Hallo Welt'); end; print();"));
+    } // proc TestRuntimeLua02
+
+    [TestMethod]
+    public void TestRuntimeLua03()
+    {
+      Assert.IsTrue(TestReturn("return cast(int, math.abs(-1));", 1));
+    } // proc TestRuntimeLua03
   } // class Runtime
 }

@@ -28,13 +28,21 @@ namespace Neo.IronLua
       if (function == null)
         throw new ArgumentNullException("function");
 
-      SetValue(sName, function);
+      this[sName] = function;
     } // proc RegisterFunction
 
-    public void UnregisterFunction(string sName)
+    /// <summary>Registers a type as an library.</summary>
+    /// <param name="sName"></param>
+    /// <param name="type"></param>
+    public void RegisterPackage(string sName, Type type)
     {
-      SetValue(sName, null);
-    } // proc UnregisterFunction
+      if (String.IsNullOrEmpty(sName))
+        throw new ArgumentNullException("name");
+      if (type == null)
+        throw new ArgumentNullException("type");
+
+      this[sName] = new LuaPackageProxy(type);
+    } // func RegisterPackage
 
     #endregion
 

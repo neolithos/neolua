@@ -51,6 +51,7 @@
     <Compile Include="Lua.Binder.cs" />
     <Compile Include="Lua.cs" />
     <Compile Include="Lua.Helper.cs" />
+    <Compile Include="Lua.Libraries.cs" />
     <Compile Include="Lua.Runtime.cs" />
     <Compile Include="LuaTable.cs" />
     <Compile Include="Parser.cs" />

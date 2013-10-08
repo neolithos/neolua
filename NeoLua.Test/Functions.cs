@@ -95,7 +95,7 @@ namespace LuaDLR.Test
     {
       Lua l = new Lua();
       l.PrintExpressionTree = true;
-      l.SetValue("a", new TestParam());
+      l["a"] = new TestParam();
       object[] r = l.DoChunk("local b = a:GetValue(); return b;", "test.lua");
       Assert.IsTrue(TestReturn(r, 4));
     } // proc TestFunctions10
@@ -106,7 +106,7 @@ namespace LuaDLR.Test
       int[] test = new int[] { 1, 2, 3 };
       Lua l = new Lua();
       l.PrintExpressionTree = true;
-      l.SetValue("test", test);
+      l["test"] = test;
       Assert.IsTrue(TestReturn(l.DoChunk("return test[0], test[1], test[2];", "test.lua"), 1, 2, 3));
     } // proc TestFunction11
 
@@ -116,7 +116,7 @@ namespace LuaDLR.Test
       int[,] test = new int[,] { {1, 2}, {3, 4} };
       Lua l = new Lua();
       l.PrintExpressionTree = true;
-      l.SetValue("test", test);
+      l["test"] = test;
       Assert.IsTrue(TestReturn(l.DoChunk("return test[0, 0], test[0, 1], test[1,0], test[1,1];", "test.lua"), 1, 2, 3, 4));
     } // proc TestFunction12
 
@@ -125,7 +125,7 @@ namespace LuaDLR.Test
     {
       Lua l = new Lua();
       l.PrintExpressionTree = true;
-      l.SetValue("test", new TestParam());
+      l["test"] = new TestParam();
       Assert.IsTrue(TestReturn(l.DoChunk("return test[0], test[1];", "test.lua"), 0, 1));
     } // proc TestFunction13
 
@@ -135,7 +135,7 @@ namespace LuaDLR.Test
       int[] test = new int[] { 1, 2, 3 };
       Lua l = new Lua();
       l.PrintExpressionTree = true;
-      l.SetValue("test", test);
+      l["test"] = test;
       Assert.IsTrue(TestReturn(l.DoChunk("test[0] = 42; return test[0];", "test.lua"), 42));
     } // proc TestFunction14
   } // class Functions

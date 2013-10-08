@@ -20,7 +20,7 @@ namespace Neo.IronLua
     private const string csReturnLabel = "#return";
     private const string csBreakLabel = "#break";
     private const string csContinueLabel = "#continue";
-    private const string csEnv = "_ENV";
+    private const string csEnv = "_G";
 
     #region -- class Scope ------------------------------------------------------------
 
@@ -305,7 +305,7 @@ namespace Neo.IronLua
     #region -- class PrefixMemberInfo -------------------------------------------------
 
     ///////////////////////////////////////////////////////////////////////////////
-    /// <summary>Mini-Parse-Tree für die Prefixauflösung</summary>
+    /// <summary>Mini-Parse-Tree for resolve of prefix expressions</summary>
     private class PrefixMemberInfo
     {
       public PrefixMemberInfo(Token position, Expression instance, string sMember, Expression[] indices, Expression[] arguments)
@@ -321,7 +321,7 @@ namespace Neo.IronLua
       {
         if (Instance != null && Member == null && Indices != null && Arguments == null)
         {
-          // Setzen eines Indexes
+          // Assign to an index
           Expression[] r = new Expression[Indices.Length + 2];
           r[0] = Instance;
           Array.Copy(Indices, 0, r, 1, Indices.Length);
@@ -330,12 +330,12 @@ namespace Neo.IronLua
         }
         else if (Instance != null && Member != null && Indices == null && Arguments == null)
         {
-          // Setzen eines Members
+          // Assign the value to a member
           return Expression.Dynamic(scope.Runtime.GetSetMemberBinder(Member), typeof(object), Instance, exprToSet);
         }
         else if (Instance != null && Member == null && Indices == null && Arguments == null && Instance is ParameterExpression)
         {
-          // Setzen einer Variable
+          // Assign the value to a variable
           return Expression.Assign(Instance, Expression.Convert(exprToSet, typeof(object)));
         }
         else
@@ -346,35 +346,35 @@ namespace Neo.IronLua
       {
         if (Instance != null && Member == null && Indices != null && Arguments == null)
         {
-          // Hole einen Index ab
+          // Create the arguments for the index assign
           Expression[] r = new Expression[Indices.Length + 1];
-          r[0] = Lua.ToObjectExpression(Instance); // Setze das Objekt
-          Array.Copy(Indices, 0, r, 1, Indices.Length); // Setze die Indices
+          r[0] = Lua.ToObjectExpression(Instance); // Array instance
+          Array.Copy(Indices, 0, r, 1, Indices.Length); // Copy the index values
 
           Instance = Expression.Dynamic(scope.Runtime.GetGetIndexMember(new CallInfo(Indices.Length)), typeof(object), r);
           Indices = null;
         }
         else if (Instance != null && Member != null && Indices == null && Arguments == null)
         {
-          // Hole einen Member ab
+          // Convert the member to an instance
           Instance = Expression.Dynamic(scope.Runtime.GetGetMemberBinder(Member), typeof(object), Lua.ToObjectExpression(Instance));
           Member = null;
         }
         else if (Instance != null && Member == null && Indices == null && Arguments == null)
         {
-          // Es handelt schon um eine Instanz
+          // Nothing to todo, we have already an instance
         }
         else if (Instance != null && Indices == null && Arguments != null)
         {
           Expression[] r = new Expression[Arguments.Length + 1];
           r[0] = Lua.ToObjectExpression(Instance); // Delegate
-          // es werden alle Parameter auf Object umgewandelt, außer der letzte
+          // All arguments are converted to an object, except of the last one (rollup)
           for (int i = 0; i < Arguments.Length - 1; i++)
-            r[i + 1] = Lua.ToObjectExpression(Arguments[i], false); // Parameter nur das erste Objekt
+            r[i + 1] = Lua.ToObjectExpression(Arguments[i], false); // Convert the arguments 
           if (Arguments.Length > 0)
-            r[r.Length - 1] = Arguments[Arguments.Length - 1]; // Behalte den Typ bei
+            r[r.Length - 1] = Arguments[Arguments.Length - 1]; // Let the type as it is
 
-          // Funktionen geben immer ein Array zurück
+          // Functions always return an array objects
           Instance = Expression.Dynamic(Lua.FunctionResultBinder, typeof(object[]), 
             Expression.Dynamic(Member == null ? 
               scope.Runtime.GetInvokeBinder(new CallInfo(Arguments.Length)) : 
@@ -814,32 +814,30 @@ namespace Neo.IronLua
       {
         switch (code.Current.Typ)
         {
-          case LuaToken.BracketSquareOpen: // Index als Suffix
+          case LuaToken.BracketSquareOpen: // Index
             code.Next();
             info.GenerateGet(scope);
             info.Indices = ParseExpressionList(scope, code).ToArray();
             FetchToken(LuaToken.BracketSquareClose, code);
             break;
 
-          case LuaToken.Dot: // Eigenschaft als Suffix abfrage
+          case LuaToken.Dot: // Property of an class
             code.Next();
             info.GenerateGet(scope);
             info.Member = FetchToken(LuaToken.Identifier, code).Value;
             break;
 
-          case LuaToken.BracketOpen: // Argumentenliste
+          case LuaToken.BracketOpen: // List of arguments
             info.GenerateGet(scope);
             info.Arguments = ParseArgumentList(scope, code);
             break;
 
-          case LuaToken.BracketCurlyOpen: // LuaTable als Argument
-            // Es handelt sich um ein Delegate
+          case LuaToken.BracketCurlyOpen: // LuaTable as an argument
             info.GenerateGet(scope);
             info.Arguments = new Expression[] { ParseTableConstructor(scope, code) };
             break;
 
-          case LuaToken.String: // String als Argument
-            // Es handelt sich um ein Delegate
+          case LuaToken.String: // String as an argument
             info.GenerateGet(scope);
             info.Arguments = new Expression[] { Expression.Constant(FetchToken(LuaToken.String, code).Value, typeof(object)) };
             break;
@@ -1145,7 +1143,7 @@ namespace Neo.IronLua
 
         FetchToken(LuaToken.BracketClose, code);
 
-        return Expression.Convert(expr, GetType(t, sbTypeName.ToString()));
+        return Lua.ConvertTypeExpression(expr, expr.Type, GetType(t, sbTypeName.ToString()));
       }
       else
         return ParsePrefix(scope, code).GenerateGet(scope);
@@ -1499,7 +1497,7 @@ Note the following:
 
       if (code.Current.Typ != LuaToken.BracketCurlyClose)
       {
-        int iIndex = 1;
+        int iIndex = 0;
         Scope scopeTable = new Scope(scope);
 
         // Erzeuge die Table

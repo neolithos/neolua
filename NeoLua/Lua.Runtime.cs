@@ -24,13 +24,46 @@ namespace Neo.IronLua
       {
       } // ctor
 
+      private bool TryGetLuaSystem(string sName, out Expression expr)
+      {
+        CoreFunction f;
+        IDynamicMetaObjectProvider lib;
+        if (TryGetLuaFunction(sName, out f))
+        {
+          expr = Expression.Constant(f.GetDelegate(Value), typeof(object));
+          return true;
+        }
+        else if (TryGetSystemLibrary(sName, out lib))
+        {
+          expr = Expression.Constant(lib, typeof(object));
+          return true;
+        }
+        else
+        {
+          expr = null;
+          return false;
+        }
+      } // func TryGetLuaSystem
+
       public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
       {
-        // Zugriff aud die Clr
+        // Access to clr can not overload
         if (binder.Name == "clr")
           return new DynamicMetaObject(Expression.Constant(Clr, typeof(LuaClrClassObject)), BindingRestrictions.GetInstanceRestriction(Expression, Value));
-        
-        return base.BindGetMember(binder);
+
+        // Bind the value
+        DynamicMetaObject moGet = base.BindGetMember(binder);
+
+        // Check for system function or library
+        Expression expr;
+        if (TryGetLuaSystem(binder.Name, out expr))
+        {
+          return new DynamicMetaObject(
+            Expression.Coalesce(moGet.Expression, expr),
+            moGet.Restrictions);
+        }
+        else
+          return moGet;
       } // proc BindGetMember
 
       // -- Static ------------------------------------------------------------
@@ -277,6 +310,8 @@ namespace Neo.IronLua
 
     #region -- class LuaPackageProxy --------------------------------------------------
 
+    ///////////////////////////////////////////////////////////////////////////////
+    /// <summary>Little proxy for static classes that provide Library for Lua</summary>
     private class LuaPackageProxy : IDynamicMetaObjectProvider
     {
       #region -- class LuaPackageMetaObject -------------------------------------------
@@ -295,7 +330,7 @@ namespace Neo.IronLua
           LuaPackageProxy val = (LuaPackageProxy)Value;
           Expression expr = null;
 
-          // Unterliegende Typ wird als erstes abgefragt
+          // Call try to bind the static methods
           switch (TryBindGetMember(binder, new DynamicMetaObject(Expression.Default(val.type), BindingRestrictions.Empty, null), out expr))
           {
             case BindResult.Ok:
@@ -303,21 +338,14 @@ namespace Neo.IronLua
               break;
           }
 
-          var restrictions = BindingRestrictions.GetInstanceRestriction(Expression, Value);
-          return new DynamicMetaObject(expr, restrictions);
+          return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(Expression, Value));
         } // func BindGetMember
 
         public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
         {
           Expression expr;
-
-          switch (TryBindInvokeMember(binder, false, new DynamicMetaObject(Expression.Default((Type)Value), BindingRestrictions.Empty, null), args, out expr))
-          {
-            case BindResult.Ok:
-              return new DynamicMetaObject(expr, GetMethodSignatureRestriction(null, args).Merge(BindingRestrictions.GetInstanceRestriction(Expression, Value)));
-            default:
-              return new DynamicMetaObject(expr, GetMethodSignatureRestriction(null, args).Merge(BindingRestrictions.GetInstanceRestriction(Expression, Value)));
-          }
+          TryBindInvokeMember(binder, false, new DynamicMetaObject(Expression.Default((Type)Value), BindingRestrictions.Empty, null), args, out expr);
+          return new DynamicMetaObject(expr, GetMethodSignatureRestriction(null, args).Merge(BindingRestrictions.GetInstanceRestriction(Expression, Value)));
         } // func BindInvokeMember
       } // class LuaPackageMetaObject
 
@@ -338,61 +366,10 @@ namespace Neo.IronLua
 
     #endregion
 
-    private Dictionary<string, Delegate> luaFunctions = new Dictionary<string, Delegate>();
-
     public override DynamicMetaObject GetMetaObject(Expression parameter)
     {
       return new LuaCoreMetaObject(this, parameter);
     } // func GetMetaObject
-
-    private bool TryGetLuaFunction(string sName, out Delegate function)
-    {
-      // Ist die Funktion schon gecacht
-      if (luaFunctions.TryGetValue(sName, out function))
-        return true;
-
-      MethodInfo mi = typeof(Lua).GetMethod("Lua_" + sName, BindingFlags.Instance | BindingFlags.NonPublic);
-      if (mi == null)
-      {
-        function = null;
-        return false;
-      }
-      else
-      {
-        Type typeDelegate = Expression.GetDelegateType((from p in mi.GetParameters() select p.ParameterType).Concat(new Type[] { mi.ReturnType }).ToArray());
-        function = Delegate.CreateDelegate(typeDelegate, this, mi);
-        return true;
-      }
-    } // func TryGetLuaFunction
-
-    public override object GetValue(object item)
-    {
-      object r = base.GetValue(item);
-
-      if (r == null && item is string)
-      {
-        string sName = (string)item;
-        Delegate function;
-
-        if (TryGetLuaFunction(sName, out function))
-          r = function;
-        else
-          switch (sName)
-          {
-            case "string":
-              r = LuaStringProxy;
-              break;
-            case "math":
-              r = LuaMathProxy;
-              break;
-            case "os":
-              r = LuaOsProxy;
-              break;
-          }
-      }
-
-      return r;
-    } // func GetValue
 
     #region -- Basic Functions --------------------------------------------------------
 
@@ -413,19 +390,19 @@ namespace Neo.IronLua
         }
     } // func IsTrue
 
-    private object Lua_assert(object value, string sMessage = null)
+    private object LuaAssert(object value, string sMessage = null)
     {
       Debug.Assert(IsTrue(value), sMessage);
       return value;
     } // func LuaAssert
 
-    private object[] Lua_collectgarbage(string opt, object arg = null)
+    private object[] LuaCollectgarbage(string opt, object arg = null)
     {
       switch (opt)
       {
         case "collect":
           GC.Collect();
-          return Lua_collectgarbage("count");
+          return LuaCollectgarbage("count");
         case "count":
           long iMem = GC.GetTotalMemory(false);
           return new object[] { iMem / 1024.0, iMem % 1024 };
@@ -436,18 +413,18 @@ namespace Neo.IronLua
       }
     } // func Lua_collectgarbage
 
-    private object[] Lua_dofile(string sFileName)
+    private object[] LuaDoFile(string sFileName)
     {
       return DoChunk(sFileName);
     } // func Lua_dofile
 
-    private void Lua_error(string sMessage, int level = 1)
+    private void LuaError(string sMessage, int level = 1)
     {
       // level ist der StackTrace
       throw new LuaException(sMessage, null);
     } // proc Lua_error
 
-    private void Lua_print(params object[] args)
+    private void LuaPrint(params object[] args)
     {
       if (args == null)
         return;
@@ -459,217 +436,56 @@ namespace Neo.IronLua
 
     #endregion
 
-    #region -- String Manipulation ----------------------------------------------------
-
-    ///////////////////////////////////////////////////////////////////////////////
-    /// <summary></summary>
-    private static class LuaString
-    {
-
-    } // class LuaString
-
-    #endregion
-
-    #region -- Mathematical Functions -------------------------------------------------
-
-    private static class LuaMath
-    {
-      private static Random rand = null;
-
-      public static double abs(double x)
-      {
-        return Math.Abs(x);
-      } // func abs
-
-      public static double acos(double x)
-      {
-        return Math.Acos(x);
-      } // func acos
-
-      public static double asin(double x)
-      {
-        return Math.Asin(x);
-      } // func asin
-
-      public static double atan(double x)
-      {
-        return Math.Atan(x);
-      } // func atan
-
-      public static double atan2(double y, double x)
-      {
-        return Math.Atan2(y, x);
-      } // func atan2
-
-      public static double ceil(double x)
-      {
-        return Math.Ceiling(x);
-      } // func ceil
-
-      public static double cos(double x)
-      {
-        return Math.Cos(x);
-      } // func Cos
-
-      public static double cosh(double x)
-      {
-        return Math.Cosh(x);
-      } // func cosh
-
-      public static double deg(double x)
-      {
-        return x * 180.0 / Math.PI;
-      } // func deg
-
-      public static double exp(double x)
-      {
-        return Math.Exp(x);
-      } // func exp
-
-      public static double floor(double x)
-      {
-        return Math.Floor(x);
-      } // func floor
-
-      public static double fmod(double x, double y)
-      {
-        return x % y;
-      } // func fmod
-
-      public static double frexp(double x)
-      {
-        // Returns m and e such that x = m2e, e is an integer and the absolute value of m is in the range [0.5, 1) (or zero when x is zero).
-        throw new NotImplementedException();
-      } // func frexp
-
-      // The value HUGE_VAL, a value larger than or equal to any other numerical value.
-      public static double huge { get { throw new NotImplementedException(); } }
-
-      public static double ldexp(double m, double e)
-      {
-        // Returns m2e (e should be an integer).
-        throw new NotImplementedException();
-      } // func ldexp
-
-      public static double log(double x, double b = Math.E)
-      {
-        return Math.Log(x, b);
-      } // func log
-
-      public static double max(double[] x)
-      {
-        double r = Double.MinValue;
-        for (int i = 0; i < x.Length; i++)
-          if (r < x[i])
-            r = x[i];
-        return r;
-      } // func max
-
-      public static double min(double[] x)
-      {
-        double r = Double.MinValue;
-        for (int i = 0; i < x.Length; i++)
-          if (r > x[i])
-            r = x[i];
-        return r;
-      } // func min
-
-      public static object[] modf(double x)
-      {
-        if (x < 0)
-        {
-          double y = Math.Ceiling(x);
-          return new object[] { y, y - x };
-        }
-        else
-        {
-          double y = Math.Floor(x);
-          return new object[] { y, x - y };
-        }
-      } // func modf
-
-      public static double pow(double x, double y)
-      {
-        return Math.Pow(x, y);
-      } // func pow
-
-      public static double rad(double x)
-      {
-        return x * Math.PI / 180.0;
-      } // func rad
-
-      public static object random(object m = null, object n = null)
-      {
-        if (rand == null)
-          rand = new Random();
-
-        if (m == null && n == null)
-          return rand.NextDouble();
-        else if (m != null && n == null)
-          return rand.Next(1, Convert.ToInt32(m));
-        else
-          return rand.Next(Convert.ToInt32(m), Convert.ToInt32(n));
-      } // func random
-
-      public static void randomseed(int x)
-      {
-        rand = new Random(x);
-      } // proc randomseed
-
-      public static double sin (double x)
-      {
-        return Math.Sin(x);
-      } // func sin
-
-      public static double sinh (double x)
-      {
-        return Math.Sinh(x);
-      } // func sinh
-
-      public static double sqrt(double x)
-      {
-        return Math.Sqrt(x);
-      } // func sqrt
-
-      public static double tan(double x)
-      {
-        return Math.Tan(x);
-      } // func tan
-
-      public static double tanh(double x)
-      {
-        return Math.Tanh(x);
-      } // func tanh
-
-      public static double pi { get { return Math.PI; } }
-      public static double e { get { return Math.E; } }
-    } // clas LuaMath
-    
-    #endregion
-
-    #region -- Operating System Facilities --------------------------------------------
-
-    ///////////////////////////////////////////////////////////////////////////////
-    /// <summary></summary>
-    private static class LuaOS
-    {
-      public static int clock()
-      {
-        return Environment.TickCount;
-      } // func clock
-    } // class LuaOS
-
-    #endregion
-
     // -- Static --------------------------------------------------------------
 
+    #region -- struct CoreFunction ----------------------------------------------------
+
+    ///////////////////////////////////////////////////////////////////////////////
+    /// <summary></summary>
+    private struct CoreFunction
+    {
+      public Delegate GetDelegate(object self)
+      {
+        return Delegate.CreateDelegate(DelegateType, self, Method);
+      } // func GetDelegate
+
+      public MethodInfo Method;
+      public Type DelegateType;
+    } // struct CoreFunction
+
+    #endregion
+
     private static object luaStaticLock = new object();
-    private static IDynamicMetaObjectProvider luaStringProxy = null;
-    private static IDynamicMetaObjectProvider luaMathProxy = null;
-    private static IDynamicMetaObjectProvider luaOsProxy = null;
 
-    private static Dictionary<string, Type> knownTypes = null;
+    private static Dictionary<string, IDynamicMetaObjectProvider> luaSystemLibraries = new Dictionary<string,IDynamicMetaObjectProvider>(); // Array with system libraries
+    private static Dictionary<string, Type> knownTypes = null; // Known types of the current AppDomain
+    private static Dictionary<string, CoreFunction> luaFunctions = new Dictionary<string, CoreFunction>(); // Core functions for the object
+    
+    /// <summary>Gets the system library.</summary>
+    /// <param name="library">Library</param>
+    /// <returns>dynamic object for the library</returns>
+    private static bool TryGetSystemLibrary(string sLibraryName, out IDynamicMetaObjectProvider lib)
+    {
+      lock (luaStaticLock)
+      {
+        if(luaSystemLibraries.Count == 0)
+        {
+          foreach (Type t in typeof(Lua).GetNestedTypes(BindingFlags.NonPublic))
+          {
+            if (t.Name.StartsWith("LuaLibrary", StringComparison.OrdinalIgnoreCase))
+            {
+              string sName = t.Name.Substring(10).ToLower();
+              luaSystemLibraries[sName] = new LuaPackageProxy(t);
+            }
+          }
+        }
+        return luaSystemLibraries.TryGetValue(sLibraryName, out lib);
+      }
+    } // func GetSystemLibrary
 
+    /// <summary>Resolve typename to a type.</summary>
+    /// <param name="sTypeName">Fullname of the type</param>
+    /// <returns>The resolved type or <c>null</c>.</returns>
     internal static Type GetType(string sTypeName)
     {
       Type type = Type.GetType(sTypeName, false);
@@ -699,43 +515,26 @@ namespace Neo.IronLua
       return type;
     } // func GetType
 
-    private static IDynamicMetaObjectProvider LuaStringProxy
+    private static bool TryGetLuaFunction(string sName, out CoreFunction function)
     {
-      get
+      lock (luaStaticLock)
       {
-        lock (luaStaticLock)
+        if (luaFunctions.Count == 0) // Collect all lua sys functions
         {
-          if (luaStringProxy == null)
-            luaStringProxy = new LuaPackageProxy(typeof(LuaString));
+          foreach (var mi in typeof(Lua).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance))
+            if (mi.Name.StartsWith("lua", StringComparison.OrdinalIgnoreCase))
+            {
+              Type typeDelegate = Expression.GetDelegateType((from p in mi.GetParameters() select p.ParameterType).Concat(new Type[] { mi.ReturnType }).ToArray());
+              luaFunctions[mi.Name.Substring(3).ToLower()] = new CoreFunction { Method = mi, DelegateType = typeDelegate };
+            }
         }
-        return luaStringProxy;
-      }
-    } // prop LuaOs
 
-    private static IDynamicMetaObjectProvider LuaMathProxy
-    {
-      get
-      {
-        lock (luaStaticLock)
-        {
-          if (luaMathProxy == null)
-            luaMathProxy = new LuaPackageProxy(typeof(LuaMath));
-        }
-        return luaMathProxy;
-      }
-    } // prop LuaMathProxy
+        // Get the cached function
+        if (luaFunctions.TryGetValue(sName, out function))
+          return true;
 
-    private static IDynamicMetaObjectProvider LuaOsProxy
-    {
-      get
-      {
-        lock (luaStaticLock)
-        {
-          if (luaOsProxy == null)
-            luaOsProxy = new LuaPackageProxy(typeof(LuaOS));
-          return luaOsProxy;
-        }
+        return false;
       }
-    } // prop LuaOs
+    } // func TryGetLuaFunction
   } // class Lua
 }

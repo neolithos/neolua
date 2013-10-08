@@ -131,10 +131,10 @@ namespace LuaDLR.Test
     public void TestExpr02()
     {
       Assert.IsTrue(TestExpressionTable(false, "{1, 2, 3; 4}",
-        TV(1, 1),
-        TV(2, 2),
-        TV(3, 3),
-        TV(4, 4)));
+        TV(0, 1),
+        TV(1, 2),
+        TV(2, 3),
+        TV(3, 4)));
     } // proc TestExpr
 
     [TestMethod]
@@ -162,12 +162,12 @@ namespace LuaDLR.Test
         "a = { [f('z')] = g; 'x', 'y'; x = 1, f(x), [30] = 23; 45 }" + Environment.NewLine +
         "return a;",
         TV("z", 32),
-        TV(1, "x"),
-        TV(2, "y"),
+        TV(0, "x"),
+        TV(1, "y"),
         TV("x", 1),
-        TV(3, 24),
+        TV(2, 24),
         TV(30, 23),
-        TV(4, 45)));
+        TV(3, 45)));
     } // proc TestExpr06
 
     //[TestMethod]

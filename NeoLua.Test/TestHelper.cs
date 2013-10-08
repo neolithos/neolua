@@ -79,6 +79,8 @@ namespace LuaDLR.Test
 
     protected static bool TestReturn(object[] result, params object[] r)
     {
+      if (r == null && result.Length == 0)
+        return true;
       if (r.Length != result.Length)
         return false;
 
