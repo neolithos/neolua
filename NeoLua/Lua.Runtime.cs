@@ -424,6 +424,20 @@ namespace Neo.IronLua
       throw new LuaException(sMessage, null);
     } // proc Lua_error
 
+    // todo: getmetatable
+
+    // todo: ipairs
+
+    // todo: load
+
+    // todo: loadfile
+
+    // todo: next
+
+    // todo: pairs
+
+    // todo: pcall
+
     private void LuaPrint(params object[] args)
     {
       if (args == null)
@@ -433,6 +447,124 @@ namespace Neo.IronLua
         Debug.Write(args[i]);
       Debug.WriteLine(String.Empty);
     } // proc LuaPrint
+
+    private bool LuaRawEqual(object a, object b)
+    {
+      if (a == null && b == null)
+        return true;
+      else if (a != null && b != null)
+      {
+        if (a.GetType() == b.GetType())
+        {
+          if (a.GetType().IsValueType)
+            return Object.Equals(a, b);
+          else
+            return Object.ReferenceEquals(a, b);
+        }
+        else
+          return false;
+      }
+      else
+        return false;
+    } // func LuaRawEqual
+
+    private object LuaRawGet(LuaTable t, object index)
+    {
+      return t[index];
+    } // func LuaRawGet
+
+    private int LuaRawLen(object v)
+    {
+      if (v == null)
+        return 0;
+      else
+      {
+        PropertyInfo pi = v.GetType().GetProperty("Length", BindingFlags.Instance | BindingFlags.GetProperty | BindingFlags.Public);
+        if (pi == null)
+          return 0;
+        return (int)pi.GetValue(v, null);
+      }
+    } // func LuaRawLen
+
+    private LuaTable LuaRawSet(LuaTable t, object index, object value)
+    {
+      t[index] = value;
+      return t;
+    } // func LuaRawSet
+
+    private object[] LuaSelect(int index, params object[] values)
+    {
+      if (index < 0)
+      {
+        index = values.Length + index;
+        if (index < 0)
+          index = 0;
+      }
+
+      if (index < values.Length)
+      {
+        object[] r = new object[values.Length - index];
+        Array.Copy(values, index, r, 0, r.Length);
+        return r;
+      }
+      else
+        return emptyResult;
+    } // func LuaSelect
+
+    // todo: setmetatable
+
+    private object LuaToNumber(object v, int iBase = 10)
+    {
+      if (v == null)
+        return null;
+      else if (v is string)
+        return Convert.ToInt32((string)v, iBase); // todo: Incompatible to lua reference
+      else if (v is int || v is double)
+        return v;
+      else if (v is byte ||
+        v is sbyte ||
+        v is ushort ||
+        v is short)
+        return Convert.ToInt32(v);
+      else if (v is uint ||
+        v is long ||
+        v is ulong ||
+        v is decimal ||
+        v is float)
+        return Convert.ToDouble(v);
+      else if (v is bool)
+        return (bool)v ? 1 : 0;
+      else
+        return null;
+    } // func LuaToNumber
+
+    private string LuaToString(object v)
+    {
+      if (v == null)
+        return null;
+      else
+        return v.ToString();
+    } // func LuaToString
+
+    private string LuaType(object v)
+    {
+      if (v == null)
+        return "nil";
+      else if (v is int || v is double)
+        return "number";
+      else if (v is string)
+        return "string";
+      else if (v is bool)
+        return "bool";
+      else if (v is LuaTable)
+        return "table";
+      else if (v is Delegate)
+        return "function";
+      else
+        return "userdata";
+    } // func LuaType
+
+    // Todo: xpcall
 
     #endregion
 

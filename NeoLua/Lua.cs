@@ -17,6 +17,7 @@ namespace Neo.IronLua
 
     public Lua()
     {
+      this["_VERSION"] = "NeoLua 5.2";
     } // ctor
 
     #region -- RegisterFunction, UnregisterFunction -----------------------------------
