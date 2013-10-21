@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 
 namespace Neo.IronLua
@@ -152,14 +153,14 @@ namespace Neo.IronLua
   [TypeConverter(typeof(ExpandableObjectConverter))]
   internal struct Position
   {
-    private string sFileName;
+    private SymbolDocumentInfo document;
     private int iColumn;
     private int iLine;
     private long iIndex;
 
-    public Position(string sFileName, int iLine, int iColumn, long iIndex)
+    public Position(SymbolDocumentInfo document, int iLine, int iColumn, long iIndex)
     {
-      this.sFileName = sFileName;
+      this.document = document;
       this.iLine = iLine;
       this.iColumn = iColumn;
       this.iIndex = iIndex;
@@ -173,7 +174,9 @@ namespace Neo.IronLua
     } // func ToString
 
     /// <summary>Dateiname in der dieser Position sich befindet.</summary>
-    public string FileName { get { return sFileName; } }
+    public string FileName { get { return document.FileName; } }
+    /// <summary>Document where the token was found.</summary>
+    public SymbolDocumentInfo Document { get { return document; } }
     /// <summary>Zeile, bei 1 beginnent.</summary>
     public int Line { get { return iLine; } }
     /// <summary>Spalte, bei 1 beginnent.</summary>
@@ -249,7 +252,7 @@ namespace Neo.IronLua
     private StringBuilder sbCur = null;       // Currently collected chars
     
     private TextReader tr;                    // Source for the lexer
-    private string sFileName;                 // Name of the source
+    private SymbolDocumentInfo document;      // Information about the source document
     private int iCurrentLine = 1;             // Line in the source file
     private int iCurrentColumn = 1;           // Column in the source file
     private long iCurrentIndex = 0;           // Index in the source file
@@ -261,11 +264,11 @@ namespace Neo.IronLua
     /// <param name="tr">Input for the scanner, will be disposed on the lexer dispose.</param>
     public LuaLexer(string sFileName, TextReader tr)
     {
-      this.sFileName = sFileName;
+      this.document = Expression.SymbolDocument(sFileName);
       this.tr = tr;
 
       fStart =
-        fEnd = new Position(sFileName, iCurrentLine, iCurrentColumn, iCurrentIndex);
+        fEnd = new Position(document, iCurrentLine, iCurrentColumn, iCurrentIndex);
       cCur = Read(); // Lies das erste Zeichen aus dem Buffer
     } // ctor
 
@@ -319,6 +322,8 @@ namespace Neo.IronLua
           {
             iCurrentColumn = 1;
             iCurrentLine++;
+            if (tr.Peek() == 10)
+              tr.Read();
            
             return '\n';
           }
@@ -360,7 +365,7 @@ namespace Neo.IronLua
     /// <param name="iNewState">Neuer Status des Scanners</param>
     private void NextChar(int iNewState)
     {
-      fEnd = new Position(sFileName, iCurrentLine, iCurrentColumn, iCurrentIndex);
+      fEnd = new Position(document, iCurrentLine, iCurrentColumn, iCurrentIndex);
       cCur = Read();
       iState = iNewState;
     } // proc NextChar

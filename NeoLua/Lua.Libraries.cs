@@ -2,10 +2,71 @@
 using System.Collections.Generic;
 using System.Dynamic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 
 namespace Neo.IronLua
 {
+  #region -- class LuaPackageProxy ----------------------------------------------------
+
+  ///////////////////////////////////////////////////////////////////////////////
+  /// <summary>Little proxy for static classes that provide Library for Lua</summary>
+  internal class LuaPackageProxy : IDynamicMetaObjectProvider
+  {
+    #region -- class LuaPackageMetaObject ---------------------------------------------
+
+    ///////////////////////////////////////////////////////////////////////////////
+    /// <summary></summary>
+    private class LuaPackageMetaObject : DynamicMetaObject
+    {
+      public LuaPackageMetaObject(Expression expression, LuaPackageProxy value)
+        : base(expression, BindingRestrictions.Empty, value)
+      {
+      } // ctor
+
+      public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
+      {
+        LuaPackageProxy val = (LuaPackageProxy)Value;
+        Expression expr = null;
+
+        // Call try to bind the static methods
+        switch (Lua.TryBindGetMember(binder, new DynamicMetaObject(Expression.Default(val.type), BindingRestrictions.Empty, null), out expr))
+        {
+          case Lua.BindResult.Ok:
+            expr = Expression.Convert(expr, typeof(object));
+            break;
+        }
+
+        return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(Expression, Value));
+      } // func BindGetMember
+
+      public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
+      {
+        Expression expr;
+        Lua.TryBindInvokeMember(binder, false, new DynamicMetaObject(Expression.Default((Type)Value), BindingRestrictions.Empty, null), args, out expr);
+        return new DynamicMetaObject(expr, Lua.GetMethodSignatureRestriction(null, args).Merge(BindingRestrictions.GetInstanceRestriction(Expression, Value)));
+      } // func BindInvokeMember
+    } // class LuaPackageMetaObject
+
+    #endregion
+
+    private Type type;
+
+    public LuaPackageProxy(Type type)
+    {
+      this.type = type;
+    } // ctor
+
+    public DynamicMetaObject GetMetaObject(Expression parameter)
+    {
+      return new LuaPackageMetaObject(parameter, this);
+    } // func GetMetaObject
+  } // class LuaPackageProxy
+
+  #endregion
+
+  ///////////////////////////////////////////////////////////////////////////////
+  /// <summary>Static libraries for lua</summary>
   public partial class Lua
   {
     #region -- Table Manipulation -----------------------------------------------------

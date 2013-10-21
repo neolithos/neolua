@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -9,7 +10,7 @@ namespace Neo.IronLua
 
   ///////////////////////////////////////////////////////////////////////////////
   /// <summary></summary>
-  public class LuaException : Exception
+  public abstract class LuaException : Exception
   {
     internal LuaException(string sMessage, Exception innerException)
       : base(sMessage, innerException)
@@ -23,7 +24,7 @@ namespace Neo.IronLua
 
   ///////////////////////////////////////////////////////////////////////////////
   /// <summary></summary>
-  public class LuaParseException : Exception
+  public class LuaParseException : LuaException
   {
     internal LuaParseException(Position position, string sMessage, Exception innerException)
       : base(sMessage, innerException)
@@ -46,13 +47,36 @@ namespace Neo.IronLua
 
   ///////////////////////////////////////////////////////////////////////////////
   /// <summary></summary>
-  public class LuaBindException : Exception
+  public class LuaBindException : LuaException
   {
     internal LuaBindException(string sMessage, Exception innerException)
       : base(sMessage, innerException)
     {
     } // ctor
   } // class LuaBindException
+
+  #endregion
+
+  #region -- class LuaRuntimeException ------------------------------------------------
+
+  ///////////////////////////////////////////////////////////////////////////////
+  /// <summary></summary>
+  public class LuaRuntimeException : LuaException
+  {
+    internal LuaRuntimeException(string sMessage, int iLevel)
+      : base(sMessage, null)
+    {
+    } // ctor
+
+    public override string StackTrace
+    {
+      get
+      {
+        StackTrace st = new StackTrace(this, true);
+        return st.ToString();
+      }
+    }
+  } // class LuaRuntimeException
 
   #endregion
 }

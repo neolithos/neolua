@@ -177,7 +177,7 @@ namespace LuaDLR.Test
     private bool TestConstant(Lua l, string sVarValue, object result)
     {
       Debug.Print("Test: " + sVarValue);
-      object[] r = l.DoChunk("local a = " + sVarValue + "; return a;", "test.lua");
+      object[] r = l.CreateEnvironment().DoChunk("local a = " + sVarValue + "; return a;", "test.lua");
       return Object.Equals(r[0], result);
     } // func TestConstant
 

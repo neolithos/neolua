@@ -16,8 +16,8 @@ namespace Neo.IronLua
     #region -- enum BindResult --------------------------------------------------------
 
     ///////////////////////////////////////////////////////////////////////////////
-    /// <summary></summary>
-    private enum BindResult
+    /// <summary>Result for the binding of methods</summary>
+    internal enum BindResult
     {
       Ok,
       MemberNotFound,
@@ -41,22 +41,23 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject FallbackGetMember(DynamicMetaObject target, DynamicMetaObject errorSuggestion)
       {
-        // Erzeuge das Target
+        // defer the target, to get the type
         if (!target.HasValue)
           return Defer(target);
 
-        // Suche alle zutreffenden Members
+        // restrictions
         var restrictions = target.Restrictions;
         if (target.Value == null)
           restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, target.LimitType));
         else
           restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
 
+        // try to bind the member
         Expression expr;
         switch (TryBindGetMember(this, target, out expr))
         {
           case BindResult.Ok:
-            return new DynamicMetaObject(Expression.Convert(expr, typeof(object)), restrictions);
+            return new DynamicMetaObject(Parser.ToObjectExpression(expr), restrictions);
           case BindResult.MemberNotFound:
             return new DynamicMetaObject(Expression.Constant(null, typeof(object)), restrictions);
           default:
@@ -80,15 +81,16 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject FallbackSetMember(DynamicMetaObject target, DynamicMetaObject value, DynamicMetaObject errorSuggestion)
       {
-        // Erzeuge das Target
+        // defer the target
         if (!target.HasValue)
           return Defer(target);
 
-        // Suche alle zutreffenden Members
+        // get the members of the type with the name
         MemberInfo[] members = target.LimitType.GetMember(Name, BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public);
+        // restrictions
         var restrictions = target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
 
-        // Member sollten eigentlich immer eindeutig sein
+        // There should only one member with this name
         if (members.Length == 1)
         {
           Type type;
@@ -97,7 +99,7 @@ namespace Neo.IronLua
           {
             PropertyInfo pi = (PropertyInfo)member;
             if (!pi.CanWrite)
-              return errorSuggestion ?? new DynamicMetaObject(Lua.ThrowExpression(String.Format("Die Eigenschaft '{0}' kann nicht gesetzt werden.", Name)), restrictions);
+              return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(String.Format("The property '{0}' is not writable.", Name)), restrictions);
             type = pi.PropertyType;
           }
           else if (member.MemberType == MemberTypes.Field)
@@ -106,23 +108,22 @@ namespace Neo.IronLua
             type = fi.FieldType;
           }
           else // Member kann nicht gesetzt werden
-            return errorSuggestion ?? new DynamicMetaObject(Lua.ThrowExpression(String.Format("'{0}' ist keine Eigenschaft/Feld.", Name)), restrictions);
+            return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(String.Format("'{0}' is no property/field.", Name)), restrictions);
 
           return new DynamicMetaObject(
-              Expression.Convert(
+              Parser.ToObjectExpression(
                 Expression.Assign(
                   Expression.MakeMemberAccess(Expression.Convert(target.Expression, member.DeclaringType), member),
                   Expression.Convert(Expression.Convert(value.Expression, value.LimitType), type)
-                ),
-                typeof(object)
+                )
               ),
               restrictions.Merge(value.Restrictions).Merge(BindingRestrictions.GetTypeRestriction(value.Expression, value.LimitType))
             );
         }
         else if (members.Length == 0)
-          return errorSuggestion ?? new DynamicMetaObject(Lua.ThrowExpression(String.Format("Eigenschaft/Feld '{0}' konnte nicht gefunden werden.", Name)), restrictions);
+          return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(String.Format("Property/field '{0}' can not be found.", Name)), restrictions);
         else
-          return errorSuggestion ?? new DynamicMetaObject(Lua.ThrowExpression(String.Format("Eigenschaft/Feld müssen eindeutig sein. [{0}]", Name)), restrictions);
+          return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(String.Format("Property/field should be unique. [{0}]", Name)), restrictions);
       } // func FallbackSetMember
     } // class LuaSetMemberBinder
 
@@ -152,7 +153,7 @@ namespace Neo.IronLua
 
         Expression expr;
         if (GetIndexAccessExpression(target, indexes, out expr))
-          return new DynamicMetaObject(Expression.Convert(expr, typeof(object)), Lua.GetMethodSignatureRestriction(target, indexes));
+          return new DynamicMetaObject(Parser.ToObjectExpression(expr), Lua.GetMethodSignatureRestriction(target, indexes));
         else
           return errorSuggestion ?? new DynamicMetaObject(expr, Lua.GetMethodSignatureRestriction(target, indexes));
       } // func FallbackGetIndex
@@ -188,9 +189,9 @@ namespace Neo.IronLua
           return errorSuggestion ?? new DynamicMetaObject(expr, Lua.GetMethodSignatureRestriction(target, indexes));
 
         // Create the Assign
-        expr = Expression.Convert(Expression.Assign(expr, Lua.ConvertTypeExpression(value.Expression, value.LimitType, expr.Type)), typeof(object));
+        expr = Parser.ToObjectExpression(Expression.Assign(expr, Parser.RuntimeHelperConvertExpression(value.Expression, expr.Type)));
 
-        return new DynamicMetaObject(expr, 
+        return new DynamicMetaObject(expr,
           Lua.GetMethodSignatureRestriction(target, indexes)
             .Merge(BindingRestrictions.GetTypeRestriction(value.Expression, value.LimitType))
           );
@@ -212,16 +213,15 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject FallbackInvoke(DynamicMetaObject target, DynamicMetaObject[] args, DynamicMetaObject errorSuggestion)
       {
-        // Lösche die Parameter auf
+        //defer the target and all arguments
         if (!target.HasValue || args.Any(c => !c.HasValue))
           return Defer(target, args);
 
-        if (target.Value == null) // Invoke auf null
-          return new DynamicMetaObject(ThrowExpression("Nullwert kann nicht aufgerufen werden."), BindingRestrictions.GetInstanceRestriction(target.Expression, target.Value));
+        if (target.Value == null) // Invoke on null value
+          return new DynamicMetaObject(ThrowExpression("Can not call nil value."), BindingRestrictions.GetInstanceRestriction(target.Expression, target.Value));
 
         return BindFallbackInvoke(target, args, errorSuggestion);
       } // func FallbackInvoke
-
     } // class LuaInvokeBinder
 
     #endregion
@@ -245,7 +245,7 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject FallbackInvokeMember(DynamicMetaObject target, DynamicMetaObject[] args, DynamicMetaObject errorSuggestion)
       {
-        // Lösche die Parameter auf
+        // defer target and all arguments
         if (!target.HasValue || args.Any(c => !c.HasValue))
           return Defer(target, args);
 
@@ -276,11 +276,11 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject FallbackBinaryOperation(DynamicMetaObject target, DynamicMetaObject arg, DynamicMetaObject errorSuggestion)
       {
-        // Untergeordneten CallSite's evaluieren
+        // defer target and all arguments
         if (!target.HasValue || !arg.HasValue)
           return Defer(target, arg);
 
-        // Erzeuge die Restriktionen für den Cache
+        // restrictions
         var restrictions = target.Restrictions
           .Merge(arg.Restrictions)
           .Merge(target.Value == null ? BindingRestrictions.GetInstanceRestriction(target.Expression, null) : BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType))
@@ -305,20 +305,20 @@ namespace Neo.IronLua
             limitType = target.LimitType;
 
           if (Operation == ExpressionType.Power && limitType != typeof(double)) // Power funktioniert nur mit double
-            expr = ConvertTypeExpression(
+            expr = Parser.RuntimeHelperConvertExpression(
                 Expression.MakeBinary(
                   ExpressionType.Power,
-                  ConvertTypeExpression(target.Expression, target.LimitType, typeof(double)),
-                  ConvertTypeExpression(arg.Expression, arg.LimitType, typeof(double))
-                ), typeof(double), limitType);
+                  Parser.RuntimeHelperConvertExpression(target.Expression, typeof(double)),
+                  Parser.RuntimeHelperConvertExpression(arg.Expression, typeof(double))
+                ), limitType);
           else
             expr = Expression.MakeBinary(
                       Operation,
-                      ConvertTypeExpression(target.Expression, target.LimitType, limitType),
-                      ConvertTypeExpression(arg.Expression, arg.LimitType, limitType)
+                      Parser.RuntimeHelperConvertExpression(target.Expression, limitType),
+                      Parser.RuntimeHelperConvertExpression(arg.Expression, limitType)
                     );
         }
-        return new DynamicMetaObject(ToObjectExpression(expr), restrictions);
+        return new DynamicMetaObject(Parser.ToObjectExpression(expr), restrictions);
       } // func FallbackBinaryOperation
     } // class LuaBinaryOperationBinder
 
@@ -337,7 +337,7 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject FallbackUnaryOperation(DynamicMetaObject target, DynamicMetaObject errorSuggestion)
       {
-        // Erzeuge das Target, sofern nicht geschehen
+        // defer the target
         if (!target.HasValue)
           return Defer(target);
 
@@ -345,15 +345,14 @@ namespace Neo.IronLua
         {
           return errorSuggestion ??
             new DynamicMetaObject(
-              ThrowExpression("Nil nicht definiert für die unäre Operation."),
+              ThrowExpression("Nil not defined for this operator."),
               target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, null))
             );
         }
         else
           return new DynamicMetaObject(
-              Expression.Convert(
-                Expression.MakeUnary(Operation, Expression.Convert(target.Expression, target.LimitType), target.LimitType),
-                typeof(object)
+              Parser.ToObjectExpression(
+                Expression.MakeUnary(Operation, Expression.Convert(target.Expression, target.LimitType), target.LimitType)
               ),
               target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType))
             );
@@ -495,40 +494,45 @@ namespace Neo.IronLua
     internal CallSiteBinder GetSetMemberBinder(string sName)
     {
       CallSiteBinder b;
-      if (!setMemberBinder.TryGetValue(sName, out b))
-        b = setMemberBinder[sName] = new LuaSetMemberBinder(sName);
+      lock (setMemberBinder)
+        if (!setMemberBinder.TryGetValue(sName, out b))
+          b = setMemberBinder[sName] = new LuaSetMemberBinder(sName);
       return b;
     } // func GetSetMemberBinder
 
     internal CallSiteBinder GetGetMemberBinder(string sName)
     {
       CallSiteBinder b;
-      if (!getMemberBinder.TryGetValue(sName, out b))
-        b = getMemberBinder[sName] = new LuaGetMemberBinder(sName);
+      lock (getMemberBinder)
+        if (!getMemberBinder.TryGetValue(sName, out b))
+          b = getMemberBinder[sName] = new LuaGetMemberBinder(sName);
       return b;
     } // func GetGetMemberBinder
 
     internal CallSiteBinder GetGetIndexMember(CallInfo callInfo)
     {
       CallSiteBinder b;
-      if (!getIndexBinder.TryGetValue(callInfo, out b))
-        b = getIndexBinder[callInfo] = new LuaGetIndexBinder(callInfo);
+      lock (getIndexBinder)
+        if (!getIndexBinder.TryGetValue(callInfo, out b))
+          b = getIndexBinder[callInfo] = new LuaGetIndexBinder(callInfo);
       return b;
     } // func GetGetIndexMember
 
     internal CallSiteBinder GetSetIndexMember(CallInfo callInfo)
     {
       CallSiteBinder b;
-      if (!setIndexBinder.TryGetValue(callInfo, out b))
-        b = setIndexBinder[callInfo] = new LuaSetIndexBinder(callInfo);
+      lock (setIndexBinder)
+        if (!setIndexBinder.TryGetValue(callInfo, out b))
+          b = setIndexBinder[callInfo] = new LuaSetIndexBinder(callInfo);
       return b;
     } // func GetSetIndexMember
 
     internal CallSiteBinder GetInvokeBinder(CallInfo callInfo)
     {
       CallSiteBinder b;
-      if (!invokeBinder.TryGetValue(callInfo, out b))
-        b = invokeBinder[callInfo] = new LuaInvokeBinder(callInfo);
+      lock (invokeBinder)
+        if (!invokeBinder.TryGetValue(callInfo, out b))
+          b = invokeBinder[callInfo] = new LuaInvokeBinder(callInfo);
       return b;
     } // func GetInvokeBinder
 
@@ -536,24 +540,27 @@ namespace Neo.IronLua
     {
       CallSiteBinder b;
       MemberCallInfo mci = new MemberCallInfo(sMember, callInfo);
-      if (!invokeMemberBinder.TryGetValue(mci, out b))
-        b = invokeMemberBinder[mci] = new LuaInvokeMemberBinder(sMember, callInfo);
+      lock (invokeMemberBinder)
+        if (!invokeMemberBinder.TryGetValue(mci, out b))
+          b = invokeMemberBinder[mci] = new LuaInvokeMemberBinder(sMember, callInfo);
       return b;
     } // func GetInvokeMemberBinder
 
     internal CallSiteBinder GetBinaryOperationBinder(ExpressionType expressionType)
     {
       CallSiteBinder b;
-      if (!operationBinder.TryGetValue(expressionType, out b))
-        b = operationBinder[expressionType] = new LuaBinaryOperationBinder(expressionType);
+      lock (operationBinder)
+        if (!operationBinder.TryGetValue(expressionType, out b))
+          b = operationBinder[expressionType] = new LuaBinaryOperationBinder(expressionType);
       return b;
     } // func GetBinaryOperationBinder
 
     internal CallSiteBinder GetUnaryOperationBinary(ExpressionType expressionType)
     {
       CallSiteBinder b;
-      if (!operationBinder.TryGetValue(expressionType, out b))
-        b = operationBinder[expressionType] = new LuaUnaryOperationBinder(expressionType);
+      lock (operationBinder)
+        if (!operationBinder.TryGetValue(expressionType, out b))
+          b = operationBinder[expressionType] = new LuaUnaryOperationBinder(expressionType);
       return b;
     } // func GetUnaryOperationBinary
 
@@ -561,7 +568,7 @@ namespace Neo.IronLua
 
     #region -- TryBindGetMember -------------------------------------------------------
 
-    private static BindResult TryBindGetMember(GetMemberBinder binder, DynamicMetaObject target, out Expression expr)
+    internal static BindResult TryBindGetMember(GetMemberBinder binder, DynamicMetaObject target, out Expression expr)
     {
 #if DEBUG
       if (!target.HasValue)
@@ -572,17 +579,17 @@ namespace Neo.IronLua
       // Suche die Member
       MemberInfo[] members = type.GetMember(binder.Name, GetBindingFlags(target.Value != null, binder.IgnoreCase));
 
-      if (members.Length == 0)// Wurde nichts gefunden
+      if (members.Length == 0)// Nothing found
       {
-        expr = Lua.ThrowExpression(String.Format("Member '{0}' wurde nicht gefunden.", binder.Name));
+        expr = ThrowExpression(String.Format("Member '{0}' not resolved.", binder.Name));
         return BindResult.MemberNotFound;
       }
-      else if (members.Length > 1) // Zu viel Member
+      else if (members.Length > 1) // only one member is allowed
       {
-        expr = Lua.ThrowExpression(String.Format("Eigenschaft/Feld müssen eindeutig sein. [{0}]", binder.Name));
+        expr = ThrowExpression(String.Format("Property/field must be unique. [{0}]", binder.Name));
         return BindResult.MemberNotUnique;
       }
-      else // Member müssen immer eindeutig sein
+      else // Member must be unique
       {
         var member = members[0];
 
@@ -591,7 +598,7 @@ namespace Neo.IronLua
         {
           if (member.MemberType == MemberTypes.Property && !((PropertyInfo)member).CanRead)
           {
-            expr = Lua.ThrowExpression(String.Format("Die Eigenschaft '{0}' kann nicht gelesen werden.", binder.Name));
+            expr = ThrowExpression(String.Format("The property '{0}' is not writable.", binder.Name));
             return BindResult.NotReadable;
           }
 
@@ -612,12 +619,12 @@ namespace Neo.IronLua
         }
         else if (member.MemberType == MemberTypes.NestedType)
         {
-          expr = Lua.ThrowExpression(String.Format("'{0}' kann nicht gelesen werden.", binder.Name));
+          expr = ThrowExpression(String.Format("'{0}' is not readable.", binder.Name));
           return BindResult.MemberNotFound;
         }
-        else // Member kann nicht gelesen werden
+        else // Member is not readable
         {
-          expr = Lua.ThrowExpression(String.Format("'{0}' kann nicht gelesen werden.", binder.Name));
+          expr = ThrowExpression(String.Format("'{0}' is not readable.", binder.Name));
           return BindResult.NotReadable;
         }
       }
@@ -629,20 +636,20 @@ namespace Neo.IronLua
 
     private static object[] emptyResult = new object[0];
 
-    private static BindResult TryBindInvokeMember(InvokeMemberBinder binder, bool lUseCtor, DynamicMetaObject target, DynamicMetaObject[] arguments, out Expression expr)
+    internal static BindResult TryBindInvokeMember(InvokeMemberBinder binder, bool lUseCtor, DynamicMetaObject target, DynamicMetaObject[] arguments, out Expression expr)
     {
       MethodBase miBind = lUseCtor ?
         (MethodBase)BindFindInvokeMember<ConstructorInfo>(null, false, target, arguments) :
         (MethodBase)BindFindInvokeMember<MethodInfo>(binder.Name, binder.IgnoreCase, target, arguments);
 
-      // Wurde ein Member gefunden
+      // Method resolved
       if (miBind == null)
       {
-        expr = Lua.ThrowExpression(String.Format("Methode '{0}' nicht gefunden.", binder.Name));
+        expr = ThrowExpression(String.Format("Method '{0}' not resolved.", binder.Name));
         return BindResult.MemberNotFound;
       }
 
-      // Erzeuge die Expressions für die Parameter
+      // Create the expression with the arguments
       expr = InvokeMemberExpression(target, miBind, arguments);
       return BindResult.Ok;
     } // func TryBindInvokeMember
@@ -650,11 +657,11 @@ namespace Neo.IronLua
     private static Expression InvokeMemberExpression(DynamicMetaObject target, MethodBase miBind, DynamicMetaObject[] arguments)
     {
       Expression expr;
-      List<ParameterExpression> vars = new List<ParameterExpression>(); // Variablen für die Rückgabe
-      List<Expression> callBlock = new List<Expression>();              // Instructions für den Ruf
+      List<ParameterExpression> vars = new List<ParameterExpression>(); // Variables for the result
+      List<Expression> callBlock = new List<Expression>();              // Instructions for the call
       Expression[] exprPara = BindInvokeParameters(miBind.GetParameters(), arguments, vars, callBlock);
 
-      // Rückgabe
+      // Return
       Type returnType;
       Expression exprCall;
       if (miBind is ConstructorInfo)
@@ -669,25 +676,25 @@ namespace Neo.IronLua
         exprCall = Expression.Call(target == null || target.Value == null ? null : Expression.Convert(target.Expression, target.LimitType), mi, exprPara);
       }
 
-      // Erzeuge den Call
-      if (vars.Count == 0) // Keine Rückgabe via Variablen
-        if (returnType == typeof(void)) // Überhaupt keine Rückgabe
+      // Create the call-block
+      if (vars.Count == 0) // No return with variables
+        if (returnType == typeof(void)) // No result at all
         {
           expr = Expression.Block(
             exprCall,
             Expression.Constant(emptyResult, typeof(object[]))
             );
         }
-        else if (returnType == typeof(object[]))
+        else if (returnType == typeof(object[])) // Call has the correct result-array
           expr = exprCall;
-        else
+        else // Only one result, cast it to an array
           expr = Expression.NewArrayInit(typeof(object), Expression.Convert(exprCall, typeof(object)));
-      else
+      else // Return the variables in the correct order
       {
         Expression[] r = new Expression[vars.Count + 1];
-        r[0] = Lua.ToObjectExpression(exprCall);
+        r[0] = Parser.ToObjectExpression(exprCall);
         for (int i = 0; i < vars.Count; i++)
-          r[i + 1] = Lua.ToObjectExpression(vars[i]);
+          r[i + 1] = Parser.ToObjectExpression(vars[i]);
         callBlock.Add(Expression.NewArrayInit(typeof(object), r));
         expr = Expression.Block(vars, callBlock);
       }
@@ -730,15 +737,15 @@ namespace Neo.IronLua
                   iLastIndexCount = 0;
                   break;
                 }
-                exprArray.Add(Lua.RuntimeHelperConvertExpression(c, elementType));
+                exprArray.Add(Parser.RuntimeHelperConvertExpression(c, elementType));
               }
             }
             // Create the function that creates an complete array with all arguments
             if (iLastArgIndex >= 0)
             {
               exprPara[i] = Expression.Convert(
-                Lua.RuntimeHelperExpression(
-                  RuntimeHelper.ConcatArrays,
+                Parser.RuntimeHelperExpression(
+                  LuaRuntimeHelper.ConcatArrays,
                   Expression.Constant(elementType, typeof(Type)),
                   Expression.Convert(Expression.NewArrayInit(elementType, exprArray), typeof(Array)),
                   Expression.Convert(arguments[iLastArgIndex].Expression, typeof(Array)),
@@ -770,9 +777,9 @@ namespace Neo.IronLua
 
           // get-Expression for the argument
           if (iLastArgIndex >= 0)
-            exprGet = Lua.RuntimeHelperExpression(RuntimeHelper.GetObject, arguments[iLastArgIndex].Expression, Expression.Constant(iLastIndexCount++, typeof(int))); // We stretch the last argument
+            exprGet = Parser.RuntimeHelperConvertExpression(Parser.RuntimeHelperExpression(LuaRuntimeHelper.GetObject, arguments[iLastArgIndex].Expression, Expression.Constant(iLastIndexCount++, typeof(int))), typeParameter); // We stretch the last argument
           else if (i < arguments.Length)
-            exprGet = Lua.RuntimeHelperConvertExpression(arguments[i].Expression, typeParameter); // Convert the Argument
+            exprGet = Parser.RuntimeHelperConvertExpression(arguments[i].Expression, typeParameter); // Convert the Argument
           else if (p.IsOptional)
             exprGet = Expression.Constant(p.DefaultValue, typeParameter); // No argument, but we have a default value -> use it
           else
@@ -920,7 +927,7 @@ namespace Neo.IronLua
         return false;
     } // func IsMatchParameter
 
-    private static BindingRestrictions GetMethodSignatureRestriction(DynamicMetaObject target, DynamicMetaObject[] args)
+    internal static BindingRestrictions GetMethodSignatureRestriction(DynamicMetaObject target, DynamicMetaObject[] args)
     {
       BindingRestrictions restrictions;
       if (target != null)
@@ -959,7 +966,7 @@ namespace Neo.IronLua
         {
           return errorSuggestion ??
             new DynamicMetaObject(
-            Lua.ThrowExpression(String.Format("Typ '{0}' hat keine Invoke Methode.", target.LimitType.Name)),
+            ThrowExpression(String.Format("Type '{0}' has no invoke method.", target.LimitType.Name)),
             restrictions
             );
         }
@@ -973,20 +980,20 @@ namespace Neo.IronLua
       else
         return errorSuggestion ??
           new DynamicMetaObject(
-            Lua.ThrowExpression(String.Format("Typ '{0}' kann nicht aufgerufen werden.", target.LimitType.Name)),
+            ThrowExpression(String.Format("Type '{0}' is not callable.", target.LimitType.Name)),
             restrictions);
     } // proc BindFallbackInvoke
 
     private static bool GetIndexAccessExpression(DynamicMetaObject target, DynamicMetaObject[] indexes, out Expression expr)
     {
-      
+
       if (typeof(Array).IsAssignableFrom(target.LimitType)) // Is the target an array
       {
         Expression[] args = new Expression[indexes.Length];
 
         // The indexes should be casted on integer
         for (int i = 0; i < args.Length; i++)
-          args[i] = Lua.ConvertTypeExpression(indexes[i].Expression, indexes[i].LimitType, typeof(int));
+          args[i] = Parser.RuntimeHelperConvertExpression(indexes[i].Expression, typeof(int));
 
         expr = Expression.ArrayAccess(Expression.Convert(target.Expression, target.LimitType), args);
         return true;
@@ -997,7 +1004,7 @@ namespace Neo.IronLua
 
         if (pi == null) // No Index found
         {
-          expr = Lua.ThrowExpression(String.Format("No index found for type '{0}'.", target.LimitType.Name));
+          expr = ThrowExpression(String.Format("No index found for type '{0}'.", target.LimitType.Name));
           return false;
         }
         else // Create the index expression
@@ -1011,6 +1018,28 @@ namespace Neo.IronLua
 
     #endregion
 
+    #region -- ThrowExpression --------------------------------------------------------
+
+    [ThreadStatic]
+    private static ConstructorInfo ciLuaException = null;
+    
+    internal static Expression ThrowExpression(string sMessage)
+    {
+      if (ciLuaException == null)
+        ciLuaException = typeof(LuaBindException).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(string), typeof(Exception) }, null);
+
+      return Expression.Throw(
+        Expression.New(
+          ciLuaException,
+          Expression.Constant(sMessage, typeof(string)),
+          Expression.Constant(null, typeof(Exception))
+        ),
+        typeof(object)
+      );
+    } // func GenerateThrowExpression
+
+    #endregion
+
     private static BindingFlags GetBindingFlags(bool lInstance, bool lIgnoreCase)
     {
       BindingFlags flags = BindingFlags.Public | BindingFlags.Static;
@@ -1021,7 +1050,10 @@ namespace Neo.IronLua
       return flags;
     } // func GetBindingFlags
 
-    public static CallSiteBinder FunctionResultBinder { get { return functionResultBinder; } }
-    public static CallSiteBinder ConvertToBooleanBinder { get { return convertToBooleanBinder; } }
+    internal static CallSiteBinder FunctionResultBinder { get { return functionResultBinder; } }
+    internal static CallSiteBinder ConvertToBooleanBinder { get { return convertToBooleanBinder; } }
+
+    /// <summary>Returns the instance for an empty result.</summary>
+    public static object[] EmptyResult { get { return emptyResult; } }
   } // class Lua
 }

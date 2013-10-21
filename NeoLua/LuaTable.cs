@@ -29,7 +29,7 @@ namespace Neo.IronLua
       {
         if (indexes.Length == 1)
         {
-          // the index is normaly an expression
+          // the index is normaly an expression --> call setvalue
           return new DynamicMetaObject(
             Expression.Block(
               Expression.Call(
@@ -196,6 +196,20 @@ namespace Neo.IronLua
     {
       return new LuaMetaObject(this, parameter);
     } // func GetMetaObject
+
+    #endregion
+
+    #region -- RegisterFunction, UnregisterFunction -----------------------------------
+
+    public void RegisterFunction(string sName, Delegate function)
+    {
+      if (String.IsNullOrEmpty(sName))
+        throw new ArgumentNullException("name");
+      if (function == null)
+        throw new ArgumentNullException("function");
+
+      this[sName] = function;
+    } // proc RegisterFunction
 
     #endregion
 
