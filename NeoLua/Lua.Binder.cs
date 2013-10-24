@@ -668,16 +668,16 @@ namespace Neo.IronLua
       }
 
       // Create the expression with the arguments
-      expr = InvokeMemberExpression(target, miBind, arguments);
+      expr = InvokeMemberExpression(target, miBind, null, arguments);
       return BindResult.Ok;
     } // func TryBindInvokeMember
 
-    private static Expression InvokeMemberExpression(DynamicMetaObject target, MethodBase miBind, DynamicMetaObject[] arguments)
+    private static Expression InvokeMemberExpression(DynamicMetaObject target, MethodBase miBind, ParameterInfo[] alternativeParameters, DynamicMetaObject[] arguments)
     {
       Expression expr;
       List<ParameterExpression> vars = new List<ParameterExpression>(); // Variables for the result
       List<Expression> callBlock = new List<Expression>();              // Instructions for the call
-      Expression[] exprPara = BindInvokeParameters(miBind.GetParameters(), arguments, vars, callBlock);
+      Expression[] exprPara = BindInvokeParameters(alternativeParameters ?? miBind.GetParameters(), arguments, vars, callBlock);
 
       // Return
       Type returnType;
@@ -833,7 +833,10 @@ namespace Neo.IronLua
       else if (typeof(T) == typeof(MethodInfo))
         members = type.GetMember(sName, GetBindingFlags(target.Value != null, lIgnoreCase) | BindingFlags.InvokeMethod);
       else if (typeof(T) == typeof(PropertyInfo))
-        members = type.GetMember(sName, GetBindingFlags(target.Value != null, lIgnoreCase) | BindingFlags.GetProperty | BindingFlags.SetProperty);
+        if (String.IsNullOrEmpty(sName)) // look for indexer
+          members = (from m in type.GetMembers(GetBindingFlags(true, false) | BindingFlags.GetProperty | BindingFlags.SetProperty) where m is PropertyInfo && ((PropertyInfo)m).GetIndexParameters().Length > 0 select m).ToArray();
+        else
+          members = type.GetMember(sName, GetBindingFlags(target.Value != null, lIgnoreCase) | BindingFlags.GetProperty | BindingFlags.SetProperty);
       else
         throw new ArgumentException();
 
@@ -979,7 +982,13 @@ namespace Neo.IronLua
       if (target.LimitType.IsSubclassOf(typeof(Delegate)))
       {
         // Suche die Methode
-        MethodInfo mi = target.LimitType.GetMethod("Invoke", BindingFlags.Public | BindingFlags.Instance);
+        MethodInfo mi;
+        ParameterInfo[] parameters = null;
+
+        if (target.Value != null)
+          parameters = ((Delegate)target.Value).Method.GetParameters(); // use the correct parameters
+
+        mi = target.LimitType.GetMethod("Invoke", BindingFlags.Public | BindingFlags.Instance);
         if (mi == null)
         {
           return errorSuggestion ??
@@ -989,9 +998,12 @@ namespace Neo.IronLua
             );
         }
 
+        if (mi.GetParameters().Length != parameters.Length) // closures or outer hidden parameters
+          parameters = null;
+
         // Erzeuge den Call-Befehl
         return new DynamicMetaObject(
-          InvokeMemberExpression(target, mi, args),
+          InvokeMemberExpression(target, mi, parameters, args),
           restrictions
         );
       }
@@ -1004,7 +1016,6 @@ namespace Neo.IronLua
 
     private static bool GetIndexAccessExpression(DynamicMetaObject target, DynamicMetaObject[] indexes, out Expression expr)
     {
-
       if (typeof(Array).IsAssignableFrom(target.LimitType)) // Is the target an array
       {
         Expression[] args = new Expression[indexes.Length];
@@ -1018,7 +1029,7 @@ namespace Neo.IronLua
       }
       else
       {
-        PropertyInfo pi = BindFindInvokeMember<PropertyInfo>("Item", false, target, indexes);
+        PropertyInfo pi = BindFindInvokeMember<PropertyInfo>(null, false, target, indexes);
 
         if (pi == null) // No Index found
         {

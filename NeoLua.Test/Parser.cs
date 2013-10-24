@@ -70,6 +70,7 @@ namespace LuaDLR.Test
         T(LuaToken.KwEnd, "end"),
         T(LuaToken.KwFalse, "false"),
         T(LuaToken.KwFor, "for"),
+        T(LuaToken.KwFor, "foreach"),
         T(LuaToken.KwFunction, "function"),
         T(LuaToken.KwGoto, "goto"),
         T(LuaToken.KwIf, "if"),

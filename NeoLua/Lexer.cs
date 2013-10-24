@@ -59,6 +59,8 @@ namespace Neo.IronLua
     KwFalse,
     /// <summary>Keyword for</summary>
     KwFor,
+    /// <summary>Keyword foreach</summary>
+    KwForEach,
     /// <summary>Keyword function</summary>
     KwFunction,
     /// <summary>Keyword goto</summary>
@@ -883,7 +885,7 @@ namespace Neo.IronLua
           case 1053: if (c == 'e') EatChar(1054); else goto case 1000; break;
           case 1054: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwFalse); else goto case 1000;
           case 1055: if (c == 'r') EatChar(1056); else goto case 1000; break;
-          case 1056: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwFor); else goto case 1000;
+          case 1056: if (c == 'e') EatChar(10000); else if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwFor); else goto case 1000; break;
           case 1057: if (c == 'n') EatChar(1058); else goto case 1000; break;
           case 1058: if (c == 'c') EatChar(1059); else goto case 1000; break;
           case 1059: if (c == 't') EatChar(1060); else goto case 1000; break;
@@ -891,6 +893,10 @@ namespace Neo.IronLua
           case 1061: if (c == 'o') EatChar(1062); else goto case 1000; break;
           case 1062: if (c == 'n') EatChar(1063); else goto case 1000; break;
           case 1063: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwFunction); else goto case 1000;
+          case 10000: if (c == 'a') EatChar(10001); else goto case 1000; break;
+          case 10001: if (c == 'c') EatChar(10002); else goto case 1000; break;
+          case 10002: if (c == 'h') EatChar(10003); else goto case 1000; break;
+          case 10003: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwForEach); else goto case 1000;
           // goto
           case 1065: if (c == 'o') EatChar(1066); else goto case 1000; break;
           case 1066: if (c == 't') EatChar(1067); else goto case 1000; break;

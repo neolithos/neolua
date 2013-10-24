@@ -69,6 +69,151 @@ namespace Neo.IronLua
   /// <summary>Static libraries for lua</summary>
   public partial class Lua
   {
+    #region -- String Manipulation ----------------------------------------------------
+
+    ///////////////////////////////////////////////////////////////////////////////
+    /// <summary></summary>
+    private static class LuaLibraryString
+    {
+      public static object[] @byte(string s, int i = 1, int j = int.MaxValue)
+      {
+        if(String.IsNullOrEmpty(s) || i > j)
+          return Lua.EmptyResult;
+
+        if (i < 1)
+          i = 1; // default for i is 1
+        if (j == int.MaxValue)
+          j = i; // default for j is i
+        else if(j > s.Length)
+          j = s.Length; // correct the length
+
+        int iLen = j - i + 1; // how many chars to we need
+
+        object[] r = new object[iLen];
+        for (int a = 0; a < iLen; a++)
+          r[a] = (int)s[i + a - 1];
+
+        return r;
+      } // func byte
+
+      public static string @char(params int[] chars)
+      {
+        if(chars == null)
+          return String.Empty;
+
+        StringBuilder sb = new StringBuilder(chars.Length);
+        for (int i = 0; i < chars.Length; i++)
+          sb[i] = (char)chars[i];
+
+        return sb.ToString();
+      } // func char
+
+      public static string dump(Delegate dlg)
+      {
+        throw new NotImplementedException();
+      } // func dump
+
+      public static object[] find(string s, string pattern, int init = 1, bool plain = true)
+      {
+        throw new NotImplementedException();
+      } // func find
+
+      public static string format(string formatstring, params object[] args)
+      {
+        throw new NotImplementedException();
+      } // func format
+
+      public static Delegate gmatch(string s, string pattern)
+      {
+        throw new NotImplementedException();
+      } // func gmatch
+
+      public static Delegate gsub(string s, string pattern, string repl, int n)
+      {
+        throw new NotImplementedException();
+      } // func gsub
+
+      public static int len(string s)
+      {
+        return s == null ? 0 : s.Length;
+      } // func len
+
+      public static string lower(string s)
+      {
+        if (String.IsNullOrEmpty(s))
+          return s;
+        return s.ToLower();
+      } // func lower
+
+      public static string match(string s, string pattern, int init)
+      {
+        throw new NotImplementedException();
+      } // func match
+
+      public static string rep(string s, int n, string sep = "")
+      {
+        if (String.IsNullOrEmpty(s) || n == 0)
+          return s;
+        return String.Join(sep, Enumerable.Repeat(s, n));
+      } // func rep
+
+      public static string reverse(string s)
+      {
+        if(String.IsNullOrEmpty(s) || s.Length == 1)
+          return s;
+
+        char[] a = s.ToCharArray();
+        Array.Reverse(a);
+        return new string(a);
+      } // func reverse
+
+      public static string sub(string s, int i, int j = -1)
+      {
+        if (String.IsNullOrEmpty(s) || j == 0)
+          return String.Empty;
+
+        if (i == 0)
+          i = 1;
+
+        int iStart;
+        int iLen;
+        if (i < 0) // Suffix mode
+        {
+          iStart = s.Length + i;
+          if (iStart < 0)
+            iStart = 0;
+          iLen = (j < 0 ? s.Length + j + 1 : j) - iStart;
+        }
+        else // Prefix mode
+        {
+          iStart = i - 1;
+          if (j < 0)
+            j = s.Length + j + 1;
+          iLen = j - iStart;
+        }
+
+        // correct the length
+        if (iStart + iLen > s.Length)
+          iLen = s.Length - iStart;
+
+        // return the string
+        if (iLen <= 0)
+          return String.Empty;
+        else
+          return s.Substring(iStart, iLen);
+      } // func sub
+
+      public static string upper(string s)
+      {
+        if (String.IsNullOrEmpty(s))
+          return s;
+        return s.ToUpper();
+      } // func lower
+
+    } // class LuaLibraryString
+
+    #endregion
+
     #region -- Table Manipulation -----------------------------------------------------
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -372,6 +517,190 @@ namespace Neo.IronLua
 
     #endregion
 
+    #region -- Bitwise Operations -----------------------------------------------------
+
+    ///////////////////////////////////////////////////////////////////////////////
+    /// <summary></summary>
+    private static class LuaLibraryBit32
+    {
+      public static int arshift(int x, int disp)
+      {
+        if (disp < 0)
+          return unchecked(x << -disp);
+        else if (disp > 0)
+          return unchecked(x >> disp);
+        else
+          return x;
+      } // func arshift
+
+      public static uint band(params uint[] ands)
+      {
+        uint r = 0;
+        if (ands != null)
+          for (int i = 0; i < ands.Length; i++)
+            r &= ands[i];
+        return r;
+      } // func band
+
+      public static uint bnot(uint x)
+      {
+        return ~x;
+      } // func bnot
+
+      public static uint bor(params uint[] ors)
+      {
+        uint r = 0;
+        if (ors != null)
+          for (int i = 0; i < ors.Length; i++)
+            r |= ors[i];
+        return r;
+      } // func bor
+
+      public static bool btest(params uint[] tests)
+      {
+        return band(tests) != 0;
+      } // func btest
+
+      public static uint bxor(params uint[] xors)
+      {
+        uint r = 0;
+        if (xors != null)
+          for (int i = 0; i < xors.Length; i++)
+            r ^= xors[i];
+        return r;
+      } // func bxor
+
+      public static int extract(uint n, int field, int width = 1)
+      {
+        uint m = unchecked(((uint)1 << width) - 1);
+        uint neg = (uint)1 << (width - 1);
+        n = n >> field;
+        uint v = n & m;
+
+        if ((v & neg) != 0)
+          return (int)-(~v & m) - 1;
+        else
+          return (int)v;
+      } // func extract
+
+      public static uint replace(uint n, int v, int field, int width = 1)
+      {
+        uint m = unchecked(((uint)1 << width - 1) - 1);
+        uint r;
+        if (v < 0)
+          r = unchecked((((uint)(~(-v) + 1) & m) | ((uint)1 << (width - 1))) << field);
+        else
+          r = unchecked(((uint)v & m) << field);
+
+        m = unchecked((((uint)1 << width) - 1) << field);
+        return (n & ~m) | r;
+      } // func replace
+
+      public static uint lrotate(uint x, int disp)
+      {
+        return unchecked(x << disp | x >> (32 - disp));
+      } // func lrotate
+
+      public static uint lshift(uint x, int disp)
+      {
+        if (disp < 0)
+          return rshift(x, -disp);
+        else if (disp > 0)
+          return x << disp;
+        else
+          return x;
+      } // func lshift
+
+      public static uint rrotate(uint x, int disp)
+      {
+        return unchecked(x >> disp | x << (32 - disp));
+      } // func rrotate
+
+      public static uint rshift(uint x, int disp)
+      {
+        if (disp < 0)
+          return lshift(x, -disp);
+        else if (disp > 0)
+          return x >> disp;
+        else
+          return x;
+      } // func rshift
+    } // class LuaLibraryBit32
+
+    #endregion
+
+    #region -- Input and Output Facilities --------------------------------------------
+
+    ///////////////////////////////////////////////////////////////////////////////
+    /// <summary>default files are not supported.</summary>
+    private static class LuaLibraryIO
+    {
+      public static object[] close(LuaFile file = null)
+      {
+        if (file != null)
+          return file.close();
+        else
+          throw new NotImplementedException();
+      } // proc close
+
+      public static void flush()
+      {
+      } // proc flush
+
+      public static LuaFile input(LuaFile file = null)
+      {
+        if (file == null)
+          throw new NotImplementedException();
+        else
+          return file;
+      } // proc input
+
+      public static Delegate lines(string filename)
+      {
+        throw new NotImplementedException();
+      } // func lines
+
+      public static object[] open(string filename, string mode = "r")
+      {
+        throw new NotImplementedException();
+      } // func open
+
+      public static LuaFile output(LuaFile file = null)
+      {
+        if (file == null)
+          throw new NotImplementedException();
+        else
+          return file;
+      } // proc output
+
+      public static object[] popen(string program, string mode = "r")
+      {
+        throw new NotImplementedException();
+      } // func popen
+
+      public static void read()
+      {
+        throw new NotImplementedException();
+      } // proc read
+
+      public static LuaFile tmpfile()
+      {
+        throw new NotImplementedException();
+      } // func read
+
+      public static string type(object obj)
+      {
+        throw new NotImplementedException();
+      } // func type
+
+      public static void write()
+      {
+        throw new NotImplementedException();
+      } // proc write
+    } // class LuaLibraryOS
+
+    #endregion
+
     #region -- Operating System Facilities --------------------------------------------
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -382,6 +711,56 @@ namespace Neo.IronLua
       {
         return Environment.TickCount;
       } // func clock
+
+      public static object date(string format, string time)
+      {
+        throw new NotImplementedException();
+      } // func date
+
+      public static int difftime(object t2, object t1)
+      {
+        throw new NotImplementedException();
+      } // func difftime
+
+      public static object[] execute(string command)
+      {
+        throw new NotImplementedException();
+      } // func execute
+
+      public static void exit(int code = 0, bool close = true)
+      {
+        throw new NotImplementedException();
+      } // func exit
+
+      public static string getenv(string varname)
+      {
+        return Environment.GetEnvironmentVariable(varname);
+      } // func getenv
+
+      public static object[] remove(string filename)
+      {
+        throw new NotImplementedException();
+      } // func remove
+
+      public static object[] rename(string oldname, string newname)
+      {
+        throw new NotImplementedException();
+      } // func rename
+
+      public static void setlocale()
+      {
+        throw new NotImplementedException();
+      } // func setlocale
+
+      public static object time(LuaTable table)
+      {
+        throw new NotImplementedException();
+      } // func time
+
+      public static string tmpname()
+      {
+        throw new NotImplementedException();
+      } // func tmpname
     } // class LuaLibraryOS
 
     #endregion

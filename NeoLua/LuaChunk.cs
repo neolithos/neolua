@@ -109,17 +109,18 @@ namespace Neo.IronLua
       LuaDebugInfo info = null;
 
       // find debug info
-      for (int i = 0; i < debugInfos.Count; i++)
-        if (debugInfos[i].ILOffset == ilOffset)
-        {
-          info = debugInfos[i];
-          break;
-        }
-        else if (debugInfos[i].ILOffset > ilOffset)
-        {
-          info = i == 0 ? null : debugInfos[i - 1];
-          break;
-        }
+      if (debugInfos != null)
+        for (int i = 0; i < debugInfos.Count; i++)
+          if (debugInfos[i].ILOffset == ilOffset)
+          {
+            info = debugInfos[i];
+            break;
+          }
+          else if (debugInfos[i].ILOffset > ilOffset)
+          {
+            info = i == 0 ? null : debugInfos[i - 1];
+            break;
+          }
 
       // clear debug
       if (info != null && info.Line == 16707566)

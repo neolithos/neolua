@@ -75,5 +75,46 @@ namespace LuaDLR.Test
     {
       Assert.IsTrue(TestReturn("return cast(int, math.abs(-1));", 1));
     } // proc TestRuntimeLua03
+
+    [TestMethod]
+    public void TestRuntimeLua04()
+    {
+      Assert.IsTrue(TestReturn("return string.byte('hallo', 2, 4);", 97, 108, 108));
+    } // proc TestRuntimeLua04
+
+    [TestMethod]
+    public void TestRuntimeLua05()
+    {
+      Assert.IsTrue(TestReturn("return string.byte('hallo', 2);", 97));
+    } // proc TestRuntimeLua05
+
+    [TestMethod]
+    public void TestRuntimeLua06()
+    {
+      Assert.IsTrue(TestReturn("return 'hallo':Substring(1, 3);", "all"));
+    } // proc TestRuntimeLua06
+
+    [TestMethod]
+    public void TestRuntimeLua07()
+    {
+      Assert.IsTrue(TestReturn("return 'hallo'[1];", 'a'));
+    } // proc TestRuntimeLua07
+
+    [TestMethod]
+    public void TestRuntimeLua08()
+    {
+      Assert.IsTrue(TestReturn("return string.sub('hallo', 3);", "llo"));
+      Assert.IsTrue(TestReturn("return string.sub('hallo', 10);", ""));
+      Assert.IsTrue(TestReturn("return string.sub('hallo', 3, 4);", "ll"));
+      Assert.IsTrue(TestReturn("return string.sub('hallo', -3);", "llo"));
+      Assert.IsTrue(TestReturn("return string.sub('hallo', -3, -2);", "ll"));
+    } // proc TestRuntimeLua08
+
+    [TestMethod]
+    public void TestRuntimeLua09()
+    {
+      Assert.IsTrue(TestReturn("return bit32.extract(0xFF00, 8, 8);", -1));
+      Assert.IsTrue(TestReturn("return bit32.replace(0x0FFF, -1, 8, 8);", (uint)0xFFFF));
+    } // proc TestRuntimeLua09
   } // class Runtime
 }

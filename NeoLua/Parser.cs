@@ -99,10 +99,10 @@ namespace Neo.IronLua
           throw new InvalidOperationException();
       } // proc CheckBlockGenerated
 
-      public void InsertExpression(Expression expr)
+      public void InsertExpression(int iIndex, Expression expr)
       {
         CheckBlockGenerated();
-        block.Insert(0, expr);
+        block.Insert(iIndex, expr);
       } // proc AddExpression
 
       public void AddExpression(Expression expr)
@@ -139,8 +139,6 @@ namespace Neo.IronLua
 
       /// <summary>Access to the Lua-Binders</summary>
       public virtual Lua Runtime { get { return parent.Runtime; } }
-      /// <summary>Is the language Zero-Based or One-Based like Lua.</summary>
-      public virtual bool IsZeroBased { get { return parent.IsZeroBased; } }
       /// <summary>Emit-Debug-Information</summary>
       public virtual bool EmitDebug { get { return parent.EmitDebug; } }
     } // class Scope
@@ -153,7 +151,6 @@ namespace Neo.IronLua
     /// <summary>Scope that represents the loop content.</summary>
     private class LoopScope : Scope
     {
-      private bool lAutoEmitLabels;
       private LabelTarget continueLabel = Expression.Label(csContinueLabel);
       private LabelTarget breakLabel = Expression.Label(csBreakLabel);
 
@@ -161,13 +158,9 @@ namespace Neo.IronLua
 
       /// <summary>Scope that represents the loop content.</summary>
       /// <param name="parent"></param>
-      /// <param name="lAutoEmitLabels">Emit the standard loop labels</param>
-      public LoopScope(Scope parent, bool lAutoEmitLabels = true)
+      public LoopScope(Scope parent)
         : base(parent)
       {
-        this.lAutoEmitLabels = lAutoEmitLabels;
-        if (lAutoEmitLabels)
-          AddExpression(Expression.Label(continueLabel));
       } // ctor
 
       #endregion
@@ -189,17 +182,6 @@ namespace Neo.IronLua
       } // func LookupLabel
 
       #endregion
-
-      /// <summary>Returns the expression block</summary>
-      public override Expression ExpressionBlock
-      {
-        get
-        {
-          if (lAutoEmitLabels)
-            AddExpression(Expression.Label(breakLabel));
-          return base.ExpressionBlock;
-        }
-      } // prop ExpressionBlock
 
       /// <summary>Default break position.</summary>
       public LabelTarget BreakLabel { get { return breakLabel; } }
@@ -314,8 +296,6 @@ namespace Neo.IronLua
 
       /// <summary>Access to the binders</summary>
       public override Lua Runtime { get { return runtime; } }
-      /// <summary>Index-Start</summary>
-      public override bool IsZeroBased { get { return true; } }
       /// <summary>Emit-Debug-Information</summary>
       public override bool EmitDebug { get { return lDebug; } }
     } // class GlobalScope
@@ -599,6 +579,10 @@ namespace Neo.IronLua
 
         case LuaToken.KwFor:
           ParseForLoop(scope, code);
+          return true;
+
+        case LuaToken.KwForEach:
+          ParseForEachLoop(scope, code);
           return true;
 
         case LuaToken.KwFunction:
@@ -1386,25 +1370,28 @@ namespace Neo.IronLua
 
     private static void ParseDoLoop(Scope scope, LuaLexer code)
     {
-      // Erzeuge einen einfachen Block ohne Schleife
-      FetchToken(LuaToken.KwDo, code);
-
-      // Erzeuge die Schleife
+      // create empty block, that can used as an loop
       LoopScope loopScope = new LoopScope(scope);
+      loopScope.AddExpression(Expression.Label(loopScope.ContinueLabel));
+
+      // do block end;
+      FetchToken(LuaToken.KwDo, code);
       ParseBlock(loopScope, code);
-      scope.AddExpression(loopScope.ExpressionBlock);
-      
-      // Ende
       FetchToken(LuaToken.KwEnd, code);
+
+      loopScope.AddExpression(Expression.Label(loopScope.BreakLabel));
+      scope.AddExpression(loopScope.ExpressionBlock);
     } // ParseDoLoop
 
     private static void ParseWhileLoop(Scope scope, LuaLexer code)
     {
+      // while expr do block end;
       LoopScope loopScope = new LoopScope(scope);
 
-      // Lies die Bedingung
+      // get the expression
       FetchToken(LuaToken.KwWhile, code);
 
+      loopScope.AddExpression(Expression.Label(loopScope.ContinueLabel));
       loopScope.AddExpression(
         Expression.IfThenElse(
           ToBooleanExpression(ParseExpression(scope, code, scope.EmitDebug)), 
@@ -1413,14 +1400,15 @@ namespace Neo.IronLua
         )
       );
 
-      // Erzeuge den CodeBlock
+      // append the block
       FetchToken(LuaToken.KwDo, code);
       ParseBlock(loopScope, code);
       FetchToken(LuaToken.KwEnd, code);
 
-      // Schleife für Goto
-      Expression.Goto(loopScope.ContinueLabel);
-
+      // goto continue
+      loopScope.AddExpression(Expression.Goto(loopScope.ContinueLabel));
+      loopScope.AddExpression(Expression.Label(loopScope.BreakLabel));
+      
       scope.AddExpression(loopScope.ExpressionBlock);
     } // func ParseWhileLoop
 
@@ -1428,11 +1416,14 @@ namespace Neo.IronLua
     {
       LoopScope loopScope = new LoopScope(scope);
 
-      // Inhalt der Schleife
+      // continue label
+      loopScope.AddExpression(Expression.Label(loopScope.ContinueLabel));
+
+      // loop content
       FetchToken(LuaToken.KwRepeat, code);
       ParseBlock(loopScope, code);
 
-      // Lies die Bedingung
+      // get the loop expression
       FetchToken(LuaToken.KwUntil, code);
       loopScope.AddExpression(
         Expression.IfThenElse(
@@ -1442,6 +1433,8 @@ namespace Neo.IronLua
         )
       );
 
+      loopScope.AddExpression(Expression.Label(loopScope.BreakLabel));
+     
       scope.AddExpression(loopScope.ExpressionBlock);
     } // func ParseRepeatLoop
 
@@ -1466,7 +1459,7 @@ namespace Neo.IronLua
         else
           loopStep = Expression.Constant(1, typeof(int));
 
-        LoopScope loopScope = new LoopScope(scope, false);
+        LoopScope loopScope = new LoopScope(scope);
         ParameterExpression loopVarParameter = loopScope.RegisterVariable(typeof(object), loopVar.Value);
 
         FetchToken(LuaToken.KwDo, code);
@@ -1476,39 +1469,81 @@ namespace Neo.IronLua
       }
       else
       {
-        throw new NotImplementedException();
-        /*
- The generic for statement works over functions, called iterators. On each iteration, the iterator function is called to produce a new value, stopping when this new value is nil. The generic for loop has the following syntax:
+        // {, name} in explist do block end
 
-	stat ::= for namelist in explist do block end
-	namelist ::= Name {‘,’ Name}
+        // fetch all loop variables
+        LoopScope loopScope = new LoopScope(scope);
+        List<ParameterExpression> loopVars = new List<ParameterExpression>();
+        loopVars.Add(loopScope.RegisterVariable(typeof(object), loopVar.Value));
+        while (code.Current.Typ == LuaToken.Comma)
+        {
+          code.Next();
+          loopVars.Add(loopScope.RegisterVariable(typeof(object), FetchToken(LuaToken.Identifier, code).Value));
+        }
 
-A for statement like
+        // get the loop expressions
+        FetchToken(LuaToken.KwIn, code);
+        Expression[] explist = ParseExpressionList(scope, code).ToArray();
 
-     for var_1, ···, var_n in explist do block end
+        // parse the loop body
+        FetchToken(LuaToken.KwDo, code);
+        ParseBlock(loopScope, code);
+        FetchToken(LuaToken.KwEnd, code);
 
-is equivalent to the code:
-
-     do
-       local f, s, var = explist
-       while true do
-         local var_1, ···, var_n = f(s, var)
-         if var_1 == nil then break end
-         var = var_1
-         block
-       end
-     end
-
-Note the following:
-
-    explist is evaluated only once. Its results are an iterator function, a state, and an initial value for the first iterator variable.
-    f, s, and var are invisible variables. The names are here for explanatory purposes only.
-    You can use break to exit a for loop.
-    The loop variables var_i are local to the loop; you cannot use their values after the for ends. If you need these values, then assign them to other variables before breaking or exiting the loop.
-
-*/
+        scope.AddExpression(GenerateForLoop(loopScope, loopVars, explist));
       }
     } // func ParseForLoop
+
+    private static void ParseForEachLoop(Scope scope, LuaLexer code)
+    {
+      ParameterExpression varEnumerable = Expression.Variable(typeof(System.Collections.IEnumerable), "#enumerable");
+      ParameterExpression varEnumerator = Expression.Variable(typeof(System.Collections.IEnumerator), "#enumerator");
+
+      // foreach name in exp do block end;
+      code.Next(); // foreach
+
+      // fetch the loop variable
+      LoopScope loopScope = new LoopScope(scope);
+      ParameterExpression loopVar = loopScope.RegisterVariable(typeof(object), FetchToken(LuaToken.Identifier, code).Value);
+      
+      // get the enumerable expression
+      FetchToken(LuaToken.KwIn, code);
+      Expression exprEnum = ParseExpression(scope, code, scope.EmitDebug);
+
+      // parse the loop body
+      FetchToken(LuaToken.KwDo, code);
+      ParseBlock(loopScope, code);
+      FetchToken(LuaToken.KwEnd, code);
+
+      Type typeEnumerator = typeof(System.Collections.IEnumerator);
+      var miGetEnumerator = typeof(System.Collections.IEnumerable).GetMethod("GetEnumerator");
+      var miMoveNext = typeEnumerator.GetMethod("MoveNext");
+      var piCurrent = typeEnumerator.GetProperty("Current", BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance);
+
+      loopScope.InsertExpression(0, Expression.Assign(loopVar, Expression.Property(varEnumerator, piCurrent)));
+      scope.AddExpression(
+        Expression.Block(new ParameterExpression[] { varEnumerable, varEnumerator, loopVar },
+        // local enumerable = exprEnum as IEnumerator
+        Expression.Assign(varEnumerable, Expression.TypeAs(exprEnum, typeof(System.Collections.IEnumerable))),
+
+        // if enumerable == nil then error
+        Expression.IfThen(Expression.Equal(varEnumerable, Expression.Constant(null, typeof(object))), Lua.ThrowExpression("Expression is not enumerable.")),
+
+        // local enum = exprEnum.GetEnumerator()
+        Expression.Assign(varEnumerator, Expression.Call(varEnumerable, miGetEnumerator)),
+
+        // while enum.MoveNext() do
+        Expression.Label(loopScope.ContinueLabel),
+        Expression.IfThenElse(Expression.Call(varEnumerator, miMoveNext), Expression.Empty(), Expression.Goto(loopScope.BreakLabel)),
+
+        //   loopVar = enum.Current
+        loopScope.ExpressionBlock,
+
+        // end;
+        Expression.Goto(loopScope.ContinueLabel),
+        Expression.Label(loopScope.BreakLabel)
+        ));
+    } // proc ParseForEachLoop
 
     private static Expression GenerateForLoop(LoopScope loopScope, ParameterExpression loopVar, Expression loopStart, Expression loopEnd, Expression loopStep)
     {
@@ -1521,7 +1556,7 @@ Note the following:
       LabelTarget labelLoop = Expression.Label("#loop");
 
       // Erzeuge CodeBlock
-      loopScope.InsertExpression(Expression.Assign(loopVar, internLoopVar));
+      loopScope.InsertExpression(0, Expression.Assign(loopVar, internLoopVar));
       
       // Erzeuge den Schleifenblock
       return Expression.Block(new ParameterExpression[] { internLoopVar, endVar, stepVar },
@@ -1553,6 +1588,53 @@ Note the following:
         Expression.Assign(internLoopVar, Expression.Dynamic(loopScope.Runtime.GetBinaryOperationBinder(ExpressionType.Add), typeof(object), internLoopVar, stepVar)),
 
         Expression.Goto(labelLoop),
+        Expression.Label(loopScope.BreakLabel)
+      );
+    } // func GenerateForLoop
+
+    private static Expression GenerateForLoop(LoopScope loopScope, List<ParameterExpression> loopVars, Expression[] explist)
+    {
+      const string csFunc = "#f";
+      const string csState = "#s";
+      const string csVar = "#var";
+
+      ParameterExpression varTmp = Expression.Variable(typeof(object[]), "#tmp");
+      ParameterExpression varFunc = Expression.Variable(typeof(Delegate), csFunc);
+      ParameterExpression varState = Expression.Variable(typeof(object), csState);
+      ParameterExpression varVar = Expression.Variable(typeof(object), csVar);
+      
+      // Convert the parameters
+      if (explist.Length > 1)
+        for (int i = 0; i < explist.Length; i++)
+          explist[i] = Expression.Convert(explist[i], typeof(object));
+
+      // local var1, ..., varn = tmp;
+      for (int i = 0; i < loopVars.Count; i++)
+        loopScope.InsertExpression(i, Expression.Assign(loopVars[i], Parser.RuntimeHelperExpression(LuaRuntimeHelper.GetObject, varTmp, Expression.Constant(i))));
+      return Expression.Block(new ParameterExpression[] { varTmp, varFunc, varState, varVar },
+        // fill the local loop variables initial
+        // local #f, #s, #var = explist
+        Expression.Assign(varTmp,
+          explist.Length == 1 && explist[0].Type == typeof(object[]) ? explist[0] : Parser.RuntimeHelperExpression(LuaRuntimeHelper.ReturnResult, Expression.NewArrayInit(typeof(object), explist))
+        ),
+        Expression.Assign(varFunc, Expression.Convert(Parser.RuntimeHelperExpression(LuaRuntimeHelper.GetObject, varTmp, Expression.Constant(0, typeof(int))), typeof(Delegate))),
+        Expression.Assign(varState, Parser.RuntimeHelperExpression(LuaRuntimeHelper.GetObject, varTmp, Expression.Constant(1, typeof(int)))),
+        Expression.Assign(varVar, Parser.RuntimeHelperExpression(LuaRuntimeHelper.GetObject, varTmp, Expression.Constant(2, typeof(int)))),
+
+        Expression.Label(loopScope.ContinueLabel),
+
+        // local tmp = f(s, var)
+        Expression.Assign(varTmp, Expression.Dynamic(Lua.FunctionResultBinder, typeof(object[]), Expression.Dynamic(loopScope.Runtime.GetInvokeBinder(new CallInfo(2)), typeof(object), varFunc, varState, varVar))),
+
+        // var = tmp[0]
+        Expression.Assign(varVar, Parser.RuntimeHelperExpression(LuaRuntimeHelper.GetObject, varTmp, Expression.Constant(0, typeof(int)))),
+
+        // if var == nil then goto break;
+        Expression.IfThenElse(Expression.Equal(varVar, Expression.Constant(null, typeof(object))),
+          Expression.Goto(loopScope.BreakLabel),
+          loopScope.ExpressionBlock), // LoopBody
+
+        Expression.Goto(loopScope.ContinueLabel),
         Expression.Label(loopScope.BreakLabel)
       );
     } // func GenerateForLoop
@@ -1661,7 +1743,7 @@ Note the following:
 
       if (code.Current.Typ != LuaToken.BracketCurlyClose)
       {
-        int iIndex = scope.IsZeroBased ? 0 : 1;
+        int iIndex = 1;
         Scope scopeTable = new Scope(scope);
 
         // Erzeuge die Table

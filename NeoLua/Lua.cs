@@ -328,7 +328,7 @@ namespace Neo.IronLua
 
     internal LuaChunk CreateEmptyChunk(string sName)
     {
-      sName = sName.Replace('.', '_')
+      sName = (String.IsNullOrEmpty(sName) ? "lambda" : sName).Replace('.', '_')
         .Replace(';', '_')
         .Replace(',', '_')
         .Replace('+', '_')
@@ -340,7 +340,7 @@ namespace Neo.IronLua
           chunks = new Dictionary<string, LuaChunk>();
 
         int iId = 0;
-        string sCurrentName = String.IsNullOrEmpty(sName) ? "lambda" : sName;
+        string sCurrentName = sName;
 
         // create a unique name
         lock (allChunks)

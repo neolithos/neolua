@@ -315,6 +315,56 @@ namespace Neo.IronLua
 
     #endregion
 
+    #region -- class LuaIndexPairEnumerator -------------------------------------------
+
+    private class LuaIndexPairEnumerator : System.Collections.IEnumerator
+    {
+      private LuaTable t;
+      private int[] indexes;
+      private int iCurrent  = 0;
+
+      public LuaIndexPairEnumerator(LuaTable t)
+      {
+        this.t = t;
+
+        List<int> lst = new List<int>();
+        foreach (var c in t)
+        {
+          if (c.Key is int)
+            lst.Add((int)c.Key);
+        }
+        lst.Sort();
+        indexes = lst.ToArray();
+      } // ctor
+
+      public object Current
+      {
+        get
+        {
+          if (iCurrent < indexes.Length)
+          {
+            int i = indexes[iCurrent];
+            return new KeyValuePair<object, object>(i, t[i]);
+          }
+          else
+            return null;
+        }
+      } // prop Current
+
+      public bool MoveNext()
+      {
+        iCurrent++;
+        return iCurrent < indexes.Length;
+      } // func MoveNext
+
+      public void Reset()
+      {
+        iCurrent = 0;
+      } // proc Reset
+    } // class LuaIndexPairEnumerator
+
+    #endregion
+
     private Lua lua;
 
     internal LuaGlobal(Lua lua)
@@ -393,7 +443,7 @@ namespace Neo.IronLua
       }
 
       // Führe den Block aus
-      using (LuaChunk chunk = lua.CompileChunk(sChunkName, true, tr, callTypes))
+      using (LuaChunk chunk = lua.CompileChunk(sChunkName, false, tr, callTypes))
         return DoChunk(chunk, callArgs);
     } // func DoChunk
 
@@ -470,15 +520,40 @@ namespace Neo.IronLua
 
     // todo: getmetatable
 
-    // todo: ipairs
+    private object[] pairsEnum(object s, object current)
+    {
+      System.Collections.IEnumerator e = (System.Collections.IEnumerator)s;
+
+      if (s != current) 
+        e.MoveNext(); // get the next value
+      
+      // return value
+      if (e.Current == null)
+        return Lua.EmptyResult;
+      else
+      {
+        KeyValuePair<object, object> k = (KeyValuePair<object, object>)e.Current;
+        return new object[] { k.Key, k.Value };
+      }
+    } // func pairsEnum
+
+    private object[] LuaIPairs(LuaTable t)
+    {
+      var e = new LuaIndexPairEnumerator(t);
+      return new object[] { new Func<object, object, object[]>(pairsEnum), e, e };
+    } // func ipairs
+
+    private object[] LuaPairs(LuaTable t)
+    {
+      var e = ((System.Collections.IEnumerable) t).GetEnumerator();
+      return new object[] { new Func<object, object, object[]>(pairsEnum), e, e };
+    } // func LuaPairs
 
     // todo: load
 
     // todo: loadfile
 
     // todo: next
-
-    // todo: pairs
 
     // todo: pcall
 
