@@ -45,7 +45,7 @@ namespace Neo.IronLua
 
     #region -- RtReturnResult, RtGetObject --------------------------------------------
 
-    private static object[] RtReturnResult(object[] objects)
+    internal static object[] RtReturnResult(object[] objects)
     {
       // Gibt es ein Ergebnis
       if (objects == null || objects.Length == 0)
@@ -83,7 +83,7 @@ namespace Neo.IronLua
       }
     } // func RtReturnResult
 
-    private static object RtGetObject(object[] values, int i)
+    internal static object RtGetObject(object[] values, int i)
     {
       if (values == null)
         return null;
@@ -97,7 +97,7 @@ namespace Neo.IronLua
 
     #region -- RtConcatArrays, RtStringConcat -----------------------------------------
 
-    private static Array RtConcatArrays(Type elementType, Array a, Array b, int iStartIndex)
+    internal static Array RtConcatArrays(Type elementType, Array a, Array b, int iStartIndex)
     {
       int iCountB = b.Length - iStartIndex;
 
@@ -110,7 +110,7 @@ namespace Neo.IronLua
       return r;
     } // func RtConcatArrays
 
-    private static object RtStringConcat(string[] strings)
+    internal static object RtStringConcat(string[] strings)
     {
       return String.Concat(strings);
     } // func RtStringConcat
@@ -119,7 +119,7 @@ namespace Neo.IronLua
 
     #region -- RtConvert --------------------------------------------------------------
 
-    private static object RtConvert(object value, Type to)
+    internal static object RtConvert(object value, Type to)
     {
       if (to == typeof(bool))
         return ConvertToBoolean(value);
@@ -143,7 +143,7 @@ namespace Neo.IronLua
           if (conv.CanConvertTo(to))
             return conv.ConvertTo(null, CultureInfo.InvariantCulture, value, to);
           else
-            throw new LuaBindException(String.Format("'{0}' kann nicht in '{1}' konvertiert werden.", value, to.Name), null);
+            throw new LuaRuntimeException(String.Format("'{0}' kann nicht in '{1}' konvertiert werden.", value, to.Name), null);
         }
       }
     } // func RtConvert
@@ -184,7 +184,7 @@ namespace Neo.IronLua
 
     #region -- Table Objects ----------------------------------------------------------
 
-    private static object RtTableSetObjects(LuaTable t, object value, int iStartIndex)
+    internal static object RtTableSetObjects(LuaTable t, object value, int iStartIndex)
     {
       if (value != null && (value is object[] || typeof(object[]).IsAssignableFrom(value.GetType())))
       {

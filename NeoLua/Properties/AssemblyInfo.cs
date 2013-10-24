@@ -36,3 +36,4 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyFileVersion("0.1.0.0")]
 
 [assembly: InternalsVisibleTo("LuaDLR.Test")]
+[assembly: InternalsVisibleTo("lua.dynamic")]

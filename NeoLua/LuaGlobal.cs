@@ -393,7 +393,7 @@ namespace Neo.IronLua
       }
 
       // Führe den Block aus
-      using (LuaChunk chunk = lua.CompileChunk(sChunkName, tr, callTypes))
+      using (LuaChunk chunk = lua.CompileChunk(sChunkName, true, tr, callTypes))
         return DoChunk(chunk, callArgs);
     } // func DoChunk
 
@@ -461,8 +461,11 @@ namespace Neo.IronLua
 
     private void LuaError(string sMessage, int level)
     {
+      if (level == 0)
+        level = 1;
+
       // level ist der StackTrace
-      throw new LuaRuntimeException(sMessage, level);
+      throw new LuaRuntimeException(sMessage, level, true);
     } // proc Lua_error
 
     // todo: getmetatable

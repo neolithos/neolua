@@ -491,6 +491,24 @@ namespace Neo.IronLua
     private static readonly CallSiteBinder functionResultBinder = new LuaConvertFunctionResultBinder();
     private static readonly CallSiteBinder convertToBooleanBinder = new LuaConvertToBooleanBinder();
 
+    private void ClearBinderCache()
+    {
+      lock (operationBinder)
+        operationBinder.Clear();
+      lock (getMemberBinder)
+        getMemberBinder.Clear();
+      lock (setMemberBinder)
+        setMemberBinder.Clear();
+      lock (getIndexBinder)
+        getIndexBinder.Clear();
+      lock (setIndexBinder)
+        setIndexBinder.Clear();
+      lock (invokeBinder)
+        invokeBinder.Clear();
+      lock (invokeMemberBinder)
+        invokeMemberBinder.Clear();
+    } // proc ClearBinderCache
+
     internal CallSiteBinder GetSetMemberBinder(string sName)
     {
       CallSiteBinder b;
@@ -1026,7 +1044,7 @@ namespace Neo.IronLua
     internal static Expression ThrowExpression(string sMessage)
     {
       if (ciLuaException == null)
-        ciLuaException = typeof(LuaBindException).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(string), typeof(Exception) }, null);
+        ciLuaException = typeof(LuaRuntimeException).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(string), typeof(Exception) }, null);
 
       return Expression.Throw(
         Expression.New(

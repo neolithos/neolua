@@ -2,7 +2,7 @@
 	error("hallo");
 end;
 
-e();
+--e();
 
 local a, b = tonumber(read("a")), tonumber(read("b"));
 
@@ -15,3 +15,4 @@ end;
 PrintResult(a + b, " + ");
 PrintResult(a - b, " - ");
 PrintResult(a * b, " * ");
+PrintResult(a / b, " / ");

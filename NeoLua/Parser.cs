@@ -300,13 +300,16 @@ namespace Neo.IronLua
     private class GlobalScope : LambdaScope
     {
       private Lua runtime;
+      private bool lDebug;
 
       /// <summary>Global parse-scope</summary>
       /// <param name="runtime">Runtime and binder of the global scope.</param>
-      public GlobalScope(Lua runtime)
+      /// <param name="lDebug"></param>
+      public GlobalScope(Lua runtime, bool lDebug)
         : base(null)
       {
         this.runtime = runtime;
+        this.lDebug = lDebug;
       } // ctor
 
       /// <summary>Access to the binders</summary>
@@ -314,7 +317,7 @@ namespace Neo.IronLua
       /// <summary>Index-Start</summary>
       public override bool IsZeroBased { get { return true; } }
       /// <summary>Emit-Debug-Information</summary>
-      public override bool EmitDebug { get { return true; } }
+      public override bool EmitDebug { get { return lDebug; } }
     } // class GlobalScope
 
     #endregion
@@ -446,10 +449,10 @@ namespace Neo.IronLua
     /// <param name="code">Lexer for the code.</param>
     /// <param name="args">Arguments of the function.</param>
     /// <returns>Expression-Tree for the code.</returns>
-    public static LambdaExpression ParseChunk(Lua runtime, LuaLexer code, IEnumerable<KeyValuePair<string, Type>> args)
+    public static LambdaExpression ParseChunk(Lua runtime, bool lDebug, LuaLexer code, IEnumerable<KeyValuePair<string, Type>> args)
     {
       List<ParameterExpression> parameters = new List<ParameterExpression>();
-      var globalScope = new GlobalScope(runtime);
+      var globalScope = new GlobalScope(runtime, lDebug);
 
       // Registers the global LuaTable
       parameters.Add(globalScope.RegisterParameter(typeof(LuaGlobal), csEnv));
@@ -463,9 +466,9 @@ namespace Neo.IronLua
       if (code.Current == null)
         code.Next();
 
-      // Get the name for the chunk
-      string sChunkName = runtime.CreateEmptyChunk(Path.GetFileNameWithoutExtension(code.Current.Start.FileName));
-
+      // Get the name for the chunk and clean it from all unwanted chars
+      string sChunkName = runtime.CreateEmptyChunk(Path.GetFileNameWithoutExtension(code.Current.Start.FileName)).Name;
+      
       // Create the block
       ParseBlock(globalScope, code);
 
@@ -1643,7 +1646,7 @@ Note the following:
       ParseBlock(scope, code);
 
       FetchToken(LuaToken.KwEnd, code);
-      return Expression.Lambda(scope.ExpressionBlock, scope.Runtime.CreateEmptyChunk(sName), parameters);
+      return Expression.Lambda(scope.ExpressionBlock, scope.Runtime.CreateEmptyChunk(sName).Name, parameters);
     } // proc ParseLamdaDefinition
 
     #endregion
