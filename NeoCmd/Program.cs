@@ -17,47 +17,49 @@ namespace Neo.IronLua
     {
       //TestMemory(@"..\..\Samples\Test.lua");
       //return;
-      // executes the script
-      try
-      {
-        Lua l = new Lua();
-        LuaGlobal g = l.CreateEnvironment();
-
-        g.RegisterFunction("print", new Action<object[]>(Print));
-        g.RegisterFunction("read", new Func<string, string>(Read));
-
-        foreach (string c in args)
+            
+      // create lua script compiler
+      using (Lua l = new Lua())
+        try
         {
-          using (LuaChunk chunk = l.CompileChunk(c, true))
-            try
-            {
-              object[] r = g.DoChunk(chunk);
-              if (r != null && r.Length > 0)
+          // create an environment that is associated  to the lua scripts
+          LuaGlobal g = l.CreateEnvironment();
+          
+          // register new functions
+          g.RegisterFunction("print", new Action<object[]>(Print));
+          g.RegisterFunction("read", new Func<string, string>(Read));
+
+          foreach (string c in args)
+          {
+            using (LuaChunk chunk = l.CompileChunk(c, true)) // compile the script with debug informations, that is needed for a complete stacktrace
+              try
               {
-                Console.WriteLine(new string('=', 79));
-                for (int i = 0; i < r.Length; i++)
-                  Console.WriteLine("[{0}] = {1}", i, r[i]);
+                object[] r = g.DoChunk(chunk); // execute the chunk
+                if (r != null && r.Length > 0)
+                {
+                  Console.WriteLine(new string('=', 79));
+                  for (int i = 0; i < r.Length; i++)
+                    Console.WriteLine("[{0}] = {1}", i, r[i]);
+                }
               }
-            }
-            catch (TargetInvocationException e)
-            {
-              Console.ForegroundColor = ConsoleColor.DarkRed;
-              Console.WriteLine("Expception: {0}", e.InnerException.Message);
-              LuaExceptionData d = LuaExceptionData.GetData(e.InnerException);
-              Console.WriteLine("StackTrace: {0}", d.GetStackTrace(0, false));
-              Console.ForegroundColor = ConsoleColor.Gray;
-            }
+              catch (TargetInvocationException e)
+              {
+                Console.ForegroundColor = ConsoleColor.DarkRed;
+                Console.WriteLine("Expception: {0}", e.InnerException.Message);
+                LuaExceptionData d = LuaExceptionData.GetData(e.InnerException); // get stack trace
+                Console.WriteLine("StackTrace: {0}", d.GetStackTrace(0, false));
+                Console.ForegroundColor = ConsoleColor.Gray;
+              }
+          }
         }
-        l.Dispose();
-      }
-      catch (Exception e)
-      {
-        Exception re = e is TargetInvocationException ? e.InnerException : e;
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.DarkRed;
-        Console.WriteLine("Expception: {0}", re.Message);
-        Console.ForegroundColor = ConsoleColor.Gray;
-      }
+        catch (Exception e)
+        {
+          Exception re = e is TargetInvocationException ? e.InnerException : e;
+          Console.WriteLine();
+          Console.ForegroundColor = ConsoleColor.DarkRed;
+          Console.WriteLine("Expception: {0}", re.Message);
+          Console.ForegroundColor = ConsoleColor.Gray;
+        }
 #if DEBUG
       Console.WriteLine();
       Console.Write("<return>");
@@ -103,6 +105,6 @@ namespace Neo.IronLua
       Console.Write(sLabel);
       Console.Write(": ");
       return Console.ReadLine();
-    }
+    } // func Read
   } // class Program
 }

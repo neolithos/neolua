@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Neo.IronLua
 {
@@ -75,6 +77,67 @@ namespace Neo.IronLua
     /// <summary></summary>
     private static class LuaLibraryString
     {
+      private static string TranslateRegularExpression(string sRegEx)
+      {
+        StringBuilder sb = new StringBuilder();
+        bool lEscape = false;
+
+        for (int i = 0; i < sRegEx.Length; i++)
+        {
+          char c = sRegEx[i];
+          if (lEscape)
+          {
+            if (c == '%')
+            {
+              sb.Append('%');
+              lEscape = false;
+            }
+            else
+            {
+              switch (c)
+              {
+                case 'a': // all letters
+                  sb.Append("[\\w-[\\d]]");
+                  break;
+                case 's': // all space characters
+                  sb.Append("\\s");
+                  break;
+                case 'd': // all digits
+                  sb.Append("\\d");
+                  break;
+                case 'w': // all alphanumeric characters
+                  sb.Append("\\w");
+                  break;
+                case 'c': // all control characters
+                case 'g': // all printable characters except space
+                case 'l': // all lowercase letters
+                case 'p': // all punctuation characters
+                case 'u': // all uppercase letters
+                case 'x': // all hexadecimal digits
+                  throw new NotImplementedException();
+                default:
+                  sb.Append('\\');
+                  sb.Append(c);
+                  break;
+              }
+              lEscape = false;
+            }
+          }
+          else if (c == '%')
+          {
+            lEscape = true;
+          }
+          else if (c == '\\')
+          {
+            sb.Append("\\\\");
+          }
+          else
+            sb.Append(c);
+        }
+
+        return sb.ToString();
+      } // func TranslateRegularExpression
+
       public static object[] @byte(string s, int i = 1, int j = int.MaxValue)
       {
         if(String.IsNullOrEmpty(s) || i > j)
@@ -113,22 +176,85 @@ namespace Neo.IronLua
         throw new NotImplementedException();
       } // func dump
 
-      public static object[] find(string s, string pattern, int init = 1, bool plain = true)
+      public static object[] find(string s, string pattern, int init = 1, bool plain = false)
       {
-        throw new NotImplementedException();
+        if (String.IsNullOrEmpty(s))
+          return EmptyResult;
+        if (String.IsNullOrEmpty(pattern))
+          return EmptyResult;
+
+        // correct the init parameter
+        if (init < 0)
+          init = s.Length + init + 1;
+        if (init <= 0)
+          init = 1;
+        
+        if (plain) // plain pattern
+        {
+          int iIndex = s.IndexOf(pattern, init - 1);
+          return new object[] { iIndex + 1, iIndex + pattern.Length };
+        }
+        else
+        {
+          // translate the regular expression
+          pattern = TranslateRegularExpression(pattern);
+
+          Regex r = new Regex(pattern);
+          Match m =  r.Match(s, init);
+          if (m.Success)
+          {
+            object[] result = new object[m.Captures.Count + 2];
+
+            result[0] = m.Index + 1;
+            result[1] = m.Index + m.Length;
+            for (int i = 0; i < m.Captures.Count; i++)
+              result[i + 2] = m.Captures[i].Value;
+
+            return result;
+          }
+          else
+            return new object[] { 0 };
+        }
       } // func find
 
       public static string format(string formatstring, params object[] args)
       {
-        throw new NotImplementedException();
+        return AT.MIN.Tools.sprintf(formatstring, args);
       } // func format
 
-      public static Delegate gmatch(string s, string pattern)
+      private static object[] matchEnum(object s, object current)
       {
-        throw new NotImplementedException();
+        System.Collections.IEnumerator e = (System.Collections.IEnumerator)s;
+
+        // return value
+        if (e.MoveNext())
+        {
+          Match m = (Match)e.Current;
+          return MatchResult(m);
+        }
+        else
+          return Lua.EmptyResult;
+      } // func matchEnum
+
+      public static object[] gmatch(string s, string pattern)
+      {
+        // f,s,v
+        if (String.IsNullOrEmpty(s))
+          return EmptyResult;
+        if (String.IsNullOrEmpty(pattern))
+          return EmptyResult;
+
+        // translate the regular expression
+        pattern = TranslateRegularExpression(pattern);
+
+        Regex r = new Regex(pattern);
+        MatchCollection m = r.Matches(s);
+        System.Collections.IEnumerator e = m.GetEnumerator();
+
+        return new object[] { new Func<object, object, object[]>(matchEnum), e, e };
       } // func gmatch
 
-      public static Delegate gsub(string s, string pattern, string repl, int n)
+      public static string gsub(string s, string pattern, string repl, int n)
       {
         throw new NotImplementedException();
       } // func gsub
@@ -145,10 +271,40 @@ namespace Neo.IronLua
         return s.ToLower();
       } // func lower
 
-      public static string match(string s, string pattern, int init)
+      public static object[] match(string s, string pattern, int init = 1)
       {
-        throw new NotImplementedException();
+        if (String.IsNullOrEmpty(s))
+          return EmptyResult;
+        if (String.IsNullOrEmpty(pattern))
+          return EmptyResult;
+
+        // correct the init parameter
+        if (init < 0)
+          init = s.Length + init + 1;
+        if (init <= 0)
+          init = 1;
+
+        // translate the regular expression
+        pattern = TranslateRegularExpression(pattern);
+
+        Regex r = new Regex(pattern);
+        return MatchResult(r.Match(s, init));
       } // func match
+
+      private static object[] MatchResult(Match m)
+      {
+        if (m.Success)
+        {
+          object[] result = new object[m.Captures.Count];
+
+          for (int i = 0; i < m.Captures.Count; i++)
+            result[i] = m.Captures[i].Value;
+
+          return result;
+        }
+        else
+          return EmptyResult;
+      } // func MatchResult
 
       public static string rep(string s, int n, string sep = "")
       {

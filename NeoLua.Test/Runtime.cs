@@ -116,5 +116,29 @@ namespace LuaDLR.Test
       Assert.IsTrue(TestReturn("return bit32.extract(0xFF00, 8, 8);", -1));
       Assert.IsTrue(TestReturn("return bit32.replace(0x0FFF, -1, 8, 8);", (uint)0xFFFF));
     } // proc TestRuntimeLua09
+
+    [TestMethod]
+    public void TestRuntimeLua10()
+    {
+      Assert.IsTrue(TestReturn("return string.format('%d', 8);", "8"));
+    } // proc TestRuntimeLua10
+
+    [TestMethod]
+    public void TestRuntimeLua11()
+    {
+      Assert.IsTrue(TestReturn(GetCode("Lua.Runtime11.lua"), 4));
+    } // proc TestRuntimeLua11
+
+    [TestMethod]
+    public void TestRuntimeLua12()
+    {
+      Assert.IsTrue(TestReturn(GetCode("Lua.Runtime12.lua"), 2));
+    } // proc TestRuntimeLua12
+
+    [TestMethod]
+    public void TestRuntimeLua13()
+    {
+      Assert.IsTrue(TestReturn("return string.find('   abc', '%a+');", 4, 6, "abc"));
+    } // proc TestRuntimeLua13
   } // class Runtime
 }

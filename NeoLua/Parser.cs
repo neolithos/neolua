@@ -12,6 +12,7 @@ using System.Text;
 
 namespace Neo.IronLua
 {
+  // todo: ...
   #region -- class Parser -------------------------------------------------------------
 
   ///////////////////////////////////////////////////////////////////////////////
@@ -22,6 +23,7 @@ namespace Neo.IronLua
     private const string csBreakLabel = "#break";
     private const string csContinueLabel = "#continue";
     private const string csEnv = "_G";
+    private const string csArgList = "#arglist";
 
     #region -- class Scope ------------------------------------------------------------
 
@@ -521,6 +523,7 @@ namespace Neo.IronLua
     {
       return code.Current.Typ == LuaToken.BracketOpen ||
         code.Current.Typ == LuaToken.Identifier ||
+        code.Current.Typ == LuaToken.DotDotDot ||
         code.Current.Typ == LuaToken.String ||
         code.Current.Typ == LuaToken.Number ||
         code.Current.Typ == LuaToken.HexNumber ||
@@ -541,6 +544,7 @@ namespace Neo.IronLua
       switch (code.Current.Typ)
       {
         case LuaToken.Identifier: // Expression
+        case LuaToken.DotDotDot:
         case LuaToken.BracketOpen:
         case LuaToken.String:
         case LuaToken.Number:
@@ -794,13 +798,17 @@ namespace Neo.IronLua
           break;
 
         case LuaToken.Identifier:
-          var t = FetchToken(LuaToken.Identifier, code);
-          var p = scope.LookupParameter(t.Value);
-          if (p == null) // Als globale Variable verwalten, da es keine locale Variable gibt
-            info = new PrefixMemberInfo(tStart,scope.LookupParameter(csEnv), t.Value, null, null);
-          else
-            info = new PrefixMemberInfo(tStart, p, null, null, null);
-          lWrap |= true;
+        case LuaToken.DotDotDot:
+            var t = code.Current;
+            var p = scope.LookupParameter(t.Typ == LuaToken.DotDotDot ? csArgList : t.Value);
+            if (t.Typ == LuaToken.DotDotDot && p == null)
+              throw ParseError(t, "No arglist defined.");
+            code.Next();
+            if (p == null) // Als globale Variable verwalten, da es keine locale Variable gibt
+              info = new PrefixMemberInfo(tStart, scope.LookupParameter(csEnv), t.Value, null, null);
+            else
+              info = new PrefixMemberInfo(tStart, p, null, null, null);
+            lWrap |= true;
           break;
 
         case LuaToken.String: // Literal String
@@ -1713,13 +1721,30 @@ namespace Neo.IronLua
       if (lSelfParameter)
         parameters.Add(scope.RegisterParameter(typeof(object), "self"));
 
-      if (code.Current.Typ == LuaToken.Identifier)
+      if (code.Current.Typ == LuaToken.Identifier || code.Current.Typ == LuaToken.DotDotDot)
       {
-        parameters.Add(scope.RegisterParameter(typeof(object), FetchToken(LuaToken.Identifier, code).Value));
-        while (code.Current.Typ == LuaToken.Comma)
+        if (code.Current.Typ == LuaToken.DotDotDot)
         {
           code.Next();
-          parameters.Add(scope.RegisterParameter(typeof(object), FetchToken(LuaToken.Identifier, code).Value));
+          parameters.Add(scope.RegisterParameter(typeof(object[]), csArgList));
+        }
+        else
+        {
+          parameters.Add(scope.RegisterParameter(typeof(object), code.Current.Value));
+          code.Next();
+
+          while (code.Current.Typ == LuaToken.Comma)
+          {
+            code.Next();
+            if (code.Current.Typ == LuaToken.DotDotDot)
+            {
+              code.Next();
+              parameters.Add(scope.RegisterParameter(typeof(object[]), csArgList)); // last argument
+              break;
+            }
+            else
+              parameters.Add(scope.RegisterParameter(typeof(object), FetchToken(LuaToken.Identifier, code).Value));
+          }
         }
       }
       FetchToken(LuaToken.BracketClose, code);

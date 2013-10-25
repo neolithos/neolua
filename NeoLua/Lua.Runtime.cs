@@ -41,6 +41,7 @@ namespace Neo.IronLua
     private static Dictionary<LuaRuntimeHelper, MethodInfo> runtimeHelperCache = new Dictionary<LuaRuntimeHelper, MethodInfo>();
     private static Dictionary<string, IDynamicMetaObjectProvider> luaSystemLibraries = new Dictionary<string, IDynamicMetaObjectProvider>(); // Array with system libraries
     private static Dictionary<string, Type> knownTypes = null; // Known types of the current AppDomain
+    private static List<Type> luaFunctionTypes = new List<Type>();
     private static Dictionary<string, CoreFunction> luaFunctions = new Dictionary<string, CoreFunction>(); // Core functions for the object
 
     #region -- RtReturnResult, RtGetObject --------------------------------------------
@@ -233,6 +234,7 @@ namespace Neo.IronLua
       } // func GetDelegate
 
       public MethodInfo Method;
+      public Type DeclaredType;
       public Type DelegateType;
     } // struct CoreFunction
 
@@ -302,26 +304,45 @@ namespace Neo.IronLua
 
     #region -- TryGetLuaFunction ------------------------------------------------------
 
-    internal static bool TryGetLuaFunction(string sName, out CoreFunction function)
+    internal static void CollectLuaFunctions(Type type)
     {
       lock (luaStaticLock)
       {
-        if (luaFunctions.Count == 0) // Collect all lua sys functions
+        if (luaFunctionTypes.IndexOf(type) != -1) // did we already collect the functions of this type
+          return;
+
+        foreach (var mi in type.GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
         {
-          foreach (var mi in typeof(LuaGlobal).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance))
-            if (mi.Name.StartsWith("lua", StringComparison.OrdinalIgnoreCase))
+          LuaFunctionAttribute attr = (LuaFunctionAttribute)Attribute.GetCustomAttribute(mi, typeof(LuaFunctionAttribute), false);
+          if (attr != null)
+          {
+            if (luaFunctions.ContainsKey(attr.Name))
+              throw new LuaRuntimeException(String.Format("'{0}' on type '{1}' already exists.", attr.Name, type.Name), null);
+
+            // create the delegate type
+            Type typeDelegate = Expression.GetDelegateType((from p in mi.GetParameters() select p.ParameterType).Concat(new Type[] { mi.ReturnType }).ToArray());
+            luaFunctions[attr.Name] = new CoreFunction
             {
-              Type typeDelegate = Expression.GetDelegateType((from p in mi.GetParameters() select p.ParameterType).Concat(new Type[] { mi.ReturnType }).ToArray());
-              luaFunctions[mi.Name.Substring(3).ToLower()] = new CoreFunction { Method = mi, DelegateType = typeDelegate };
-            }
+              DeclaredType = type,
+              DelegateType = typeDelegate,
+              Method = mi
+            };
+          }
         }
 
-        // Get the cached function
-        if (luaFunctions.TryGetValue(sName, out function))
-          return true;
-
-        return false;
+        luaFunctionTypes.Add(type);
       }
+    } // func CollectLuaFunctions
+
+    internal static bool TryGetLuaFunction(string sName, Type typeGlobal, out CoreFunction function)
+    {
+      CollectLuaFunctions(typeGlobal);
+
+      // Get the cached function
+      if (luaFunctions.TryGetValue(sName, out function))
+        return typeGlobal == function.DeclaredType || typeGlobal.IsSubclassOf(function.DeclaredType);
+
+      return false;
     } // func TryGetLuaFunction 
 
     #endregion

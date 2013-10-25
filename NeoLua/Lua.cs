@@ -198,6 +198,7 @@ namespace Neo.IronLua
       Clear();
     } // proc Dispose
 
+    /// <summary>Removes all chunks, binders and compiled assemblies.</summary>
     public void Clear()
     {
       lock (lockCompile)

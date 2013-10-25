@@ -143,5 +143,11 @@ namespace LuaDLR.Test
       g["test"] = test;
       Assert.IsTrue(TestReturn(g.DoChunk("test[0] = 42; return test[0];", "test.lua"), 42));
     } // proc TestFunction14
+
+    [TestMethod]
+    public void TestFunctions15()
+    {
+      Assert.IsTrue(TestReturn(GetCode("Lua.Function15.lua"), 123));
+    } // proc TestFunctions15
   } // class Functions
 }
