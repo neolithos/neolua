@@ -516,6 +516,12 @@ namespace Neo.IronLua
       return DoChunk(sFileName);
     } // func LuaDoFile
 
+    [LuaFunction("dochunk")]
+    private object[] LuaDoChunk(string sCode, string sName)
+    {
+      return DoChunk(sCode, sName);
+    } // func LuaDoChunk
+
     [LuaFunction("error")]
     private void LuaError(string sMessage, int level)
     {

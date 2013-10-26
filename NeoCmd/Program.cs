@@ -1,11 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Neo.IronLua
 {
@@ -15,16 +12,17 @@ namespace Neo.IronLua
   {
     public static void Main(string[] args)
     {
+      CodePlexExample4();
       //TestMemory(@"..\..\Samples\Test.lua");
-      //return;
-            
+      return;
+
       // create lua script compiler
       using (Lua l = new Lua())
         try
         {
           // create an environment that is associated  to the lua scripts
           LuaGlobal g = l.CreateEnvironment();
-          
+
           // register new functions
           g.RegisterFunction("print", new Action<object[]>(Print));
           g.RegisterFunction("read", new Func<string, string>(Read));
@@ -85,7 +83,7 @@ namespace Neo.IronLua
 
             GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced);
             Thread.Sleep(100);
-          }          
+          }
         }
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced);
         Thread.Sleep(100);
@@ -106,5 +104,91 @@ namespace Neo.IronLua
       Console.Write(": ");
       return Console.ReadLine();
     } // func Read
+
+    private static void CodePlexExample1()
+    {
+      using (Lua l = new Lua())
+      {
+        var g = l.CreateEnvironment();
+
+        object[] r = g.DoChunk("return a + b", "test.lua",
+          new KeyValuePair<string, object>("a", 2),
+          new KeyValuePair<string, object>("b", 4));
+
+        Console.WriteLine(r[0]);
+      }
+    }
+
+    private static void CodePlexExample2()
+    {
+      using (Lua l = new Lua())
+      {
+        var g = l.CreateEnvironment();
+        dynamic dg = g;
+        
+        dg.a = 2; // dynamic way to set a variable
+        g["b"] = 4; // second way to access variable
+        g.DoChunk("c = a + b", "test.lua");
+
+        Console.WriteLine(dg.c);
+      }
+    }
+
+    private static void CodePlexExample3()
+    {
+      using (Lua l = new Lua())
+      {
+        var g = l.CreateEnvironment();
+
+        g["myadd"] = new Func<int, int, int>((a, b) => a + b);
+
+        g.DoChunk("function Add(a, b) return myadd(a, b) end;", "test.lua");
+
+        dynamic dg = g;
+        Console.WriteLine(dg.Add(2, 4)[0]);
+
+        var f = (Func<object, object, object[]>)g["Add"];
+        object[] r = f(2, 4);
+        Console.WriteLine(r[0]);
+      }
+    }
+
+    private static void CodePlexExample4()
+    {
+      using (Lua l = new Lua())
+      {
+        var g = l.CreateEnvironment();
+
+        LuaTable t = new LuaTable();
+        g["t"] = t;
+
+        t["a"] = 2;
+        t["b"] = 4;
+        t["add"] = new Func<dynamic, int>(self => 
+          {
+            return self.a + self.b;
+          });
+        
+        object[] r = g.DoChunk("return t:add()", "test.lua");
+        Console.WriteLine(r[0]);
+      }
+    }
+
+    private static void CodePlexExample5()
+    {
+      using (Lua l = new Lua())
+      {
+        LuaChunk c = l.CompileChunk("return a;", "test.lua", false);
+
+        var g1 = l.CreateEnvironment();
+        var g2 = l.CreateEnvironment();
+
+        g1["a"] = 2;
+        g2["a"] = 4;
+
+        Console.WriteLine((int)(g1.DoChunk(c)[0]) + (int)(g2.DoChunk(c)[0]));
+      }
+    }
+
   } // class Program
 }

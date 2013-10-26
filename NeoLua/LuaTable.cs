@@ -154,8 +154,19 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
       { 
+        // Member calls add a hidden parameter to the argument list
+        DynamicMetaObject[] argsEnlarged ;
+        if (args != null && args.Length > 0)
+        {
+          argsEnlarged = new DynamicMetaObject[args.Length + 1];
+          Array.Copy(args, 0, argsEnlarged, 1, args.Length);
+        }
+        else
+          argsEnlarged = new DynamicMetaObject[1];
+        argsEnlarged[0] = new DynamicMetaObject(this.Expression, BindingRestrictions.Empty, Value);
+        
         // We can only call delegates
-        return binder.FallbackInvoke(GetMemberAccess(binder, binder.Name, binder.IgnoreCase, false), args, null);
+        return binder.FallbackInvoke(GetMemberAccess(binder, binder.Name, binder.IgnoreCase, false), argsEnlarged, null);
       } // BindInvokeMember
 
       public override IEnumerable<string> GetDynamicMemberNames()
