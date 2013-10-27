@@ -906,7 +906,8 @@ namespace Neo.IronLua
                 iCurMatchCount = iNewMatchCount;
               }
             }
-            else if (iMaxParameterLength != iCurParameterLength && iCurParameterLength < iParametersLength)
+            else if (iMaxParameterLength == iParametersLength && iCurParameterLength != iMaxParameterLength ||
+              iMaxParameterLength != iCurParameterLength && iCurParameterLength < iParametersLength)
             {
               // if the new parameter length is greater then the old one, it matches best
               miBind = miCur;

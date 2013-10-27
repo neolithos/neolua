@@ -428,6 +428,7 @@ namespace Neo.IronLua
 
     /// <summary>Parses the chunk to an function.</summary>
     /// <param name="runtime">Binder</param>
+    /// <param name="lDebug">Compile the script with debug information.</param>
     /// <param name="code">Lexer for the code.</param>
     /// <param name="args">Arguments of the function.</param>
     /// <returns>Expression-Tree for the code.</returns>

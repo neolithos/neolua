@@ -129,6 +129,7 @@ namespace Neo.IronLua
       return info;
     } // func GetDebugInfo
 
+    internal Lua Lua { get { return lua; } }
     /// <summary>Set or get the compiled script.</summary>
     internal Delegate Chunk { get { return chunk; } set { chunk = value; } }
     /// <summary>Internal Unique Name for the script</summary>

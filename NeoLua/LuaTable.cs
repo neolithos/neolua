@@ -20,11 +20,19 @@ namespace Neo.IronLua
     /// <summary></summary>
     protected class LuaMetaObject : DynamicMetaObject
     {
+      /// <summary></summary>
+      /// <param name="value"></param>
+      /// <param name="expression"></param>
       public LuaMetaObject(LuaTable value, Expression expression)
         : base(expression, BindingRestrictions.Empty, value)
       {
       } // ctor
 
+      /// <summary></summary>
+      /// <param name="binder"></param>
+      /// <param name="indexes"></param>
+      /// <param name="value"></param>
+      /// <returns></returns>
       public override DynamicMetaObject BindSetIndex(SetIndexBinder binder, DynamicMetaObject[] indexes, DynamicMetaObject value)
       {
         if (indexes.Length == 1)
@@ -64,6 +72,10 @@ namespace Neo.IronLua
         }
       } // func BindSetIndex
 
+      /// <summary></summary>
+      /// <param name="binder"></param>
+      /// <param name="indexes"></param>
+      /// <returns></returns>
       public override DynamicMetaObject BindGetIndex(GetIndexBinder binder, DynamicMetaObject[] indexes)
       {
         if (indexes.Length == 1)
@@ -127,11 +139,18 @@ namespace Neo.IronLua
         }
       } // func GetMemberAccess
 
+      /// <summary></summary>
+      /// <param name="binder"></param>
+      /// <returns></returns>
       public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
       {
         return GetMemberAccess(binder, binder.Name, binder.IgnoreCase, false);
       } // func BindGetMember
 
+      /// <summary></summary>
+      /// <param name="binder"></param>
+      /// <param name="value"></param>
+      /// <returns></returns>
       public override DynamicMetaObject BindSetMember(SetMemberBinder binder, DynamicMetaObject value)
       {
         if (!value.HasValue)
@@ -152,6 +171,10 @@ namespace Neo.IronLua
           ), moGet.Restrictions);
       } // func BindSetMember
 
+      /// <summary></summary>
+      /// <param name="binder"></param>
+      /// <param name="args"></param>
+      /// <returns></returns>
       public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
       { 
         // Member calls add a hidden parameter to the argument list
@@ -169,6 +192,8 @@ namespace Neo.IronLua
         return binder.FallbackInvoke(GetMemberAccess(binder, binder.Name, binder.IgnoreCase, false), argsEnlarged, null);
       } // BindInvokeMember
 
+      /// <summary></summary>
+      /// <returns></returns>
       public override IEnumerable<string> GetDynamicMemberNames()
       {
         LuaTable t = (LuaTable)Value;
@@ -212,6 +237,9 @@ namespace Neo.IronLua
 
     #region -- RegisterFunction, UnregisterFunction -----------------------------------
 
+    /// <summary></summary>
+    /// <param name="sName"></param>
+    /// <param name="function"></param>
     public void RegisterFunction(string sName, Delegate function)
     {
       if (String.IsNullOrEmpty(sName))
@@ -357,6 +385,8 @@ namespace Neo.IronLua
 
     #region -- IEnumerator members ----------------------------------------------------
 
+    /// <summary></summary>
+    /// <returns></returns>
     public IEnumerator<KeyValuePair<object, object>> GetEnumerator()
     {
       foreach (var c in names)
@@ -379,11 +409,11 @@ namespace Neo.IronLua
     /// <returns>Value or <c>null</c></returns>
     public object this[int iIndex] { get { return GetValue(iIndex); } set { SetValue(iIndex, value); } }
     /// <summary>Returns or sets an value in the lua-table.</summary>
-    /// <param name="iIndex">Index.</param>
+    /// <param name="sName">Index.</param>
     /// <returns>Value or <c>null</c></returns>
     public object this[string sName] { get { return GetValue(sName); } set { SetValue(sName, value); } }
     /// <summary>Returns or sets an value in the lua-table.</summary>
-    /// <param name="iIndex">Index.</param>
+    /// <param name="item">Index.</param>
     /// <returns>Value or <c>null</c></returns>
     public object this[object item] { get { return GetValue(item); } set { SetValue(item, value); } }
 

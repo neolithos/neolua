@@ -179,27 +179,32 @@ namespace Neo.IronLua
 
     #region -- Ctor/Dtor --------------------------------------------------------------
 
+    /// <summary>Create a new lua-script-manager.</summary>
     public Lua()
     {
     } // ctor
 
+    /// <summary>Clear the cache.</summary>
     ~Lua()
     {
       Dispose(false);
     } // dtor
 
+    /// <summary>Destroy script manager</summary>
     public void Dispose()
     {
       Dispose(true);
     } // proc Dispose
 
+    /// <summary></summary>
+    /// <param name="disposing"></param>
     protected virtual void Dispose(bool disposing)
     {
       Clear();
     } // proc Dispose
 
     /// <summary>Removes all chunks, binders and compiled assemblies.</summary>
-    public void Clear()
+    public virtual void Clear()
     {
       lock (lockCompile)
       {
@@ -231,7 +236,7 @@ namespace Neo.IronLua
     } // func CompileChunk
 
     /// <summary>Erzeugt ein Delegate aus dem Code, ohne ihn auszuführen.</summary>
-    /// <param name="sr">Inhalt</param>
+    /// <param name="tr">Inhalt</param>
     /// <param name="sName">Name der Datei</param>
     /// <param name="lDebug">Compile with debug infos</param>
     /// <param name="args">Parameter für den Codeblock</param>

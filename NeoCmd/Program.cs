@@ -12,7 +12,7 @@ namespace Neo.IronLua
   {
     public static void Main(string[] args)
     {
-      CodePlexExample4();
+      CodePlexExample6();
       //TestMemory(@"..\..\Samples\Test.lua");
       return;
 
@@ -187,6 +187,23 @@ namespace Neo.IronLua
         g2["a"] = 4;
 
         Console.WriteLine((int)(g1.DoChunk(c)[0]) + (int)(g2.DoChunk(c)[0]));
+      }
+    }
+
+    private static void CodePlexExample6()
+    {
+      using (Lua l = new Lua())
+      {
+        var g = l.CreateEnvironment();
+        object[] r = g.DoChunk (
+          String.Join(Environment.NewLine,
+          "local sys = clr.System;",
+          "local sb = sys.Text.StringBuilder:ctor();",
+          "sb:Append('Hallo '):Append('Welt!');",
+          "return sb:ToString();"
+          ),
+          "test.lua");
+        Console.WriteLine(r[0]);
       }
     }
 

@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 
 namespace AT.MIN
 {
-  internal static class Tools
+  static class Tools
   {
     #region Public Methods
     #region IsNumericType
@@ -124,6 +124,7 @@ namespace AT.MIN
     /// type.
     /// </summary>
     /// <param name="Value">The value.</param>
+    /// <param name="Round"></param>
     /// <returns>A boxed numeric object whos type is an integer type.</returns>
     public static object ToInteger(object Value, bool Round)
     {

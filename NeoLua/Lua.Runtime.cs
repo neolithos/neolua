@@ -243,7 +243,8 @@ namespace Neo.IronLua
     #region -- TryGetSystemLibrary ----------------------------------------------------
 
     /// <summary>Gets the system library.</summary>
-    /// <param name="library">Library</param>
+    /// <param name="sLibraryName">name of the library</param>
+    /// <param name="lib">Library</param>
     /// <returns>dynamic object for the library</returns>
     internal static bool TryGetSystemLibrary(string sLibraryName, out IDynamicMetaObjectProvider lib)
     {

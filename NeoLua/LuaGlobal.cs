@@ -17,6 +17,7 @@ namespace Neo.IronLua
   public class LuaGlobal : LuaTable
   {
     private const string csMetaTable = "__metatable";
+    /// <summary></summary>
     public const string VersionString = "NeoLua 5.2";
 
     #region -- class LuaCoreMetaObject ------------------------------------------------
@@ -25,6 +26,9 @@ namespace Neo.IronLua
     /// <summary></summary>
     protected class LuaCoreMetaObject : LuaMetaObject
     {
+      /// <summary></summary>
+      /// <param name="lua"></param>
+      /// <param name="parameter"></param>
       public LuaCoreMetaObject(LuaGlobal lua, Expression parameter)
         : base(lua, parameter)
       {
@@ -51,6 +55,9 @@ namespace Neo.IronLua
         }
       } // func TryGetLuaSystem
 
+      /// <summary></summary>
+      /// <param name="binder"></param>
+      /// <returns></returns>
       public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
       {
         // Access to clr can not overload
@@ -78,6 +85,7 @@ namespace Neo.IronLua
 
       private static LuaClrClassObject clr = new LuaClrClassObject(null, String.Empty, null);
 
+      /// <summary></summary>
       public static IDynamicMetaObjectProvider Clr { get { return clr; } }
     } // class LuaCoreMetaObject
 
@@ -368,6 +376,8 @@ namespace Neo.IronLua
 
     private Lua lua;
 
+    /// <summary>Create a new environment for the lua script manager.</summary>
+    /// <param name="lua"></param>
     public LuaGlobal(Lua lua)
     {
       if (lua == null)
@@ -376,6 +386,9 @@ namespace Neo.IronLua
       this.lua = lua;
     } // ctor
 
+    /// <summary>Dynamic interface.</summary>
+    /// <param name="parameter"></param>
+    /// <returns></returns>
     public override DynamicMetaObject GetMetaObject(Expression parameter)
     {
       return new LuaCoreMetaObject(this, parameter);
@@ -396,30 +409,30 @@ namespace Neo.IronLua
 
     #region -- DoChunk ----------------------------------------------------------------
 
-    /// <summary>Führt die angegebene Datei aus.</summary>
-    /// <param name="sFileName">Dateiname die gelesen werden soll.</param>
-    /// <param name="args">Parameter für den Codeblock</param>
-    /// <returns>Ergebnis der Ausführung.</returns>
+    /// <summary>Compiles and execute the filename.</summary>
+    /// <param name="sFileName">Name of the lua file.</param>
+    /// <param name="args">Parameter definition for the file.</param>
+    /// <returns>Return values of the file.</returns>
     public object[] DoChunk(string sFileName, params KeyValuePair<string, object>[] args)
     {
       return DoChunk(sFileName, new StreamReader(sFileName), args);
     } // proc DoFile
 
-    /// <summary>Führt den angegebene Stream aus.</summary>
-    /// <param name="sr">Inhalt</param>
-    /// <param name="sName">Name der Datei</param>
-    /// <param name="args">Parameter für den Codeblock</param>
-    /// <returns>Ergebnis der Ausführung.</returns>
+    /// <summary>Compiles and execute the stream.</summary>
+    /// <param name="sr">Stream</param>
+    /// <param name="sName">Name of the stream</param>
+    /// <param name="args">Parameter definition for the stream.</param>
+    /// <returns>Return values of the stream.</returns>
     public object[] DoChunk(TextReader sr, string sName, params KeyValuePair<string, object>[] args)
     {
       return DoChunk(sName, sr, args);
     } // proc DoChunk
 
-    /// <summary>Führt die angegebene Zeichenfolge aus.</summary>
-    /// <param name="sCode">Code</param>
-    /// <param name="sName">Name des Codes</param>
-    /// <param name="args"Parameter für den Codeblock></param>
-    /// <returns>Ergebnis der Ausführung.</returns>
+    /// <summary>Compiles and executes code.</summary>
+    /// <param name="sCode">Lua-Code</param>
+    /// <param name="sName">Name of the lua-code</param>
+    /// <param name="args">Parameter definition for the lua-code.</param>
+    /// <returns>Return values of the lua-code.</returns>
     public object[] DoChunk(string sCode, string sName, params KeyValuePair<string, object>[] args)
     {
       return DoChunk(sName, new StringReader(sCode), args);
@@ -451,16 +464,22 @@ namespace Neo.IronLua
         return DoChunk(chunk, callArgs);
     } // func DoChunk
 
+    /// <summary>Executes a precompiled chunk on the lua environment.</summary>
+    /// <param name="chunk">Compiled chunk.</param>
+    /// <param name="callArgs">Arguments for the chunk.</param>
+    /// <returns>Return values of the chunk.</returns>
     public object[] DoChunk(LuaChunk chunk, params object[] callArgs)
     {
       if (!chunk.IsCompiled)
         throw new ArgumentException("Chunk is not compiled.");
+      if (lua != chunk.Lua)
+        throw new ArgumentException("Chunk is compiled in a diverend script-manager.", "chunk");
 
       object[] args = new object[callArgs == null ? 0 : callArgs.Length + 1];
       args[0] = this;
       if (callArgs != null)
         Array.Copy(callArgs, 0, args, 1, callArgs.Length);
-
+      
       return (object[])chunk.Chunk.DynamicInvoke(args);
     } // func DoChunk
     

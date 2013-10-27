@@ -12,16 +12,22 @@ namespace Neo.IronLua
   #region -- class LuaException -------------------------------------------------------
 
   ///////////////////////////////////////////////////////////////////////////////
-  /// <summary></summary>
+  /// <summary>Base class for Lua-Exceptions</summary>
   public abstract class LuaException : Exception
   {
+    /// <summary>Base class for Lua-Exceptions</summary>
+    /// <param name="sMessage">Text</param>
+    /// <param name="innerException">Inner Exception</param>
     internal LuaException(string sMessage, Exception innerException)
       : base(sMessage, innerException)
     {
     } // ctor
 
+    /// <summary>Source file name</summary>
     public abstract string FileName { get; }
+    /// <summary>Source line</summary>
     public abstract int Line { get; }
+    /// <summary>Source column</summary>
     public abstract int Column { get; }
   } // class LuaException
 
@@ -30,7 +36,7 @@ namespace Neo.IronLua
   #region -- class LuaParseException --------------------------------------------------
 
   ///////////////////////////////////////////////////////////////////////////////
-  /// <summary></summary>
+  /// <summary>Lua Exception for parse errors.</summary>
   public class LuaParseException : LuaException
   {
     private string sFileName;
@@ -38,6 +44,10 @@ namespace Neo.IronLua
     private int iColumn;
     private long iIndex;
 
+    /// <summary>Lua Exception for parse errors.</summary>
+    /// <param name="position"></param>
+    /// <param name="sMessage"></param>
+    /// <param name="innerException"></param>
     internal LuaParseException(Position position, string sMessage, Exception innerException)
       : base(sMessage, innerException)
     {
@@ -47,9 +57,13 @@ namespace Neo.IronLua
       this.iIndex = position.Index;
     } // ctor
 
+    /// <summary>Source file name</summary>
     public override string FileName { get { return sFileName; } }
+    /// <summary>Source line</summary>
     public override int Line { get { return iLine; } }
+    /// <summary>Source column</summary>
     public override int Column { get { return iColumn; } }
+    /// <summary>Source index</summary>
     public long Index { get { return iIndex; } }
   } // class LuaParseException
 
@@ -58,17 +72,24 @@ namespace Neo.IronLua
   #region -- class LuaRuntimeException ------------------------------------------------
 
   ///////////////////////////////////////////////////////////////////////////////
-  /// <summary></summary>
+  /// <summary>Lua Exception for runtime errors.</summary>
   public class LuaRuntimeException : LuaException
   {
     private int iLevel = 0;
     private bool lSkipClrFrames = false;
 
+    /// <summary>Lua Exception for runtime errors.</summary>
+    /// <param name="sMessage">Error message</param>
+    /// <param name="innerException">Inner Exception</param>
     internal LuaRuntimeException(string sMessage, Exception innerException)
       : base( sMessage, innerException)
     {
     } // ctor
 
+    /// <summary>Lua Exception for runtime errors.</summary>
+    /// <param name="sMessage">Error message</param>
+    /// <param name="iLevel">Frame that should skip.</param>
+    /// <param name="lSkipClrFrames">Should the stacktrace show clr frames.</param>
     internal LuaRuntimeException(string sMessage, int iLevel, bool lSkipClrFrames)
       : base(sMessage, null)
     {
@@ -76,6 +97,7 @@ namespace Neo.IronLua
       this.lSkipClrFrames = lSkipClrFrames;
     } // ctor
 
+    /// <summary>Returns the Lua StackTrace</summary>
     public override string StackTrace
     {
       get
@@ -88,6 +110,7 @@ namespace Neo.IronLua
       }
     } // prop StackTrace
 
+    /// <summary>Source file name</summary>
     public override string FileName
     {
       get
@@ -100,6 +123,7 @@ namespace Neo.IronLua
       }
     } // pro FileName
 
+    /// <summary>Source line</summary>
     public override int Line
     {
       get
@@ -112,6 +136,7 @@ namespace Neo.IronLua
       }
     } // prop Line
 
+    /// <summary>Source column</summary>
     public override int Column
     {
       get
@@ -133,8 +158,11 @@ namespace Neo.IronLua
   /// <summary></summary>
   public enum LuaStackFrameType
   {
+    /// <summary></summary>
     Unknown,
+    /// <summary></summary>
     Clr,
+    /// <summary></summary>
     Lua
   } // enum LuaStackFrameType
 
@@ -156,6 +184,10 @@ namespace Neo.IronLua
       this.info = info;
     } // ctor
 
+    /// <summary></summary>
+    /// <param name="sb"></param>
+    /// <param name="lPrintType"></param>
+    /// <returns></returns>
     public StringBuilder ToString(StringBuilder sb, bool lPrintType)
     {
       sb.Append(" at ");
@@ -232,6 +264,8 @@ namespace Neo.IronLua
       return sb;
     } // func ToString
 
+    /// <summary></summary>
+    /// <returns></returns>
     public override string ToString()
     {
       StringBuilder sb = new StringBuilder();
@@ -239,6 +273,7 @@ namespace Neo.IronLua
       return sb.ToString();
     } // func ToString
 
+    /// <summary></summary>
     public LuaStackFrameType Type
     {
       get
@@ -252,12 +287,19 @@ namespace Neo.IronLua
       }
     } // func Type
 
+    /// <summary></summary>
     public string MethodName { get { return info == null ? Method.Name : info.ChunkName; } }
+    /// <summary></summary>
     public MethodBase Method { get { return frame.GetMethod(); } }
+    /// <summary></summary>
     public int ILOffset { get { return frame.GetILOffset(); } }
+    /// <summary></summary>
     public int NativeOffset { get { return frame.GetNativeOffset(); } }
+    /// <summary></summary>
     public string FileName { get { return info == null ? frame.GetFileName() : info.FileName; } }
+    /// <summary></summary>
     public int ColumnNumber { get { return info == null ? frame.GetFileColumnNumber() : info.Column; } }
+    /// <summary></summary>
     public int LineNumber { get { return info == null ? frame.GetFileLineNumber() : info.Line; } }
   } // class LuaStackFrame
 
@@ -266,7 +308,7 @@ namespace Neo.IronLua
   #region -- class LuaExceptionData ---------------------------------------------------
 
   ///////////////////////////////////////////////////////////////////////////////
-  /// <summary></summary>
+  /// <summary>Class to extent the any Exception with Lua debug information.</summary>
   [Serializable]
   public sealed class LuaExceptionData : IList<LuaStackFrame>
   {
@@ -277,10 +319,21 @@ namespace Neo.IronLua
       this.stackTrace = stackTrace;
     } // ctor
 
+    /// <summary></summary>
+    /// <param name="item"></param>
+    /// <returns></returns>
     public int IndexOf(LuaStackFrame item) { return Array.IndexOf(stackTrace, item); }
+    /// <summary></summary>
+    /// <param name="item"></param>
+    /// <returns></returns>
     public bool Contains(LuaStackFrame item) { return IndexOf(item) != -1; }
+    /// <summary></summary>
+    /// <param name="array"></param>
+    /// <param name="arrayIndex"></param>
     public void CopyTo(LuaStackFrame[] array, int arrayIndex) { Array.Copy(stackTrace, 0, array, arrayIndex, Count); }
 
+    /// <summary></summary>
+    /// <returns></returns>
     public IEnumerator<LuaStackFrame> GetEnumerator()
     {
       int iLength = Count;
@@ -293,9 +346,15 @@ namespace Neo.IronLua
       return stackTrace.GetEnumerator();
     } // func System.Collections.IEnumerable.GetEnumerator
 
+    /// <summary>Stackframes</summary>
     public int Count { get { return stackTrace.Length; } }
+    /// <summary>Always <c>true</c></summary>
     public bool IsReadOnly { get { return true; } }
 
+    /// <summary>Get StackTrace format as an string.</summary>
+    /// <param name="iLuaSkipFrames">Lua frame to skip.</param>
+    /// <param name="lSkipClrFrames">Skip all clr-frames.</param>
+    /// <returns>Formatted stackframe</returns>
     public string GetStackTrace(int iLuaSkipFrames, bool lSkipClrFrames)
     {
       bool lUnknownFrame = false;
@@ -330,12 +389,16 @@ namespace Neo.IronLua
       return sb.ToString();
     } // func GetStackTrace
 
+    /// <summary></summary>
+    /// <param name="index"></param>
+    /// <returns></returns>
     public LuaStackFrame this[int index]
     {
       get { return stackTrace[index]; }
       set { throw new NotImplementedException(); }
     } // this
 
+    /// <summary>Formatted StackTrace</summary>
     public string StackTrace
     {
       get { return GetStackTrace(0, false); }
@@ -351,6 +414,9 @@ namespace Neo.IronLua
 
     private static readonly object luaStackTraceDataKey = new object();
 
+    /// <summary>Get the LuaStackFrame from a .net StackFrame, if someone exists. In the other case, the return LuaStackFrame is only proxy to the orginal frame.</summary>
+    /// <param name="frame">.net stackframe</param>
+    /// <returns>LuaStackFrame</returns>
     public static LuaStackFrame GetStackFrame(StackFrame frame)
     {
       LuaDebugInfo info = null;
@@ -363,6 +429,9 @@ namespace Neo.IronLua
       return new LuaStackFrame(frame, info);
     } // func GetStackFrame
 
+    /// <summary>Converts a whole StackTrace.</summary>
+    /// <param name="trace">.net stacktrace</param>
+    /// <returns>LuaStackFrames</returns>
     public static LuaStackFrame[] GetStackTrace(StackTrace trace)
     {
       LuaStackFrame[] frames = new LuaStackFrame[trace.FrameCount];
@@ -372,6 +441,9 @@ namespace Neo.IronLua
       return frames;
     } // func GetStackTrace
 
+    /// <summary>Retrieves the debug information for an exception.</summary>
+    /// <param name="ex">Exception</param>
+    /// <returns>Debug Information</returns>
     public static LuaExceptionData GetData(Exception ex)
     {
       LuaExceptionData data = ex.Data[luaStackTraceDataKey] as LuaExceptionData;
