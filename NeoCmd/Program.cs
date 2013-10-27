@@ -12,9 +12,9 @@ namespace Neo.IronLua
   {
     public static void Main(string[] args)
     {
-      CodePlexExample6();
+      //CodePlexExample6();
       //TestMemory(@"..\..\Samples\Test.lua");
-      return;
+      //return;
 
       // create lua script compiler
       using (Lua l = new Lua())
@@ -208,4 +208,14 @@ namespace Neo.IronLua
     }
 
   } // class Program
+
+  ///////////////////////////////////////////////////////////////////////////////
+  /// <summary></summary>
+  public class DiposeTest : IDisposable
+  {
+    public void Dispose()
+    {
+      Console.WriteLine("DisposeTest:Dispose");
+    }
+  } // class DiposeTest
 }

@@ -143,6 +143,8 @@ namespace Neo.IronLua
       public virtual Lua Runtime { get { return parent.Runtime; } }
       /// <summary>Emit-Debug-Information</summary>
       public virtual bool EmitDebug { get { return parent.EmitDebug; } }
+      /// <summary></summary>
+      public Dictionary<string, ParameterExpression> Variables { get { return scopeVariables; } }
     } // class Scope
 
     #endregion
@@ -1379,17 +1381,53 @@ namespace Neo.IronLua
 
     private static void ParseDoLoop(Scope scope, LuaLexer code)
     {
-      // create empty block, that can used as an loop
-      LoopScope loopScope = new LoopScope(scope);
-      loopScope.AddExpression(Expression.Label(loopScope.ContinueLabel));
+      // doloop ::= do '(' name { ',' name } = expr { ',' expr }  ')' block end
 
-      // do block end;
+      // create empty block, that can used as an loop
+      Scope outerScope = new Scope(scope);
+      Expression[] exprFinally=null;
+
+      // fetch do
       FetchToken(LuaToken.KwDo, code);
+      if (code.Current.Typ == LuaToken.BracketOpen) // look for disposable variables
+      {
+        code.Next();
+        ParseExpressionStatement(outerScope, code, true);
+
+        // Build finally-Block for the declared variables
+        exprFinally = (
+          from c in outerScope.Variables
+          select Expression.IfThen(
+            Expression.TypeIs(c.Value, typeof(IDisposable)), 
+            Expression.Call(Expression.Convert(c.Value, typeof(IDisposable)), typeof(IDisposable).GetMethod("Dispose"))
+          )).ToArray();
+
+        FetchToken(LuaToken.BracketClose, code);
+      }
+
+      LoopScope loopScope = new LoopScope(outerScope);
+
+      // Add the Contine label after the declaration
+      loopScope.AddExpression(Expression.Label(loopScope.ContinueLabel));
+      // parse the block
       ParseBlock(loopScope, code);
+      // create the break label
+      loopScope.AddExpression(Expression.Label(loopScope.BreakLabel));
+
       FetchToken(LuaToken.KwEnd, code);
 
-      loopScope.AddExpression(Expression.Label(loopScope.BreakLabel));
-      scope.AddExpression(loopScope.ExpressionBlock);
+      if (exprFinally != null || exprFinally.Length > 0)
+      {
+        outerScope.AddExpression(
+          Expression.TryFinally(
+            loopScope.ExpressionBlock,
+            Expression.Block(exprFinally)
+          )
+        );
+        scope.AddExpression(outerScope.ExpressionBlock);
+      }
+      else
+        scope.AddExpression(loopScope.ExpressionBlock);
     } // ParseDoLoop
 
     private static void ParseWhileLoop(Scope scope, LuaLexer code)
