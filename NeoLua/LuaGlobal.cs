@@ -471,9 +471,9 @@ namespace Neo.IronLua
     public object[] DoChunk(LuaChunk chunk, params object[] callArgs)
     {
       if (!chunk.IsCompiled)
-        throw new ArgumentException("Chunk is not compiled.");
+        throw new ArgumentException(Properties.Resources.rsChunkNotCompiled, "chunk");
       if (lua != chunk.Lua)
-        throw new ArgumentException("Chunk is compiled in a diverend script-manager.", "chunk");
+        throw new ArgumentException(Properties.Resources.rsChunkWrongScriptManager, "chunk");
 
       object[] args = new object[callArgs == null ? 0 : callArgs.Length + 1];
       args[0] = this;
@@ -504,6 +504,10 @@ namespace Neo.IronLua
         }
     } // func IsTrue
 
+    /// <summary></summary>
+    /// <param name="value"></param>
+    /// <param name="sMessage"></param>
+    /// <returns></returns>
     [LuaFunction("assert")]
     private object LuaAssert(object value, string sMessage)
     {
@@ -511,6 +515,10 @@ namespace Neo.IronLua
       return value;
     } // func LuaAssert
 
+    /// <summary></summary>
+    /// <param name="opt"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
     [LuaFunction("collectgarbage")]
     private object[] LuaCollectgarbage(string opt, object arg = null)
     {
@@ -529,18 +537,28 @@ namespace Neo.IronLua
       }
     } // func LuaCollectgarbage
 
+    /// <summary></summary>
+    /// <param name="sFileName"></param>
+    /// <returns></returns>
     [LuaFunction("dofile")]
     private object[] LuaDoFile(string sFileName)
     {
       return DoChunk(sFileName);
     } // func LuaDoFile
 
+    /// <summary></summary>
+    /// <param name="sCode"></param>
+    /// <param name="sName"></param>
+    /// <returns></returns>
     [LuaFunction("dochunk")]
     private object[] LuaDoChunk(string sCode, string sName)
     {
       return DoChunk(sCode, sName);
     } // func LuaDoChunk
 
+    /// <summary></summary>
+    /// <param name="sMessage"></param>
+    /// <param name="level"></param>
     [LuaFunction("error")]
     private void LuaError(string sMessage, int level)
     {
@@ -551,6 +569,9 @@ namespace Neo.IronLua
       throw new LuaRuntimeException(sMessage, level, true);
     } // proc LuaError
 
+    /// <summary></summary>
+    /// <param name="obj"></param>
+    /// <returns></returns>
     [LuaFunction("getmetatable")]
     private object LuaGetMetaTable(object obj)
     {
@@ -575,6 +596,9 @@ namespace Neo.IronLua
         return Lua.EmptyResult;
     } // func pairsEnum
 
+    /// <summary></summary>
+    /// <param name="t"></param>
+    /// <returns></returns>
     [LuaFunction("ipairs")]
     private object[] LuaIPairs(LuaTable t)
     {
@@ -582,6 +606,9 @@ namespace Neo.IronLua
       return new object[] { new Func<object, object, object[]>(pairsEnum), e, e };
     } // func ipairs
 
+    /// <summary></summary>
+    /// <param name="t"></param>
+    /// <returns></returns>
     [LuaFunction("pairs")]
     private object[] LuaPairs(LuaTable t)
     {
@@ -589,30 +616,51 @@ namespace Neo.IronLua
       return new object[] { new Func<object, object, object[]>(pairsEnum), e, e };
     } // func LuaPairs
 
+    /// <summary></summary>
+    /// <param name="ld"></param>
+    /// <param name="source"></param>
+    /// <param name="mode"></param>
+    /// <param name="env"></param>
+    /// <returns></returns>
     [LuaFunction("load")]
     private object LuaLoad(object ld, string source, string mode, LuaTable env)
     {
       throw new NotImplementedException();
     } // func LuaLoad
 
+    /// <summary></summary>
+    /// <param name="filename"></param>
+    /// <param name="mode"></param>
+    /// <param name="env"></param>
+    /// <returns></returns>
     [LuaFunction("loadfile")]
     private object LuaLoadFile(string filename, string mode, LuaTable env)
     {
       throw new NotImplementedException();
     } // func LuaLoadFile
 
+    /// <summary></summary>
+    /// <param name="t"></param>
+    /// <param name="next"></param>
+    /// <returns></returns>
     [LuaFunction("next")]
     private object LuaNext(LuaTable t, object next = null)
     {
       throw new NotImplementedException();
     } // func LuaNext
 
+    /// <summary></summary>
+    /// <param name="dlg"></param>
+    /// <param name="args"></param>
+    /// <returns></returns>
     [LuaFunction("pcall")]
     private object[] LuaPCall(Delegate dlg, params object[] args)
     {
       return LuaXPCall(dlg, null, args);
     } // func LuaPCall
 
+    /// <summary></summary>
+    /// <param name="args"></param>
     [LuaFunction("print")]
     private void LuaPrint(params object[] args)
     {
@@ -624,6 +672,10 @@ namespace Neo.IronLua
       Debug.WriteLine(String.Empty);
     } // proc LuaPrint
 
+    /// <summary></summary>
+    /// <param name="a"></param>
+    /// <param name="b"></param>
+    /// <returns></returns>
     [LuaFunction("rawequal")]
     private bool LuaRawEqual(object a, object b)
     {
@@ -645,12 +697,19 @@ namespace Neo.IronLua
         return false;
     } // func LuaRawEqual
 
+    /// <summary></summary>
+    /// <param name="t"></param>
+    /// <param name="index"></param>
+    /// <returns></returns>
     [LuaFunction("rawget")]
     private object LuaRawGet(LuaTable t, object index)
     {
       return t[index];
     } // func LuaRawGet
 
+    /// <summary></summary>
+    /// <param name="v"></param>
+    /// <returns></returns>
     [LuaFunction("rawlen")]
     private int LuaRawLen(object v)
     {
@@ -665,6 +724,11 @@ namespace Neo.IronLua
       }
     } // func LuaRawLen
 
+    /// <summary></summary>
+    /// <param name="t"></param>
+    /// <param name="index"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
     [LuaFunction("rawset")]
     private LuaTable LuaRawSet(LuaTable t, object index, object value)
     {
@@ -672,6 +736,10 @@ namespace Neo.IronLua
       return t;
     } // func LuaRawSet
 
+    /// <summary></summary>
+    /// <param name="index"></param>
+    /// <param name="values"></param>
+    /// <returns></returns>
     [LuaFunction("select")]
     private object[] LuaSelect(int index, params object[] values)
     {
@@ -692,6 +760,10 @@ namespace Neo.IronLua
         return Lua.EmptyResult;
     } // func LuaSelect
 
+    /// <summary></summary>
+    /// <param name="t"></param>
+    /// <param name="metaTable"></param>
+    /// <returns></returns>
     [LuaFunction("setmetatable")]
     private LuaTable LuaSetMetaTable(LuaTable t, LuaTable metaTable)
     {
@@ -699,6 +771,10 @@ namespace Neo.IronLua
       return t;
     } // proc LuaSetMetaTable
 
+    /// <summary></summary>
+    /// <param name="v"></param>
+    /// <param name="iBase"></param>
+    /// <returns></returns>
     [LuaFunction("tonumber")]
     private object LuaToNumber(object v, int iBase)
     {
@@ -725,6 +801,9 @@ namespace Neo.IronLua
         return null;
     } // func LuaToNumber
 
+    /// <summary></summary>
+    /// <param name="v"></param>
+    /// <returns></returns>
     [LuaFunction("tostring")]
     private string LuaToString(object v)
     {
@@ -734,6 +813,10 @@ namespace Neo.IronLua
         return v.ToString();
     } // func LuaToString
 
+    /// <summary></summary>
+    /// <param name="v"></param>
+    /// <param name="lClr"></param>
+    /// <returns></returns>
     [LuaFunction("type")]
     private string LuaType(object v, bool lClr = false)
     {
@@ -753,6 +836,11 @@ namespace Neo.IronLua
         return lClr ? "userdata" : v.GetType().FullName;
     } // func LuaType
 
+    /// <summary></summary>
+    /// <param name="dlg"></param>
+    /// <param name="msgh"></param>
+    /// <param name="args"></param>
+    /// <returns></returns>
     [LuaFunction("xpcall")]
     private object[] LuaXPCall(Delegate dlg, Delegate msgh, params object[] args)
     {

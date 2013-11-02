@@ -99,7 +99,7 @@ namespace Neo.IronLua
           {
             PropertyInfo pi = (PropertyInfo)member;
             if (!pi.CanWrite)
-              return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(String.Format("The property '{0}' is not writable.", Name)), restrictions);
+              return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(String.Format(Properties.Resources.rsPropertyNotWritable, Name)), restrictions);
             type = pi.PropertyType;
           }
           else if (member.MemberType == MemberTypes.Field)
@@ -107,8 +107,8 @@ namespace Neo.IronLua
             FieldInfo fi = (FieldInfo)member;
             type = fi.FieldType;
           }
-          else // Member kann nicht gesetzt werden
-            return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(String.Format("'{0}' is no property/field.", Name)), restrictions);
+          else // Member not setable
+            return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(String.Format(Properties.Resources.rsNoPropertyOrField, Name)), restrictions);
 
           return new DynamicMetaObject(
               Parser.ToObjectExpression(
@@ -121,9 +121,9 @@ namespace Neo.IronLua
             );
         }
         else if (members.Length == 0)
-          return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(String.Format("Property/field '{0}' can not be found.", Name)), restrictions);
+          return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(String.Format(Properties.Resources.rsPropertyNotFound, Name)), restrictions);
         else
-          return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(String.Format("Property/field should be unique. [{0}]", Name)), restrictions);
+          return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(String.Format(Properties.Resources.rsPropertyNotUnique, Name)), restrictions);
       } // func FallbackSetMember
     } // class LuaSetMemberBinder
 
@@ -218,7 +218,7 @@ namespace Neo.IronLua
           return Defer(target, args);
 
         if (target.Value == null) // Invoke on null value
-          return new DynamicMetaObject(ThrowExpression("Can not call nil value."), BindingRestrictions.GetInstanceRestriction(target.Expression, target.Value));
+          return new DynamicMetaObject(ThrowExpression(Properties.Resources.rsNilNotCallable), BindingRestrictions.GetInstanceRestriction(target.Expression, target.Value));
 
         return BindFallbackInvoke(target, args, errorSuggestion);
       } // func FallbackInvoke
@@ -345,7 +345,7 @@ namespace Neo.IronLua
         {
           return errorSuggestion ??
             new DynamicMetaObject(
-              ThrowExpression("Nil not defined for this operator."),
+              ThrowExpression(Properties.Resources.rsNilOperatorError),
               target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, null))
             );
         }
@@ -590,7 +590,7 @@ namespace Neo.IronLua
     {
 #if DEBUG
       if (!target.HasValue)
-        throw new ArgumentException("HasValue muss true sein");
+        throw new ArgumentException("Can only bind defered values.");
 #endif
       Type type = target.LimitType;
 
@@ -599,12 +599,12 @@ namespace Neo.IronLua
 
       if (members.Length == 0)// Nothing found
       {
-        expr = ThrowExpression(String.Format("Member '{0}' not resolved.", binder.Name));
+        expr = ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, binder.Name));
         return BindResult.MemberNotFound;
       }
       else if (members.Length > 1) // only one member is allowed
       {
-        expr = ThrowExpression(String.Format("Property/field must be unique. [{0}]", binder.Name));
+        expr = ThrowExpression(String.Format(Properties.Resources.rsPropertyNotUnique, binder.Name));
         return BindResult.MemberNotUnique;
       }
       else // Member must be unique
@@ -616,7 +616,7 @@ namespace Neo.IronLua
         {
           if (member.MemberType == MemberTypes.Property && !((PropertyInfo)member).CanRead)
           {
-            expr = ThrowExpression(String.Format("The property '{0}' is not writable.", binder.Name));
+            expr = ThrowExpression(String.Format(Properties.Resources.rsPropertyNotReadable, binder.Name));
             return BindResult.NotReadable;
           }
 
@@ -637,12 +637,12 @@ namespace Neo.IronLua
         }
         else if (member.MemberType == MemberTypes.NestedType)
         {
-          expr = ThrowExpression(String.Format("'{0}' is not readable.", binder.Name));
+          expr = ThrowExpression(String.Format(Properties.Resources.rsMemberNotReadable, binder.Name));
           return BindResult.MemberNotFound;
         }
         else // Member is not readable
         {
-          expr = ThrowExpression(String.Format("'{0}' is not readable.", binder.Name));
+          expr = ThrowExpression(String.Format(Properties.Resources.rsMemberNotReadable, binder.Name));
           return BindResult.NotReadable;
         }
       }
@@ -663,7 +663,7 @@ namespace Neo.IronLua
       // Method resolved
       if (miBind == null)
       {
-        expr = ThrowExpression(String.Format("Method '{0}' not resolved.", binder.Name));
+        expr = ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, binder.Name));
         return BindResult.MemberNotFound;
       }
 
@@ -813,7 +813,7 @@ namespace Neo.IronLua
               exprPara[i] = r;
             }
             else
-              throw new ArgumentNullException("vars and callblock");
+              throw new ArgumentNullException("vars|callblock");
           else
             exprPara[i] = exprGet; // Normal byval parameter
         }
@@ -994,7 +994,7 @@ namespace Neo.IronLua
         {
           return errorSuggestion ??
             new DynamicMetaObject(
-            ThrowExpression(String.Format("Type '{0}' has no invoke method.", target.LimitType.Name)),
+            ThrowExpression(String.Format(Properties.Resources.rsInvokeFailed, target.LimitType.Name)),
             restrictions
             );
         }
@@ -1011,7 +1011,7 @@ namespace Neo.IronLua
       else
         return errorSuggestion ??
           new DynamicMetaObject(
-            ThrowExpression(String.Format("Type '{0}' is not callable.", target.LimitType.Name)),
+            ThrowExpression(String.Format(Properties.Resources.rsInvokeNoDelegate, target.LimitType.Name)),
             restrictions);
     } // proc BindFallbackInvoke
 
@@ -1034,7 +1034,7 @@ namespace Neo.IronLua
 
         if (pi == null) // No Index found
         {
-          expr = ThrowExpression(String.Format("No index found for type '{0}'.", target.LimitType.Name));
+          expr = ThrowExpression(String.Format(Properties.Resources.rsNoIndexFound, target.LimitType.Name));
           return false;
         }
         else // Create the index expression

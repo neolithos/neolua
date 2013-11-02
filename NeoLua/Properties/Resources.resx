@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+	<xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+		<xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+		<xsd:element name="root" msdata:IsDataSet="true">
+			<xsd:complexType>
+				<xsd:choice maxOccurs="unbounded">
+					<xsd:element name="metadata">
+						<xsd:complexType>
+							<xsd:sequence>
+								<xsd:element name="value" type="xsd:string" minOccurs="0" />
+							</xsd:sequence>
+							<xsd:attribute name="name" use="required" type="xsd:string" />
+							<xsd:attribute name="type" type="xsd:string" />
+							<xsd:attribute name="mimetype" type="xsd:string" />
+							<xsd:attribute ref="xml:space" />
+						</xsd:complexType>
+					</xsd:element>
+					<xsd:element name="assembly">
+						<xsd:complexType>
+							<xsd:attribute name="alias" type="xsd:string" />
+							<xsd:attribute name="name" type="xsd:string" />
+						</xsd:complexType>
+					</xsd:element>
+					<xsd:element name="data">
+						<xsd:complexType>
+							<xsd:sequence>
+								<xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+								<xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+							</xsd:sequence>
+							<xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+							<xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+							<xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+							<xsd:attribute ref="xml:space" />
+						</xsd:complexType>
+					</xsd:element>
+					<xsd:element name="resheader">
+						<xsd:complexType>
+							<xsd:sequence>
+								<xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+							</xsd:sequence>
+							<xsd:attribute name="name" type="xsd:string" use="required" />
+						</xsd:complexType>
+					</xsd:element>
+				</xsd:choice>
+			</xsd:complexType>
+		</xsd:element>
+	</xsd:schema>
+	<resheader name="resmimetype">
+		<value>text/microsoft-resx</value>
+	</resheader>
+	<resheader name="version">
+		<value>2.0</value>
+	</resheader>
+	<resheader name="reader">
+		<value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</resheader>
+	<resheader name="writer">
+		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+	</resheader>
+	<data name="rsChunkNotCompiled" xml:space="preserve">
+    <value>Chunk is not compiled.</value>
+  </data>
+	<data name="rsChunkWrongScriptManager" xml:space="preserve">
+    <value>Chunk is compiled in a differend script-manager.</value>
+  </data>
+	<data name="rsConversationError" xml:space="preserve">
+    <value>Can not convert '{0}' in '{1}'.</value>
+  </data>
+	<data name="rsGlobalFunctionNotUnique" xml:space="preserve">
+    <value>Function '{0}' on type '{1}' already exists.</value>
+  </data>
+	<data name="rsInvokeFailed" xml:space="preserve">
+    <value>Type '{0}' has no invoke method.</value>
+  </data>
+	<data name="rsInvokeNoDelegate" xml:space="preserve">
+    <value>Type '{0}' is not callable.</value>
+  </data>
+	<data name="rsMemberNotReadable" xml:space="preserve">
+    <value>'{0}' is not readable.</value>
+  </data>
+	<data name="rsMemberNotResolved" xml:space="preserve">
+    <value>'{0}' not found.</value>
+  </data>
+	<data name="rsNilNotCallable" xml:space="preserve">
+    <value>Can not call nil value.</value>
+  </data>
+	<data name="rsNilOperatorError" xml:space="preserve">
+    <value>Operator is not defined for nil-values.</value>
+  </data>
+	<data name="rsNoIndexFound" xml:space="preserve">
+    <value>No index found for type '{0}'.</value>
+  </data>
+	<data name="rsNoPropertyOrField" xml:space="preserve">
+    <value>'{0}' is no property/field.</value>
+  </data>
+	<data name="rsParseConvertNumberError" xml:space="preserve">
+    <value>Number expected ('{0}' not converted).</value>
+  </data>
+	<data name="rsParseEof" xml:space="preserve">
+    <value>Unexpected eof.</value>
+  </data>
+	<data name="rsParseExpressionNoResult" xml:space="preserve">
+    <value>Expression has no result.</value>
+  </data>
+	<data name="rsParseExpressionNotAssignable" xml:space="preserve">
+    <value>Expression is not assignable.</value>
+  </data>
+	<data name="rsParseInvalidChar" xml:space="preserve">
+    <value>Unexpected char.</value>
+  </data>
+	<data name="rsParseInvalidComment" xml:space="preserve">
+    <value>Comment not closed.</value>
+  </data>
+	<data name="rsParseInvalidString" xml:space="preserve">
+    <value>NewLine in string constant.</value>
+  </data>
+	<data name="rsParseNoArgList" xml:space="preserve">
+    <value>No arglist defined.</value>
+  </data>
+	<data name="rsParseUnexpectedToken" xml:space="preserve">
+    <value>Unexpected token '{0}'. '{1}' expected.</value>
+  </data>
+	<data name="rsParseUnexpectedTokenElse" xml:space="preserve">
+    <value>Unexpected token in Else-Statement</value>
+  </data>
+	<data name="rsParseUnexpectedTokenPrefix" xml:space="preserve">
+    <value>Literal, function or tablector expected.</value>
+  </data>
+	<data name="rsParseUnknownType" xml:space="preserve">
+    <value>Type '{0}' not found.</value>
+  </data>
+	<data name="rsPropertyNotFound" xml:space="preserve">
+    <value>Property/field '{0}' can not be found.</value>
+  </data>
+	<data name="rsPropertyNotReadable" xml:space="preserve">
+    <value>The property '{0}' is not readable.</value>
+  </data>
+	<data name="rsPropertyNotUnique" xml:space="preserve">
+    <value>Property/field '{0}' must be unique.</value>
+  </data>
+	<data name="rsPropertyNotWritable" xml:space="preserve">
+    <value>The property '{0}' is not writable.</value>
+  </data>
+	<data name="rsStackTraceAt" xml:space="preserve">
+    <value> at </value>
+  </data>
+	<data name="rsStackTraceInternal" xml:space="preserve">
+    <value> -- internal --</value>
+  </data>
+	<data name="rsStackTraceLine" xml:space="preserve">
+    <value> line </value>
+  </data>
+	<data name="rsStackTraceUnknownMethod" xml:space="preserve">
+    <value>&lt;unknown method&gt;</value>
+  </data>
+</root>

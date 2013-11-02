@@ -7,9 +7,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoLua.Test", "NeoLua.Test\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoCmd", "NeoCmd\NeoCmd.csproj", "{AFDB9919-9FED-45E9-8843-A731F822B98A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoSpeed", "NeoSpeed\NeoSpeed.csproj", "{B57F94E3-E256-4CE2-B907-FF8B0E0E2683}"
+EndProject
 Global
 	GlobalSection(TeamFoundationVersionControl) = preSolution
-		SccNumberOfProjects = 4
+		SccNumberOfProjects = 5
 		SccEnterpriseProvider = {4CA58AB2-18FA-4F8D-95D4-32DDF27D184C}
 		SccTeamFoundationServer = https://tfs.codeplex.com/tfs/tfs33
 		SccLocalPath0 = .
@@ -22,6 +24,9 @@ Global
 		SccProjectUniqueName3 = NeoCmd\\NeoCmd.csproj
 		SccProjectName3 = NeoCmd
 		SccLocalPath3 = NeoCmd
+		SccProjectUniqueName4 = NeoSpeed\\NeoSpeed.csproj
+		SccProjectName4 = NeoSpeed
+		SccLocalPath4 = NeoSpeed
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -40,6 +45,10 @@ Global
 		{AFDB9919-9FED-45E9-8843-A731F822B98A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AFDB9919-9FED-45E9-8843-A731F822B98A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AFDB9919-9FED-45E9-8843-A731F822B98A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B57F94E3-E256-4CE2-B907-FF8B0E0E2683}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B57F94E3-E256-4CE2-B907-FF8B0E0E2683}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B57F94E3-E256-4CE2-B907-FF8B0E0E2683}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B57F94E3-E256-4CE2-B907-FF8B0E0E2683}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

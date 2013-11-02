@@ -190,7 +190,7 @@ namespace Neo.IronLua
     /// <returns></returns>
     public StringBuilder ToString(StringBuilder sb, bool lPrintType)
     {
-      sb.Append(" at ");
+      sb.Append(Properties.Resources.rsStackTraceAt);
 
       if (lPrintType)
         sb.Append('[').Append(Type.ToString()[0]).Append("] ");
@@ -202,7 +202,7 @@ namespace Neo.IronLua
 
       // at type method
       if (m == null)
-        sb.Append("<unknown method>");
+        sb.Append(Properties.Resources.rsStackTraceUnknownMethod);
       else
       {
         bool lComma = false;
@@ -253,7 +253,7 @@ namespace Neo.IronLua
       // and now the fileinformation
       if (!String.IsNullOrEmpty(FileName))
       {
-        sb.Append(" line ");
+        sb.Append(Properties.Resources.rsStackTraceLine);
         sb.Append(FileName);
         if (LineNumber > 0)
           sb.Append(':').Append(LineNumber);
@@ -373,7 +373,7 @@ namespace Neo.IronLua
           if (c.Type == LuaStackFrameType.Unknown)
             continue;
           else if (!lSkipClrFrames)
-            sb.AppendLine(" -- internal --");
+            sb.AppendLine(Properties.Resources.rsStackTraceInternal);
         }
         else
         {

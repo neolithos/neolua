@@ -258,7 +258,7 @@ namespace Neo.IronLua
 
         // Create the label, if it is not internal
         if (sName[0] == '#')
-          throw new ArgumentException("Internes Label übergeben, welches nicht existiert.");
+          throw new ArgumentException("Internal label does not exist.");
 
         return labels[sName] = Expression.Label(type, sName);
       } // func LookupLabel
@@ -347,7 +347,7 @@ namespace Neo.IronLua
           expr = Expression.Assign(Instance, Expression.Convert(exprToSet, typeof(object)));
         }
         else
-          throw ParseError(Position, "Expression is not assignable");
+          throw ParseError(Position, Properties.Resources.rsParseExpressionNotAssignable);
 
         if (tStart != null)
         {
@@ -400,7 +400,7 @@ namespace Neo.IronLua
           Arguments = null;
         }
         else
-          throw ParseError(Position, "Expression as no result.");
+          throw ParseError(Position, Properties.Resources.rsParseExpressionNoResult);
 
         if (tStart != null)
         {
@@ -458,7 +458,7 @@ namespace Neo.IronLua
       ParseBlock(globalScope, code);
 
       if (code.Current.Typ != LuaToken.Eof)
-        throw ParseError(code.Current, "Unexpected eof.");
+        throw ParseError(code.Current, Properties.Resources.rsParseEof);
 
       // Create the function
       return Expression.Lambda(globalScope.ExpressionBlock, sChunkName, parameters);
@@ -605,11 +605,11 @@ namespace Neo.IronLua
           return true;
 
         case LuaToken.InvalidString:
-          throw ParseError(code.Current, "Newline in string constant.");
+          throw ParseError(code.Current, Properties.Resources.rsParseInvalidString);
         case LuaToken.InvalidComment:
-          throw ParseError(code.Current, "Comment not closed.");
+          throw ParseError(code.Current, Properties.Resources.rsParseInvalidComment);
         case LuaToken.InvalidChar:
-          throw ParseError(code.Current, "Unexpected char.");
+          throw ParseError(code.Current, Properties.Resources.rsParseInvalidChar);
 
         default:
           return false;
@@ -770,7 +770,7 @@ namespace Neo.IronLua
         return Expression.Empty();
       }
       else
-        throw ParseError(code.Current, "Unexpected token in IfElse-Statement");
+        throw ParseError(code.Current, Properties.Resources.rsParseUnexpectedTokenElse);
     } // func ParseElseStatement
 
     private static Expression ParseIfElseBlock(Scope parent, LuaLexer code)
@@ -805,7 +805,7 @@ namespace Neo.IronLua
             var t = code.Current;
             var p = scope.LookupParameter(t.Typ == LuaToken.DotDotDot ? csArgList : t.Value);
             if (t.Typ == LuaToken.DotDotDot && p == null)
-              throw ParseError(t, "No arglist defined.");
+              throw ParseError(t, Properties.Resources.rsParseNoArgList);
             code.Next();
             if (p == null) // Als globale Variable verwalten, da es keine locale Variable gibt
               info = new PrefixMemberInfo(tStart, scope.LookupParameter(csEnv), t.Value, null, null);
@@ -851,7 +851,7 @@ namespace Neo.IronLua
           break;
 
         default:
-          throw ParseError(code.Current, "Literal, function or tablector expected.");
+          throw ParseError(code.Current, Properties.Resources.rsParseUnexpectedTokenPrefix);
       }
 
       return ParseSuffix(scope, code, info);
@@ -959,7 +959,7 @@ namespace Neo.IronLua
       else if (Double.TryParse(sNumber, NumberStyles.Float, CultureInfo.InvariantCulture, out d))
         return Expression.Constant(d, typeof(double));
       else
-        throw ParseError(t, String.Format("Number expected ('{0}' not converted).", sNumber));
+        throw ParseError(t, String.Format(Properties.Resources.rsParseConvertNumberError, sNumber));
     } // func ParseNumber
 
     internal static Expression ParseHexNumber(Token t)
@@ -983,7 +983,7 @@ namespace Neo.IronLua
         //else if (Double.TryParse(sNumber, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out d))
         //  return Expression.Constant(d, typeof(Double));
         else
-          throw ParseError(t, String.Format("Number expected ('{0}' not converted).", sNumber));
+          throw ParseError(t, String.Format(Properties.Resources.rsParseConvertNumberError, sNumber));
       }
     } // func ParseHexNumber
 
@@ -1345,7 +1345,7 @@ namespace Neo.IronLua
         default:
           Type type = Lua.GetType(sTypeName);
           if (type == null)
-            throw ParseError(t, String.Format("Type '{0}' not found.", sTypeName));
+            throw ParseError(t, String.Format(Properties.Resources.rsParseUnknownType, sTypeName));
           else
             return type;
       }
@@ -1927,7 +1927,7 @@ namespace Neo.IronLua
       else if (lOptional)
         return null;
       else
-        throw ParseError(code.Current, String.Format("Unexpected token '{0}'. '{1}' expected.", code.Current.Typ, typ));
+        throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, code.Current.Typ, typ));
     } // proc FetchToken
 
     private static LuaParseException ParseError(Token start, string sMessage)

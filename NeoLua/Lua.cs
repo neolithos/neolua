@@ -129,7 +129,7 @@ namespace Neo.IronLua
         FieldBuilder field;
         if (!fields.TryGetValue(node.Value, out field))
         {
-          field = type.DefineField("$constant_" + fields.Count.ToString(), GetVisibleType(node.Value.GetType()), FieldAttributes.Static | FieldAttributes.Private);
+          field = type.DefineField("$c" + fields.Count.ToString(), GetVisibleType(node.Value.GetType()), FieldAttributes.Static | FieldAttributes.Private);
           fields.Add(node.Value, field);
         }
 
@@ -287,7 +287,7 @@ namespace Neo.IronLua
               // create the assembly
               if (assembly == null)
               {
-                assembly = AppDomain.CurrentDomain.DefineDynamicAssembly(new AssemblyName("lua.dynamic, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null"), AssemblyBuilderAccess.RunAndCollect);
+                  assembly = AppDomain.CurrentDomain.DefineDynamicAssembly(GetLuaDynamicName(), AssemblyBuilderAccess.RunAndCollect);
                 module = assembly.DefineDynamicModule("lua", true);
               }
 
@@ -391,7 +391,7 @@ namespace Neo.IronLua
 
     /// <summary>Creates an empty environment for the lua functions.</summary>
     /// <returns>Initialized environment</returns>
-    public LuaGlobal CreateEnvironment()
+    public virtual LuaGlobal CreateEnvironment()
     {
       return new LuaGlobal(this);
     } // func CreateEnvironment
@@ -401,6 +401,33 @@ namespace Neo.IronLua
     // -- Static --------------------------------------------------------------
 
     private static Dictionary<string, WeakReference> allChunks = new Dictionary<string, WeakReference>();
+    private static AssemblyName luaDynamicName = null;
+
+    private static AssemblyName GetLuaDynamicName()
+    {
+      lock (allChunks)
+      {
+        if (luaDynamicName == null)
+        {
+          byte[] bKey;
+          using (Stream src = typeof(Lua).Assembly.GetManifestResourceStream("Neo.IronLua.NeoLua.snk"))
+          {
+            bKey = new byte[src.Length];
+            src.Read(bKey, 0, bKey.Length);
+          }
+
+          // create the strong name
+          luaDynamicName = new AssemblyName();
+          luaDynamicName.Name = "lua.dynamic";
+          luaDynamicName.Version = new Version();
+          luaDynamicName.Flags = AssemblyNameFlags.PublicKey;
+          luaDynamicName.HashAlgorithm = System.Configuration.Assemblies.AssemblyHashAlgorithm.SHA1;
+          luaDynamicName.KeyPair = new StrongNameKeyPair(bKey);
+        }
+
+        return luaDynamicName;
+      }
+    } // func GetLuaDynamicName
 
     internal static void RegisterChunk(LuaChunk chunk)
     {

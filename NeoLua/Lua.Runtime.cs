@@ -144,7 +144,7 @@ namespace Neo.IronLua
           if (conv.CanConvertTo(to))
             return conv.ConvertTo(null, CultureInfo.InvariantCulture, value, to);
           else
-            throw new LuaRuntimeException(String.Format("'{0}' kann nicht in '{1}' konvertiert werden.", value, to.Name), null);
+            throw new LuaRuntimeException(String.Format(Properties.Resources.rsConversationError, value, to.Name), null);
         }
       }
     } // func RtConvert
@@ -317,21 +317,32 @@ namespace Neo.IronLua
           LuaFunctionAttribute attr = (LuaFunctionAttribute)Attribute.GetCustomAttribute(mi, typeof(LuaFunctionAttribute), false);
           if (attr != null)
           {
-            if (luaFunctions.ContainsKey(attr.Name))
-              throw new LuaRuntimeException(String.Format("'{0}' on type '{1}' already exists.", attr.Name, type.Name), null);
-
-            // create the delegate type
-            Type typeDelegate = Expression.GetDelegateType((from p in mi.GetParameters() select p.ParameterType).Concat(new Type[] { mi.ReturnType }).ToArray());
-            luaFunctions[attr.Name] = new CoreFunction
+            CoreFunction f;
+            if (luaFunctions.TryGetValue(attr.Name, out f))
             {
-              DeclaredType = type,
-              DelegateType = typeDelegate,
-              Method = mi
-            };
+              if (f.DeclaredType == type)
+                throw new LuaRuntimeException(String.Format(Properties.Resources.rsGlobalFunctionNotUnique, attr.Name, type.Name), null);
+            }
+            else
+            {
+              // create the delegate type
+              Type typeDelegate = Expression.GetDelegateType((from p in mi.GetParameters() select p.ParameterType).Concat(new Type[] { mi.ReturnType }).ToArray());
+              luaFunctions[attr.Name] = new CoreFunction
+              {
+                DeclaredType = type,
+                DelegateType = typeDelegate,
+                Method = mi
+              };
+            }
           }
         }
 
+        // type collected
         luaFunctionTypes.Add(type);
+
+        // collect lua-functions in the base types
+        if (type.BaseType != typeof(object))
+          CollectLuaFunctions(type.BaseType);
       }
     } // func CollectLuaFunctions
 
