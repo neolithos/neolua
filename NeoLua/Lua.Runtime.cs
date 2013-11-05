@@ -134,9 +134,7 @@ namespace Neo.IronLua
       else
       {
         TypeConverter conv = TypeDescriptor.GetConverter(to);
-        if (value == null)
-          throw new ArgumentNullException(); // Todo: LuaException
-        else if (conv.CanConvertFrom(value.GetType()))
+        if (conv.CanConvertFrom(value.GetType()))
           return conv.ConvertFrom(null, CultureInfo.InvariantCulture, value);
         else
         {

@@ -114,6 +114,8 @@
     <EmbeddedResource Include="Lua\Runtime12.lua" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Lua\Control11.lua" />
+    <EmbeddedResource Include="Lua\Control12.lua" />
     <None Include="NeoLua.snk" />
   </ItemGroup>
   <Choose>

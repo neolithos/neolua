@@ -35,18 +35,15 @@ namespace Neo.IronLua
       /// <returns></returns>
       public override DynamicMetaObject BindSetIndex(SetIndexBinder binder, DynamicMetaObject[] indexes, DynamicMetaObject value)
       {
+        Expression exprSet = Expression.Convert(value.Expression, typeof(object));
+
         if (indexes.Length == 1)
         {
           // the index is normaly an expression --> call setvalue
           return new DynamicMetaObject(
             Expression.Block(
-              Expression.Call(
-                Expression.Convert(Expression, typeof(LuaTable)),
-                typeof(LuaTable).GetMethod("SetValue", BindingFlags.Instance | BindingFlags.NonPublic, null, new Type[] { typeof(object), typeof(object) }, null),
-                Expression.Convert(indexes[0].Expression, typeof(object)),
-                value.Expression
-              ),
-              value.Expression
+              SetValueExpression(Expression.Convert(Expression, typeof(LuaTable)), Expression.Convert(indexes[0].Expression, typeof(object)), exprSet),
+              exprSet
             ),
             BindingRestrictions.GetInstanceRestriction(Expression, Value));
         }
@@ -60,13 +57,8 @@ namespace Neo.IronLua
 
           return new DynamicMetaObject(
             Expression.Block(
-              Expression.Call(
-                Expression.Convert(Expression, typeof(LuaTable)),
-                typeof(LuaTable).GetMethod("SetValue", BindingFlags.Instance | BindingFlags.NonPublic, null, new Type[] { typeof(object[]), typeof(object) }, null),
-                Expression.NewArrayInit(typeof(object), args),
-                value.Expression
-              ),
-              value.Expression
+              SetValueExpression(Expression.Convert(Expression, typeof(LuaTable)), args, exprSet),
+              exprSet
             ),
             BindingRestrictions.GetInstanceRestriction(Expression, Value));
         }
@@ -160,7 +152,7 @@ namespace Neo.IronLua
         DynamicMetaObject moGet = GetMemberAccess(binder, binder.Name, binder.IgnoreCase, true);
         return new DynamicMetaObject(
           Expression.Block(new ParameterExpression[] { tmp },
-            Expression.Assign(tmp, Expression.Convert(value.Expression, typeof(object))),
+            Expression.Assign(tmp, Expression.Convert(value.Expression, tmp.Type)),
             Expression.IfThen(Expression.NotEqual(tmp, moGet.Expression),
               Expression.Block(
                 Expression.Assign(moGet.Expression, tmp),
@@ -380,6 +372,30 @@ namespace Neo.IronLua
         t.SetValue(items, iIndex++, values);
       }
     } // func SetValue
+
+    #endregion
+
+    #region -- Expressions ------------------------------------------------------------
+
+    internal static Expression SetValueExpression(Expression table, Expression index, Expression set)
+    {
+      return Expression.Call(
+                table,
+                typeof(LuaTable).GetMethod("SetValue", BindingFlags.Instance | BindingFlags.NonPublic, null, new Type[] { typeof(object), typeof(object) }, null),
+                index,
+                set
+              );
+    } // func SetValueExpression
+
+    internal static Expression SetValueExpression(Expression table, Expression[] indexes, Expression set)
+    {
+      return Expression.Call(
+                table,
+                typeof(LuaTable).GetMethod("SetValue", BindingFlags.Instance | BindingFlags.NonPublic, null, new Type[] { typeof(object[]), typeof(object) }, null),
+                Expression.NewArrayInit(typeof(object), indexes),
+                set
+              );
+    } // func SetValueExpression
 
     #endregion
 

@@ -57,7 +57,7 @@ namespace Neo.IronLua
         switch (TryBindGetMember(this, target, out expr))
         {
           case BindResult.Ok:
-            return new DynamicMetaObject(Parser.ToObjectExpression(expr), restrictions);
+            return new DynamicMetaObject(Parser.ToTypeExpression(expr, typeof(object)), restrictions);
           case BindResult.MemberNotFound:
             return new DynamicMetaObject(Expression.Constant(null, typeof(object)), restrictions);
           default:
@@ -111,11 +111,12 @@ namespace Neo.IronLua
             return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(String.Format(Properties.Resources.rsNoPropertyOrField, Name)), restrictions);
 
           return new DynamicMetaObject(
-              Parser.ToObjectExpression(
+              Parser.ToTypeExpression(
                 Expression.Assign(
                   Expression.MakeMemberAccess(Expression.Convert(target.Expression, member.DeclaringType), member),
                   Expression.Convert(Expression.Convert(value.Expression, value.LimitType), type)
-                )
+                ),
+                typeof(object)
               ),
               restrictions.Merge(value.Restrictions).Merge(BindingRestrictions.GetTypeRestriction(value.Expression, value.LimitType))
             );
@@ -153,7 +154,7 @@ namespace Neo.IronLua
 
         Expression expr;
         if (GetIndexAccessExpression(target, indexes, out expr))
-          return new DynamicMetaObject(Parser.ToObjectExpression(expr), Lua.GetMethodSignatureRestriction(target, indexes));
+          return new DynamicMetaObject(Parser.ToTypeExpression(expr, typeof(object)), Lua.GetMethodSignatureRestriction(target, indexes));
         else
           return errorSuggestion ?? new DynamicMetaObject(expr, Lua.GetMethodSignatureRestriction(target, indexes));
       } // func FallbackGetIndex
@@ -189,7 +190,7 @@ namespace Neo.IronLua
           return errorSuggestion ?? new DynamicMetaObject(expr, Lua.GetMethodSignatureRestriction(target, indexes));
 
         // Create the Assign
-        expr = Parser.ToObjectExpression(Expression.Assign(expr, Parser.RuntimeHelperConvertExpression(value.Expression, expr.Type)));
+        expr = Parser.ToTypeExpression(Expression.Assign(expr, Parser.RuntimeHelperConvertExpression(value.Expression, expr.Type)), typeof(object));
 
         return new DynamicMetaObject(expr,
           Lua.GetMethodSignatureRestriction(target, indexes)
@@ -286,39 +287,16 @@ namespace Neo.IronLua
           .Merge(target.Value == null ? BindingRestrictions.GetInstanceRestriction(target.Expression, null) : BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType))
           .Merge(arg.Value == null ? BindingRestrictions.GetInstanceRestriction(arg.Expression, null) : BindingRestrictions.GetTypeRestriction(arg.Expression, arg.LimitType));
 
-        Expression expr;
+        Expression expr = Parser.ToTypeExpression(
+          Parser.BinaryOperationExpression(null, 
+            Operation,
+            target.Expression,
+            target.LimitType,
+            arg.Expression,
+            arg.LimitType), 
+          typeof(object));
 
-        if (Operation == ExpressionType.Equal || Operation == ExpressionType.NotEqual)
-        {
-          if (target.LimitType == arg.LimitType)
-            expr = Expression.MakeBinary(Operation, Expression.Convert(target.Expression, target.LimitType), Expression.Convert(arg.Expression, arg.LimitType));
-          else
-            expr = Expression.Constant(Operation != ExpressionType.Equal, typeof(bool));
-        }
-        else
-        {
-          // Korrigiere die Typen
-          Type limitType;
-          if (target.LimitType != arg.LimitType)
-            limitType = typeof(double);
-          else
-            limitType = target.LimitType;
-
-          if (Operation == ExpressionType.Power && limitType != typeof(double)) // Power funktioniert nur mit double
-            expr = Parser.RuntimeHelperConvertExpression(
-                Expression.MakeBinary(
-                  ExpressionType.Power,
-                  Parser.RuntimeHelperConvertExpression(target.Expression, typeof(double)),
-                  Parser.RuntimeHelperConvertExpression(arg.Expression, typeof(double))
-                ), limitType);
-          else
-            expr = Expression.MakeBinary(
-                      Operation,
-                      Parser.RuntimeHelperConvertExpression(target.Expression, limitType),
-                      Parser.RuntimeHelperConvertExpression(arg.Expression, limitType)
-                    );
-        }
-        return new DynamicMetaObject(Parser.ToObjectExpression(expr), restrictions);
+        return new DynamicMetaObject(expr, restrictions);
       } // func FallbackBinaryOperation
     } // class LuaBinaryOperationBinder
 
@@ -351,8 +329,9 @@ namespace Neo.IronLua
         }
         else
           return new DynamicMetaObject(
-              Parser.ToObjectExpression(
-                Expression.MakeUnary(Operation, Expression.Convert(target.Expression, target.LimitType), target.LimitType)
+              Parser.ToTypeExpression(
+                Parser.UnaryOperationExpression(null, Operation, target.Expression, target.LimitType),
+                typeof(object)
               ),
               target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType))
             );
@@ -710,9 +689,9 @@ namespace Neo.IronLua
       else // Return the variables in the correct order
       {
         Expression[] r = new Expression[vars.Count + 1];
-        r[0] = Parser.ToObjectExpression(exprCall);
+        r[0] = Parser.ToTypeExpression(exprCall, typeof(object));
         for (int i = 0; i < vars.Count; i++)
-          r[i + 1] = Parser.ToObjectExpression(vars[i]);
+          r[i + 1] = Parser.ToTypeExpression(vars[i], typeof(object));
         callBlock.Add(Expression.NewArrayInit(typeof(object), r));
         expr = Expression.Block(vars, callBlock);
       }

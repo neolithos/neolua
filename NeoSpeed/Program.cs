@@ -25,14 +25,8 @@ namespace NeoSpeed
         Path.GetFullPath(@"..\..\Scripts\StringBuilder{0}.lua")
       };
 
-      Console.WriteLine("CS:");
-      long sum = 0;
-      for (int i = 0; i < 100; i++)
-        sum += SumLuaCS();
-      Console.WriteLine("  {0:N0} ms", sum / 100);
-
       Console.WriteLine();
-      Console.WriteLine("Gesamtes Interface:");
+      Console.WriteLine("Rebuild cache:");
       for (int i = 0; i < scripts.Length; i++)
       {
         string sScript1 = File.ReadAllText(String.Format(scripts[i], 1));
@@ -47,7 +41,7 @@ namespace NeoSpeed
         );
       }
       Console.WriteLine();
-      Console.WriteLine("Precompiled:");
+      Console.WriteLine("Precompiled (no cache clear):");
       for (int i = 0; i < scripts.Length; i++)
       {
         string sScript1 = File.ReadAllText(String.Format(scripts[i], 1));
@@ -62,7 +56,7 @@ namespace NeoSpeed
         );
       }
       Console.WriteLine();
-      Console.WriteLine("{0}", v);
+      Console.WriteLine(v == 1201200 ? "All called." : String.Format("{0} != {1}", v, 1201200));
 
       Console.ReadLine();
     }
@@ -156,14 +150,19 @@ namespace NeoSpeed
       //Debug.Print("Call {0}:{1}: {2}", sLua, i, r != null && r.Length == 1 ? r[0] : "<none>");
     } // proc DebugOut
 
+    private static int ConvDummy(object value)
+    {
+      return (int)value;
+    }
+
     private static long SumLuaCS()
     {
       Stopwatch sw = new Stopwatch();
       sw.Start();
 
       object sum = 0;
-      for (object i = 0; (int)i < 1000; i = (int)i + 1)
-        sum = (int)sum + (int)i;
+      for (object i = 0; ConvDummy(i) < 1000; i = ConvDummy(i) + 1)
+        sum = ConvDummy(sum) + ConvDummy(LuaEcho(i));
     
       return sw.ElapsedMilliseconds;
     }

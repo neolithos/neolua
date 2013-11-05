@@ -268,7 +268,7 @@ namespace Neo.IronLua
           Console.WriteLine(Parser.ExpressionToString(expr));
           Console.WriteLine(new string('=', 79));
         }
-
+        
         LuaChunk chunk;
         try
         {
