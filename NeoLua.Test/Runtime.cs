@@ -59,6 +59,12 @@ namespace LuaDLR.Test
     } // proc TestRuntimeClrClass02
 
     [TestMethod]
+    public void TestRuntimeClrClass04()
+    {
+      Assert.IsTrue(TestReturn("return clr.System.Text.StringBuilder:GetType();", typeof(StringBuilder)));
+    } // proc TestRuntimeClrClass04
+
+    [TestMethod]
     public void TestRuntimeLua01()
     {
       Assert.IsTrue(TestReturn("print('Hallo Welt');"));

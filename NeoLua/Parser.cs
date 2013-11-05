@@ -627,8 +627,10 @@ namespace Neo.IronLua
       {
         if (lLocal)
         {
-          var t = FetchToken(LuaToken.Identifier, code);
-          prefixes.Add(new PrefixMemberInfo(t, scope.RegisterVariable(typeof(object), t.Value), null, null, null));
+          Token tVar;
+          string sVarType;
+          ParseLocalVariable(code, out tVar, out sVarType);
+          prefixes.Add(new PrefixMemberInfo(tVar, scope.RegisterVariable(sVarType == null ? typeof(object) : GetType(tVar, sVarType), tVar.Value) , null, null, null));
         }
         else
         {
@@ -1293,18 +1295,10 @@ namespace Neo.IronLua
         var t = code.Current;
         code.Next();
 
-        StringBuilder sbTypeName = new StringBuilder();
-
         FetchToken(LuaToken.BracketOpen, code);
 
         // Lies den Typ aus
-        sbTypeName.Append(FetchToken(LuaToken.Identifier, code).Value);
-        while (code.Current.Typ == LuaToken.Dot)
-        {
-          code.Next();
-          sbTypeName.Append('.');
-          sbTypeName.Append(FetchToken(LuaToken.Identifier, code).Value);
-        }
+        string sTypeName = ParseType(code);
         FetchToken(LuaToken.Comma, code);
 
         Expression expr = ParseExpression(scope, code, ref lWrap);
@@ -1312,11 +1306,40 @@ namespace Neo.IronLua
         FetchToken(LuaToken.BracketClose, code);
 
         lWrap |= true;
-        return RuntimeHelperConvertExpression(expr, GetType(t, sbTypeName.ToString()));
+        return RuntimeHelperConvertExpression(expr, GetType(t, sTypeName));
       }
       else
         return ParsePrefix(scope, code, ref lWrap).GenerateGet(scope);
     } // func ParseExpressionCast
+
+    private static void ParseLocalVariable(LuaLexer code, out Token tName, out string sType)
+    {
+      // var ::= name ':' type
+      tName = FetchToken(LuaToken.Identifier, code);
+      if (code.Current.Typ == LuaToken.Colon)
+      {
+        code.Next();
+        sType = ParseType(code);
+      }
+      else
+        sType = null;
+    } // func ParseLocalVariable
+
+    private static string ParseType(LuaLexer code)
+    {
+      StringBuilder sbTypeName = new StringBuilder();
+      sbTypeName.Append(FetchToken(LuaToken.Identifier, code).Value);
+      while (code.Current.Typ == LuaToken.Dot || code.Current.Typ == LuaToken.Plus)
+      {
+        if (code.Current.Typ == LuaToken.Plus)
+          sbTypeName.Append('+');
+        else
+          sbTypeName.Append('.');
+        code.Next();
+        sbTypeName.Append(FetchToken(LuaToken.Identifier, code).Value);
+      }
+      return sbTypeName.ToString();
+    } // func ParseType
 
     private static Type GetType(Token t, string sTypeName)
     {
@@ -1499,7 +1522,9 @@ namespace Neo.IronLua
     {
       // for name
       FetchToken(LuaToken.KwFor, code);
-      var loopVar = FetchToken(LuaToken.Identifier, code);
+      Token tLoopVar;
+      string sLoopVarType;
+      ParseLocalVariable(code, out tLoopVar, out sLoopVarType);
       if (code.Current.Typ == LuaToken.Assign)
       {
         // = exp, exp [, exp] do block end
@@ -1517,7 +1542,7 @@ namespace Neo.IronLua
           loopStep = Expression.Constant(1, typeof(int));
 
         LoopScope loopScope = new LoopScope(scope);
-        ParameterExpression loopVarParameter = loopScope.RegisterVariable(loopStart.Type, loopVar.Value);
+        ParameterExpression loopVarParameter = loopScope.RegisterVariable(sLoopVarType == null ? loopStart.Type : GetType(tLoopVar, sLoopVarType), tLoopVar.Value);
 
         FetchToken(LuaToken.KwDo, code);
         ParseBlock(loopScope, code);
@@ -1531,11 +1556,12 @@ namespace Neo.IronLua
         // fetch all loop variables
         LoopScope loopScope = new LoopScope(scope);
         List<ParameterExpression> loopVars = new List<ParameterExpression>();
-        loopVars.Add(loopScope.RegisterVariable(typeof(object), loopVar.Value));
+        loopVars.Add(loopScope.RegisterVariable(sLoopVarType == null ? typeof(object) : GetType(tLoopVar, sLoopVarType), tLoopVar.Value));
         while (code.Current.Typ == LuaToken.Comma)
         {
           code.Next();
-          loopVars.Add(loopScope.RegisterVariable(typeof(object), FetchToken(LuaToken.Identifier, code).Value));
+          ParseLocalVariable(code, out tLoopVar, out sLoopVarType);
+          loopVars.Add(loopScope.RegisterVariable(sLoopVarType == null ? typeof(object) : GetType(tLoopVar, sLoopVarType), tLoopVar.Value));
         }
 
         // get the loop expressions
@@ -1561,7 +1587,10 @@ namespace Neo.IronLua
 
       // fetch the loop variable
       LoopScope loopScope = new LoopScope(scope);
-      ParameterExpression loopVar = loopScope.RegisterVariable(typeof(object), FetchToken(LuaToken.Identifier, code).Value);
+      Token tLoopVar;
+      string sLoopVarType;
+      ParseLocalVariable(code, out tLoopVar, out sLoopVarType);
+      ParameterExpression loopVar = loopScope.RegisterVariable(sLoopVarType == null ? typeof(object) : GetType(tLoopVar, sLoopVarType), tLoopVar.Value);
 
       // get the enumerable expression
       FetchToken(LuaToken.KwIn, code);
@@ -1577,7 +1606,7 @@ namespace Neo.IronLua
       var miMoveNext = typeEnumerator.GetMethod("MoveNext");
       var piCurrent = typeEnumerator.GetProperty("Current", BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance);
 
-      loopScope.InsertExpression(0, Expression.Assign(loopVar, Expression.Property(varEnumerator, piCurrent)));
+      loopScope.InsertExpression(0, Expression.Assign(loopVar, ToTypeExpression(Expression.Property(varEnumerator, piCurrent), loopVar.Type)));
       scope.AddExpression(
         Expression.Block(new ParameterExpression[] { varEnumerable, varEnumerator, loopVar },
         // local enumerable = exprEnum as IEnumerator
@@ -1617,7 +1646,7 @@ namespace Neo.IronLua
 
       // Erzeuge den Schleifenblock
       return Expression.Block(new ParameterExpression[] { internLoopVar, endVar, stepVar },
-        Expression.Assign(internLoopVar, loopStart),
+        Expression.Assign(internLoopVar, ToTypeExpression(loopStart, internLoopVar.Type)),
         Expression.Assign(endVar, loopEnd),
         Expression.Assign(stepVar, loopStep),
 
@@ -1625,12 +1654,12 @@ namespace Neo.IronLua
 
         Expression.IfThenElse(
           ToTypeExpression(
-            BinaryOperationExpression(null, ExpressionType.Or,
-              BinaryOperationExpression(null, ExpressionType.And,
+            BinaryOperationExpression(null, ExpressionType.OrElse,
+              BinaryOperationExpression(null, ExpressionType.AndAlso,
                 BinaryOperationExpression(loopScope.Runtime, ExpressionType.GreaterThan, stepVar, stepVar.Type, Expression.Constant(0, typeof(int)), typeof(int)), typeof(bool),
                 BinaryOperationExpression(loopScope.Runtime, ExpressionType.LessThanOrEqual, internLoopVar, internLoopVar.Type, endVar, endVar.Type), typeof(bool)
               ), typeof(bool),
-              BinaryOperationExpression(null, ExpressionType.And,
+              BinaryOperationExpression(null, ExpressionType.AndAlso,
                 BinaryOperationExpression(loopScope.Runtime, ExpressionType.LessThanOrEqual, stepVar, stepVar.Type, Expression.Constant(0, typeof(int)), typeof(int)), typeof(bool),
                 BinaryOperationExpression(loopScope.Runtime, ExpressionType.GreaterThanOrEqual, internLoopVar, internLoopVar.Type, endVar, endVar.Type), typeof(bool)
               ), typeof(bool)
@@ -1667,7 +1696,7 @@ namespace Neo.IronLua
 
       // local var1, ..., varn = tmp;
       for (int i = 0; i < loopVars.Count; i++)
-        loopScope.InsertExpression(i, Expression.Assign(loopVars[i], Parser.RuntimeHelperExpression(LuaRuntimeHelper.GetObject, varTmp, Expression.Constant(i))));
+        loopScope.InsertExpression(i, Expression.Assign(loopVars[i], ToTypeExpression(Parser.RuntimeHelperExpression(LuaRuntimeHelper.GetObject, varTmp, Expression.Constant(i)), loopVars[i].Type)));
       return Expression.Block(new ParameterExpression[] { varTmp, varFunc, varState, varVar },
         // fill the local loop variables initial
         // local #f, #s, #var = explist

@@ -147,16 +147,23 @@ namespace Neo.IronLua
           Expression expr;
           if (type != null)
           {
-            bool lUseCtor = binder.Name == "ctor"; // Redirect to the ctor
-
-            switch (Lua.TryBindInvokeMember(binder, lUseCtor, new DynamicMetaObject(Expression.Default(type), BindingRestrictions.Empty, null), args, out expr))
+            if (String.Compare(binder.Name, "GetType", binder.IgnoreCase) == 0 && args.Length == 0)
             {
-              case Lua.BindResult.Ok:
-                return new DynamicMetaObject(expr, Lua.GetMethodSignatureRestriction(null, args).Merge(BindingRestrictions.GetInstanceRestriction(Expression, Value)));
-              case Lua.BindResult.MemberNotFound:
-                return binder.FallbackInvokeMember(new DynamicMetaObject(Expression.Default(type), BindingRestrictions.Empty, null), args);
-              default:
-                return new DynamicMetaObject(expr, Lua.GetMethodSignatureRestriction(null, args).Merge(BindingRestrictions.GetInstanceRestriction(Expression, Value)));
+              return new DynamicMetaObject(Expression.Constant(type, typeof(Type)), BindingRestrictions.GetInstanceRestriction(Expression, Value), type);
+            }
+            else
+            {
+              bool lUseCtor = String.Compare(binder.Name, "ctor", binder.IgnoreCase) == 0; // Redirect to the ctor
+
+              switch (Lua.TryBindInvokeMember(binder, lUseCtor, new DynamicMetaObject(Expression.Default(type), BindingRestrictions.Empty, null), args, out expr))
+              {
+                case Lua.BindResult.Ok:
+                  return new DynamicMetaObject(expr, Lua.GetMethodSignatureRestriction(null, args).Merge(BindingRestrictions.GetInstanceRestriction(Expression, Value)));
+                case Lua.BindResult.MemberNotFound:
+                  return binder.FallbackInvokeMember(new DynamicMetaObject(Expression.Default(type), BindingRestrictions.Empty, null), args);
+                default:
+                  return new DynamicMetaObject(expr, Lua.GetMethodSignatureRestriction(null, args).Merge(BindingRestrictions.GetInstanceRestriction(Expression, Value)));
+              }
             }
           }
           return base.BindInvokeMember(binder, args);

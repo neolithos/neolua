@@ -57,6 +57,8 @@
     <None Include="App.config" />
     <None Include="Scripts\Delegate.lua" />
     <None Include="Scripts\Empty.lua" />
+    <None Include="Scripts\Sum_strict1.lua" />
+    <None Include="Scripts\Sum_strict2.lua" />
     <None Include="Scripts\Sum_echo.lua" />
     <None Include="Scripts\String_echo.lua" />
     <None Include="Scripts\StringBuilder2.lua" />

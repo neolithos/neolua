@@ -823,6 +823,7 @@ namespace Neo.IronLua
       T miBind = null;                // Member that matches best
       int iCurParameterLength = 0;    // Length of the arguments of the current match
       int iCurMatchCount = -1;        // How many arguments match of this list
+      int iCurMatchExactCount = -1;   // How many arguments match exact of this list
 
       // Get the max. list of arguments we want to consume
       if (arguments.Length > 0)
@@ -854,11 +855,15 @@ namespace Neo.IronLua
               // Get the parameter of the current match
               ParameterInfo[] curParameters = iCurMatchCount == -1 ? GetMemberParameter<T>(miBind) : null;
               int iNewMatchCount = 0;
+              int iNewMatchExactCount = 0;
               int iCount;
 
               // Count the parameters of the current match, because they are not collected
               if (curParameters != null)
+              {
                 iCurMatchCount = 0;
+                iCurMatchExactCount = 0;
+              }
 
               // Max length of the parameters
               if (iCurParameterLength == Int32.MaxValue)
@@ -873,16 +878,27 @@ namespace Neo.IronLua
               // Check the matches
               for (int j = 0; j < iCount; j++)
               {
-                if (curParameters != null && IsMatchParameter(j, curParameters, arguments))
+                bool lExact;
+                if (curParameters != null && IsMatchParameter(j, curParameters, arguments, out lExact))
+                {
                   iCurMatchCount++;
-                if (IsMatchParameter(j, parameters, arguments))
+                  if (lExact)
+                    iCurMatchExactCount++;
+                }
+                if (IsMatchParameter(j, parameters, arguments, out lExact))
+                {
                   iNewMatchCount++;
+                  if (lExact)
+                    iNewMatchExactCount++;
+                }
               }
-              if (iNewMatchCount > iCurMatchCount)
+              if (iNewMatchCount > iCurMatchCount ||
+                iNewMatchCount == iCurMatchCount && iNewMatchExactCount > iCurMatchExactCount)
               {
                 miBind = miCur;
                 iCurParameterLength = iParametersLength;
                 iCurMatchCount = iNewMatchCount;
+                iCurMatchExactCount = iNewMatchExactCount;
               }
             }
             else if (iMaxParameterLength == iParametersLength && iCurParameterLength != iMaxParameterLength ||
@@ -892,6 +908,7 @@ namespace Neo.IronLua
               miBind = miCur;
               iCurParameterLength = iParametersLength;
               iCurMatchCount = -1;
+              iCurMatchExactCount = -1;
             }
           }
           else
@@ -900,6 +917,7 @@ namespace Neo.IronLua
             miBind = miCur;
             iCurParameterLength = iParametersLength;
             iCurMatchCount = -1;
+            iCurMatchExactCount = -1;
           }
         }
       }
@@ -920,12 +938,24 @@ namespace Neo.IronLua
         throw new ArgumentException();
     } // func GetMemberParameter
 
-    private static bool IsMatchParameter(int j, ParameterInfo[] parameters, DynamicMetaObject[] arguments)
+    private static bool IsMatchParameter(int j, ParameterInfo[] parameters, DynamicMetaObject[] arguments, out bool lExact)
     {
       if (j < parameters.Length && j < arguments.Length)
-        return parameters[j].ParameterType == arguments[j].LimitType || parameters[j].ParameterType.IsAssignableFrom(arguments[j].LimitType);
-      else
-        return false;
+      {
+        if (parameters[j].ParameterType == arguments[j].LimitType)
+        {
+          lExact = true;
+          return true;
+        }
+        else if (parameters[j].ParameterType.IsAssignableFrom(arguments[j].LimitType))
+        {
+          lExact = false;
+          return true;
+        }
+      }
+
+      lExact = false;
+      return false;
     } // func IsMatchParameter
 
     internal static BindingRestrictions GetMethodSignatureRestriction(DynamicMetaObject target, DynamicMetaObject[] args)

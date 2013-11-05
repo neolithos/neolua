@@ -18,6 +18,7 @@ namespace NeoSpeed
       {
         Path.GetFullPath(@"..\..\Scripts\Empty.lua"),
         Path.GetFullPath(@"..\..\Scripts\Sum.lua"),
+        Path.GetFullPath(@"..\..\Scripts\Sum_strict{0}.lua"),
         Path.GetFullPath(@"..\..\Scripts\Sum_echo.lua"),
         Path.GetFullPath(@"..\..\Scripts\String.lua"),
         Path.GetFullPath(@"..\..\Scripts\String_echo.lua"),
@@ -37,7 +38,7 @@ namespace NeoSpeed
           Path.GetFileNameWithoutExtension(scripts[i].Replace("{0}", "")),
           t1,
           t2,
-          t1 / t2
+          t2 == 0.0 ? Double.NaN : t1 / t2
         );
       }
       Console.WriteLine();
@@ -52,7 +53,7 @@ namespace NeoSpeed
           Path.GetFileNameWithoutExtension(scripts[i].Replace("{0}", "")),
           t1,
           t2,
-          t1 / t2
+          t2 == 0.0 ? Double.NaN : t1 / t2
         );
       }
       Console.WriteLine();
