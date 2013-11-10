@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -34,11 +35,18 @@ namespace Neo.IronLua
       return ilOffset - other.ilOffset;
     } // func CompareTo
 
+    public override string ToString()
+    {
+      return IsClear ? String.Format("{0}# Clear", ilOffset) : String.Format("{3}# {0}:{1},{2}", FileName, iLine, iColumn, ilOffset);
+    } // func ToString
+
     public string ChunkName { get { return sChunkName; } }
     public string FileName { get { return sFileName; } }
     public int ILOffset { get { return ilOffset; } }
     public int Line { get { return iLine; } }
     public int Column { get { return iColumn; } }
+
+    public bool IsClear {get{return iLine== 16707566;}}
   } // class LuaDebugInfo
 
   #endregion
@@ -111,19 +119,13 @@ namespace Neo.IronLua
       // find debug info
       if (debugInfos != null)
         for (int i = 0; i < debugInfos.Count; i++)
-          if (debugInfos[i].ILOffset == ilOffset)
-          {
+          if (debugInfos[i].ILOffset <= ilOffset)
             info = debugInfos[i];
-            break;
-          }
           else if (debugInfos[i].ILOffset > ilOffset)
-          {
-            info = i == 0 ? null : debugInfos[i - 1];
             break;
-          }
 
       // clear debug
-      if (info != null && info.Line == 16707566)
+      if (info != null && info.IsClear)
         info = null;
 
       return info;
@@ -145,6 +147,19 @@ namespace Neo.IronLua
     public bool HasDebugInfo { get { return debugInfos != null; } }
     /// <summary>Is this an empty chunk</summary>
     public bool IsEmpty { get { return !IsCompiled && debugInfos == null; } }
+
+    /// <summary>Returns the declaration of the compiled chunk.</summary>
+    public MethodInfo Method { get { return chunk == null ? null : chunk.Method; } }
+    /// <summary>Get the IL-Size</summary>
+    public int Size
+    {
+      get
+      {
+        if (chunk == null)
+          return 0;
+        return chunk.Method.GetMethodBody().GetILAsByteArray().Length;
+      }
+    } // prop Size
   } // class LuaChunk
 
   #endregion

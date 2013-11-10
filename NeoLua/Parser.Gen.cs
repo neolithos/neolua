@@ -14,6 +14,35 @@ namespace Neo.IronLua
   /// <summary></summary>
   internal static partial class Parser
   {
+    private static Expression WrapDebugInfo(bool lWrap, bool lAfter, Token tStart, Token tEnd, Expression expr)
+    {
+      if (lWrap)
+      {
+        if (lAfter)
+        {
+          if (expr.Type == typeof(void))
+            return Expression.Block(expr, GetDebugInfo(tStart, tEnd));
+          else
+          {
+            ParameterExpression r = Expression.Variable(expr.Type);
+            return Expression.Block(r.Type, new ParameterExpression[] { r },
+              Expression.Assign(r, expr),
+              GetDebugInfo(tStart, tEnd),
+              r);
+          }
+        }
+        else
+          return Expression.Block(GetDebugInfo(tStart, tEnd), expr);
+      }
+      else
+        return expr;
+    } // func WrapDebugInfo
+
+    private static Expression GetDebugInfo(Token tStart, Token tEnd)
+    {
+      return Expression.DebugInfo(tStart.Start.Document, tStart.Start.Line, tStart.Start.Col, tEnd.End.Line, tEnd.End.Col);
+    } // func GetDebugInfo
+
     internal static Expression ToTypeExpression(Expression expr, Type type = null, bool? lForce = null)
     {
       if (expr.Type == typeof(object[]))
@@ -39,20 +68,29 @@ namespace Neo.IronLua
       return Expression.Call(Lua.GetRuntimeHelper(runtimeHelper), args);
     } // func GetRuntimeHelper
 
-    internal static Expression RuntimeHelperConvertExpression(Expression value, Type toType)
+    internal static Expression RuntimeHelperConvertExpression(Expression value, Type fromType, Type toType)
     {
-      if (toType.IsAssignableFrom(value.Type))
+      if (toType.IsAssignableFrom(fromType))
         return ToTypeExpression(value, toType);
       else
-        return ToTypeExpression(RuntimeHelperExpression(LuaRuntimeHelper.Convert, ToTypeExpression(value, typeof(object)), Expression.Constant(toType, typeof(Type))), toType);
+        return ToTypeExpression(
+          RuntimeHelperExpression(LuaRuntimeHelper.Convert,
+            ToTypeExpression(value, typeof(object)),
+            Expression.Constant(toType, typeof(Type))
+          ),
+          toType
+        );
     } // func RuntimeHelperConvertExpression
 
     #region -- Unary Operation Generator ----------------------------------------------
 
     internal static Expression UnaryOperationExpression(Lua runtime, ExpressionType op, Expression expr, Type type)
     {
-      if (runtime == null || IsNumericType(type))
-        return Expression.MakeUnary(op, ToTypeExpression(expr), type);
+      if (runtime == null || IsNumericType(type) || op == ExpressionType.Not)
+        if (op == ExpressionType.Not)
+          return Expression.MakeUnary(op, ToBooleanExpression(expr), type);
+        else
+          return Expression.MakeUnary(op, ToTypeExpression(expr), type);
       else
         return Expression.Dynamic(runtime.GetUnaryOperationBinary(op), typeof(object), ToTypeExpression(expr, typeof(object)));
     } // func UnaryOperationExpression
@@ -78,13 +116,14 @@ namespace Neo.IronLua
       {
         if (op == ExpressionType.Power) // power needs double
         {
-          return Parser.RuntimeHelperConvertExpression(
+          return RuntimeHelperConvertExpression(
               Expression.MakeBinary(
                 ExpressionType.Power,
-                Parser.RuntimeHelperConvertExpression(expr1, typeof(double)),
-                Parser.RuntimeHelperConvertExpression(expr2, typeof(double))
+                RuntimeHelperConvertExpression(expr1, type1, typeof(double)),
+                RuntimeHelperConvertExpression(expr2, type2, typeof(double))
               ),
-              GetNumericResultType(expr1.Type, expr2.Type));
+              typeof(double),
+              GetNumericResultType(type1, type2));
         }
         else if (runtime == null || IsNumericType(type1) && IsNumericType(type2))
         {
@@ -92,8 +131,8 @@ namespace Neo.IronLua
           Type typeForOp = GetNumericResultType(type1, type2);
 
           return Expression.MakeBinary(op,
-            Parser.RuntimeHelperConvertExpression(expr1, typeForOp),
-            Parser.RuntimeHelperConvertExpression(expr2, typeForOp)
+            RuntimeHelperConvertExpression(expr1, type1, typeForOp),
+            RuntimeHelperConvertExpression(expr2, type2, typeForOp)
             );
         }
         else
@@ -103,10 +142,10 @@ namespace Neo.IronLua
 
     private static Expression BinaryOperationCompareExpression(Lua runtime, ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2)
     {
-      if (runtime != null && IsNumericType(type1) && IsNumericType(type2)) // compare of to integers, do not neet a dynamic
+      if (IsNumericType(type1) && IsNumericType(type2)) // compare of to integers, do not neet a dynamic
       {
         Type typeCompare = GetNumericResultType(type1, type2);
-        return Expression.MakeBinary(op, ToTypeExpression(expr1, type1), ToTypeExpression(expr2, type2));
+        return Expression.MakeBinary(op, RuntimeHelperConvertExpression(expr1, type1, typeCompare), RuntimeHelperConvertExpression(expr2, type2, typeCompare));
       }
       else
       {
@@ -151,8 +190,8 @@ namespace Neo.IronLua
           {
             Type typeForOp = GetNumericResultType(type1, type2);
             return Expression.MakeBinary(op,
-              Parser.RuntimeHelperConvertExpression(expr1, typeForOp),
-              Parser.RuntimeHelperConvertExpression(expr2, typeForOp)
+              Parser.RuntimeHelperConvertExpression(expr1, type1, typeForOp),
+              Parser.RuntimeHelperConvertExpression(expr2, type2, typeForOp)
               );
           }
         }
@@ -221,7 +260,7 @@ namespace Neo.IronLua
         return typeof(object);
     } // func GetAndOrResultType
 
-    private static bool IsNumericType(Type type)
+    internal static bool IsNumericType(Type type)
     {
       switch (Type.GetTypeCode(type))
       {

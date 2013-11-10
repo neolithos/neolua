@@ -12,7 +12,6 @@ using System.Text;
 
 namespace Neo.IronLua
 {
-  // todo: ...
   #region -- class Parser -------------------------------------------------------------
 
   ///////////////////////////////////////////////////////////////////////////////
@@ -312,9 +311,6 @@ namespace Neo.IronLua
     /// <summary>Mini-Parse-Tree for resolve of prefix expressions</summary>
     private class PrefixMemberInfo
     {
-      private Token tStart = null;
-      private Token tEnd = null;
-
       public PrefixMemberInfo(Token position, Expression instance, string sMember, Expression[] indices, Expression[] arguments)
       {
         this.Position = position;
@@ -350,12 +346,6 @@ namespace Neo.IronLua
         else
           throw ParseError(Position, Properties.Resources.rsParseExpressionNotAssignable);
 
-        if (tStart != null)
-        {
-          expr = WrapDebugInfo(scope, tStart, tEnd, expr);
-          tStart = null;
-        }
-
         return expr;
       } // func GenerateSet
 
@@ -366,8 +356,13 @@ namespace Neo.IronLua
           // Create the arguments for the index assign
           Expression[] r = new Expression[Indices.Length + 1];
           r[0] = ToTypeExpression(Instance, typeof(object)); // Array instance
-          for (int i = 0; i < Indices.Length; i++)
+          for (int i = 0; i < Indices.Length - 1; i++)
             r[i + 1] = ToTypeExpression(Indices[i], typeof(object)); // Copy the index values
+          if (Indices.Length > 0)
+          {
+            // First the arguments are pushed on the stack, and later comes the call, so we wrap the last parameter
+            r[r.Length - 1] = WrapDebugInfo(scope.EmitDebug, true, Position, Position, Indices[Indices.Length - 1]); // Let the type as it is
+          }
 
           Instance = Expression.Dynamic(scope.Runtime.GetGetIndexMember(new CallInfo(Indices.Length)), typeof(object), r);
           Indices = null;
@@ -375,6 +370,7 @@ namespace Neo.IronLua
         else if (Instance != null && Member != null && Indices == null && Arguments == null)
         {
           // Convert the member to an instance
+          Instance = WrapDebugInfo(scope.EmitDebug, true, Position, Position, Instance);
           Instance = Expression.Dynamic(scope.Runtime.GetGetMemberBinder(Member), typeof(object), ToTypeExpression(Instance, typeof(object)));
           Member = null;
         }
@@ -386,42 +382,45 @@ namespace Neo.IronLua
         {
           Expression[] r = new Expression[Arguments.Length + 1];
           r[0] = ToTypeExpression(Instance, typeof(object)); // Delegate
+
           // All arguments are converted to an object, except of the last one (rollup)
           for (int i = 0; i < Arguments.Length - 1; i++)
             r[i + 1] = ToTypeExpression(Arguments[i], typeof(object)); // Convert the arguments 
           if (Arguments.Length > 0)
-            r[r.Length - 1] = Arguments[Arguments.Length - 1]; // Let the type as it is
+          {
+            // First the arguments are pushed on the stack, and later comes the call, so we wrap the last parameter
+            r[r.Length - 1] = WrapDebugInfo(scope.EmitDebug, true, Position, Position, Arguments[Arguments.Length - 1]); // Let the type as it is
+          }
+          else
+            r[0] = WrapDebugInfo(scope.EmitDebug, true, Position, Position, r[0]);
 
           // Functions always return an array objects
-          Instance = Expression.Dynamic(Lua.FunctionResultBinder, typeof(object[]),
-            Expression.Dynamic(Member == null ?
-              scope.Runtime.GetInvokeBinder(new CallInfo(Arguments.Length)) :
-              scope.Runtime.GetInvokeMemberBinder(Member, new CallInfo(Arguments.Length)), typeof(object), r)
+          Instance =
+            Expression.Dynamic(Lua.FunctionResultBinder, typeof(object[]),
+              Expression.Dynamic(Member == null ?
+                scope.Runtime.GetInvokeBinder(new CallInfo(Arguments.Length)) :
+                scope.Runtime.GetInvokeMemberBinder(Member, new CallInfo(Arguments.Length)), typeof(object), r
+            )
           );
+
           Member = null;
           Arguments = null;
         }
         else
           throw ParseError(Position, Properties.Resources.rsParseExpressionNoResult);
 
-        if (tStart != null)
-        {
-          Instance = WrapDebugInfo(scope, tStart, tEnd, Instance);
-          tStart = null;
-        }
-
         return Instance;
       } // func GenerateGet
 
-      public void SetDebugInfo(Token tStart, Token tEnd)
+      public void SetMember(Token tMember)
       {
-        this.tStart = tStart;
-        this.tEnd = tEnd;
-      } // proc SetDebugInfo
+        Position = tMember;
+        Member = tMember.Value;
+      } // proc SetMember
 
       public Token Position { get; set; }
       public Expression Instance { get; private set; }
-      public string Member { get; set; }
+      public string Member { get; private set; }
       public Expression[] Indices { get; set; }
       public Expression[] Arguments { get; set; }
     } // class PrefixMemberInfo
@@ -492,19 +491,24 @@ namespace Neo.IronLua
             break;
 
           default:
+            if (scope.EmitDebug) // Start every statement with a debug point
+              scope.AddExpression(GetDebugInfo(code.Current, code.Current));
+
             if (!ParseStatement(scope, code)) // Parse normal statements
               lLoop = false;
             break;
         }
       }
+      if (scope.EmitDebug)
+        scope.AddExpression(Expression.ClearDebugInfo(code.Current.Start.Document)); // Clear debug info
     } // func ParseBlock
 
     private static void ParseReturn(Scope scope, LuaLexer code)
     {
-      // Parse das Return
+      // eat return
       code.Next();
 
-      // Wird als letzten Parameter ein Array übergeben so wird, das Return-Objekt um dessen Element erweitert.
+      // Build the return expression for all parameters
       Expression exprReturnValue;
 
       if (IsExpressionStart(code))
@@ -536,6 +540,7 @@ namespace Neo.IronLua
         code.Current.Typ == LuaToken.KwFalse ||
         code.Current.Typ == LuaToken.KwNil ||
         code.Current.Typ == LuaToken.BracketCurlyOpen ||
+        code.Current.Typ == LuaToken.Minus ||
         code.Current.Typ == LuaToken.KwFunction ||
         code.Current.Typ == LuaToken.KwCast;
     } // func IsExpressionStart
@@ -558,6 +563,7 @@ namespace Neo.IronLua
         case LuaToken.KwTrue:
         case LuaToken.KwNil:
         case LuaToken.BracketCurlyOpen:
+        case LuaToken.Minus:
         case LuaToken.KwCast:
           ParseExpressionStatement(scope, code, false);
           return true;
@@ -635,12 +641,7 @@ namespace Neo.IronLua
         else
         {
           // Parse Prefix
-          bool lWrap = false;
-          Token tStart = code.Current;
-          PrefixMemberInfo prefix = ParsePrefix(scope, code, ref lWrap);
-          if (lWrap && scope.EmitDebug)
-            prefix.SetDebugInfo(tStart, code.Current);
-          prefixes.Add(prefix);
+          prefixes.Add(ParsePrefix(scope, code));
         }
 
         // Noch ein Prefix
@@ -745,7 +746,7 @@ namespace Neo.IronLua
     {
       // if expr then block { elseif expr then block } [ else block ] end
       FetchToken(LuaToken.KwIf, code);
-      var expr = ToBooleanExpression(ParseExpression(scope, code, scope.EmitDebug));
+      var expr = ToBooleanExpression(ParseExpression(scope, code));
       FetchToken(LuaToken.KwThen, code);
 
       scope.AddExpression(Expression.IfThenElse(expr, ParseIfElseBlock(scope, code), ParseElseStatement(scope, code)));
@@ -756,7 +757,7 @@ namespace Neo.IronLua
       if (code.Current.Typ == LuaToken.KwElseif)
       {
         code.Next();
-        var expr = ToBooleanExpression(ParseExpression(scope, code, scope.EmitDebug));
+        var expr = ToBooleanExpression(ParseExpression(scope, code));
         FetchToken(LuaToken.KwThen, code);
 
         return Expression.IfThenElse(expr, ParseIfElseBlock(scope, code), ParseElseStatement(scope, code));
@@ -788,7 +789,7 @@ namespace Neo.IronLua
 
     #region -- Parse Prefix, Suffix ---------------------------------------------------
 
-    private static PrefixMemberInfo ParsePrefix(Scope scope, LuaLexer code, ref bool lWrap)
+    private static PrefixMemberInfo ParsePrefix(Scope scope, LuaLexer code)
     {
       // prefix ::= Identifier suffix_opt |  '(' exp ')' suffix | literal | tablector
 
@@ -798,7 +799,7 @@ namespace Neo.IronLua
       {
         case LuaToken.BracketOpen: // Parse eine Expression
           code.Next();
-          var expr = ParseExpression(scope, code, ref lWrap);
+          var expr = ParseExpression(scope, code);
           FetchToken(LuaToken.BracketClose, code);
 
           info = new PrefixMemberInfo(tStart, ToTypeExpression(expr), null, null, null);
@@ -815,7 +816,6 @@ namespace Neo.IronLua
             info = new PrefixMemberInfo(tStart, scope.LookupParameter(csEnv), t.Value, null, null);
           else
             info = new PrefixMemberInfo(tStart, p, null, null, null);
-          lWrap |= true;
           break;
 
         case LuaToken.String: // Literal String
@@ -881,7 +881,7 @@ namespace Neo.IronLua
           case LuaToken.Dot: // Property of an class
             code.Next();
             info.GenerateGet(scope);
-            info.Member = FetchToken(LuaToken.Identifier, code).Value;
+            info.SetMember(FetchToken(LuaToken.Identifier, code));
             break;
 
           case LuaToken.BracketOpen: // List of arguments
@@ -904,7 +904,7 @@ namespace Neo.IronLua
 
             // Lese den Namen um den Member zu belegen
             info.GenerateGet(scope);
-            info.Member = FetchToken(LuaToken.Identifier, code).Value;
+            info.SetMember(FetchToken(LuaToken.Identifier, code));
 
             // Parse die Parameter
             switch (code.Current.Typ)
@@ -995,44 +995,11 @@ namespace Neo.IronLua
 
     #region -- Parse Expressions ------------------------------------------------------
 
-    private static Expression WrapDebugInfo(Scope scope, Token tStart, Token tEnd, Expression expr)
-    {
-      if (scope.EmitDebug)
-      {
-        // create the debug expression
-        Expression startDebug = Expression.DebugInfo(tStart.Start.Document,
-          tStart.Start.Line,
-          tStart.Start.Col,
-          tEnd.Start.Line,
-          tEnd.Start.Col);
-        Expression clearDebug = Expression.ClearDebugInfo(tStart.Start.Document);
-
-        if (expr.Type == typeof(void))
-        {
-          return Expression.Block(
-            startDebug,
-            expr,
-            clearDebug);
-        }
-        else
-        {
-          ParameterExpression r = Expression.Variable(expr.Type);
-          return Expression.Block(expr.Type, new ParameterExpression[] { r },
-            startDebug,
-            Expression.Assign(r, expr),
-            clearDebug,
-            r);
-        }
-      }
-      else
-        return expr;
-    } // func WrapDebugInfo
-
     private static IEnumerable<Expression> ParseExpressionList(Scope scope, LuaLexer code)
     {
       while (true)
       {
-        yield return ParseExpression(scope, code, scope.EmitDebug);
+        yield return ParseExpression(scope, code);
 
         // Noch eine Expression
         if (code.Current.Typ == LuaToken.Comma)
@@ -1042,21 +1009,15 @@ namespace Neo.IronLua
       }
     } // func ParseExpressionList
 
-    private static Expression ParseExpression(Scope scope, LuaLexer code, bool lDebugInfo)
+    private static Expression ParseExpression(Scope scope, LuaLexer code)
     {
-      // exp ::= expOr
+      Token tStart = code.Current;
       bool lWrap = false;
-      if (lDebugInfo)
-      {
-        Token tStart = code.Current;
-        Expression expr = ParseExpressionOr(scope, code, ref lWrap);
-        if (lWrap)
-          return WrapDebugInfo(scope, tStart, code.Current, expr);
-        else
-          return expr;
-      }
+      Expression expr = ParseExpression(scope, code, ref lWrap);
+      if (lWrap && scope.EmitDebug)
+        return WrapDebugInfo(true, false, tStart, code.Current, expr);
       else
-        return ParseExpressionOr(scope, code, ref lWrap);
+        return expr;
     } // func ParseExpression
 
     private static Expression ParseExpression(Scope scope, LuaLexer code, ref bool lWrap)
@@ -1068,14 +1029,13 @@ namespace Neo.IronLua
     private static Expression ParseExpressionOr(Scope scope, LuaLexer code, ref bool lWrap)
     {
       // expOr ::= expAnd { or expAnd}
-
       var expr = ParseExpressionAnd(scope, code, ref lWrap);
 
       while (code.Current.Typ == LuaToken.KwOr)
       {
         code.Next();
 
-        Expression exprAnd =ParseExpressionAnd(scope, code, ref lWrap);
+        Expression exprAnd = ParseExpressionAnd(scope, code, ref lWrap);
         Type typeAndResult = GetAndOrResultType(expr.Type, exprAnd.Type);
 
         // and gibt das erste argument zurück, wenn es true ist
@@ -1084,7 +1044,6 @@ namespace Neo.IronLua
           ToTypeExpression(expr, typeAndResult),
           ToTypeExpression(exprAnd, typeAndResult),
           typeAndResult);
-        lWrap |= true;
 
         // Bitweises Or
         //expr = Expression.Dynamic(scope.Runtime.GetBinaryOperationBinder(ExpressionType.OrElse), typeof(object), expr, ParseExpressionAnd(scope, code));
@@ -1097,7 +1056,6 @@ namespace Neo.IronLua
     private static Expression ParseExpressionAnd(Scope scope, LuaLexer code, ref bool lWrap)
     {
       // expAnd ::= expCmp { or expCmp}
-
       var expr = ParseExpressionCmd(scope, code, ref lWrap);
 
       while (code.Current.Typ == LuaToken.KwAnd)
@@ -1113,7 +1071,6 @@ namespace Neo.IronLua
           ToTypeExpression(exprOr, typeOrResult),
           ToTypeExpression(expr, typeOrResult),
           typeOrResult);
-        lWrap |= true;
 
         // Bitweises And
         //expr = Expression.Dynamic(scope.Runtime.GetBinaryOperationBinder(ExpressionType.And), typeof(object), expr, ParseExpressionCmd(scope, code));
@@ -1125,6 +1082,7 @@ namespace Neo.IronLua
     private static Expression ParseExpressionCmd(Scope scope, LuaLexer code, ref bool lWrap)
     {
       // expCmd ::= expCon { ( < | > | <= | >= | ~= | == ) expCon}
+      Token tStart = code.Current;
       var expr = ParseExpressionCon(scope, code, ref lWrap);
 
       while (true)
@@ -1177,10 +1135,12 @@ namespace Neo.IronLua
       {
         for (int i = 0; i < exprs.Count; i++)
         {
-          exprs[i] = exprs[i].Type == typeof(string) ?
-            exprs[i] :
-            RuntimeHelperConvertExpression(ToTypeExpression(exprs[i]), typeof(string));
+          Expression expr = ToTypeExpression(exprs[i]);
+          exprs[i] = expr.Type == typeof(string) ?
+            expr :
+            RuntimeHelperConvertExpression(expr, expr.Type, typeof(string));
         }
+
         lWrap |= true;
         return RuntimeHelperExpression(LuaRuntimeHelper.StringConcat, Expression.NewArrayInit(typeof(string), exprs));
       }
@@ -1191,7 +1151,6 @@ namespace Neo.IronLua
     private static Expression ParseExpressionPlus(Scope scope, LuaLexer code, ref bool lWrap)
     {
       // expPlus ::= expMul { ( + | - ) expMul}
-
       var expr = ParseExpressionMultiply(scope, code, ref lWrap);
 
       while (true)
@@ -1218,7 +1177,6 @@ namespace Neo.IronLua
     private static Expression ParseExpressionMultiply(Scope scope, LuaLexer code, ref bool lWrap)
     {
       // expMul ::= expUn { ( * | / | % ) expUn}
-
       var expr = ParseExpressionUnary(scope, code, ref lWrap);
 
       while (true)
@@ -1281,7 +1239,7 @@ namespace Neo.IronLua
       {
         code.Next();
         lWrap |= true;
-        return BinaryOperationExpression(scope.Runtime,ExpressionType.Power, ToTypeExpression(expr), ParseExpressionPower(scope, code, ref lWrap));
+        return BinaryOperationExpression(scope.Runtime, ExpressionType.Power, ToTypeExpression(expr), ParseExpressionPower(scope, code, ref lWrap));
       }
       else
         return expr;
@@ -1306,10 +1264,10 @@ namespace Neo.IronLua
         FetchToken(LuaToken.BracketClose, code);
 
         lWrap |= true;
-        return RuntimeHelperConvertExpression(expr, GetType(t, sTypeName));
+        return RuntimeHelperConvertExpression(expr, expr.Type, GetType(t, sTypeName));
       }
       else
-        return ParsePrefix(scope, code, ref lWrap).GenerateGet(scope);
+        return ParsePrefix(scope, code).GenerateGet(scope);
     } // func ParseExpressionCast
 
     private static void ParseLocalVariable(LuaLexer code, out Token tName, out string sType)
@@ -1474,7 +1432,7 @@ namespace Neo.IronLua
       loopScope.AddExpression(Expression.Label(loopScope.ContinueLabel));
       loopScope.AddExpression(
         Expression.IfThenElse(
-          ToBooleanExpression(ParseExpression(scope, code, scope.EmitDebug)),
+          ToBooleanExpression(ParseExpression(scope, code)),
           Expression.Empty(),
           Expression.Goto(loopScope.BreakLabel)
         )
@@ -1507,7 +1465,7 @@ namespace Neo.IronLua
       FetchToken(LuaToken.KwUntil, code);
       loopScope.AddExpression(
         Expression.IfThenElse(
-          ToBooleanExpression(ParseExpression(scope, code, scope.EmitDebug)),
+          ToBooleanExpression(ParseExpression(scope, code)),
           Expression.Empty(),
           Expression.Goto(loopScope.ContinueLabel)
         )
@@ -1529,14 +1487,14 @@ namespace Neo.IronLua
       {
         // = exp, exp [, exp] do block end
         FetchToken(LuaToken.Assign, code);
-        Expression loopStart = ParseExpression(scope, code, scope.EmitDebug);
+        Expression loopStart = ParseExpression(scope, code);
         FetchToken(LuaToken.Comma, code);
-        Expression loopEnd = ParseExpression(scope, code, scope.EmitDebug);
+        Expression loopEnd = ParseExpression(scope, code);
         Expression loopStep;
         if (code.Current.Typ == LuaToken.Comma)
         {
           code.Next();
-          loopStep = ParseExpression(scope, code, scope.EmitDebug);
+          loopStep = ParseExpression(scope, code);
         }
         else
           loopStep = Expression.Constant(1, typeof(int));
@@ -1594,7 +1552,7 @@ namespace Neo.IronLua
 
       // get the enumerable expression
       FetchToken(LuaToken.KwIn, code);
-      Expression exprEnum = ParseExpression(scope, code, scope.EmitDebug);
+      Expression exprEnum = ParseExpression(scope, code);
 
       // parse the loop body
       FetchToken(LuaToken.KwDo, code);
@@ -1889,7 +1847,7 @@ namespace Neo.IronLua
       {
         // Lies den Index
         code.Next();
-        var index = ParseExpression(scope, code, scope.EmitDebug);
+        var index = ParseExpression(scope, code);
         FetchToken(LuaToken.BracketSquareClose, code);
         FetchToken(LuaToken.Assign, code);
 
@@ -1897,7 +1855,7 @@ namespace Neo.IronLua
         scope.AddExpression(
           LuaTable.SetValueExpression(tableVar, 
             ToTypeExpression(index, typeof(object)), 
-            ToTypeExpression(ParseExpression(scope, code, scope.EmitDebug), typeof(object))
+            ToTypeExpression(ParseExpression(scope, code), typeof(object))
           )
         );
       }
@@ -1912,13 +1870,13 @@ namespace Neo.IronLua
         scope.AddExpression(
           Expression.Dynamic(scope.Runtime.GetSetMemberBinder(sMember), typeof(object),
             tableVar,
-            ToTypeExpression(ParseExpression(scope, code, scope.EmitDebug), typeof(object))
+            ToTypeExpression(ParseExpression(scope, code), typeof(object))
           )
         );
       }
       else
       {
-        Expression expr = ParseExpression(scope, code, scope.EmitDebug);
+        Expression expr = ParseExpression(scope, code);
 
         if (code.Current.Typ == LuaToken.BracketCurlyClose) // Letzte Zuweisung, verteile ein eventuelles Array auf die Indices
         {

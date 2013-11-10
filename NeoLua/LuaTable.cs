@@ -373,6 +373,15 @@ namespace Neo.IronLua
       }
     } // func SetValue
 
+    /// <summary>Checks if the Member exists.</summary>
+    /// <param name="sName">Membername</param>
+    /// <param name="lIgnoreCase"></param>
+    /// <returns></returns>
+    public bool ContainsKey(string sName, bool lIgnoreCase = false)
+    {
+      return GetValueIndex(sName, lIgnoreCase, false) != -1;
+    } // func ContainsKey
+
     #endregion
 
     #region -- Expressions ------------------------------------------------------------

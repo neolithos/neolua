@@ -667,6 +667,13 @@ namespace Neo.IronLua
     } // func LuaPCall
 
     /// <summary></summary>
+    /// <param name="sText"></param>
+    protected virtual void OnPrint(string sText)
+    {
+      Debug.WriteLine(sText);
+    } // proc OnPrint
+
+    /// <summary></summary>
     /// <param name="args"></param>
     [LuaFunction("print")]
     private void LuaPrint(params object[] args)
@@ -674,9 +681,7 @@ namespace Neo.IronLua
       if (args == null)
         return;
 
-      for (int i = 0; i < args.Length; i++)
-        Debug.Write(args[i]);
-      Debug.WriteLine(String.Empty);
+      OnPrint(String.Concat((from a in args select a == null ? String.Empty : a.ToString())));
     } // proc LuaPrint
 
     /// <summary></summary>

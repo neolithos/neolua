@@ -120,29 +120,43 @@ namespace Neo.IronLua
 
     #region -- RtConvert --------------------------------------------------------------
 
-    internal static object RtConvert(object value, Type to)
+    internal static object RtConvert(object value, Type typeTo)
     {
-      if (to == typeof(bool))
+      if (typeTo == typeof(bool)) // Convert to bool
         return ConvertToBoolean(value);
-      else if (value == null)
-        if (to.IsValueType)
-          return Activator.CreateInstance(to);
+      else if (value == null) // Convert from null
+        if (typeTo.IsValueType)
+          return Activator.CreateInstance(typeTo); // Default value
         else
           return null;
-      else if (to.IsAssignableFrom(value.GetType()))
-        return value;
+      else if (typeTo == typeof(string)) // Convert to string
+      {
+        TypeConverter conv = TypeDescriptor.GetConverter(value.GetType());
+        return conv.ConvertToInvariantString(value);
+      }
       else
       {
-        TypeConverter conv = TypeDescriptor.GetConverter(to);
-        if (conv.CanConvertFrom(value.GetType()))
-          return conv.ConvertFrom(null, CultureInfo.InvariantCulture, value);
+        Type typeFrom = value.GetType();
+
+        // Specials cases
+        if (typeFrom.IsEnum)
+          typeFrom = typeFrom.GetEnumUnderlyingType();
+        
+        if (typeTo.IsAssignableFrom(typeFrom))
+          return value;
         else
         {
-          conv = TypeDescriptor.GetConverter(value.GetType());
-          if (conv.CanConvertTo(to))
-            return conv.ConvertTo(null, CultureInfo.InvariantCulture, value, to);
+          TypeConverter conv = TypeDescriptor.GetConverter(typeTo);
+          if (conv.CanConvertFrom(typeFrom))
+            return conv.ConvertFrom(null, CultureInfo.InvariantCulture, value);
           else
-            throw new LuaRuntimeException(String.Format(Properties.Resources.rsConversationError, value, to.Name), null);
+          {
+            conv = TypeDescriptor.GetConverter(typeFrom);
+            if (conv.CanConvertTo(typeTo))
+              return conv.ConvertTo(null, CultureInfo.InvariantCulture, value, typeTo);
+            else
+              throw new LuaRuntimeException(String.Format(Properties.Resources.rsConversationError, value, typeTo.Name), null);
+          }
         }
       }
     } // func RtConvert
@@ -318,8 +332,7 @@ namespace Neo.IronLua
             CoreFunction f;
             if (luaFunctions.TryGetValue(attr.Name, out f))
             {
-              if (f.DeclaredType == type)
-                throw new LuaRuntimeException(String.Format(Properties.Resources.rsGlobalFunctionNotUnique, attr.Name, type.Name), null);
+              throw new LuaRuntimeException(String.Format(Properties.Resources.rsGlobalFunctionNotUnique, attr.Name, type.Name), null);
             }
             else
             {

@@ -64,6 +64,7 @@
     <Compile Include="ControlStructures.cs" />
     <Compile Include="Expressions.cs" />
     <Compile Include="Functions.cs" />
+    <Compile Include="Exceptions.cs" />
     <Compile Include="LuaTable.cs" />
     <Compile Include="Parser.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

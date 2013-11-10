@@ -190,7 +190,7 @@ namespace Neo.IronLua
           return errorSuggestion ?? new DynamicMetaObject(expr, Lua.GetMethodSignatureRestriction(target, indexes));
 
         // Create the Assign
-        expr = Parser.ToTypeExpression(Expression.Assign(expr, Parser.RuntimeHelperConvertExpression(value.Expression, expr.Type)), typeof(object));
+        expr = Parser.ToTypeExpression(Expression.Assign(expr, Parser.RuntimeHelperConvertExpression(value.Expression, value.LimitType, expr.Type)), typeof(object));
 
         return new DynamicMetaObject(expr,
           Lua.GetMethodSignatureRestriction(target, indexes)
@@ -734,7 +734,7 @@ namespace Neo.IronLua
                   iLastIndexCount = 0;
                   break;
                 }
-                exprArray.Add(Parser.RuntimeHelperConvertExpression(c, elementType));
+                exprArray.Add(Parser.RuntimeHelperConvertExpression(c, arguments[i + j].LimitType, elementType));
               }
             }
             // Create the function that creates an complete array with all arguments
@@ -774,9 +774,9 @@ namespace Neo.IronLua
 
           // get-Expression for the argument
           if (iLastArgIndex >= 0)
-            exprGet = Parser.RuntimeHelperConvertExpression(Parser.RuntimeHelperExpression(LuaRuntimeHelper.GetObject, arguments[iLastArgIndex].Expression, Expression.Constant(iLastIndexCount++, typeof(int))), typeParameter); // We stretch the last argument
+            exprGet = Parser.RuntimeHelperConvertExpression(Parser.RuntimeHelperExpression(LuaRuntimeHelper.GetObject, arguments[iLastArgIndex].Expression, Expression.Constant(iLastIndexCount++, typeof(int))), typeof(object), typeParameter); // We stretch the last argument
           else if (i < arguments.Length)
-            exprGet = Parser.RuntimeHelperConvertExpression(arguments[i].Expression, typeParameter); // Convert the Argument
+            exprGet = Parser.RuntimeHelperConvertExpression(arguments[i].Expression, arguments[i].LimitType, typeParameter); // Convert the Argument
           else if (p.IsOptional)
             exprGet = Expression.Constant(p.DefaultValue, typeParameter); // No argument, but we have a default value -> use it
           else
@@ -1032,7 +1032,7 @@ namespace Neo.IronLua
 
         // The indexes should be casted on integer
         for (int i = 0; i < args.Length; i++)
-          args[i] = Parser.RuntimeHelperConvertExpression(indexes[i].Expression, typeof(int));
+          args[i] = Parser.RuntimeHelperConvertExpression(indexes[i].Expression, indexes[i].LimitType, typeof(int));
 
         expr = Expression.ArrayAccess(Expression.Convert(target.Expression, target.LimitType), args);
         return true;

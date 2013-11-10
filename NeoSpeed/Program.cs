@@ -10,7 +10,7 @@ namespace NeoSpeed
 {
   class Program
   {
-    private const bool lDebugNeoLua = false;
+    private static bool lDebugNeoLua = true;
 
     static void Main(string[] args)
     {
@@ -43,6 +43,7 @@ namespace NeoSpeed
       }
       Console.WriteLine();
       Console.WriteLine("Precompiled (no cache clear):");
+      lDebugNeoLua = false;
       for (int i = 0; i < scripts.Length; i++)
       {
         string sScript1 = File.ReadAllText(String.Format(scripts[i], 1));
@@ -57,7 +58,23 @@ namespace NeoSpeed
         );
       }
       Console.WriteLine();
-      Console.WriteLine(v == 1201200 ? "All called." : String.Format("{0} != {1}", v, 1201200));
+      Console.WriteLine("Precompiled (no cache clear, debug):");
+      lDebugNeoLua = true;
+      for (int i = 0; i < scripts.Length; i++)
+      {
+        string sScript1 = File.ReadAllText(String.Format(scripts[i], 1));
+        string sScript2 = File.ReadAllText(String.Format(scripts[i], 2));
+        double t1 = ExecuteLuaIntfCompiled(sScript1, 100);
+        double t2 = ExecuteNeoLuaCompiled(sScript2, 100);
+        Console.WriteLine("  {0,-20}: LuaInterface {1,6:N1} ms    NeoLua {2,6:N1} ms  {3,6:N3}",
+          Path.GetFileNameWithoutExtension(scripts[i].Replace("{0}", "")),
+          t1,
+          t2,
+          t2 == 0.0 ? Double.NaN : t1 / t2
+        );
+      }
+      Console.WriteLine();
+      Console.WriteLine(v == 1801800 ? "All called." : String.Format("{0} != {1}", v, 1201200));
 
       Console.ReadLine();
     }
