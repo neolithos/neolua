@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
-	<!-- 
+  <!-- 
     Microsoft ResX Schema 
     
     Version 2.0
@@ -59,158 +59,164 @@
             : using a System.ComponentModel.TypeConverter
             : and then encoded with base64 encoding.
     -->
-	<xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
-		<xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
-		<xsd:element name="root" msdata:IsDataSet="true">
-			<xsd:complexType>
-				<xsd:choice maxOccurs="unbounded">
-					<xsd:element name="metadata">
-						<xsd:complexType>
-							<xsd:sequence>
-								<xsd:element name="value" type="xsd:string" minOccurs="0" />
-							</xsd:sequence>
-							<xsd:attribute name="name" use="required" type="xsd:string" />
-							<xsd:attribute name="type" type="xsd:string" />
-							<xsd:attribute name="mimetype" type="xsd:string" />
-							<xsd:attribute ref="xml:space" />
-						</xsd:complexType>
-					</xsd:element>
-					<xsd:element name="assembly">
-						<xsd:complexType>
-							<xsd:attribute name="alias" type="xsd:string" />
-							<xsd:attribute name="name" type="xsd:string" />
-						</xsd:complexType>
-					</xsd:element>
-					<xsd:element name="data">
-						<xsd:complexType>
-							<xsd:sequence>
-								<xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
-								<xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
-							</xsd:sequence>
-							<xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
-							<xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
-							<xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
-							<xsd:attribute ref="xml:space" />
-						</xsd:complexType>
-					</xsd:element>
-					<xsd:element name="resheader">
-						<xsd:complexType>
-							<xsd:sequence>
-								<xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
-							</xsd:sequence>
-							<xsd:attribute name="name" type="xsd:string" use="required" />
-						</xsd:complexType>
-					</xsd:element>
-				</xsd:choice>
-			</xsd:complexType>
-		</xsd:element>
-	</xsd:schema>
-	<resheader name="resmimetype">
-		<value>text/microsoft-resx</value>
-	</resheader>
-	<resheader name="version">
-		<value>2.0</value>
-	</resheader>
-	<resheader name="reader">
-		<value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-	</resheader>
-	<resheader name="writer">
-		<value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-	</resheader>
-	<data name="rsChunkNotCompiled" xml:space="preserve">
-		<value>Chunk ist nicht übersetzt.</value>
-	</data>
-	<data name="rsChunkWrongScriptManager" xml:space="preserve">
-		<value>Chunk wurde in einem anderen ScriptManager übersetzt.</value>
-	</data>
-	<data name="rsConversationError" xml:space="preserve">
-		<value>'{0}' kann nicht in '{1}' konvertiert werden.</value>
-	</data>
-	<data name="rsGlobalFunctionNotUnique" xml:space="preserve">
-		<value>Funktion '{0}' wurde bereits in '{1}' definiert.</value>
-	</data>
-	<data name="rsInvokeFailed" xml:space="preserve">
-		<value>'{0}' hat keine Invoke-Methode.</value>
-	</data>
-	<data name="rsInvokeNoDelegate" xml:space="preserve">
-		<value>'{0}' kann nicht aufgerufen werden.</value>
-	</data>
-	<data name="rsMemberNotReadable" xml:space="preserve">
-		<value>'{0}' kann nicht gelesen werden.</value>
-	</data>
-	<data name="rsMemberNotResolved" xml:space="preserve">
-		<value>'{0}' nicht gefunden.</value>
-	</data>
-	<data name="rsNilNotCallable" xml:space="preserve">
-		<value>Nil kann nicht aufgerufen werden.</value>
-	</data>
-	<data name="rsNilOperatorError" xml:space="preserve">
-		<value>Operator ist nicht für nil definiert.</value>
-	</data>
-	<data name="rsNoIndexFound" xml:space="preserve">
-		<value>'{0}' hat keinen Index.</value>
-	</data>
-	<data name="rsNoPropertyOrField" xml:space="preserve">
-		<value>'{0}' ist keine Eigenschaft/Feld.</value>
-	</data>
-	<data name="rsParseConvertNumberError" xml:space="preserve">
-		<value>Zahl erwartet ('{0}' nicht konvertiert).</value>
-	</data>
-	<data name="rsParseEof" xml:space="preserve">
-		<value>Unerwartetes Dateiende.</value>
-	</data>
-	<data name="rsParseExpressionNoResult" xml:space="preserve">
-		<value>Ausdruck hat kein Ergebnis.</value>
-	</data>
-	<data name="rsParseExpressionNotAssignable" xml:space="preserve">
-		<value>Ausdruck kann nichts zugewiesen werden.</value>
-	</data>
-	<data name="rsParseInvalidChar" xml:space="preserve">
-		<value>Unerwartetes Zeichen.</value>
-	</data>
-	<data name="rsParseInvalidComment" xml:space="preserve">
-		<value>Kommentar wurde nicht geschlossen.</value>
-	</data>
-	<data name="rsParseInvalidString" xml:space="preserve">
-		<value>Zeilenumbruch in Zeichenfolge.</value>
-	</data>
-	<data name="rsParseNoArgList" xml:space="preserve">
-		<value>Keine Argumentenliste definiert.</value>
-	</data>
-	<data name="rsParseUnexpectedToken" xml:space="preserve">
-		<value>'{1}' erwartet, aber '{0}' gefunden.</value>
-	</data>
-	<data name="rsParseUnexpectedTokenElse" xml:space="preserve">
-		<value>Unerwarteter Token in Else-Statement.</value>
-	</data>
-	<data name="rsParseUnexpectedTokenPrefix" xml:space="preserve">
-		<value>Literal, Function oder Tabelle erwartet.</value>
-	</data>
-	<data name="rsParseUnknownType" xml:space="preserve">
-		<value>Typ '{0}' nicht gefunden.</value>
-	</data>
-	<data name="rsPropertyNotFound" xml:space="preserve">
-		<value>Eigenschaft/Feld '{0}' nicht gefunden.</value>
-	</data>
-	<data name="rsPropertyNotReadable" xml:space="preserve">
-		<value>Eigenschaft '{0}' nicht lesbar.</value>
-	</data>
-	<data name="rsPropertyNotUnique" xml:space="preserve">
-		<value>Eigenschaft/Feld '{0}' nicht eindeutig.</value>
-	</data>
-	<data name="rsPropertyNotWritable" xml:space="preserve">
-		<value>Eigenschaft '{0}' nicht schreibbar.</value>
-	</data>
-	<data name="rsStackTraceAt" xml:space="preserve">
-		<value> bei </value>
-	</data>
-	<data name="rsStackTraceInternal" xml:space="preserve">
-		<value> -- Intern --</value>
-	</data>
-	<data name="rsStackTraceLine" xml:space="preserve">
-		<value> Zeile </value>
-	</data>
-	<data name="rsStackTraceUnknownMethod" xml:space="preserve">
-		<value>&lt;Unbekannte Methode&gt;</value>
-	</data>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="rsChunkNotCompiled" xml:space="preserve">
+    <value>Chunk ist nicht übersetzt.</value>
+  </data>
+  <data name="rsChunkWrongScriptManager" xml:space="preserve">
+    <value>Chunk wurde in einem anderen ScriptManager übersetzt.</value>
+  </data>
+  <data name="rsConstExpressionEvalError" xml:space="preserve">
+    <value>Konstanter Ausdruck konnte nicht ausgewertet werden ({0}).</value>
+  </data>
+  <data name="rsConstExpressionNeeded" xml:space="preserve">
+    <value>Konstanter Ausdruck erwartet.</value>
+  </data>
+  <data name="rsConversationError" xml:space="preserve">
+    <value>'{0}' kann nicht in '{1}' konvertiert werden.</value>
+  </data>
+  <data name="rsGlobalFunctionNotUnique" xml:space="preserve">
+    <value>Funktion '{0}' wurde bereits in '{1}' definiert.</value>
+  </data>
+  <data name="rsInvokeFailed" xml:space="preserve">
+    <value>'{0}' hat keine Invoke-Methode.</value>
+  </data>
+  <data name="rsInvokeNoDelegate" xml:space="preserve">
+    <value>'{0}' kann nicht aufgerufen werden.</value>
+  </data>
+  <data name="rsMemberNotReadable" xml:space="preserve">
+    <value>'{0}' kann nicht gelesen werden.</value>
+  </data>
+  <data name="rsMemberNotResolved" xml:space="preserve">
+    <value>'{0}' nicht gefunden.</value>
+  </data>
+  <data name="rsNilNotCallable" xml:space="preserve">
+    <value>Nil kann nicht aufgerufen werden.</value>
+  </data>
+  <data name="rsNilOperatorError" xml:space="preserve">
+    <value>Operator ist nicht für nil definiert.</value>
+  </data>
+  <data name="rsNoIndexFound" xml:space="preserve">
+    <value>'{0}' hat keinen Index.</value>
+  </data>
+  <data name="rsNoPropertyOrField" xml:space="preserve">
+    <value>'{0}' ist keine Eigenschaft/Feld.</value>
+  </data>
+  <data name="rsParseConvertNumberError" xml:space="preserve">
+    <value>Zahl erwartet ('{0}' nicht konvertiert).</value>
+  </data>
+  <data name="rsParseEof" xml:space="preserve">
+    <value>Unerwartetes Dateiende.</value>
+  </data>
+  <data name="rsParseExpressionNoResult" xml:space="preserve">
+    <value>Ausdruck hat kein Ergebnis.</value>
+  </data>
+  <data name="rsParseExpressionNotAssignable" xml:space="preserve">
+    <value>Ausdruck kann nichts zugewiesen werden.</value>
+  </data>
+  <data name="rsParseInvalidChar" xml:space="preserve">
+    <value>Unerwartetes Zeichen.</value>
+  </data>
+  <data name="rsParseInvalidComment" xml:space="preserve">
+    <value>Kommentar wurde nicht geschlossen.</value>
+  </data>
+  <data name="rsParseInvalidString" xml:space="preserve">
+    <value>Zeilenumbruch in Zeichenfolge.</value>
+  </data>
+  <data name="rsParseNoArgList" xml:space="preserve">
+    <value>Keine Argumentenliste definiert.</value>
+  </data>
+  <data name="rsParseUnexpectedToken" xml:space="preserve">
+    <value>'{1}' erwartet, aber '{0}' gefunden.</value>
+  </data>
+  <data name="rsParseUnexpectedTokenElse" xml:space="preserve">
+    <value>Unerwarteter Token in Else-Statement.</value>
+  </data>
+  <data name="rsParseUnexpectedTokenPrefix" xml:space="preserve">
+    <value>Literal, Function oder Tabelle erwartet.</value>
+  </data>
+  <data name="rsParseUnknownType" xml:space="preserve">
+    <value>Typ '{0}' nicht gefunden.</value>
+  </data>
+  <data name="rsPropertyNotFound" xml:space="preserve">
+    <value>Eigenschaft/Feld '{0}' nicht gefunden.</value>
+  </data>
+  <data name="rsPropertyNotReadable" xml:space="preserve">
+    <value>Eigenschaft '{0}' nicht lesbar.</value>
+  </data>
+  <data name="rsPropertyNotUnique" xml:space="preserve">
+    <value>Eigenschaft/Feld '{0}' nicht eindeutig.</value>
+  </data>
+  <data name="rsPropertyNotWritable" xml:space="preserve">
+    <value>Eigenschaft '{0}' nicht schreibbar.</value>
+  </data>
+  <data name="rsStackTraceAt" xml:space="preserve">
+    <value> bei </value>
+  </data>
+  <data name="rsStackTraceInternal" xml:space="preserve">
+    <value> -- Intern --</value>
+  </data>
+  <data name="rsStackTraceLine" xml:space="preserve">
+    <value> Zeile </value>
+  </data>
+  <data name="rsStackTraceUnknownMethod" xml:space="preserve">
+    <value>&lt;Unbekannte Methode&gt;</value>
+  </data>
 </root>

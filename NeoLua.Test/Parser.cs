@@ -31,6 +31,7 @@ namespace LuaDLR.Test
           if (l.Current.Typ != token[i].Key)
           {
             Debug.WriteLine("tokens FAILED");
+            return false;
           }
           else if (l.Current.Value != token[i].Value)
           {
@@ -60,17 +61,18 @@ namespace LuaDLR.Test
       Assert.IsTrue(TokenTest("2",T( LuaToken.Number, "2")));
       Assert.IsTrue(TokenTest("0xA3", T(LuaToken.HexNumber, "0xA3")));
 
-      Assert.IsTrue(TokenTest("and break cast do else elseif end false for function goto if in local nil not or repeat return then true until while",
+      Assert.IsTrue(TokenTest("and break cast const do else elseif end false for foreach function goto if in local nil not or repeat return then true until while",
         T(LuaToken.KwAnd, "and"),
         T(LuaToken.KwBreak, "break"),
-        T(LuaToken.KwBreak, "cast"),
+        T(LuaToken.KwCast, "cast"),
+        T(LuaToken.KwConst, "const"),
         T(LuaToken.KwDo, "do"),
         T(LuaToken.KwElse, "else"),
         T(LuaToken.KwElseif, "elseif"),
         T(LuaToken.KwEnd, "end"),
         T(LuaToken.KwFalse, "false"),
         T(LuaToken.KwFor, "for"),
-        T(LuaToken.KwFor, "foreach"),
+        T(LuaToken.KwForEach, "foreach"),
         T(LuaToken.KwFunction, "function"),
         T(LuaToken.KwGoto, "goto"),
         T(LuaToken.KwIf, "if"),

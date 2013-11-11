@@ -68,6 +68,15 @@ namespace LuaDLR.Test
 
     [TestMethod]
     public void TestExpr18() { try { TestExpression(false, "-nil", 1); Assert.IsTrue(false); } catch { } }
+
+    [TestMethod]
+    public void TestExpr19() { Assert.IsTrue(TestExpression(true, "const a = 20; return a;", 20)); }
+
+    [TestMethod]
+    public void TestExpr20() { Assert.IsTrue(TestExpression(true, "const a = cast(ushort, 20); return a;", (ushort)20)); }
+
+    [TestMethod]
+    public void TestExpr21() { Assert.IsTrue(TestExpression(true, "const a = cast(int, '20'); return a;", 20)); }
   } // class ExpressionsArithmentic
   
   [TestClass]

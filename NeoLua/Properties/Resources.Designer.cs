@@ -79,6 +79,24 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Constant expression could not evaluate ({0}). ähnelt.
+        /// </summary>
+        internal static string rsConstExpressionEvalError {
+            get {
+                return ResourceManager.GetString("rsConstExpressionEvalError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Constant expression expected. ähnelt.
+        /// </summary>
+        internal static string rsConstExpressionNeeded {
+            get {
+                return ResourceManager.GetString("rsConstExpressionNeeded", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Sucht eine lokalisierte Zeichenfolge, die Can not convert &apos;{0}&apos; in &apos;{1}&apos;. ähnelt.
         /// </summary>
         internal static string rsConversationError {
@@ -88,7 +106,7 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
-        ///   Sucht eine lokalisierte Zeichenfolge, die &apos;{0}&apos; on type &apos;{1}&apos; already exists. ähnelt.
+        ///   Sucht eine lokalisierte Zeichenfolge, die Function &apos;{0}&apos; on type &apos;{1}&apos; already exists. ähnelt.
         /// </summary>
         internal static string rsGlobalFunctionNotUnique {
             get {
@@ -223,7 +241,7 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
-        ///   Sucht eine lokalisierte Zeichenfolge, die Newline in string constant. ähnelt.
+        ///   Sucht eine lokalisierte Zeichenfolge, die NewLine in string constant. ähnelt.
         /// </summary>
         internal static string rsParseInvalidString {
             get {

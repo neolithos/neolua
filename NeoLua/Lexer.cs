@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Text;
 
 namespace Neo.IronLua
@@ -27,122 +28,180 @@ namespace Neo.IronLua
     InvalidComment,
 
     /// <summary>NewLine</summary>
+    [Description("\\n")]
     NewLine,
     /// <summary>Space</summary>
     Whitespace,
     /// <summary>Comment</summary>
     Comment,
     /// <summary>string</summary>
+    [Description("string")]
     String,
     /// <summary>Integer or floating point number</summary>
+    [Description("number")]
     Number,
     /// <summary>Hexadecimal number</summary>
+    [Description("number")]
     HexNumber,
     /// <summary>Identifier</summary>
     Identifier,
 
     /// <summary>Keyword and</summary>
+    [Description("and")]
     KwAnd,
     /// <summary>Keyword break</summary>
+    [Description("break")]
     KwBreak,
     /// <summary>Keyword cast</summary>
+    [Description("cast")]
     KwCast,
+    /// <summary>Keyword const</summary>
+    [Description("const")]
+    KwConst,
     /// <summary>Keyword do</summary>
+    [Description("do")]
     KwDo,
     /// <summary>Keyword else</summary>
+    [Description("else")]
     KwElse,
     /// <summary>Keyword elseif</summary>
+    [Description("elseif")]
     KwElseif,
     /// <summary>Keyword end</summary>
+    [Description("end")]
     KwEnd,
     /// <summary>Keyword false</summary>
+    [Description("false")]
     KwFalse,
     /// <summary>Keyword for</summary>
+    [Description("for")]
     KwFor,
     /// <summary>Keyword foreach</summary>
+    [Description("foreach")]
     KwForEach,
     /// <summary>Keyword function</summary>
+    [Description("function")]
     KwFunction,
     /// <summary>Keyword goto</summary>
+    [Description("goto")]
     KwGoto,
     /// <summary>Keyword if</summary>
+    [Description("if")]
     KwIf,
     /// <summary>Keyword in</summary>
+    [Description("in")]
     KwIn,
     /// <summary>Keyword local</summary>
+    [Description("local")]
     KwLocal,
     /// <summary>Keyword nil</summary>
+    [Description("nil")]
     KwNil,
     /// <summary>Keyword not</summary>
+    [Description("not")]
     KwNot,
     /// <summary>Keyword or</summary>
+    [Description("or")]
     KwOr,
     /// <summary>Keyword repeat</summary>
+    [Description("repeat")]
     KwRepeat,
     /// <summary>Keyword return</summary>
+    [Description("return")]
     KwReturn,
     /// <summary>Keyword then</summary>
+    [Description("then")]
     KwThen,
     /// <summary>Keyword true</summary>
+    [Description("true")]
     KwTrue,
     /// <summary>Keyword until</summary>
+    [Description("until")]
     KwUntil,
     /// <summary>Keyword while</summary>
+    [Description("while")]
     KwWhile,
 
     /// <summary>+</summary>
+    [Description("+")]
     Plus,
     /// <summary>-</summary>
+    [Description("-")]
     Minus,
     /// <summary>*</summary>
+    [Description("*")]
     Star,
     /// <summary>/</summary>
+    [Description("/")]
     Slash,
     /// <summary>%</summary>
+    [Description("%")]
     Percent,
     /// <summary>^</summary>
+    [Description("^")]
     Caret,
     /// <summary>#</summary>
+    [Description("#")]
     Cross,
-    /// <summary>=</summary>
+    /// <summary>==</summary>
+    [Description("==")]
     Equal,
     /// <summary>~=</summary>
+    [Description("~=")]
     NotEqual,
     /// <summary>&lt;=</summary>
+    [Description("<=")]
     LowerEqual,
     /// <summary>&gt;=</summary>
+    [Description(">=")]
     GreaterEqual,
     /// <summary>&lt;</summary>
+    [Description("<")]
     Lower,
     /// <summary>&gt;</summary>
+    [Description(">")]
     Greater,
     /// <summary>=</summary>
+    [Description("=")]
     Assign,
     /// <summary>(</summary>
+    [Description("(")]
     BracketOpen,
     /// <summary>)</summary>
+    [Description(")")]
     BracketClose,
     /// <summary>{</summary>
+    [Description("{")]
     BracketCurlyOpen,
     /// <summary>}</summary>
+    [Description("}")]
     BracketCurlyClose,
     /// <summary>[</summary>
+    [Description("[")]
     BracketSquareOpen,
     /// <summary>]</summary>
+    [Description("]")]
     BracketSquareClose,
     /// <summary>;</summary>
+    [Description(";")]
     Semicolon,
     /// <summary>:</summary>
+    [Description(":")]
     Colon,
     /// <summary>::</summary>
+    [Description("::")]
     ColonColon,
     /// <summary>,</summary>
+    [Description(",")]
     Comma,
     /// <summary>.</summary>
+    [Description(".")]
     Dot,
     /// <summary>..</summary>
+    [Description("..")]
     DotDot,
     /// <summary>...</summary>
+    [Description("...")]
     DotDotDot
   } // enum LuaToken
 
@@ -953,10 +1012,15 @@ namespace Neo.IronLua
           case 1143: if (c == 'e') EatChar(1144); else goto case 1000; break;
           case 1144: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwWhile); else goto case 1000;
           // cast
-          case 1150: if (c == 'a') EatChar(1151); else goto case 1000; break;
+          case 1150: if (c == 'a') EatChar(1151); else if (c == 'o') EatChar(1160); else goto case 1000; break;
           case 1151: if (c == 's') EatChar(1152); else goto case 1000; break;
           case 1152: if (c == 't') EatChar(1153); else goto case 1000; break;
           case 1153: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwCast); else goto case 1000;
+          // const
+          case 1160: if (c == 'n') EatChar(1161); else goto case 1000; break;
+          case 1161: if (c == 's') EatChar(1162); else goto case 1000; break;
+          case 1162: if (c == 't') EatChar(1163); else goto case 1000; break;
+          case 1163: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwConst); else goto case 1000;
           #endregion
         }
       }
@@ -1021,6 +1085,20 @@ namespace Neo.IronLua
     } // proc ReadTextBlock
 
     #endregion
+
+    public static string GetTokenName(LuaToken typ)
+    {
+      Type t = typeof(LuaToken);
+      string sName = t.GetEnumName(typ);
+      FieldInfo fi = t.GetField(sName);
+      if (fi != null)
+      {
+        DescriptionAttribute attr = (DescriptionAttribute)Attribute.GetCustomAttribute(fi, typeof(DescriptionAttribute));
+        if (attr != null)
+          return attr.Description;
+      }
+      return sName;
+    } // func GetTokenName
   } // class LuaLexer
 
   #endregion

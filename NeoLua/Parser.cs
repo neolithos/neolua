@@ -31,7 +31,7 @@ namespace Neo.IronLua
     private class Scope
     {
       private Scope parent;   // Parent-Scope, that is accessable
-      private Dictionary<string, ParameterExpression> scopeVariables = null; // local declared variables
+      private Dictionary<string, Expression> scopeVariables = null; // local declared variables or const definitions
       private List<Expression> block = new List<Expression>();  // Instructions in the current block
       private bool lBlockGenerated = false; // Is the block generated
 
@@ -54,24 +54,35 @@ namespace Neo.IronLua
       /// <returns>The expression that represents the access to the variable.</returns>
       public ParameterExpression RegisterVariable(Type type, string sName)
       {
-        if (scopeVariables == null)
-          scopeVariables = new Dictionary<string, ParameterExpression>();
-
-        return scopeVariables[sName] = Expression.Variable(type, sName);
+        ParameterExpression expr = Expression.Variable(type, sName);
+        RegisterVariableOrConst(sName, expr);
+        return expr;
       } // proc RegisterParameter
 
-      /// <summary>Looks up the variable/parameter through the scopes.</summary>
+      public void RegisterConst(string sName, ConstantExpression expr)
+      {
+        RegisterVariableOrConst(sName, expr);
+      } // proc RegisterConst
+
+      private void RegisterVariableOrConst(string sName, Expression expr)
+      {
+        if (scopeVariables == null)
+          scopeVariables = new Dictionary<string, Expression>();
+        scopeVariables[sName] = expr;
+      } // proc EnsureVariables
+
+      /// <summary>Looks up the variable/parameter/const through the scopes.</summary>
       /// <param name="sName">Name of the variable</param>
       /// <returns>The access-expression for the variable, parameter or <c>null</c>, if it is not registered.</returns>
-      public virtual ParameterExpression LookupParameter(string sName)
+      public virtual Expression LookupExpression(string sName)
       {
         // Lookup the current scope
-        ParameterExpression p;
+        Expression p;
         if (scopeVariables != null && scopeVariables.TryGetValue(sName, out p))
           return p;
 
         if (parent != null) // lookup the parent scope
-          return parent.LookupParameter(sName);
+          return parent.LookupExpression(sName);
         else
           return null;
       } // func LookupParameter
@@ -120,17 +131,18 @@ namespace Neo.IronLua
           CheckBlockGenerated();
           lBlockGenerated = true;
 
-          if (scopeVariables != null && scopeVariables.Count > 0)
-            if (block.Count == 0)
-              return Expression.Block(scopeVariables.Values, Expression.Empty());
-            else if (ExpressionBlockType == null)
-              return Expression.Block(scopeVariables.Values, block);
-            else
-              return Expression.Block(ExpressionBlockType, scopeVariables.Values, block);
-          else if (block.Count == 0)
+          if (block.Count == 0)
             return Expression.Empty();
-          else
-            return Expression.Block(block);
+          else 
+          {
+            ParameterExpression[] variables = Variables;
+            if (variables.Length == 0)
+              return Expression.Block(block);
+            else if (ExpressionBlockType == null)
+              return Expression.Block(variables, block);
+            else
+              return Expression.Block(ExpressionBlockType, variables, block);
+          }
         }
       } // func ExpressionBlock
 
@@ -143,7 +155,7 @@ namespace Neo.IronLua
       /// <summary>Emit-Debug-Information</summary>
       public virtual bool EmitDebug { get { return parent.EmitDebug; } }
       /// <summary></summary>
-      public Dictionary<string, ParameterExpression> Variables { get { return scopeVariables; } }
+      public ParameterExpression[] Variables { get { return scopeVariables == null ? new ParameterExpression[0] : (from v in scopeVariables.Values where v is ParameterExpression select (ParameterExpression)v).ToArray(); } }
     } // class Scope
 
     #endregion
@@ -229,12 +241,12 @@ namespace Neo.IronLua
       /// <summary>Lookup the variables and arguments.</summary>
       /// <param name="sName">Name of the parameter/variable.</param>
       /// <returns></returns>
-      public override ParameterExpression LookupParameter(string sName)
+      public override Expression LookupExpression(string sName)
       {
         ParameterExpression p;
         if (parameters.TryGetValue(sName, out p))
           return p;
-        return base.LookupParameter(sName);
+        return base.LookupExpression(sName);
       } // func LookupParameter
 
       #endregion
@@ -611,6 +623,10 @@ namespace Neo.IronLua
           else
             ParseExpressionStatement(scope, code, true);
           return true;
+        case LuaToken.KwConst:
+          code.Next();
+          ParseConst(scope, code);
+          return true;
 
         case LuaToken.InvalidString:
           throw ParseError(code.Current, Properties.Resources.rsParseInvalidString);
@@ -746,7 +762,7 @@ namespace Neo.IronLua
     {
       // if expr then block { elseif expr then block } [ else block ] end
       FetchToken(LuaToken.KwIf, code);
-      var expr = ToBooleanExpression(ParseExpression(scope, code));
+      var expr = ToBooleanExpression(ParseExpression(scope, code, scope.EmitDebug));
       FetchToken(LuaToken.KwThen, code);
 
       scope.AddExpression(Expression.IfThenElse(expr, ParseIfElseBlock(scope, code), ParseElseStatement(scope, code)));
@@ -757,7 +773,7 @@ namespace Neo.IronLua
       if (code.Current.Typ == LuaToken.KwElseif)
       {
         code.Next();
-        var expr = ToBooleanExpression(ParseExpression(scope, code));
+        var expr = ToBooleanExpression(ParseExpression(scope, code, scope.EmitDebug));
         FetchToken(LuaToken.KwThen, code);
 
         return Expression.IfThenElse(expr, ParseIfElseBlock(scope, code), ParseElseStatement(scope, code));
@@ -785,6 +801,81 @@ namespace Neo.IronLua
       return scope.ExpressionBlock;
     } // func ParseIfElseBlock
 
+    private static void ParseConst(Scope scope, LuaLexer code)
+    {
+      // const ::= identifier '=' expr
+
+      var tVarName = FetchToken(LuaToken.Identifier, code);
+      FetchToken(LuaToken.Assign, code);
+
+      Expression exprConst = ParseExpression(scope, code, false); // No Debug-Emits
+
+      // Try to eval the statement
+      if (exprConst.Type == typeof(object) || exprConst.Type == typeof(object[])) // dynamic calls, no constant possible
+        throw ParseError(tVarName, Properties.Resources.rsConstExpressionNeeded);
+      else
+        try
+        {
+          object r = EvaluateExpression(exprConst);
+          if (r == null) // Eval via compile
+          {
+            Type typeFunc = Expression.GetFuncType(exprConst.Type);
+            LambdaExpression exprEval = Expression.Lambda(typeFunc, exprConst);
+            Delegate dlg = exprEval.Compile();
+            r = dlg.DynamicInvoke();
+          }
+          scope.RegisterConst(tVarName.Value, Expression.Constant(r, exprConst.Type));
+        }
+        catch (Exception e)
+        {
+          throw ParseError(tVarName, String.Format(Properties.Resources.rsConstExpressionEvalError, e.Message));
+        }
+    } // func ParseConst
+
+    #endregion
+
+    #region -- Evaluate Expression ----------------------------------------------------
+
+    private static object EvaluateExpression(Expression expr)
+    {
+      if (expr is ConstantExpression)
+        return EvaluateConstantExpression((ConstantExpression)expr);
+      else if (expr is UnaryExpression)
+        return EvaluateUnaryExpression((UnaryExpression)expr);
+      else if (expr is BinaryExpression)
+        return EvaluateBinaryExpression((BinaryExpression)expr);
+      else
+        return null;
+    } // func EvaluateExpresion
+
+    private static object EvaluateConstantExpression(ConstantExpression expr)
+    {
+      if (expr.Type == typeof(object))
+        return null;
+      return Lua.RtConvert(expr.Value, expr.Type);
+    } // func EvaluateConstantExpression
+
+    private static object EvaluateUnaryExpression(UnaryExpression expr)
+    {
+      object r = EvaluateExpression(expr.Operand);
+      if (r == null)
+        return null;
+
+      switch (expr.NodeType)
+      {
+        case ExpressionType.Convert:
+        case ExpressionType.ConvertChecked:
+          return Lua.RtConvert(r, expr.Type);
+        default:
+          return null;
+      }
+    } // func EvaluateConstantExpression
+
+    private static object EvaluateBinaryExpression(BinaryExpression expr)
+    {
+      return null;
+    } // func EvaluateConstantExpression
+
     #endregion
 
     #region -- Parse Prefix, Suffix ---------------------------------------------------
@@ -799,7 +890,7 @@ namespace Neo.IronLua
       {
         case LuaToken.BracketOpen: // Parse eine Expression
           code.Next();
-          var expr = ParseExpression(scope, code);
+          var expr = ParseExpression(scope, code, scope.EmitDebug);
           FetchToken(LuaToken.BracketClose, code);
 
           info = new PrefixMemberInfo(tStart, ToTypeExpression(expr), null, null, null);
@@ -808,12 +899,12 @@ namespace Neo.IronLua
         case LuaToken.Identifier:
         case LuaToken.DotDotDot:
           var t = code.Current;
-          var p = scope.LookupParameter(t.Typ == LuaToken.DotDotDot ? csArgList : t.Value);
+          var p = scope.LookupExpression(t.Typ == LuaToken.DotDotDot ? csArgList : t.Value);
           if (t.Typ == LuaToken.DotDotDot && p == null)
             throw ParseError(t, Properties.Resources.rsParseNoArgList);
           code.Next();
           if (p == null) // Als globale Variable verwalten, da es keine locale Variable gibt
-            info = new PrefixMemberInfo(tStart, scope.LookupParameter(csEnv), t.Value, null, null);
+            info = new PrefixMemberInfo(tStart, scope.LookupExpression(csEnv), t.Value, null, null);
           else
             info = new PrefixMemberInfo(tStart, p, null, null, null);
           break;
@@ -999,7 +1090,7 @@ namespace Neo.IronLua
     {
       while (true)
       {
-        yield return ParseExpression(scope, code);
+        yield return ParseExpression(scope, code, scope.EmitDebug);
 
         // Noch eine Expression
         if (code.Current.Typ == LuaToken.Comma)
@@ -1009,12 +1100,12 @@ namespace Neo.IronLua
       }
     } // func ParseExpressionList
 
-    private static Expression ParseExpression(Scope scope, LuaLexer code)
+    private static Expression ParseExpression(Scope scope, LuaLexer code, bool lDebug)
     {
       Token tStart = code.Current;
       bool lWrap = false;
       Expression expr = ParseExpression(scope, code, ref lWrap);
-      if (lWrap && scope.EmitDebug)
+      if (lWrap && lDebug)
         return WrapDebugInfo(true, false, tStart, code.Current, expr);
       else
         return expr;
@@ -1389,8 +1480,8 @@ namespace Neo.IronLua
         exprFinally = (
           from c in outerScope.Variables
           select Expression.IfThen(
-            Expression.TypeIs(c.Value, typeof(IDisposable)),
-            Expression.Call(Expression.Convert(c.Value, typeof(IDisposable)), typeof(IDisposable).GetMethod("Dispose"))
+            Expression.TypeIs(c, typeof(IDisposable)),
+            Expression.Call(Expression.Convert(c, typeof(IDisposable)), typeof(IDisposable).GetMethod("Dispose"))
           )).ToArray();
 
         FetchToken(LuaToken.BracketClose, code);
@@ -1432,7 +1523,7 @@ namespace Neo.IronLua
       loopScope.AddExpression(Expression.Label(loopScope.ContinueLabel));
       loopScope.AddExpression(
         Expression.IfThenElse(
-          ToBooleanExpression(ParseExpression(scope, code)),
+          ToBooleanExpression(ParseExpression(scope, code, scope.EmitDebug)),
           Expression.Empty(),
           Expression.Goto(loopScope.BreakLabel)
         )
@@ -1465,7 +1556,7 @@ namespace Neo.IronLua
       FetchToken(LuaToken.KwUntil, code);
       loopScope.AddExpression(
         Expression.IfThenElse(
-          ToBooleanExpression(ParseExpression(scope, code)),
+          ToBooleanExpression(ParseExpression(scope, code, scope.EmitDebug)),
           Expression.Empty(),
           Expression.Goto(loopScope.ContinueLabel)
         )
@@ -1487,14 +1578,14 @@ namespace Neo.IronLua
       {
         // = exp, exp [, exp] do block end
         FetchToken(LuaToken.Assign, code);
-        Expression loopStart = ParseExpression(scope, code);
+        Expression loopStart = ParseExpression(scope, code, scope.EmitDebug);
         FetchToken(LuaToken.Comma, code);
-        Expression loopEnd = ParseExpression(scope, code);
+        Expression loopEnd = ParseExpression(scope, code, scope.EmitDebug);
         Expression loopStep;
         if (code.Current.Typ == LuaToken.Comma)
         {
           code.Next();
-          loopStep = ParseExpression(scope, code);
+          loopStep = ParseExpression(scope, code, scope.EmitDebug);
         }
         else
           loopStep = Expression.Constant(1, typeof(int));
@@ -1552,7 +1643,7 @@ namespace Neo.IronLua
 
       // get the enumerable expression
       FetchToken(LuaToken.KwIn, code);
-      Expression exprEnum = ParseExpression(scope, code);
+      Expression exprEnum = ParseExpression(scope, code, scope.EmitDebug);
 
       // parse the loop body
       FetchToken(LuaToken.KwDo, code);
@@ -1718,7 +1809,7 @@ namespace Neo.IronLua
         StringBuilder sbFullMemberName = new StringBuilder();
         bool lGenerateSelf = false;
         // Member mit der Startet
-        Expression assignee = scope.LookupParameter(csEnv);
+        Expression assignee = scope.LookupExpression(csEnv);
         string sMember = FetchToken(LuaToken.Identifier, code).Value;
         sbFullMemberName.Append(sMember);
 
@@ -1847,15 +1938,15 @@ namespace Neo.IronLua
       {
         // Lies den Index
         code.Next();
-        var index = ParseExpression(scope, code);
+        var index = ParseExpression(scope, code, scope.EmitDebug);
         FetchToken(LuaToken.BracketSquareClose, code);
         FetchToken(LuaToken.Assign, code);
 
         // Erzeuge den Befehl
         scope.AddExpression(
           LuaTable.SetValueExpression(tableVar, 
-            ToTypeExpression(index, typeof(object)), 
-            ToTypeExpression(ParseExpression(scope, code), typeof(object))
+            ToTypeExpression(index, typeof(object)),
+            ToTypeExpression(ParseExpression(scope, code, scope.EmitDebug), typeof(object))
           )
         );
       }
@@ -1870,13 +1961,13 @@ namespace Neo.IronLua
         scope.AddExpression(
           Expression.Dynamic(scope.Runtime.GetSetMemberBinder(sMember), typeof(object),
             tableVar,
-            ToTypeExpression(ParseExpression(scope, code), typeof(object))
+            ToTypeExpression(ParseExpression(scope, code, scope.EmitDebug), typeof(object))
           )
         );
       }
       else
       {
-        Expression expr = ParseExpression(scope, code);
+        Expression expr = ParseExpression(scope, code, scope.EmitDebug);
 
         if (code.Current.Typ == LuaToken.BracketCurlyClose) // Letzte Zuweisung, verteile ein eventuelles Array auf die Indices
         {
@@ -1921,7 +2012,7 @@ namespace Neo.IronLua
       else if (lOptional)
         return null;
       else
-        throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, code.Current.Typ, typ));
+        throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, LuaLexer.GetTokenName(code.Current.Typ), LuaLexer.GetTokenName(typ)));
     } // proc FetchToken
 
     private static LuaParseException ParseError(Token start, string sMessage)
