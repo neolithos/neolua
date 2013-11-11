@@ -252,7 +252,7 @@ namespace Neo.IronLua
 
         var restrictions = GetMethodSignatureRestriction(target, args);
         Expression expr;
-        switch (TryBindInvokeMember(this, false, target, args, out expr))
+        switch (TryBindInvokeMember(this, target, args, out expr))
         {
           case BindResult.Ok:
             return new DynamicMetaObject(expr, restrictions);
@@ -633,16 +633,16 @@ namespace Neo.IronLua
 
     private static object[] emptyResult = new object[0];
 
-    internal static BindResult TryBindInvokeMember(InvokeMemberBinder binder, bool lUseCtor, DynamicMetaObject target, DynamicMetaObject[] arguments, out Expression expr)
+    internal static BindResult TryBindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject target, DynamicMetaObject[] arguments, out Expression expr)
     {
-      MethodBase miBind = lUseCtor ?
+      MethodBase miBind = binder == null ?
         (MethodBase)BindFindInvokeMember<ConstructorInfo>(null, false, target, arguments) :
         (MethodBase)BindFindInvokeMember<MethodInfo>(binder.Name, binder.IgnoreCase, target, arguments);
 
       // Method resolved
       if (miBind == null)
       {
-        expr = ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, binder.Name));
+        expr = ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, binder == null ? "ctor" : binder.Name));
         return BindResult.MemberNotFound;
       }
 

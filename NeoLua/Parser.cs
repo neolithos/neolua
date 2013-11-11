@@ -805,10 +805,14 @@ namespace Neo.IronLua
     {
       // const ::= identifier '=' expr
 
-      var tVarName = FetchToken(LuaToken.Identifier, code);
+      string sType;
+      Token tVarName;
+      ParseLocalVariable(code, out tVarName, out sType);
       FetchToken(LuaToken.Assign, code);
 
       Expression exprConst = ParseExpression(scope, code, false); // No Debug-Emits
+      if (sType != null)
+        exprConst = ToTypeExpression(exprConst, GetType(tVarName, sType));
 
       // Try to eval the statement
       if (exprConst.Type == typeof(object) || exprConst.Type == typeof(object[])) // dynamic calls, no constant possible

@@ -314,7 +314,7 @@ namespace Neo.IronLua
     
     private TextReader tr;                    // Source for the lexer
     private SymbolDocumentInfo document;      // Information about the source document
-    private int iCurrentLine = 1;             // Line in the source file
+    private int iCurrentLine;                 // Line in the source file
     private int iCurrentColumn = 1;           // Column in the source file
     private long iCurrentIndex = 0;           // Index in the source file
 
@@ -323,9 +323,11 @@ namespace Neo.IronLua
     /// <summary>Creates the lexer für the lua parser</summary>
     /// <param name="sFileName">Filename</param>
     /// <param name="tr">Input for the scanner, will be disposed on the lexer dispose.</param>
-    public LuaLexer(string sFileName, TextReader tr)
+    /// <param name="iCurrentLine"></param>
+    public LuaLexer(string sFileName, TextReader tr, int iCurrentLine = 1)
     {
       this.document = Expression.SymbolDocument(sFileName);
+      this.iCurrentLine = iCurrentLine;
       this.tr = tr;
 
       fStart =

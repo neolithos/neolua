@@ -198,7 +198,7 @@ namespace Neo.IronLua
         object[] r = g.DoChunk (
           String.Join(Environment.NewLine,
           "local sys = clr.System;",
-          "local sb = sys.Text.StringBuilder:ctor();",
+          "local sb = sys.Text.StringBuilder();",
           "sb:Append('Hallo '):Append('Welt!');",
           "return sb:ToString();"
           ),
