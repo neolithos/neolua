@@ -261,7 +261,7 @@ namespace Neo.IronLua
     {
       using (LuaLexer l = new LuaLexer(sChunkName, tr))
       {
-        LambdaExpression expr = Parser.ParseChunk(this, lDebug, l, args);
+        LambdaExpression expr = Parser.ParseChunk(this, lDebug, true, l, null, typeof(object[]), args);
 
         if (lPrintExpressionTree)
         {
@@ -327,6 +327,58 @@ namespace Neo.IronLua
         return chunk;
       }
     } // func CompileChunk
+
+    /// <summary>Creates a simple lua-lambda-expression without any environment.</summary>
+    /// <param name="sName">Name of the delegate</param>
+    /// <param name="sCode">Code of the delegate.</param>
+    /// <param name="typeDelegate">Delegate type. <c>null</c> is allowed.</param>
+    /// <param name="returnType">Return-Type of the delegate</param>
+    /// <param name="arguments">Arguments of the delegate.</param>
+    /// <returns></returns>
+    public Delegate CreateLambda(string sName, string sCode, Type typeDelegate, Type returnType, params KeyValuePair<string, Type>[] arguments)
+    {
+      using (LuaLexer l = new LuaLexer(sName, new StringReader(sCode)))
+      {
+        LambdaExpression expr = Parser.ParseChunk(this, false, false, l, typeDelegate, returnType, arguments);
+
+        if (lPrintExpressionTree)
+        {
+          Console.WriteLine(Parser.ExpressionToString(expr));
+          Console.WriteLine(new string('=', 79));
+        }
+
+        return expr.Compile();
+      }
+    } // func CreateLambda
+
+    /// <summary>Creates a simple lua-delegate without any environment.</summary>
+    /// <param name="sName">Name of the delegate</param>
+    /// <param name="sCode">Code of the delegate.</param>
+    /// <param name="argumentNames">Possible to override the argument names.</param>
+    /// <returns></returns>
+    public T CreateLambda<T>(string sName, string sCode, params string[] argumentNames)
+      where T : class
+    {
+      Type typeDelegate = typeof(T);
+      MethodInfo mi = typeDelegate.GetMethod("Invoke");
+      ParameterInfo[] parameters = mi.GetParameters();
+      KeyValuePair<string, Type>[] arguments = new KeyValuePair<string,Type>[parameters.Length];
+
+      // create the argument list
+      for (int i = 0; i < parameters.Length; i++)
+      {
+        ParameterInfo p = parameters[i];
+
+        if (p.ParameterType.IsByRef)
+          throw new ArgumentException(Properties.Resources.rsDelegateCouldNotHaveOut);
+
+        arguments[i] = new KeyValuePair<string, Type>(
+          argumentNames != null && i < argumentNames.Length ? argumentNames[i] : p.Name,
+          p.ParameterType);
+      }
+
+      return (T)(object)CreateLambda(sName, sCode, typeDelegate, mi.ReturnParameter.ParameterType, arguments);
+    } // func CreateLambda
 
     #endregion
 

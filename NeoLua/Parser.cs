@@ -23,6 +23,7 @@ namespace Neo.IronLua
     private const string csContinueLabel = "#continue";
     private const string csEnv = "_G";
     private const string csArgList = "#arglist";
+    private const string csClr = "clr";
 
     #region -- class Scope ------------------------------------------------------------
 
@@ -154,6 +155,8 @@ namespace Neo.IronLua
       public virtual Lua Runtime { get { return parent.Runtime; } }
       /// <summary>Emit-Debug-Information</summary>
       public virtual bool EmitDebug { get { return parent.EmitDebug; } }
+      /// <summary>Return type of the current Lambda-Scope</summary>
+      public virtual Type ReturnType { get { return parent.ReturnType; } }
       /// <summary></summary>
       public ParameterExpression[] Variables { get { return scopeVariables == null ? new ParameterExpression[0] : (from v in scopeVariables.Values where v is ParameterExpression select (ParameterExpression)v).ToArray(); } }
     } // class Scope
@@ -212,7 +215,7 @@ namespace Neo.IronLua
     /// <summary>Lambda-Scope with labels and parameters.</summary>
     private class LambdaScope : Scope
     {
-      private LabelTarget returnLabel = Expression.Label(typeof(object[]), csReturnLabel);
+      private LabelTarget returnLabel;
       private Dictionary<string, LabelTarget> labels = null;
       private Dictionary<string, ParameterExpression> parameters = new Dictionary<string, ParameterExpression>();
 
@@ -220,9 +223,11 @@ namespace Neo.IronLua
 
       /// <summary>Creates the lambda-scope, that manages labels and arguments.</summary>
       /// <param name="parent"></param>
-      public LambdaScope(Scope parent)
+      /// <param name="returnType"></param>
+      public LambdaScope(Scope parent, Type returnType)
         : base(parent)
       {
+        returnLabel = Expression.Label(returnType, csReturnLabel);
       } // ctor
 
       #endregion
@@ -280,12 +285,13 @@ namespace Neo.IronLua
       {
         get
         {
-          AddExpression(Expression.Label(returnLabel, Expression.Constant(null, returnLabel.Type)));
+          AddExpression(Expression.Label(returnLabel, Expression.Default(returnLabel.Type)));
           return base.ExpressionBlock;
         }
       } // prop ExpressionBlock
 
       public LabelTarget ReturnLabel { get { return returnLabel; } }
+      public override Type ReturnType { get { return returnLabel.Type; } }
     } // class LambdaScope
 
     #endregion
@@ -302,8 +308,9 @@ namespace Neo.IronLua
       /// <summary>Global parse-scope</summary>
       /// <param name="runtime">Runtime and binder of the global scope.</param>
       /// <param name="lDebug"></param>
-      public GlobalScope(Lua runtime, bool lDebug)
-        : base(null)
+      /// <param name="returnType"></param>
+      public GlobalScope(Lua runtime, bool lDebug, Type returnType)
+        : base(null, returnType)
       {
         this.runtime = runtime;
         this.lDebug = lDebug;
@@ -444,16 +451,25 @@ namespace Neo.IronLua
     /// <summary>Parses the chunk to an function.</summary>
     /// <param name="runtime">Binder</param>
     /// <param name="lDebug">Compile the script with debug information.</param>
+    /// <param name="lHasEnvironment">Creates the _G parameter.</param>
     /// <param name="code">Lexer for the code.</param>
+    /// <param name="typeDelegate">Type for the delegate. <c>null</c>, for an automatic type</param>
+    /// <param name="returnType">Defines the return type of the chunk.</param>
     /// <param name="args">Arguments of the function.</param>
     /// <returns>Expression-Tree for the code.</returns>
-    public static LambdaExpression ParseChunk(Lua runtime, bool lDebug, LuaLexer code, IEnumerable<KeyValuePair<string, Type>> args)
+    public static LambdaExpression ParseChunk(Lua runtime, bool lDebug, bool lHasEnvironment, LuaLexer code, Type typeDelegate, Type returnType, IEnumerable<KeyValuePair<string, Type>> args)
     {
       List<ParameterExpression> parameters = new List<ParameterExpression>();
-      var globalScope = new GlobalScope(runtime, lDebug);
+
+      if (returnType == null)
+        returnType = typeof(object[]);
+
+      var globalScope = new GlobalScope(runtime, lDebug, returnType);
 
       // Registers the global LuaTable
-      parameters.Add(globalScope.RegisterParameter(typeof(LuaGlobal), csEnv));
+      if (lHasEnvironment)
+        parameters.Add(globalScope.RegisterParameter(typeof(LuaGlobal), csEnv));
+
       if (args != null)
       {
         foreach (var c in args)
@@ -474,7 +490,9 @@ namespace Neo.IronLua
         throw ParseError(code.Current, Properties.Resources.rsParseEof);
 
       // Create the function
-      return Expression.Lambda(globalScope.ExpressionBlock, sChunkName, parameters);
+      return typeDelegate == null ?
+        Expression.Lambda(globalScope.ExpressionBlock, sChunkName, parameters) :
+        Expression.Lambda(typeDelegate, globalScope.ExpressionBlock, sChunkName, parameters);
     } // func ParseChunk
 
     private static void ParseBlock(Scope scope, LuaLexer code)
@@ -522,22 +540,54 @@ namespace Neo.IronLua
 
       // Build the return expression for all parameters
       Expression exprReturnValue;
-
-      if (IsExpressionStart(code))
+      
+      if (IsExpressionStart(code)) // there is a return value
       {
-        exprReturnValue = RuntimeHelperExpression(LuaRuntimeHelper.ReturnResult,
-          Expression.NewArrayInit(typeof(object),
-            from c in ParseExpressionList(scope, code) select Expression.Convert(c, typeof(object))
-            )
-          );
+        if (scope.ReturnType == typeof(object[]))
+        {
+          exprReturnValue = RuntimeHelperExpression(LuaRuntimeHelper.ReturnResult,
+            Expression.NewArrayInit(typeof(object),
+              from c in ParseExpressionList(scope, code) select Expression.Convert(c, typeof(object))
+              )
+            );
+        }
+        else if (scope.ReturnType.IsArray)
+        {
+          Type typeArray = scope.ReturnType.GetElementType();
+          exprReturnValue = Expression.NewArrayInit(
+            typeArray,
+            from c in ParseExpressionList(scope, code) select ToTypeExpression(c, typeArray));
+        }
+        else
+        {
+          List<Expression> exprList = new List<Expression>( ParseExpressionList(scope, code));
+
+          if (exprList.Count == 1)
+            exprReturnValue = ToTypeExpression(exprList[0], scope.ReturnType);
+          else
+          {
+            ParameterExpression tmpVar = Expression.Variable(scope.ReturnType);
+            exprList[0] = Expression.Assign(tmpVar, exprList[0]);
+            exprList.Add(tmpVar);
+            exprReturnValue = Expression.Block(scope.ReturnType, new ParameterExpression[] { tmpVar }, exprList);
+          }
+        }
       }
-      else
-        exprReturnValue = Expression.Constant(Lua.EmptyResult, typeof(object[]));
+      else // use the default-value
+      {
+        if (scope.ReturnType.IsArray)
+          if (scope.ReturnType == typeof(object[]))
+            exprReturnValue = Expression.Constant(Lua.EmptyResult, typeof(object[]));
+          else
+            exprReturnValue = Expression.NewArrayInit(scope.ReturnType.GetElementType());
+        else
+          exprReturnValue = Expression.Default(scope.ReturnType);
+      }
 
       if (code.Current.Typ == LuaToken.Semicolon)
         code.Next();
-
-      scope.AddExpression(Expression.Goto(scope.LookupLabel(typeof(object[]), csReturnLabel), exprReturnValue));
+      
+      scope.AddExpression(Expression.Goto(scope.LookupLabel(scope.ReturnType, csReturnLabel), exprReturnValue));
     } // func ParseReturn
 
     private static bool IsExpressionStart(LuaLexer code)
@@ -903,14 +953,22 @@ namespace Neo.IronLua
         case LuaToken.Identifier:
         case LuaToken.DotDotDot:
           var t = code.Current;
-          var p = scope.LookupExpression(t.Typ == LuaToken.DotDotDot ? csArgList : t.Value);
-          if (t.Typ == LuaToken.DotDotDot && p == null)
-            throw ParseError(t, Properties.Resources.rsParseNoArgList);
-          code.Next();
-          if (p == null) // Als globale Variable verwalten, da es keine locale Variable gibt
-            info = new PrefixMemberInfo(tStart, scope.LookupExpression(csEnv), t.Value, null, null);
+          if (t.Value == csClr) // clr is a special package, that always exists
+          {
+            code.Next();
+            info = new PrefixMemberInfo(tStart, Expression.Constant(LuaGlobal.Clr), null, null, null);
+          }
           else
-            info = new PrefixMemberInfo(tStart, p, null, null, null);
+          {
+            var p = scope.LookupExpression(t.Typ == LuaToken.DotDotDot ? csArgList : t.Value);
+            if (t.Typ == LuaToken.DotDotDot && p == null)
+              throw ParseError(t, Properties.Resources.rsParseNoArgList);
+            code.Next();
+            if (p == null) // No local variable found
+              info = new PrefixMemberInfo(tStart, scope.LookupExpression(csEnv), t.Value, null, null);
+            else
+              info = new PrefixMemberInfo(tStart, p, null, null, null);
+          }
           break;
 
         case LuaToken.String: // Literal String
@@ -1845,7 +1903,7 @@ namespace Neo.IronLua
     private static Expression ParseLamdaDefinition(Scope parent, LuaLexer code, string sName, bool lSelfParameter)
     {
       List<ParameterExpression> parameters = new List<ParameterExpression>();
-      LambdaScope scope = new LambdaScope(parent);
+      LambdaScope scope = new LambdaScope(parent, typeof(object[]));
 
       // Lese die Parameterliste ein
       FetchToken(LuaToken.BracketOpen, code);

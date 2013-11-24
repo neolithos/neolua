@@ -124,6 +124,15 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Delegate must not have out parameters. ähnelt.
+        /// </summary>
+        internal static string rsDelegateCouldNotHaveOut {
+            get {
+                return ResourceManager.GetString("rsDelegateCouldNotHaveOut", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Sucht eine lokalisierte Zeichenfolge, die Function &apos;{0}&apos; on type &apos;{1}&apos; already exists. ähnelt.
         /// </summary>
         internal static string rsGlobalFunctionNotUnique {

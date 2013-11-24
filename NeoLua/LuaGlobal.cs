@@ -61,9 +61,7 @@ namespace Neo.IronLua
       public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
       {
         // Access to clr can not overload
-        if (binder.Name == "clr")
-          return new DynamicMetaObject(Expression.Constant(Clr, typeof(LuaClrClassObject)), BindingRestrictions.GetInstanceRestriction(Expression, Value));
-        else if (binder.Name == "_VERSION")
+        if (binder.Name == "_VERSION")
           return new DynamicMetaObject(Expression.Constant(VersionString, typeof(string)), BindingRestrictions.GetInstanceRestriction(Expression, Value));
 
         // Bind the value
@@ -80,13 +78,6 @@ namespace Neo.IronLua
         else
           return moGet;
       } // proc BindGetMember
-
-      // -- Static ------------------------------------------------------------
-
-      private static LuaClrClassObject clr = new LuaClrClassObject(null, String.Empty, null, null);
-
-      /// <summary></summary>
-      public static IDynamicMetaObjectProvider Clr { get { return clr; } }
     } // class LuaCoreMetaObject
 
     #endregion
@@ -964,6 +955,13 @@ namespace Neo.IronLua
     } // func LuaPCall
 
     #endregion
+
+    // -- Static ------------------------------------------------------------
+
+    private static LuaClrClassObject clr = new LuaClrClassObject(null, String.Empty, null, null);
+
+    /// <summary></summary>
+    internal static IDynamicMetaObjectProvider Clr { get { return clr; } }
   } // class LuaGlobal
 
   #endregion

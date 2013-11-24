@@ -138,6 +138,9 @@
   <data name="rsConversationError" xml:space="preserve">
     <value>'{0}' kann nicht in '{1}' konvertiert werden.</value>
   </data>
+  <data name="rsDelegateCouldNotHaveOut" xml:space="preserve">
+    <value>Delegates dürfen keine Ausgabeparameter haben.</value>
+  </data>
   <data name="rsGlobalFunctionNotUnique" xml:space="preserve">
     <value>Funktion '{0}' wurde bereits in '{1}' definiert.</value>
   </data>
