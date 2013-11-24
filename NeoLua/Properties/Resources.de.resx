@@ -123,6 +123,12 @@
   <data name="rsChunkWrongScriptManager" xml:space="preserve">
     <value>Chunk wurde in einem anderen ScriptManager übersetzt.</value>
   </data>
+  <data name="rsClrGenericNoType" xml:space="preserve">
+    <value>Kein Type für den generischen Parameter {0} gefunden.</value>
+  </data>
+  <data name="rsClrGenericTypeExpected" xml:space="preserve">
+    <value>Clr-Type erwartet (Index={0}).</value>
+  </data>
   <data name="rsConstExpressionEvalError" xml:space="preserve">
     <value>Konstanter Ausdruck konnte nicht ausgewertet werden ({0}).</value>
   </data>

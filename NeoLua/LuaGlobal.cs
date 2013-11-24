@@ -83,7 +83,7 @@ namespace Neo.IronLua
 
       // -- Static ------------------------------------------------------------
 
-      private static LuaClrClassObject clr = new LuaClrClassObject(null, String.Empty, null);
+      private static LuaClrClassObject clr = new LuaClrClassObject(null, String.Empty, null, null);
 
       /// <summary></summary>
       public static IDynamicMetaObjectProvider Clr { get { return clr; } }
@@ -131,16 +131,47 @@ namespace Neo.IronLua
 
           // Get the index for the access
           if (expr == null)
-            expr = val.GetIndex(binder.Name, binder.IgnoreCase);
+            expr = val.GetIndexExpression(binder.Name, binder.IgnoreCase);
 
           return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(Expression, val));
         } // func BindGetMember
 
-        public override DynamicMetaObject BindSetMember(SetMemberBinder binder, DynamicMetaObject value)
+        public override DynamicMetaObject BindGetIndex(GetIndexBinder binder, DynamicMetaObject[] indexes)
         {
-          return base.BindSetMember(binder, value);
-        }
+          LuaClrClassObject val = (LuaClrClassObject)Value;
+          if (indexes.Any(c => !c.HasValue))
+            return binder.Defer(indexes);
 
+          // create the generic type name
+          StringBuilder sbTypeName = new StringBuilder();
+          val.GetFullName(sbTypeName);
+          sbTypeName.Append('`').Append(indexes.Length);
+
+          // find the type
+          Type typeGeneric = Lua.GetType(sbTypeName.ToString());
+          if (typeGeneric == null)
+            return new DynamicMetaObject(
+              Lua.ThrowExpression(String.Format(Properties.Resources.rsParseUnknownType, sbTypeName.ToString())),
+              Lua.GetMethodSignatureRestriction(null, indexes)
+              );
+
+          // check, only types are allowed
+          if (indexes.Any(c => c.LimitType != typeof(LuaClrClassObject)))
+          {
+            return new DynamicMetaObject(
+             Lua.ThrowExpression(Properties.Resources.rsClrGenericTypeExpected),
+             Lua.GetMethodSignatureRestriction(null, indexes));
+          }
+
+          // create the call to the runtime
+          MethodInfo miGetGenericItem = typeof(LuaClrClassObject).GetMethod("GetGenericItem", BindingFlags.Public | BindingFlags.Instance | BindingFlags.InvokeMethod);
+          return new DynamicMetaObject(
+            Expression.Call(Expression.Constant(val, typeof(LuaClrClassObject)), miGetGenericItem,
+            Expression.Constant(typeGeneric),
+            Expression.NewArrayInit(typeof(LuaClrClassObject), (from a in indexes select Expression.Convert(a.Expression, a.LimitType)).AsEnumerable())),
+            Lua.GetMethodSignatureRestriction(null, indexes));
+        } // func BindGetIndex
+        
         public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
         {
           Type type = ((LuaClrClassObject)Value).GetItemType();
@@ -200,11 +231,11 @@ namespace Neo.IronLua
 
       #endregion
 
-      private LuaClrClassObject parent;   // Zugriff auf den Untergeordneten Namensraum
-      private string sName;               // Bezeichnung
-      private MethodInfo miGetValue;      // Methode für den Zugriff auf das Array
+      private LuaClrClassObject parent;   // Access to the parent name space
+      private string sName;               // Name of the entity
+      private MethodInfo miGetValue;      // Method for the access to the array
 
-      private Type type = null;                         // Type, der hinter dem Name liegt, falls vorhanden
+      private Type type;                                // Type, type behind the name, if it exists
       private int iAssemblyCount = 0;                   // Anzahl der Assembly, als zuletzt versucht wurde ein Typ zu finden, -1 für Namespace
       private List<LuaClrClassObject> subItems = null;  // Liste alle untergeordneten abgefragten Typen (Namespace, Classes, SubClasses)
       // Die Indices werden als Konstante in die Expression gegossen, damit darf sich der Index nie ändern.
@@ -212,10 +243,11 @@ namespace Neo.IronLua
 
       #region -- Ctor/Dtor ------------------------------------------------------------
 
-      public LuaClrClassObject(LuaClrClassObject parent, string sName, MethodInfo mi)
+      public LuaClrClassObject(LuaClrClassObject parent, string sName, Type type, MethodInfo mi)
       {
         this.parent = parent;
         this.sName = sName;
+        this.type = type;
         this.miGetValue = mi;
 
         if (miGetValue == null)
@@ -236,11 +268,13 @@ namespace Neo.IronLua
 
       public Type GetItemType()
       {
-        if (type == null &&  // Type noch nicht ermittelt?
-            parent != null && // Wurzel hat nie einen Typ
-            iAssemblyCount >= 0 && // Dieser Knoten wurde als Namespace identifiziert
-            AppDomain.CurrentDomain.GetAssemblies().Length != iAssemblyCount) // Anzahl der Assemblies hat sich geändert
+        int iNewCount;
+        if (type == null &&  // no type found
+            parent != null && // the root has no type
+            iAssemblyCount >= 0 && // Namespace, there is no type
+            (iNewCount = AppDomain.CurrentDomain.GetAssemblies().Length) != iAssemblyCount) // new assembly count
         {
+          iAssemblyCount = iNewCount;
           type = Lua.GetType(FullName);
         }
         return type;
@@ -255,10 +289,11 @@ namespace Neo.IronLua
           else
           {
             parent.GetFullName(sb);
-            if (parent.IsNamespace)
-              sb.Append('.');
-            else
-              sb.Append('+');
+            if (sName[0] != '`') // is generic type
+              if (parent.IsNamespace)
+                sb.Append('.');
+              else
+                sb.Append('+');
             sb.Append(sName);
           }
         }
@@ -268,7 +303,7 @@ namespace Neo.IronLua
 
       #region -- GetIndex, GetClass ---------------------------------------------------
 
-      private Expression GetIndex(string sName, bool lIgnoreCase)
+      private int GetIndex(string sName, bool lIgnoreCase, Func<Type> buildType)
       {
         int iIndex;
 
@@ -292,8 +327,8 @@ namespace Neo.IronLua
         if (iIndex == -1)
         {
           iIndex = subItems.Count; // Setze den Index
-          // Erzeuge das neue Objekt
-          subItems.Add(new LuaClrClassObject(this, sName, miGetValue));
+          // Create the new object
+          subItems.Add(new LuaClrClassObject(this, sName, buildType == null ? null : buildType(), miGetValue));
 
           // Soll der Index angelegt/gepflegt werden
           if (iIndex >= 10)
@@ -309,12 +344,18 @@ namespace Neo.IronLua
           }
         }
 
-        if (iAssemblyCount == 0 && GetItemType() == null) // Kein Type ermittelt, es gibt aber SubItems, dann ist es ein Namespace
+        if (iAssemblyCount >= 0 && GetItemType() == null) // Kein Type ermittelt, es gibt aber SubItems, dann ist es ein Namespace
           iAssemblyCount = -1;
+        return iIndex;
+      } // func GetIndex
 
+      private Expression GetIndexExpression(string sName, bool lIgnoreCase, Func<Type> buildType = null)
+      {
         // Erzeuge die Expression für den Zugriff
-        return Expression.Call(Expression.Constant(this, typeof(LuaClrClassObject)), miGetValue, Expression.Constant(iIndex, typeof(int)));
-      } // func GetNameSpaceIndex
+        return Expression.Call(
+          Expression.Constant(this, typeof(LuaClrClassObject)), miGetValue, 
+          Expression.Constant(GetIndex(sName, lIgnoreCase, buildType), typeof(int)));
+      } // func GetIndexExpression
 
       private int FindIndexByName(string sName, bool lIgnoreCase)
       {
@@ -332,6 +373,30 @@ namespace Neo.IronLua
       {
         return subItems[iIndex];
       } // func GetNameSpace
+
+      public LuaClrClassObject GetGenericItem(Type genericType, LuaClrClassObject[] arguments)
+      {
+        Type[] genericParameters = new Type[arguments.Length];
+
+        // Build the typename
+        StringBuilder sb = new StringBuilder();
+        sb.Append('`').Append(arguments.Length).Append('[');
+        for (int i = 0; i < arguments.Length; i++)
+        {
+          if (i > 0)
+            sb.Append(',');
+
+          Type typeTmp = genericParameters[i] = arguments[i].GetItemType();
+          if (typeTmp == null)
+            throw new LuaRuntimeException(String.Format(Properties.Resources.rsClrGenericNoType, i), null);
+
+          sb.Append('[').Append(typeTmp.AssemblyQualifiedName).Append(']');
+        }
+        sb.Append(']');
+
+        // try to find the typename
+        return GetItem(GetIndex(sb.ToString(), false, () => genericType.MakeGenericType(genericParameters)));
+      } // func GetGenericItem
 
       #endregion
 

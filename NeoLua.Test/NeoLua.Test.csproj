@@ -61,6 +61,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="Complex.cs" />
     <Compile Include="ControlStructures.cs" />
     <Compile Include="Expressions.cs" />
     <Compile Include="Functions.cs" />
@@ -117,6 +118,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Lua\Control11.lua" />
     <EmbeddedResource Include="Lua\Control12.lua" />
+    <EmbeddedResource Include="Lua\Generics01.lua" />
     <None Include="NeoLua.snk" />
   </ItemGroup>
   <Choose>

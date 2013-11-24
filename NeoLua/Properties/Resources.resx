@@ -123,6 +123,12 @@
   <data name="rsChunkWrongScriptManager" xml:space="preserve">
     <value>Chunk is compiled in a differend script-manager.</value>
   </data>
+  <data name="rsClrGenericNoType" xml:space="preserve">
+    <value>No type for the generic argument {0}.</value>
+  </data>
+  <data name="rsClrGenericTypeExpected" xml:space="preserve">
+    <value>Clr type expected (index={0}).</value>
+  </data>
   <data name="rsConstExpressionEvalError" xml:space="preserve">
     <value>Constant expression could not evaluate ({0}).</value>
   </data>

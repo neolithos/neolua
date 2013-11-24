@@ -145,12 +145,7 @@ namespace Neo.IronLua
       {
         // Defer the parameters
         if (!target.HasValue || indexes.Any(c => !c.HasValue))
-        {
-          DynamicMetaObject[] def = new DynamicMetaObject[indexes.Length + 1];
-          def[0] = target;
-          Array.Copy(indexes, 0, def, 1, indexes.Length);
-          return Defer(def);
-        }
+          return Defer(target, indexes);
 
         Expression expr;
         if (GetIndexAccessExpression(target, indexes, out expr))
@@ -646,10 +641,51 @@ namespace Neo.IronLua
         return BindResult.MemberNotFound;
       }
 
+      // check if we need to make an non-generic call
+      if (miBind.ContainsGenericParameters)
+        miBind = MakeNonGenericMethod((MethodInfo)miBind, arguments);
+
       // Create the expression with the arguments
       expr = InvokeMemberExpression(target, miBind, null, arguments);
       return BindResult.Ok;
     } // func TryBindInvokeMember
+
+    private static MethodInfo MakeNonGenericMethod(MethodInfo mi, DynamicMetaObject[] arguments)
+    {
+      ParameterInfo[] parameters = mi.GetParameters();
+      Type[] genericArguments = mi.GetGenericArguments();
+      Type[] genericParameter = new Type[genericArguments.Length];
+
+      for (int i = 0; i < genericArguments.Length; i++)
+      {
+        Type t = null;
+
+        // look for the typ
+        for (int j = 0; j < parameters.Length; j++)
+        {
+          if (parameters[j].ParameterType == genericArguments[i])
+          {
+            t = CombineType(t, arguments[j].LimitType);
+            break;
+          }
+        }
+        genericParameter[i] = t;
+      }
+
+      return mi.MakeGenericMethod(genericParameter);
+    } // func MakeNonGenericMethod
+
+    private static Type CombineType(Type t, Type type)
+    {
+      if (t == null)
+        return type;
+      else if(t.IsAssignableFrom(type))
+        return t;
+      else if(type.IsAssignableFrom(t))
+        return type;
+      else
+        return typeof(object);
+    } // func CombineType
 
     private static Expression InvokeMemberExpression(DynamicMetaObject target, MethodBase miBind, ParameterInfo[] alternativeParameters, DynamicMetaObject[] arguments)
     {
@@ -942,15 +978,63 @@ namespace Neo.IronLua
     {
       if (j < parameters.Length && j < arguments.Length)
       {
-        if (parameters[j].ParameterType == arguments[j].LimitType)
+        Type type1 = parameters[j].ParameterType;
+        Type type2 = arguments[j].LimitType;
+
+        if (type1 == type2) // exact equal types
         {
           lExact = true;
           return true;
         }
-        else if (parameters[j].ParameterType.IsAssignableFrom(arguments[j].LimitType))
+        else if (type1.IsAssignableFrom(type2)) // is at least assignable
         {
           lExact = false;
           return true;
+        }
+        else if (type1.IsGenericParameter) // the parameter is a generic type
+        {
+          Type[] typeConstraints = type1.GetGenericParameterConstraints();
+
+          lExact = false;
+
+          // check "class"
+          if ((type1.GenericParameterAttributes & GenericParameterAttributes.ReferenceTypeConstraint) != 0 && type2.IsValueType)
+            return false;
+
+          // check struct
+          if ((type1.GenericParameterAttributes & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0 && !type2.IsValueType)
+            return false;
+
+          // check new()
+          if ((type1.GenericParameterAttributes & GenericParameterAttributes.DefaultConstructorConstraint) != 0)
+          {
+            // check default ctor
+            if (type2.GetConstructor(new Type[0]) == null)
+              return false;
+          }
+
+          // no contraints, all is allowed
+          if (typeConstraints.Length == 0)
+            return true;
+
+          // search for the constraint
+          bool lNoneExactMatch = false;
+          for (int i = 0; i < typeConstraints.Length; i++)
+          {
+            if (typeConstraints[i] == type2)
+            {
+              lExact = true;
+              return true;
+            }
+            else if (typeConstraints[i].IsAssignableFrom(type2))
+              lNoneExactMatch = true;
+          }
+
+          if (lNoneExactMatch)
+          {
+            lExact = false;
+            return true;
+          }
         }
       }
 

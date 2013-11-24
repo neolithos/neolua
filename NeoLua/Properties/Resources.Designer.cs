@@ -79,6 +79,24 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die No type for the generic argument {0}. ähnelt.
+        /// </summary>
+        internal static string rsClrGenericNoType {
+            get {
+                return ResourceManager.GetString("rsClrGenericNoType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Clr type expected (index={0}). ähnelt.
+        /// </summary>
+        internal static string rsClrGenericTypeExpected {
+            get {
+                return ResourceManager.GetString("rsClrGenericTypeExpected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Sucht eine lokalisierte Zeichenfolge, die Constant expression could not evaluate ({0}). ähnelt.
         /// </summary>
         internal static string rsConstExpressionEvalError {
