@@ -54,6 +54,7 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <None Include="Samples\StringBuilder.lua" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

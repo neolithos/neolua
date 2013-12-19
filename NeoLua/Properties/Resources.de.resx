@@ -172,7 +172,7 @@
     <value>Zahl erwartet ('{0}' nicht konvertiert).</value>
   </data>
   <data name="rsParseEof" xml:space="preserve">
-    <value>Unerwartetes Dateiende.</value>
+    <value>Block vor Dateiende geschlossen.</value>
   </data>
   <data name="rsParseExpressionNoResult" xml:space="preserve">
     <value>Ausdruck hat kein Ergebnis.</value>

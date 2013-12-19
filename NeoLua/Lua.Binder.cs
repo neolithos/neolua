@@ -48,9 +48,9 @@ namespace Neo.IronLua
         // restrictions
         var restrictions = target.Restrictions;
         if (target.Value == null)
-          restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, target.LimitType));
+          restrictions = restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, target.LimitType));
         else
-          restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
+          restrictions = restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
 
         // try to bind the member
         Expression expr;

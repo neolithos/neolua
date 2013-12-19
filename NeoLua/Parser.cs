@@ -956,7 +956,7 @@ namespace Neo.IronLua
           if (t.Value == csClr) // clr is a special package, that always exists
           {
             code.Next();
-            info = new PrefixMemberInfo(tStart, Expression.Constant(LuaGlobal.Clr), null, null, null);
+            info = new PrefixMemberInfo(tStart, Expression.Constant(LuaGlobal.Clr, typeof(IDynamicMetaObjectProvider)), null, null, null);
           }
           else
           {

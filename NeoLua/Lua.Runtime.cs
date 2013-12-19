@@ -106,7 +106,8 @@ namespace Neo.IronLua
       if (a.Length > 0)
         Array.Copy(a, r, a.Length);
       if (iStartIndex < b.Length)
-        Array.Copy(b, iStartIndex, r, a.Length, iCountB);
+        for (int i = 0; i < iCountB; i++)
+          r.SetValue(RtConvert(b.GetValue(i + iStartIndex), elementType), i + a.Length);
 
       return r;
     } // func RtConcatArrays
@@ -131,6 +132,8 @@ namespace Neo.IronLua
           return null;
       else if (typeTo == typeof(string)) // Convert to string
       {
+        if (value is string)
+          return value;
         TypeConverter conv = TypeDescriptor.GetConverter(value.GetType());
         return conv.ConvertToInvariantString(value);
       }
@@ -138,10 +141,13 @@ namespace Neo.IronLua
       {
         Type typeFrom = value.GetType();
 
+        if (typeFrom == typeTo)
+          return value;
+
         // Specials cases
         if (typeFrom.IsEnum)
           typeFrom = typeFrom.GetEnumUnderlyingType();
-        
+
         if (typeTo.IsAssignableFrom(typeFrom))
           return value;
         else

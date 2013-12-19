@@ -166,7 +166,7 @@ namespace Neo.IronLua
 
         StringBuilder sb = new StringBuilder(chars.Length);
         for (int i = 0; i < chars.Length; i++)
-          sb[i] = (char)chars[i];
+          sb.Append((char)chars[i]);
 
         return sb.ToString();
       } // func char

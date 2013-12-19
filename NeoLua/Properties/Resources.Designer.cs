@@ -223,7 +223,7 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
-        ///   Sucht eine lokalisierte Zeichenfolge, die Unexpected eof. ähnelt.
+        ///   Sucht eine lokalisierte Zeichenfolge, die Current block is closed before end of file. ähnelt.
         /// </summary>
         internal static string rsParseEof {
             get {

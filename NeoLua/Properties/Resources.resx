@@ -172,7 +172,7 @@
     <value>Number expected ('{0}' not converted).</value>
   </data>
   <data name="rsParseEof" xml:space="preserve">
-    <value>Unexpected eof.</value>
+    <value>Current block is closed before end of file.</value>
   </data>
   <data name="rsParseExpressionNoResult" xml:space="preserve">
     <value>Expression has no result.</value>
