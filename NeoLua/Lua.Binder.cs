@@ -687,7 +687,7 @@ namespace Neo.IronLua
         return typeof(object);
     } // func CombineType
 
-    private static Expression InvokeMemberExpression(DynamicMetaObject target, MethodBase miBind, ParameterInfo[] alternativeParameters, DynamicMetaObject[] arguments)
+    internal static Expression InvokeMemberExpression(DynamicMetaObject target, MethodBase miBind, ParameterInfo[] alternativeParameters, DynamicMetaObject[] arguments)
     {
       Expression expr;
       List<ParameterExpression> vars = new List<ParameterExpression>(); // Variables for the result

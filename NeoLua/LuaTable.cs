@@ -121,15 +121,19 @@ namespace Neo.IronLua
         }
         else
         {
-          PropertyInfo piItemIndex = typeof(List<object>).GetProperty("Item", BindingFlags.Public | BindingFlags.Instance);
-
-          // IndexAccess expression
-          Expression expr = Expression.MakeIndex(Expression.Constant(t.values, typeof(List<object>)), piItemIndex, new Expression[] { Expression.Constant(iIndex, typeof(int)) });
-
           // Create MO with restriction
-          return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(Expression, Value));
+          return new DynamicMetaObject(GetIndexExpression(t, iIndex), BindingRestrictions.GetInstanceRestriction(Expression, Value));
         }
       } // func GetMemberAccess
+
+      private Expression GetIndexExpression(LuaTable t, int iIndex)
+      {
+        PropertyInfo piItemIndex = typeof(List<object>).GetProperty("Item", BindingFlags.Public | BindingFlags.Instance);
+
+        // IndexAccess expression
+        Expression expr = Expression.MakeIndex(Expression.Constant(t.values, typeof(List<object>)), piItemIndex, new Expression[] { Expression.Constant(iIndex, typeof(int)) });
+        return expr;
+      } // func GetIndexExpression
 
       /// <summary></summary>
       /// <param name="binder"></param>
@@ -168,20 +172,76 @@ namespace Neo.IronLua
       /// <param name="args"></param>
       /// <returns></returns>
       public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
-      { 
-        // Member calls add a hidden parameter to the argument list
-        DynamicMetaObject[] argsEnlarged ;
-        if (args != null && args.Length > 0)
+      {
+        LuaTable t = (LuaTable)Value;
+
+        // Is there a member with this Name
+        int iIndex = t.GetValueIndex(binder.Name, binder.IgnoreCase, false);
+
+        if (iIndex == -1) // currently, member does not exists
         {
-          argsEnlarged = new DynamicMetaObject[args.Length + 1];
-          Array.Copy(args, 0, argsEnlarged, 1, args.Length);
+          // no fallback, to hide the static typed interface
+          // if the length of the value-Array changed, then rebind
+          Expression expr = Expression.Condition(
+            Expression.Equal(
+              Expression.Property(Expression.Constant(t.values, typeof(List<object>)), typeof(List<object>), "Count"),
+              Expression.Constant(t.values.Count, typeof(int))),
+            Lua.ThrowExpression(Properties.Resources.rsNilNotCallable),
+            binder.GetUpdateExpression(typeof(object)));
+
+          return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(Expression, Value));
         }
         else
-          argsEnlarged = new DynamicMetaObject[1];
-        argsEnlarged[0] = new DynamicMetaObject(this.Expression, BindingRestrictions.Empty, Value);
-        
-        // We can only call delegates
-        return binder.FallbackInvoke(GetMemberAccess(binder, binder.Name, binder.IgnoreCase, false), argsEnlarged, null);
+        {
+          object f = t.values[iIndex]; // Get the value of the function
+          Delegate d = f as Delegate;
+          Expression exprGet = GetIndexExpression(t, iIndex);
+
+          // Is the current value a delegate
+          if (d == null)
+          {
+            // generate a exception, that is only valid for none delegate types
+            return new DynamicMetaObject(
+              Expression.Condition(
+                Expression.TypeIs(exprGet, typeof(Delegate)),
+                binder.GetUpdateExpression(typeof(object)),
+                Lua.ThrowExpression(String.Format(Properties.Resources.rsInvokeNoDelegate, binder.Name))
+              ),
+              BindingRestrictions.GetInstanceRestriction(Expression, Value)
+            );
+          }
+          else
+          {
+            DynamicMetaObject[] argsToBind;
+
+            // Member calls add a hidden parameter to the argument list
+            MethodInfo mi = d.GetType().GetMethod("Invoke");
+            ParameterInfo[] pi = mi.GetParameters();
+            if (pi.Length > 0 && pi[0].ParameterType == typeof(object))
+            {
+              if (args != null && args.Length > 0)
+              {
+                argsToBind = new DynamicMetaObject[args.Length + 1];
+                Array.Copy(args, 0, argsToBind, 1, args.Length);
+              }
+              else
+                argsToBind = new DynamicMetaObject[1];
+              argsToBind[0] = new DynamicMetaObject(this.Expression, BindingRestrictions.Empty, Value);
+            }
+            else
+              argsToBind = args;
+
+            // generate the call, that is only valid for the current type
+            return new DynamicMetaObject(
+              Expression.Condition(
+                Expression.TypeIs(exprGet, f.GetType()),
+                Lua.InvokeMemberExpression(new DynamicMetaObject(exprGet, BindingRestrictions.Empty, f), mi, null, argsToBind),
+                binder.GetUpdateExpression(typeof(object[]))
+              ),
+              BindingRestrictions.GetInstanceRestriction(Expression, Value)
+            );
+          }
+        }
       } // BindInvokeMember
 
       /// <summary></summary>

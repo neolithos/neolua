@@ -119,6 +119,7 @@
     <EmbeddedResource Include="Lua\Control11.lua" />
     <EmbeddedResource Include="Lua\Control12.lua" />
     <EmbeddedResource Include="Lua\Generics01.lua" />
+    <EmbeddedResource Include="Lua\EnvDynamicCall01.lua" />
     <None Include="NeoLua.snk" />
   </ItemGroup>
   <Choose>

@@ -853,7 +853,7 @@ namespace Neo.IronLua
 
     private static void ParseConst(Scope scope, LuaLexer code)
     {
-      // const ::= identifier '=' expr
+      // const ::= variable '=' expr
 
       string sType;
       Token tVarName;
@@ -1129,14 +1129,14 @@ namespace Neo.IronLua
         return Expression.Constant(0, typeof(int));
       else
       {
-        // remote the '0x'
+        // remove the '0x'
         if (sNumber.Length > 2 && sNumber[0] == '0' && (sNumber[1] == 'x' || sNumber[1] == 'X'))
           sNumber = sNumber.Substring(2);
 
-        // Konvertiere die Zahl
+        // Convert the number as an integer
         if (Int32.TryParse(sNumber, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out i))
           return Expression.Constant(i, typeof(int));
-        // Todo: Binäre Exponente???
+        // Todo: Binary Exponents?
         //else if (Double.TryParse(sNumber, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out d))
         //  return Expression.Constant(d, typeof(Double));
         else
@@ -1486,6 +1486,8 @@ namespace Neo.IronLua
           return typeof(object);
         case "type":
           return typeof(Type);
+        case "table":
+          return typeof(LuaTable);
         default:
           Type type = Lua.GetType(sTypeName);
           if (type == null)

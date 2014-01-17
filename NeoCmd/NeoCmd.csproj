@@ -54,6 +54,7 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <None Include="Samples\ForEach.lua" />
     <None Include="Samples\StringBuilder.lua" />
   </ItemGroup>
   <ItemGroup>
@@ -69,6 +70,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Samples\DisposeTest.lua" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Samples\FileRead.lua" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

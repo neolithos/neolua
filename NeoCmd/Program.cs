@@ -13,8 +13,9 @@ namespace Neo.IronLua
     public static void Main(string[] args)
     {
       //CodePlexExample6();
+      CodePlexExample7();
       //TestMemory(@"..\..\Samples\Test.lua");
-      //return;
+      return;
 
       // create lua script compiler
       using (Lua l = new Lua())
@@ -204,6 +205,20 @@ namespace Neo.IronLua
           ),
           "test.lua");
         Console.WriteLine(r[0]);
+      }
+    }
+
+    private static void CodePlexExample7()
+    {
+      using (Lua l = new Lua())
+      {
+        var f = l.CreateLambda<Func<double, double>>("f", "return clr.System.Math:Abs(x) * 2", "x");
+        Console.WriteLine("f({0}) = {1}", 2, f(2));
+        Console.WriteLine("f({0}) = {1}", 2, f(-2));
+
+        var f2 = l.CreateLambda("f2", "local Math = clr.System.Math; return Math:Abs(x) * 2;", null, typeof(double), new KeyValuePair<string, Type>("x", typeof(double)));
+        Console.WriteLine("f2({0}) = {1}", 2, f2.DynamicInvoke(2));
+        Console.WriteLine("f2({0}) = {1}", 2, f2.DynamicInvoke(-2));
       }
     }
 
