@@ -29,10 +29,12 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
+        l.PrintExpressionTree = true;
         dynamic g = l.CreateEnvironment();
-        dynamic dc = g.dochunk;
-        dc(GetCode("Lua.EnvDynamicCall01.lua"), "test.lua");
+        g.dochunk(GetCode("Lua.EnvDynamicCall01.lua"), "test.lua");
+        Assert.IsTrue(TestReturn(g.b.a(5), 20));
         Assert.IsTrue(TestReturn(g.b.b(5), 15));
+        Assert.IsTrue(TestReturn(g.test(5), 10));
       }
     } // prop EnvDynamicCall01
   } // class LuaTableTests

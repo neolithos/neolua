@@ -33,6 +33,8 @@ namespace Neo.IronLua
 
   #endregion
 
+  #region -- class Lua ----------------------------------------------------------------
+
   ///////////////////////////////////////////////////////////////////////////////
   /// <summary>All static methods for the language implementation</summary>
   public partial class Lua
@@ -376,4 +378,6 @@ namespace Neo.IronLua
 
     #endregion
   } // class Lua
+
+  #endregion
 }

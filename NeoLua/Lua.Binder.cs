@@ -200,7 +200,7 @@ namespace Neo.IronLua
 
     ///////////////////////////////////////////////////////////////////////////////
     /// <summary></summary>
-    private class LuaInvokeBinder : InvokeBinder
+    internal class LuaInvokeBinder : InvokeBinder
     {
       public LuaInvokeBinder(CallInfo callInfo)
         : base(callInfo)
@@ -1068,7 +1068,7 @@ namespace Neo.IronLua
       return restrictions;
     } // func GetMethodSignatureRestriction
 
-    private static DynamicMetaObject BindFallbackInvoke(DynamicMetaObject target, DynamicMetaObject[] args, DynamicMetaObject errorSuggestion)
+    internal static DynamicMetaObject BindFallbackInvoke(DynamicMetaObject target, DynamicMetaObject[] args, DynamicMetaObject errorSuggestion)
     {
       var restrictions = target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
 

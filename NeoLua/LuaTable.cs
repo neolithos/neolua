@@ -14,11 +14,39 @@ namespace Neo.IronLua
   /// <summary></summary>
   public class LuaTable : IDynamicMetaObjectProvider, INotifyPropertyChanged, IEnumerable<KeyValuePair<object, object>>
   {
+    [ThreadStatic]
+    private static PropertyInfo piItemIndex = null;
+    [ThreadStatic]
+    private static MethodInfo miCheckMethodVersion = null;
+    [ThreadStatic]
+    private static MethodInfo miSetValue1 = null;
+    [ThreadStatic]
+    private static MethodInfo miSetValue2 = null;
+
+    #region -- enum MemberAccessFlag --------------------------------------------------
+
+    ///////////////////////////////////////////////////////////////////////////////
+    /// <summary></summary>
+    [Flags]
+    protected enum MemberAccessFlag
+    {
+      /// <summary>A normal get expression.</summary>
+      None = 0,
+      /// <summary>Get the expression for write access.</summary>
+      ForWrite = 1,
+      /// <summary>Get the expression for member access.</summary>
+      MemberInvoke = 2,
+      /// <summary>Member name is not case sensitive.</summary>
+      IgnoreCase = 4
+    } // enum MemberAccessFlag
+
+    #endregion
+
     #region -- class LuaMetaObject ----------------------------------------------------
 
     ///////////////////////////////////////////////////////////////////////////////
     /// <summary></summary>
-    protected class LuaMetaObject : DynamicMetaObject
+    private class LuaMetaObject : DynamicMetaObject
     {
       /// <summary></summary>
       /// <param name="value"></param>
@@ -99,48 +127,12 @@ namespace Neo.IronLua
         }
       } // func BindGetIndex
 
-      private DynamicMetaObject GetMemberAccess(DynamicMetaObjectBinder binder, object memberName, bool lIgnoreCase, bool lForWrite)
-      {
-        LuaTable t = (LuaTable)Value;
-
-        // Get the index of the name
-        int iIndex = t.GetValueIndex(memberName, lIgnoreCase, lForWrite);
-
-        if (iIndex == -1) // Create an update rule
-        {
-          // no fallback, to hide the static typed interface
-          // if the length of the value-Array changed, then rebind
-          Expression expr = Expression.Condition(
-            Expression.Equal(
-              Expression.Property(Expression.Constant(t.values, typeof(List<object>)), typeof(List<object>), "Count"),
-              Expression.Constant(t.values.Count, typeof(int))),
-            Expression.Constant(null, typeof(object)),
-            binder.GetUpdateExpression(typeof(object)));
-
-          return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(Expression, Value));
-        }
-        else
-        {
-          // Create MO with restriction
-          return new DynamicMetaObject(GetIndexExpression(t, iIndex), BindingRestrictions.GetInstanceRestriction(Expression, Value));
-        }
-      } // func GetMemberAccess
-
-      private Expression GetIndexExpression(LuaTable t, int iIndex)
-      {
-        PropertyInfo piItemIndex = typeof(List<object>).GetProperty("Item", BindingFlags.Public | BindingFlags.Instance);
-
-        // IndexAccess expression
-        Expression expr = Expression.MakeIndex(Expression.Constant(t.values, typeof(List<object>)), piItemIndex, new Expression[] { Expression.Constant(iIndex, typeof(int)) });
-        return expr;
-      } // func GetIndexExpression
-
       /// <summary></summary>
       /// <param name="binder"></param>
       /// <returns></returns>
       public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
       {
-        return GetMemberAccess(binder, binder.Name, binder.IgnoreCase, false);
+        return ((LuaTable)Value).GetMemberAccess(binder, Expression, binder.Name, binder.IgnoreCase ? MemberAccessFlag.ForWrite : MemberAccessFlag.None);
       } // func BindGetMember
 
       /// <summary></summary>
@@ -153,7 +145,7 @@ namespace Neo.IronLua
           return binder.Defer(value);
 
         ParameterExpression tmp = Expression.Variable(typeof(object), "#tmp");
-        DynamicMetaObject moGet = GetMemberAccess(binder, binder.Name, binder.IgnoreCase, true);
+        DynamicMetaObject moGet = ((LuaTable)Value).GetMemberAccess(binder, Expression, binder.Name, MemberAccessFlag.ForWrite | (binder.IgnoreCase ? MemberAccessFlag.ForWrite : MemberAccessFlag.None));
         return new DynamicMetaObject(
           Expression.Block(new ParameterExpression[] { tmp },
             Expression.Assign(tmp, Expression.Convert(value.Expression, tmp.Type)),
@@ -177,70 +169,31 @@ namespace Neo.IronLua
 
         // Is there a member with this Name
         int iIndex = t.GetValueIndex(binder.Name, binder.IgnoreCase, false);
-
-        if (iIndex == -1) // currently, member does not exists
+        if (iIndex >= 0 && t.IsIndexMarkedAsMethod(iIndex)) // check if the value is a method
         {
-          // no fallback, to hide the static typed interface
-          // if the length of the value-Array changed, then rebind
+          // add the target and the self parameter
+          Expression[] expanedArgs = new Expression[args.Length + 2];
+          expanedArgs[0] = t.GetIndexAccess(iIndex);
+          expanedArgs[1] = Expression;
+          for (int i = 0; i < args.Length; i++)
+            expanedArgs[i + 2] = args[i].Expression;
+
           Expression expr = Expression.Condition(
-            Expression.Equal(
-              Expression.Property(Expression.Constant(t.values, typeof(List<object>)), typeof(List<object>), "Count"),
-              Expression.Constant(t.values.Count, typeof(int))),
-            Lua.ThrowExpression(Properties.Resources.rsNilNotCallable),
+            t.CheckMethodVersionExpression(Expression),
+            Expression.Dynamic(t.GetInvokeBinder(new CallInfo(args.Length + 1)), typeof(object), expanedArgs),
             binder.GetUpdateExpression(typeof(object)));
 
           return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(Expression, Value));
         }
-        else
+        else // do a fallback to a normal invoke
         {
-          object f = t.values[iIndex]; // Get the value of the function
-          Delegate d = f as Delegate;
-          Expression exprGet = GetIndexExpression(t, iIndex);
+          DynamicMetaObject moGet = t.GetMemberAccess(binder, Expression, binder.Name, MemberAccessFlag.MemberInvoke | (binder.IgnoreCase ? MemberAccessFlag.IgnoreCase : MemberAccessFlag.None));
+          Expression[] exprArgs = new Expression[args.Length + 1];
+          exprArgs[0] = moGet.Expression;
+          for (int i = 0; i < args.Length; i++)
+            exprArgs[i + 1] = args[i].Expression;
 
-          // Is the current value a delegate
-          if (d == null)
-          {
-            // generate a exception, that is only valid for none delegate types
-            return new DynamicMetaObject(
-              Expression.Condition(
-                Expression.TypeIs(exprGet, typeof(Delegate)),
-                binder.GetUpdateExpression(typeof(object)),
-                Lua.ThrowExpression(String.Format(Properties.Resources.rsInvokeNoDelegate, binder.Name))
-              ),
-              BindingRestrictions.GetInstanceRestriction(Expression, Value)
-            );
-          }
-          else
-          {
-            DynamicMetaObject[] argsToBind;
-
-            // Member calls add a hidden parameter to the argument list
-            MethodInfo mi = d.GetType().GetMethod("Invoke");
-            ParameterInfo[] pi = mi.GetParameters();
-            if (pi.Length > 0 && pi[0].ParameterType == typeof(object))
-            {
-              if (args != null && args.Length > 0)
-              {
-                argsToBind = new DynamicMetaObject[args.Length + 1];
-                Array.Copy(args, 0, argsToBind, 1, args.Length);
-              }
-              else
-                argsToBind = new DynamicMetaObject[1];
-              argsToBind[0] = new DynamicMetaObject(this.Expression, BindingRestrictions.Empty, Value);
-            }
-            else
-              argsToBind = args;
-
-            // generate the call, that is only valid for the current type
-            return new DynamicMetaObject(
-              Expression.Condition(
-                Expression.TypeIs(exprGet, f.GetType()),
-                Lua.InvokeMemberExpression(new DynamicMetaObject(exprGet, BindingRestrictions.Empty, f), mi, null, argsToBind),
-                binder.GetUpdateExpression(typeof(object[]))
-              ),
-              BindingRestrictions.GetInstanceRestriction(Expression, Value)
-            );
-          }
+          return new DynamicMetaObject(Expression.Dynamic(t.GetInvokeBinder(binder.CallInfo), typeof(object), exprArgs), moGet.Restrictions);
         }
       } // BindInvokeMember
 
@@ -260,15 +213,20 @@ namespace Neo.IronLua
     /// <summary>Value has changed.</summary>
     public event PropertyChangedEventHandler PropertyChanged;
 
+    private List<int> methods = null;             // Contains the indexes, they are method declarations
     private List<object> values = null;           // Array with values
     private Dictionary<object, int> names = null; // Names or Indices in the value-Array
     private int iLength = 0;
+
+    private int iMethodVersion = 0;   // if the methods-array is changed, then this values gets increased
+    private Dictionary<CallInfo, CallSiteBinder> invokeBinder = new Dictionary<CallInfo, CallSiteBinder>();
 
     #region -- Ctor/Dtor --------------------------------------------------------------
 
     /// <summary>Creates a new lua table</summary>
     public LuaTable()
     {
+      this.methods = new List<int>();
       this.values = new List<object>();
       this.names = new Dictionary<object, int>();
     } // ctor
@@ -280,10 +238,85 @@ namespace Neo.IronLua
     /// <summary>Returns the Meta-Object</summary>
     /// <param name="parameter"></param>
     /// <returns></returns>
-    public virtual DynamicMetaObject GetMetaObject(Expression parameter)
+    public DynamicMetaObject GetMetaObject(Expression parameter)
     {
       return new LuaMetaObject(this, parameter);
     } // func GetMetaObject
+
+    #endregion
+
+    #region -- Dynamic Members --------------------------------------------------------
+
+    /// <summary>Override to manipulate the member access.</summary>
+    /// <param name="binder">Binder for the process.</param>
+    /// <param name="exprTable">Expression for the binding process.</param>
+    /// <param name="memberName">Name of the member.</param>
+    /// <param name="flags">Flags for the bind expression.</param>
+    /// <returns>MO</returns>
+    protected virtual DynamicMetaObject GetMemberAccess(DynamicMetaObjectBinder binder, Expression exprTable, object memberName, MemberAccessFlag flags)
+    {
+      // Get the index of the name
+      int iIndex = GetValueIndex(memberName, (flags & MemberAccessFlag.IgnoreCase) != 0, (flags & MemberAccessFlag.ForWrite) != 0);
+
+      if (iIndex == -1) // Create an update rule
+      {
+        // no fallback, to hide the static typed interface
+        // if the length of the value-Array changed, then rebind
+        Expression expr = Expression.Condition(
+          TableChangedExpression(),
+          Expression.Constant(null, typeof(object)),
+          binder.GetUpdateExpression(typeof(object)));
+
+        return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(exprTable, this));
+      }
+      else if ((flags & MemberAccessFlag.MemberInvoke) != 0)
+      {
+        Expression expr = Expression.Condition(
+          CheckMethodVersionExpression(exprTable),
+          GetIndexAccess(iIndex),
+          binder.GetUpdateExpression(typeof(object)));
+
+        return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(exprTable, this));
+      }
+      else
+      {
+        // Create MO with restriction
+        return new DynamicMetaObject(GetIndexAccess(iIndex), BindingRestrictions.GetInstanceRestriction(exprTable, this));
+      }
+    } // func GetMemberAccess
+
+    private Expression GetIndexAccess(int iIndex)
+    {
+      if (piItemIndex == null)
+        piItemIndex = typeof(List<object>).GetProperty("Item", BindingFlags.Public | BindingFlags.Instance);
+
+      // IndexAccess expression
+      return Expression.MakeIndex(Expression.Constant(values, typeof(List<object>)), piItemIndex, new Expression[] { Expression.Constant(iIndex, typeof(int)) });
+    } // func GetIndexAccess
+
+    private Expression TableChangedExpression()
+    {
+      return Expression.Equal(
+        Expression.Property(Expression.Constant(values, typeof(List<object>)), typeof(List<object>), "Count"),
+        Expression.Constant(values.Count, typeof(int)));
+    } // func TableChangedExpression
+
+    private Expression CheckMethodVersionExpression(Expression exprTable)
+    {
+      if (miCheckMethodVersion == null)
+        miCheckMethodVersion = typeof(LuaTable).GetMethod("CheckMethodVersion", BindingFlags.NonPublic | BindingFlags.InvokeMethod | BindingFlags.Instance);
+
+      return Expression.Convert(Expression.Call(Expression.Convert(exprTable, typeof(LuaTable)), miCheckMethodVersion, Expression.Constant(iMethodVersion, typeof(int))), typeof(bool));
+    } // func CheckMethodVersionExpression
+
+    private CallSiteBinder GetInvokeBinder(CallInfo callInfo)
+    {
+      CallSiteBinder b;
+      lock (invokeBinder)
+        if (!invokeBinder.TryGetValue(callInfo, out b))
+          b = invokeBinder[callInfo] = new Lua.LuaInvokeBinder(callInfo);
+      return b;
+    } // func GetInvokeBinder
 
     #endregion
 
@@ -355,11 +388,31 @@ namespace Neo.IronLua
       return iIndex;
     } // func GetValueIndex
 
-    private bool SetIndexValue(int iIndex, object value)
+    private bool SetIndexValue(int iIndex, object value, bool lMarkAsMethod)
     {
       object c = values[iIndex];
       if (!Object.Equals(c, value))
       {
+        // Mark methods
+        int iMarkIndex = methods.BinarySearch(iIndex);
+        if (lMarkAsMethod)
+        {
+          if (iMarkIndex < 0)
+          {
+            methods.Insert(~iMarkIndex, iIndex);
+            iMethodVersion++;
+          }
+        }
+        else
+        {
+          if (iMarkIndex >= 0)
+          {
+            methods.RemoveAt(iMarkIndex);
+            iMethodVersion++;
+          }
+        }
+
+        // set the value
         values[iIndex] = value;
         return true;
       }
@@ -394,13 +447,13 @@ namespace Neo.IronLua
       }
     } // func GetValue
 
-    private void SetValue(object item, object value)
+    private void SetValue(object item, object value, bool lMarkAsMethod)
     {
       // Get the Index for the value, if the value is null then do not create a new value
       int iIndex = GetValueIndex(item, false, value != null);
 
       // Set the value, if there is a index
-      if (iIndex != -1 && SetIndexValue(iIndex, value))
+      if (iIndex != -1 && SetIndexValue(iIndex, value, lMarkAsMethod))
       {
         // Notify property changed
         string sPropertyName = item as string;
@@ -418,7 +471,7 @@ namespace Neo.IronLua
     {
       if (iIndex == items.Length - 1)
       {
-        SetValue(items[iIndex], value);
+        SetValue(items[iIndex], value, false);
       }
       else
       {
@@ -432,6 +485,22 @@ namespace Neo.IronLua
         t.SetValue(items, iIndex++, values);
       }
     } // func SetValue
+
+    internal object SetMethod(string sMethodName, Delegate method)
+    {
+      SetValue(sMethodName, method, true);
+      return method;
+    } // proc SetMethod
+
+    internal bool CheckMethodVersion(int iLastVersion)
+    {
+      return iMethodVersion == iLastVersion;
+    } // func CheckMethodVersion
+
+    internal bool IsIndexMarkedAsMethod(int iIndex)
+    {
+      return methods.BinarySearch(iIndex) >= 0;
+    } // func IsIndexMarkedAsMethod
 
     /// <summary>Checks if the Member exists.</summary>
     /// <param name="sName">Membername</param>
@@ -448,19 +517,25 @@ namespace Neo.IronLua
 
     internal static Expression SetValueExpression(Expression table, Expression index, Expression set)
     {
+      if (miSetValue1 == null)
+        miSetValue1 = typeof(LuaTable).GetMethod("SetValue", BindingFlags.Instance | BindingFlags.NonPublic, null, new Type[] { typeof(object), typeof(object), typeof(bool) }, null);
+
       return Expression.Call(
                 table,
-                typeof(LuaTable).GetMethod("SetValue", BindingFlags.Instance | BindingFlags.NonPublic, null, new Type[] { typeof(object), typeof(object) }, null),
+                miSetValue1,
                 index,
-                set
+                set,
+                Expression.Constant(false)
               );
     } // func SetValueExpression
 
     internal static Expression SetValueExpression(Expression table, Expression[] indexes, Expression set)
     {
+      if (miSetValue2 == null)
+        miSetValue2 = typeof(LuaTable).GetMethod("SetValue", BindingFlags.Instance | BindingFlags.NonPublic, null, new Type[] { typeof(object[]), typeof(object) }, null);
       return Expression.Call(
                 table,
-                typeof(LuaTable).GetMethod("SetValue", BindingFlags.Instance | BindingFlags.NonPublic, null, new Type[] { typeof(object[]), typeof(object) }, null),
+                miSetValue2,
                 Expression.NewArrayInit(typeof(object), indexes),
                 set
               );
@@ -492,15 +567,15 @@ namespace Neo.IronLua
     /// <summary>Returns or sets an value in the lua-table.</summary>
     /// <param name="iIndex">Index.</param>
     /// <returns>Value or <c>null</c></returns>
-    public object this[int iIndex] { get { return GetValue(iIndex); } set { SetValue(iIndex, value); } }
+    public object this[int iIndex] { get { return GetValue(iIndex); } set { SetValue(iIndex, value, false); } }
     /// <summary>Returns or sets an value in the lua-table.</summary>
     /// <param name="sName">Index.</param>
     /// <returns>Value or <c>null</c></returns>
-    public object this[string sName] { get { return GetValue(sName); } set { SetValue(sName, value); } }
+    public object this[string sName] { get { return GetValue(sName); } set { SetValue(sName, value, false); } }
     /// <summary>Returns or sets an value in the lua-table.</summary>
     /// <param name="item">Index.</param>
     /// <returns>Value or <c>null</c></returns>
-    public object this[object item] { get { return GetValue(item); } set { SetValue(item, value); } }
+    public object this[object item] { get { return GetValue(item); } set { SetValue(item, value, false); } }
 
     /// <summary>Length if it is an array.</summary>
     public int Length { get { return iLength; } }

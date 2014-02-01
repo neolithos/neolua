@@ -20,68 +20,6 @@ namespace Neo.IronLua
     /// <summary></summary>
     public const string VersionString = "NeoLua 5.2";
 
-    #region -- class LuaCoreMetaObject ------------------------------------------------
-
-    ///////////////////////////////////////////////////////////////////////////////
-    /// <summary></summary>
-    protected class LuaCoreMetaObject : LuaMetaObject
-    {
-      /// <summary></summary>
-      /// <param name="lua"></param>
-      /// <param name="parameter"></param>
-      public LuaCoreMetaObject(LuaGlobal lua, Expression parameter)
-        : base(lua, parameter)
-      {
-      } // ctor
-
-      private bool TryGetLuaSystem(string sName, out Expression expr)
-      {
-        Lua.CoreFunction f;
-        IDynamicMetaObjectProvider lib;
-        if (Lua.TryGetLuaFunction(sName, Value.GetType(), out f))
-        {
-          expr = Expression.Constant(f.GetDelegate(Value), typeof(object));
-          return true;
-        }
-        else if (Lua.TryGetSystemLibrary(sName, out lib))
-        {
-          expr = Expression.Constant(lib, typeof(object));
-          return true;
-        }
-        else
-        {
-          expr = null;
-          return false;
-        }
-      } // func TryGetLuaSystem
-
-      /// <summary></summary>
-      /// <param name="binder"></param>
-      /// <returns></returns>
-      public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
-      {
-        // Access to clr can not overload
-        if (binder.Name == "_VERSION")
-          return new DynamicMetaObject(Expression.Constant(VersionString, typeof(string)), BindingRestrictions.GetInstanceRestriction(Expression, Value));
-
-        // Bind the value
-        DynamicMetaObject moGet = base.BindGetMember(binder);
-
-        // Check for system function or library
-        Expression expr;
-        if (TryGetLuaSystem(binder.Name, out expr))
-        {
-          return new DynamicMetaObject(
-            Expression.Coalesce(moGet.Expression, expr),
-            moGet.Restrictions);
-        }
-        else
-          return moGet;
-      } // proc BindGetMember
-    } // class LuaCoreMetaObject
-
-    #endregion
-
     #region -- class LuaClrClassObject ------------------------------------------------
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -459,6 +397,8 @@ namespace Neo.IronLua
 
     private Lua lua;
 
+    #region -- Ctor/Dtor --------------------------------------------------------------
+
     /// <summary>Create a new environment for the lua script manager.</summary>
     /// <param name="lua"></param>
     public LuaGlobal(Lua lua)
@@ -469,13 +409,66 @@ namespace Neo.IronLua
       this.lua = lua;
     } // ctor
 
-    /// <summary>Dynamic interface.</summary>
-    /// <param name="parameter"></param>
-    /// <returns></returns>
-    public override DynamicMetaObject GetMetaObject(Expression parameter)
+    #endregion
+
+    #region -- Dynamic Members --------------------------------------------------------
+
+    private bool TryGetLuaSystem(string sName, out Expression expr)
     {
-      return new LuaCoreMetaObject(this, parameter);
-    } // func GetMetaObject
+      Lua.CoreFunction f;
+      IDynamicMetaObjectProvider lib;
+      if (Lua.TryGetLuaFunction(sName, GetType(), out f))
+      {
+        expr = Expression.Constant(f.GetDelegate(this), typeof(object));
+        return true;
+      }
+      else if (Lua.TryGetSystemLibrary(sName, out lib))
+      {
+        expr = Expression.Constant(lib, typeof(object));
+        return true;
+      }
+      else
+      {
+        expr = null;
+        return false;
+      }
+    } // func TryGetLuaSystem
+
+    /// <summary></summary>
+    /// <param name="binder"></param>
+    /// <param name="exprTable"></param>
+    /// <param name="memberName"></param>
+    /// <param name="flags"></param>
+    /// <returns></returns>
+    protected override DynamicMetaObject GetMemberAccess(DynamicMetaObjectBinder binder, Expression exprTable, object memberName, MemberAccessFlag flags)
+    {
+      if ((flags & MemberAccessFlag.ForWrite) == 0  && memberName is string)
+      {
+        string sMemberName = (string)memberName;
+
+        // Access to clr can not overload
+        if (String.Compare(sMemberName, "_VERSION", (flags & MemberAccessFlag.IgnoreCase) !=0) == 0)
+          return new DynamicMetaObject(Expression.Constant(VersionString, typeof(string)), BindingRestrictions.GetInstanceRestriction(exprTable, this));
+
+        // Bind the value
+        DynamicMetaObject moGet = base.GetMemberAccess(binder, exprTable, memberName, flags);
+
+        // Check for system function or library
+        Expression expr;
+        if (TryGetLuaSystem(sMemberName, out expr))
+        {
+          return new DynamicMetaObject(
+          Expression.Coalesce(moGet.Expression, expr),
+          moGet.Restrictions);
+        }
+        else
+          return moGet;
+      }
+      else
+        return base.GetMemberAccess(binder, exprTable, memberName, flags);
+    } // func GetMemberAccess
+
+    #endregion
 
     /// <summary>Registers a type as an library.</summary>
     /// <param name="sName"></param>

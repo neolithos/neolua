@@ -1857,7 +1857,7 @@ namespace Neo.IronLua
     {
       FetchToken(LuaToken.KwFunction, code);
 
-      if (lLocal) // Nur ein Identifier ist erlaubt
+      if (lLocal) // Local function, only one identifier is allowed
       {
         var t = FetchToken(LuaToken.Identifier, code);
         ParameterExpression funcVar = scope.RegisterVariable(typeof(Delegate), t.Value);
@@ -1868,39 +1868,67 @@ namespace Neo.IronLua
           )
         );
       }
-      else // Liste mit Identifiern ist möglich
+      else // Function that is assigned to a table. A chain of identifiers is allowed.
       {
-        StringBuilder sbFullMemberName = new StringBuilder();
-        bool lGenerateSelf = false;
-        // Member mit der Startet
-        Expression assignee = scope.LookupExpression(csEnv);
+        Expression assignee = null;
         string sMember = FetchToken(LuaToken.Identifier, code).Value;
-        sbFullMemberName.Append(sMember);
 
-        // Es gibt die Möglichkeit mehrere Member anzugegeben
+        // Collect the chain of members
         while (code.Current.Typ == LuaToken.Dot)
         {
           code.Next();
 
-          // Erzeuge eine GetMember für den aktuelen Assignee
-          assignee = Expression.Dynamic(scope.Runtime.GetGetMemberBinder(sMember), typeof(object), assignee);
+          // Create the get-member for the current assignee
+          assignee = ParseFunctionAddChain(scope, assignee, sMember);
           sMember = FetchToken(LuaToken.Identifier, code).Value;
-          sbFullMemberName.Append('.').Append(sMember);
         }
+        // add a method to the table. methods get a hidden parameter and will bo marked
         if (code.Current.Typ == LuaToken.Colon)
         {
           code.Next();
 
-          // Erzeuge eine GetMember für den aktuelen Assignee
-          lGenerateSelf = true;
-          assignee = Expression.Dynamic(scope.Runtime.GetGetMemberBinder(sMember), typeof(object), assignee);
+          // add the last member to the assignee chain
+          assignee = ParseFunctionAddChain(scope, assignee, sMember);
+          // fetch the method name
           sMember = FetchToken(LuaToken.Identifier, code).Value;
-          sbFullMemberName.Append('.').Append(sMember);
-        }
 
-        scope.AddExpression(Expression.Dynamic(scope.Runtime.GetSetMemberBinder(sMember), typeof(object), assignee, ToTypeExpression(ParseLamdaDefinition(scope, code, sMember, lGenerateSelf), typeof(object))));
+          // generate the lambda
+          scope.AddExpression(
+            Expression.Call(
+              ToTypeExpression(assignee, typeof(LuaTable)),
+              typeof(LuaTable).GetMethod("SetMethod", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod),
+              Expression.Constant(sMember, typeof(string)),
+              ToTypeExpression(ParseLamdaDefinition(scope, code, sMember, true), typeof(Delegate)))
+            );
+        }
+        else
+        {
+          if (assignee == null)
+            assignee = scope.LookupExpression(csEnv); // create a global function
+          
+          scope.AddExpression(
+            Expression.Dynamic(
+              scope.Runtime.GetSetMemberBinder(sMember), typeof(object), 
+              assignee, ToTypeExpression(ParseLamdaDefinition(scope, code, sMember, false), 
+              typeof(object))));
+        }
       }
     } // proc ParseLamdaDefinition
+
+    private static Expression ParseFunctionAddChain(Scope scope, Expression assignee, string sMember)
+    {
+      if (assignee == null)
+      {
+         Expression expr = scope.LookupExpression(sMember);
+         if (expr == null)
+           assignee = ParseFunctionAddChain(scope, scope.LookupExpression(csEnv), sMember);
+         else
+           assignee = expr;
+      }
+      else
+        assignee = Expression.Dynamic(scope.Runtime.GetGetMemberBinder(sMember), typeof(object), assignee);
+      return assignee;
+    } // proc ParseFunctionAddChain
 
     private static Expression ParseLamdaDefinition(Scope parent, LuaLexer code, string sName, bool lSelfParameter)
     {
