@@ -73,11 +73,13 @@ namespace Neo.IronLua
       {
         BindingRestrictions r = BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaResult));
         LuaResult v = (LuaResult)Value;
-        if (binder.Type == typeof(object[]))
+        if (binder.Type == typeof(LuaResult))
+          return new DynamicMetaObject(Expression.Convert(this.Expression, binder.ReturnType), r);
+        else if (binder.Type == typeof(object[]))
           return new DynamicMetaObject(GetResultExpression(), r, v.result);
         else
           return binder.FallbackConvert(new DynamicMetaObject(
-            GetFirstResultExpression(), 
+            GetFirstResultExpression(),
             r,
             GetFirstResult()));
       } // func BindConvert
@@ -165,7 +167,7 @@ namespace Neo.IronLua
     {
       // are there values
       if (values == null || values.Length == 0)
-        return null;
+        return emptyArray;
       else if (values.Length == 1 && values[0] is LuaResult) // Only on element, that is a result no copy necessary
         return (LuaResult)values[0];
       else if (values[values.Length - 1] is LuaResult) // is the last result an an result -> concat the arrays
@@ -1113,17 +1115,15 @@ namespace Neo.IronLua
             Expression.Property(null, Lua.ResultEmptyPropertyInfo)
             );
         }
-        else if (returnType == typeof(object[])) // Call has the correct result-array
-          expr = exprCall;
-        else // Only one result, cast it to an array
-          expr = Expression.NewArrayInit(typeof(object), Expression.Convert(exprCall, typeof(object)));
+        else // the case will be done by the language
+          expr = Expression.Convert(exprCall, typeof(object));
       else // Return the variables in the correct order
       {
         Expression[] r = new Expression[vars.Count + 1];
         r[0] = Parser.ToTypeExpression(exprCall, typeof(object));
         for (int i = 0; i < vars.Count; i++)
           r[i + 1] = Parser.ToTypeExpression(vars[i], typeof(object));
-        callBlock.Add(Expression.NewArrayInit(typeof(object), r));
+        callBlock.Add(Expression.Convert(Expression.New(Lua.ResultConstructorInfo, Expression.NewArrayInit(typeof(object), r)), typeof(object)));
         expr = Expression.Block(vars, callBlock);
       }
 

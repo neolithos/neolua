@@ -149,6 +149,7 @@ namespace Neo.IronLua
       } // func ExpressionBlock
 
       public Type ExpressionBlockType { get; set; }
+      public bool ExistExpressions { get { return block.Count > 0; } }
 
       #endregion
 
@@ -216,6 +217,9 @@ namespace Neo.IronLua
     /// <summary>Lambda-Scope with labels and parameters.</summary>
     private class LambdaScope : Scope
     {
+#if DEBUG
+      private bool lReturnLabelUsed = false;
+#endif
       private LabelTarget returnLabel;
       private Dictionary<string, LabelTarget> labels = null;
       private Dictionary<string, ParameterExpression> parameters = new Dictionary<string, ParameterExpression>();
@@ -225,10 +229,11 @@ namespace Neo.IronLua
       /// <summary>Creates the lambda-scope, that manages labels and arguments.</summary>
       /// <param name="parent"></param>
       /// <param name="returnType"></param>
-      public LambdaScope(Scope parent, Type returnType)
+      public LambdaScope(Scope parent, Type returnType = null)
         : base(parent)
       {
-        returnLabel = Expression.Label(returnType, csReturnLabel);
+        if (returnType != null)
+          ResetReturnLabel(returnType);
       } // ctor
 
       #endregion
@@ -282,6 +287,15 @@ namespace Neo.IronLua
 
       #endregion
 
+      public void ResetReturnLabel(Type returnType)
+      {
+#if DEBUG
+        if (lReturnLabelUsed)
+          throw new InvalidOperationException("Reset is not allowed after expressions added.");
+#endif
+        returnLabel = Expression.Label(returnType, csReturnLabel);
+      } // proc ResetReturnLabel
+
       public override Expression ExpressionBlock
       {
         get
@@ -291,7 +305,17 @@ namespace Neo.IronLua
         }
       } // prop ExpressionBlock
 
-      public LabelTarget ReturnLabel { get { return returnLabel; } }
+      public LabelTarget ReturnLabel
+      {
+        get
+        {
+#if DEBUG
+          lReturnLabelUsed = true;
+#endif
+          return returnLabel;
+        }
+      } // prop ReturnLabel
+      
       public override Type ReturnType { get { return returnLabel.Type; } }
     } // class LambdaScope
 
@@ -704,9 +728,9 @@ namespace Neo.IronLua
         if (lLocal) // parse local variables
         {
           Token tVar;
-          string sVarType;
-          ParseLocalVariable(code, out tVar, out sVarType);
-          prefixes.Add(new PrefixMemberInfo(tVar, scope.RegisterVariable(sVarType == null ? typeof(object) : GetType(tVar, sVarType), tVar.Value) , null, null, null));
+          Type typeVar;
+          ParseIdentifierAndType(code, out tVar, out typeVar);
+          prefixes.Add(new PrefixMemberInfo(tVar, scope.RegisterVariable(typeVar, tVar.Value) , null, null, null));
         }
         else // parse a assignee
         {
@@ -859,14 +883,14 @@ namespace Neo.IronLua
     {
       // const ::= variable '=' expr
 
-      string sType;
       Token tVarName;
-      ParseLocalVariable(code, out tVarName, out sType);
+      Type typeVar;
+      ParseIdentifierAndType(code, out tVarName, out typeVar);
       FetchToken(LuaToken.Assign, code);
 
       Expression exprConst = ParseExpression(scope, code, false); // No Debug-Emits
-      if (sType != null)
-        exprConst = ToTypeExpression(exprConst, GetType(tVarName, sType));
+      if (typeVar != typeof(object))
+        exprConst = ToTypeExpression(exprConst, typeVar);
 
       // Try to eval the statement
       if (exprConst.Type == typeof(object) || exprConst.Type == typeof(LuaResult)) // dynamic calls, no constant possible
@@ -1427,18 +1451,18 @@ namespace Neo.IronLua
         return ParsePrefix(scope, code).GenerateGet(scope);
     } // func ParseExpressionCast
 
-    private static void ParseLocalVariable(LuaLexer code, out Token tName, out string sType)
+    private static void ParseIdentifierAndType(LuaLexer code, out Token tName, out Type type)
     {
       // var ::= name ':' type
       tName = FetchToken(LuaToken.Identifier, code);
       if (code.Current.Typ == LuaToken.Colon)
       {
         code.Next();
-        sType = ParseType(code);
+        type = GetType(tName, ParseType(code));
       }
       else
-        sType = null;
-    } // func ParseLocalVariable
+        type = typeof(object);
+    } // func ParseIdentifierAndType
 
     private static string ParseType(LuaLexer code)
     {
@@ -1640,8 +1664,8 @@ namespace Neo.IronLua
       // for name
       FetchToken(LuaToken.KwFor, code);
       Token tLoopVar;
-      string sLoopVarType;
-      ParseLocalVariable(code, out tLoopVar, out sLoopVarType);
+      Type typeLoopVar;
+      ParseIdentifierAndType(code, out tLoopVar, out typeLoopVar);
       if (code.Current.Typ == LuaToken.Assign)
       {
         // = exp, exp [, exp] do block end
@@ -1659,7 +1683,7 @@ namespace Neo.IronLua
           loopStep = Expression.Constant(1, typeof(int));
 
         LoopScope loopScope = new LoopScope(scope);
-        ParameterExpression loopVarParameter = loopScope.RegisterVariable(sLoopVarType == null ? loopStart.Type : GetType(tLoopVar, sLoopVarType), tLoopVar.Value);
+        ParameterExpression loopVarParameter = loopScope.RegisterVariable(typeLoopVar == typeof(object) ? loopStart.Type : typeLoopVar, tLoopVar.Value);
 
         FetchToken(LuaToken.KwDo, code);
         ParseBlock(loopScope, code);
@@ -1673,12 +1697,12 @@ namespace Neo.IronLua
         // fetch all loop variables
         LoopScope loopScope = new LoopScope(scope);
         List<ParameterExpression> loopVars = new List<ParameterExpression>();
-        loopVars.Add(loopScope.RegisterVariable(sLoopVarType == null ? typeof(object) : GetType(tLoopVar, sLoopVarType), tLoopVar.Value));
+        loopVars.Add(loopScope.RegisterVariable(typeLoopVar, tLoopVar.Value));
         while (code.Current.Typ == LuaToken.Comma)
         {
           code.Next();
-          ParseLocalVariable(code, out tLoopVar, out sLoopVarType);
-          loopVars.Add(loopScope.RegisterVariable(sLoopVarType == null ? typeof(object) : GetType(tLoopVar, sLoopVarType), tLoopVar.Value));
+          ParseIdentifierAndType(code, out tLoopVar, out typeLoopVar);
+          loopVars.Add(loopScope.RegisterVariable(typeLoopVar, tLoopVar.Value));
         }
 
         // get the loop expressions
@@ -1705,9 +1729,9 @@ namespace Neo.IronLua
       // fetch the loop variable
       LoopScope loopScope = new LoopScope(scope);
       Token tLoopVar;
-      string sLoopVarType;
-      ParseLocalVariable(code, out tLoopVar, out sLoopVarType);
-      ParameterExpression loopVar = loopScope.RegisterVariable(sLoopVarType == null ? typeof(object) : GetType(tLoopVar, sLoopVarType), tLoopVar.Value);
+      Type typeLoopVar;
+      ParseIdentifierAndType(code, out tLoopVar, out typeLoopVar);
+      ParameterExpression loopVar = loopScope.RegisterVariable(typeLoopVar, tLoopVar.Value);
 
       // get the enumerable expression
       FetchToken(LuaToken.KwIn, code);
@@ -1937,7 +1961,7 @@ namespace Neo.IronLua
     private static Expression ParseLamdaDefinition(Scope parent, LuaLexer code, string sName, bool lSelfParameter)
     {
       List<ParameterExpression> parameters = new List<ParameterExpression>();
-      LambdaScope scope = new LambdaScope(parent, typeof(LuaResult));
+      LambdaScope scope = new LambdaScope(parent);
 
       // Lese die Parameterliste ein
       FetchToken(LuaToken.BracketOpen, code);
@@ -1953,8 +1977,10 @@ namespace Neo.IronLua
         }
         else
         {
-          parameters.Add(scope.RegisterParameter(typeof(object), code.Current.Value));
-          code.Next();
+          Token tName;
+          Type typeArgument;
+          ParseIdentifierAndType(code, out tName, out typeArgument);
+          parameters.Add(scope.RegisterParameter(typeArgument, tName.Value));
 
           while (code.Current.Typ == LuaToken.Comma)
           {
@@ -1966,11 +1992,25 @@ namespace Neo.IronLua
               break;
             }
             else
-              parameters.Add(scope.RegisterParameter(typeof(object), FetchToken(LuaToken.Identifier, code).Value));
+            {
+              ParseIdentifierAndType(code, out tName, out typeArgument);
+              parameters.Add(scope.RegisterParameter(typeArgument, tName.Value));
+            }
           }
         }
       }
       FetchToken(LuaToken.BracketClose, code);
+
+      // Is there a specific result 
+      if (code.Current.Typ == LuaToken.Colon)
+      {
+        var t = code.Current;
+        code.Next();
+        Type typeResult = GetType(t, ParseType(code));
+        scope.ResetReturnLabel(typeResult);
+      }
+      else
+        scope.ResetReturnLabel(typeof(LuaResult));
 
       // Lese den Code-Block
       ParseBlock(scope, code);

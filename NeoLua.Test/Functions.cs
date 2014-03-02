@@ -137,17 +137,33 @@ namespace LuaDLR.Test
     public void TestFunctions14()
     {
       int[] test = new int[] { 1, 2, 3 };
-      Lua l = new Lua();
-      l.PrintExpressionTree = true;
-      LuaGlobal g = l.CreateEnvironment();
-      g["test"] = test;
-      Assert.IsTrue(TestReturn(g.DoChunk("test[0] = 42; return test[0];", "test.lua"), 42));
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        LuaGlobal g = l.CreateEnvironment();
+        g["test"] = test;
+        Assert.IsTrue(TestReturn(g.DoChunk("test[0] = 42; return test[0];", "test.lua"), 42));
+      }
     } // proc TestFunction14
 
     [TestMethod]
     public void TestFunctions15()
     {
       Assert.IsTrue(TestReturn(GetCode("Lua.Function15.lua"), 123));
+    } // proc TestFunctions15
+
+    [TestMethod]
+    public void TestFunctions16()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        dynamic g = l.CreateEnvironment();
+        g.dochunk("function add(a : int, b : int) : int return a + b; end;", "add.lua");
+        Func<int, int, int> a = g.add;
+        Assert.IsTrue(a(1, 3) == 4);
+        Assert.IsTrue(g.add(1, 2) == 3);
+      }
     } // proc TestFunctions15
   } // class Functions
 }
