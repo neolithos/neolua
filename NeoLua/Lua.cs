@@ -261,7 +261,7 @@ namespace Neo.IronLua
     {
       using (LuaLexer l = new LuaLexer(sChunkName, tr))
       {
-        LambdaExpression expr = Parser.ParseChunk(this, lDebug, true, l, null, typeof(object[]), args);
+        LambdaExpression expr = Parser.ParseChunk(this, lDebug, true, l, null, typeof(LuaResult), args);
 
         if (lPrintExpressionTree)
         {

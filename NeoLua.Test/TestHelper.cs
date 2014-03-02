@@ -16,8 +16,8 @@ namespace LuaDLR.Test
       Debug.Print("Test: " + sExpr);
       Lua l = new Lua();
       l.PrintExpressionTree = true;
-      object[] r = l.CreateEnvironment().DoChunk(lFullCode ? sExpr : "local a = " + sExpr + "; return a;", "test.lua");
-      if (result == null && r.Length == 0 || r[0] == result || (Object.Equals(r[0].ToString(), result.ToString()) && r[0].GetType() == result.GetType()))
+      LuaResult r = l.CreateEnvironment().DoChunk(lFullCode ? sExpr : "local a = " + sExpr + "; return a;", "test.lua");
+      if (result == null && r[0] == result || (Object.Equals(r[0].ToString(), result.ToString()) && r[0].GetType() == result.GetType()))
         return true;
       else
       {
@@ -77,20 +77,22 @@ namespace LuaDLR.Test
       return TestReturn(result, r);
     } // func TestReturn
 
-    protected static bool TestReturn(object[] result, params object[] r)
+    protected static bool TestReturn(LuaResult result, params object[] r)
     {
-      if (r == null && result.Length == 0)
+      if (r == null && result.Values.Length == 0)
         return true;
-      if (r.Length != result.Length)
+      if (r.Length != result.Values.Length)
         return false;
 
       for (int i = 0; i < r.Length; i++)
         if (r[i] == null && result[i] == null ||
           (Object.Equals(r[i].ToString(), result[i].ToString()) && r[i].GetType() == result[i].GetType()))
-        { }
+        {
+          Debug.Print("[{0}] {1} == {2}", i, r[i], result[i]);
+        }
         else
         {
-          Debug.Print("{0} != {1}", r[i], result[i]);
+          Debug.Print("[{0}] {1} != {2}", i, r[i], result[i]);
           return false;
         }
       return true;

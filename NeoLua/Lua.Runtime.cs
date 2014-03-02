@@ -17,12 +17,8 @@ namespace Neo.IronLua
   /// <summary>Enumeration with the runtime-functions.</summary>
   internal enum LuaRuntimeHelper
   {
-    /// <summary>Gets an object from a Result-Array.</summary>
-    GetObject,
     /// <summary>Converts a value via the TypeConverter</summary>
     Convert,
-    /// <summary>Creates the Result-Array for the return instruction</summary>
-    ReturnResult,
     /// <summary>Concats the string.</summary>
     StringConcat,
     /// <summary>Sets the table from an initializion list.</summary>
@@ -41,62 +37,15 @@ namespace Neo.IronLua
   {
     private static object luaStaticLock = new object();
     private static Dictionary<LuaRuntimeHelper, MethodInfo> runtimeHelperCache = new Dictionary<LuaRuntimeHelper, MethodInfo>();
+    private static ConstructorInfo ciResultConstructor = null;
+    private static ConstructorInfo ciResultConstructor2 = null;
+    private static PropertyInfo piResultIndex = null;
+    private static PropertyInfo piResultValues = null;
+    private static PropertyInfo piResultEmpty = null;
     private static Dictionary<string, IDynamicMetaObjectProvider> luaSystemLibraries = new Dictionary<string, IDynamicMetaObjectProvider>(); // Array with system libraries
     private static Dictionary<string, Type> knownTypes = null; // Known types of the current AppDomain
     private static List<Type> luaFunctionTypes = new List<Type>();
     private static Dictionary<string, CoreFunction> luaFunctions = new Dictionary<string, CoreFunction>(); // Core functions for the object
-
-    #region -- RtReturnResult, RtGetObject --------------------------------------------
-
-    internal static object[] RtReturnResult(object[] objects)
-    {
-      // Gibt es ein Ergebnis
-      if (objects == null || objects.Length == 0)
-        return objects;
-      else if (objects[objects.Length - 1] is object[]) // Ist das letzte Ergebnis ein Objekt-Array
-      {
-        object[] l = (object[])objects[objects.Length - 1];
-        object[] n = new object[objects.Length - 1 + l.Length];
-
-        // Kopiere die ersten Ergebnisse
-        for (int i = 0; i < objects.Length - 1; i++)
-          if (objects[i] is object[])
-          {
-            object[] t = (object[])objects[i];
-            n[i] = t == null || t.Length == 0 ? null : t[0];
-          }
-          else
-            n[i] = objects[i];
-
-        // Füge die vom letzten Result an
-        for (int i = 0; i < l.Length; i++)
-          n[i + objects.Length - 1] = l[i];
-
-        return n;
-      }
-      else
-      {
-        for (int i = 0; i < objects.Length; i++)
-          if (objects[i] is object[])
-          {
-            object[] t = (object[])objects[i];
-            objects[i] = t == null || t.Length == 0 ? null : t[0];
-          }
-        return objects;
-      }
-    } // func RtReturnResult
-
-    internal static object RtGetObject(object[] values, int i)
-    {
-      if (values == null)
-        return null;
-      else if (i < values.Length)
-        return values[i];
-      else
-        return null;
-    } // func RtGetObject
-
-    #endregion
 
     #region -- RtConcatArrays, RtStringConcat -----------------------------------------
 
@@ -239,6 +188,61 @@ namespace Neo.IronLua
         }
       return mi;
     } // func GetRuntimeHelper
+
+    internal static ConstructorInfo ResultConstructorInfo
+    {
+      get
+      {
+        lock (luaStaticLock)
+          if (ciResultConstructor == null)
+            ciResultConstructor = typeof(LuaResult).GetConstructor(new Type[] { typeof(object[]) });
+        return ciResultConstructor;
+      }
+    } // prop ResultConstructorInfo
+
+    internal static ConstructorInfo ResultConstructorInfo2
+    {
+      get
+      {
+        lock (luaStaticLock)
+          if (ciResultConstructor2 == null)
+            ciResultConstructor2 = typeof(LuaResult).GetConstructor(new Type[] { typeof(object) });
+        return ciResultConstructor2;
+      }
+    } // prop ResultConstructorInfo
+
+    internal static PropertyInfo ResultIndexPropertyInfo
+    {
+      get
+      {
+        lock (luaStaticLock)
+          if (piResultIndex == null)
+            piResultIndex = typeof(LuaResult).GetProperty("Item", BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Instance);
+        return piResultIndex;
+      }
+    } // prop ResultIndexPropertyInfo
+
+    internal static PropertyInfo ResultEmptyPropertyInfo
+    {
+      get
+      {
+        lock (luaStaticLock)
+          if (piResultEmpty == null)
+            piResultEmpty = typeof(LuaResult).GetProperty("Empty", BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Static);
+        return piResultEmpty;
+      }
+    } // prop ResultEmptyPropertyInfo
+
+    internal static PropertyInfo ResultValuesPropertyInfo
+    {
+      get
+      {
+        lock (luaStaticLock)
+          if (piResultValues == null)
+            piResultValues = typeof(LuaResult).GetProperty("Values", BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Instance);
+        return piResultValues;
+      }
+    } // prop ResultValuesPropertyInfo
 
     #endregion
 

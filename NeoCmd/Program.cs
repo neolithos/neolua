@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Dynamic;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading;
 
@@ -12,6 +14,10 @@ namespace Neo.IronLua
   {
     public static void Main(string[] args)
     {
+      dynamic ra = new LuaResult(1, 2, 3);
+      int aaa = ra[1];
+      Console.WriteLine(aaa);
+      
       //CodePlexExample6();
       CodePlexExample7();
       //TestMemory(@"..\..\Samples\Test.lua");

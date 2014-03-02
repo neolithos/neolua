@@ -489,7 +489,7 @@ namespace Neo.IronLua
     /// <param name="sFileName">Name of the lua file.</param>
     /// <param name="args">Parameter definition for the file.</param>
     /// <returns>Return values of the file.</returns>
-    public object[] DoChunk(string sFileName, params KeyValuePair<string, object>[] args)
+    public LuaResult DoChunk(string sFileName, params KeyValuePair<string, object>[] args)
     {
       return DoChunk(sFileName, new StreamReader(sFileName), args);
     } // proc DoFile
@@ -499,7 +499,7 @@ namespace Neo.IronLua
     /// <param name="sName">Name of the stream</param>
     /// <param name="args">Parameter definition for the stream.</param>
     /// <returns>Return values of the stream.</returns>
-    public object[] DoChunk(TextReader sr, string sName, params KeyValuePair<string, object>[] args)
+    public LuaResult DoChunk(TextReader sr, string sName, params KeyValuePair<string, object>[] args)
     {
       return DoChunk(sName, sr, args);
     } // proc DoChunk
@@ -509,12 +509,12 @@ namespace Neo.IronLua
     /// <param name="sName">Name of the lua-code</param>
     /// <param name="args">Parameter definition for the lua-code.</param>
     /// <returns>Return values of the lua-code.</returns>
-    public object[] DoChunk(string sCode, string sName, params KeyValuePair<string, object>[] args)
+    public LuaResult DoChunk(string sCode, string sName, params KeyValuePair<string, object>[] args)
     {
       return DoChunk(sName, new StringReader(sCode), args);
     } // func DoChunk
 
-    private object[] DoChunk(string sChunkName, TextReader tr, KeyValuePair<string, object>[] args)
+    private LuaResult DoChunk(string sChunkName, TextReader tr, KeyValuePair<string, object>[] args)
     {
       // Erzeuge die Parameter
       object[] callArgs;
@@ -544,7 +544,7 @@ namespace Neo.IronLua
     /// <param name="chunk">Compiled chunk.</param>
     /// <param name="callArgs">Arguments for the chunk.</param>
     /// <returns>Return values of the chunk.</returns>
-    public object[] DoChunk(LuaChunk chunk, params object[] callArgs)
+    public LuaResult DoChunk(LuaChunk chunk, params object[] callArgs)
     {
       if (!chunk.IsCompiled)
         throw new ArgumentException(Properties.Resources.rsChunkNotCompiled, "chunk");
@@ -556,7 +556,8 @@ namespace Neo.IronLua
       if (callArgs != null)
         Array.Copy(callArgs, 0, args, 1, callArgs.Length);
       
-      return (object[])chunk.Chunk.DynamicInvoke(args);
+      object r = chunk.Chunk.DynamicInvoke(args);
+      return r is LuaResult ? (LuaResult)r : new LuaResult(r);
     } // func DoChunk
     
     #endregion
@@ -596,7 +597,7 @@ namespace Neo.IronLua
     /// <param name="arg"></param>
     /// <returns></returns>
     [LuaFunction("collectgarbage")]
-    private object[] LuaCollectgarbage(string opt, object arg = null)
+    private LuaResult LuaCollectgarbage(string opt, object arg = null)
     {
       switch (opt)
       {
@@ -605,11 +606,11 @@ namespace Neo.IronLua
           return LuaCollectgarbage("count");
         case "count":
           long iMem = GC.GetTotalMemory(false);
-          return new object[] { iMem / 1024.0, iMem % 1024 };
+          return new LuaResult(iMem / 1024.0, iMem % 1024);
         case "isrunning":
-          return new object[] { true };
+          return new LuaResult(true);
         default:
-          return Lua.EmptyResult;
+          return LuaResult.Empty;
       }
     } // func LuaCollectgarbage
 
@@ -617,7 +618,7 @@ namespace Neo.IronLua
     /// <param name="sFileName"></param>
     /// <returns></returns>
     [LuaFunction("dofile")]
-    private object[] LuaDoFile(string sFileName)
+    private LuaResult LuaDoFile(string sFileName)
     {
       return DoChunk(sFileName);
     } // func LuaDoFile
@@ -627,7 +628,7 @@ namespace Neo.IronLua
     /// <param name="sName"></param>
     /// <returns></returns>
     [LuaFunction("dochunk")]
-    private object[] LuaDoChunk(string sCode, string sName)
+    private LuaResult LuaDoChunk(string sCode, string sName)
     {
       return DoChunk(sCode, sName);
     } // func LuaDoChunk
@@ -658,7 +659,7 @@ namespace Neo.IronLua
         return t[csMetaTable];
     } // func LuaGetMetaTable
 
-    private object[] pairsEnum(object s, object current)
+    private LuaResult pairsEnum(object s, object current)
     {
       System.Collections.IEnumerator e = (System.Collections.IEnumerator)s;
 
@@ -666,30 +667,30 @@ namespace Neo.IronLua
       if (e.MoveNext())
       {
         KeyValuePair<object, object> k = (KeyValuePair<object, object>)e.Current;
-        return new object[] { k.Key, k.Value };
+        return new LuaResult(k.Key, k.Value);
       }
       else
-        return Lua.EmptyResult;
+        return LuaResult.Empty;
     } // func pairsEnum
 
     /// <summary></summary>
     /// <param name="t"></param>
     /// <returns></returns>
     [LuaFunction("ipairs")]
-    private object[] LuaIPairs(LuaTable t)
+    private LuaResult LuaIPairs(LuaTable t)
     {
       var e = new LuaIndexPairEnumerator(t);
-      return new object[] { new Func<object, object, object[]>(pairsEnum), e, e };
+      return new LuaResult(new Func<object, object, LuaResult>(pairsEnum), e, e);
     } // func ipairs
 
     /// <summary></summary>
     /// <param name="t"></param>
     /// <returns></returns>
     [LuaFunction("pairs")]
-    private object[] LuaPairs(LuaTable t)
+    private LuaResult LuaPairs(LuaTable t)
     {
       var e = ((System.Collections.IEnumerable) t).GetEnumerator();
-      return new object[] { new Func<object, object, object[]>(pairsEnum), e, e };
+      return new LuaResult(new Func<object, object, LuaResult>(pairsEnum), e, e);
     } // func LuaPairs
 
     /// <summary></summary>
@@ -730,7 +731,7 @@ namespace Neo.IronLua
     /// <param name="args"></param>
     /// <returns></returns>
     [LuaFunction("pcall")]
-    private object[] LuaPCall(Delegate dlg, params object[] args)
+    private LuaResult LuaPCall(Delegate dlg, params object[] args)
     {
       return LuaXPCall(dlg, null, args);
     } // func LuaPCall
@@ -822,7 +823,7 @@ namespace Neo.IronLua
     /// <param name="values"></param>
     /// <returns></returns>
     [LuaFunction("select")]
-    private object[] LuaSelect(int index, params object[] values)
+    private LuaResult LuaSelect(int index, params object[] values)
     {
       if (index < 0)
       {
@@ -838,7 +839,7 @@ namespace Neo.IronLua
         return r;
       }
       else
-        return Lua.EmptyResult;
+        return LuaResult.Empty;
     } // func LuaSelect
 
     /// <summary></summary>
@@ -923,27 +924,16 @@ namespace Neo.IronLua
     /// <param name="args"></param>
     /// <returns></returns>
     [LuaFunction("xpcall")]
-    private object[] LuaXPCall(Delegate dlg, Delegate msgh, params object[] args)
+    private LuaResult LuaXPCall(Delegate dlg, Delegate msgh, params object[] args)
     {
+      // call the function save
       try
       {
-        // call the function save
-        object _r = dlg.DynamicInvoke(args);
-        object[] r = _r as object[];
-
-        // create the result
-        object[] result = new object[1 + (r == null ? 1 : r.Length)];
-        result[0] = true;
-        if (r != null)
-          Array.Copy(r, 0, result, 1, r.Length);
-        else
-          result[1] = _r;
-
-        return result;
+        return new LuaResult(true, dlg.DynamicInvoke(args));
       }
       catch (Exception e)
       {
-        return new object[] { false, e.Message, e };
+        return new LuaResult(false, e.Message, e);
       }
     } // func LuaPCall
 

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -9,6 +10,402 @@ using System.Text;
 
 namespace Neo.IronLua
 {
+  #region -- class LuaResult ----------------------------------------------------------
+
+  ///////////////////////////////////////////////////////////////////////////////
+  /// <summary>Dynamic result object for lua functions.</summary>
+  public sealed class LuaResult : IDynamicMetaObjectProvider, IConvertible
+  {
+    [ThreadStatic]
+    private static FieldInfo fiResult = null;
+    [ThreadStatic]
+    private static PropertyInfo piLength = null;
+
+    #region -- class LuaResultMetaObject ----------------------------------------------
+
+    ///////////////////////////////////////////////////////////////////////////////
+    /// <summary></summary>
+    private class LuaResultMetaObject : DynamicMetaObject
+    {
+      public LuaResultMetaObject(Expression expression, object value)
+        : base(expression, BindingRestrictions.Empty, value)
+      {
+      } // ctor
+
+      private Expression GetResultExpression()
+      {
+        if (fiResult == null)
+          fiResult = typeof(LuaResult).GetField("result", BindingFlags.NonPublic | BindingFlags.GetField | BindingFlags.Instance);
+        return Expression.Field(Expression.Convert(Expression, typeof(LuaResult)), fiResult);
+      } // func GetResultExpression
+
+      private Expression GetFirstResultExpression()
+      {
+        if (piLength == null)
+          piLength = typeof(object[]).GetProperty("Length", BindingFlags.Instance | BindingFlags.Public | BindingFlags.GetProperty);
+        
+        return Expression.Condition(
+          Expression.AndAlso(
+            Expression.NotEqual(GetResultExpression(), Expression.Constant(null, typeof(object[]))),
+            Expression.GreaterThan(Expression.Property(GetResultExpression(), piLength), Expression.Constant(0, typeof(int)))
+          ),
+          Expression.ArrayIndex(GetResultExpression(), new Expression[] { Expression.Constant(0, typeof(int)) }),
+          Expression.Constant(null, typeof(object))
+        );
+      } // func GetFirstResultExpression
+
+      private object GetFirstResult()
+      {
+        LuaResult v = (LuaResult)Value;
+        return v.result != null && v.result.Length > 0 ? v.result[0] : null;
+      } // GetFirstResult
+
+      private DynamicMetaObject GetTargetMetaObject()
+      {
+        return new DynamicMetaObject(
+          GetFirstResultExpression(),
+          BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaResult)),
+          GetFirstResult()
+        );
+      } // func GetTargetMetaObject
+
+      public override DynamicMetaObject BindConvert(ConvertBinder binder)
+      {
+        BindingRestrictions r = BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaResult));
+        LuaResult v = (LuaResult)Value;
+        if (binder.Type == typeof(object[]))
+          return new DynamicMetaObject(GetResultExpression(), r, v.result);
+        else
+          return binder.FallbackConvert(new DynamicMetaObject(
+            GetFirstResultExpression(), 
+            r,
+            GetFirstResult()));
+      } // func BindConvert
+
+      public override DynamicMetaObject BindInvoke(InvokeBinder binder, DynamicMetaObject[] args)
+      {
+        return binder.FallbackInvoke(GetTargetMetaObject(), args);
+      } // func BindInvoke
+
+      public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
+      {
+        return binder.FallbackInvokeMember(GetTargetMetaObject(), args);
+      } // func BindInvokeMember
+
+      public override DynamicMetaObject BindBinaryOperation(BinaryOperationBinder binder, DynamicMetaObject arg)
+      {
+        return binder.FallbackBinaryOperation(GetTargetMetaObject(), arg);
+      } // func BindBinaryOperation
+
+      public override DynamicMetaObject BindGetIndex(GetIndexBinder binder, DynamicMetaObject[] indexes)
+      {
+        return binder.FallbackGetIndex(this, indexes);
+      } // func BindGetIndex
+
+      public override DynamicMetaObject BindSetIndex(SetIndexBinder binder, DynamicMetaObject[] indexes, DynamicMetaObject value)
+      {
+        return binder.FallbackSetIndex(GetTargetMetaObject(), indexes, value);
+      } // func BindSetIndex
+
+      public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
+      {
+        return binder.FallbackGetMember(GetTargetMetaObject());
+      } // func BindGetMember
+
+      public override DynamicMetaObject BindSetMember(SetMemberBinder binder, DynamicMetaObject value)
+      {
+        return binder.FallbackSetMember(GetTargetMetaObject(), value);
+      } // func BindSetMember
+
+      public override DynamicMetaObject BindUnaryOperation(UnaryOperationBinder binder)
+      {
+        return binder.FallbackUnaryOperation(GetTargetMetaObject());
+      } // func BindUnaryOperation
+    } // class LuaResultMetaObject
+
+    #endregion
+
+    private readonly object[] result;
+
+    #region -- Ctor/Dtor/MO -----------------------------------------------------------
+
+    /// <summary>Creates a empty result-object.</summary>
+    public LuaResult()
+    {
+      this.result = emptyArray;
+    } // ctor
+
+    /// <summary>Creates a empty result-object.</summary>
+    /// <param name="v">One result value</param>
+    public LuaResult(object v)
+    {
+      if (v == null)
+        this.result = emptyArray;
+      else if (v is object[])
+        this.result = CopyResult((object[])v);
+      else if (v is LuaResult)
+        this.result = (LuaResult)v;
+      else
+        this.result = new object[] { v };
+    } // ctor
+
+    /// <summary>Creates a empty result-object.</summary>
+    /// <param name="values">Result values</param>
+    public LuaResult(params object[] values)
+    {
+      this.result = CopyResult(values);
+    } // ctor
+
+    private static object GetObject(object v)
+    {
+      return v is LuaResult ? ((LuaResult)v)[0] : v;
+    } // func GetObject
+
+    private static object[] CopyResult(object[] values)
+    {
+      // are there values
+      if (values == null || values.Length == 0)
+        return null;
+      else if (values.Length == 1 && values[0] is LuaResult) // Only on element, that is a result no copy necessary
+        return (LuaResult)values[0];
+      else if (values[values.Length - 1] is LuaResult) // is the last result an an result -> concat the arrays
+      {
+        object[] l = (LuaResult)values[values.Length - 1];
+        object[] n = new object[values.Length - 1 + l.Length];
+
+        // copy the first values
+        for (int i = 0; i < values.Length - 1; i++)
+          n[i] = GetObject(values[i]);
+
+        // enlarge from the last result
+        for (int i = 0; i < l.Length; i++)
+          n[i + values.Length - 1] = GetObject(l[i]);
+
+        return n;
+      }
+      else
+      {
+        object[] n = new object[values.Length];
+
+        for (int i = 0; i < values.Length; i++)
+          n[i] = GetObject(values[i]);
+
+        return n;
+      }
+    } // func CopyResult
+
+    /// <summary></summary>
+    /// <param name="parameter"></param>
+    /// <returns></returns>
+    public DynamicMetaObject GetMetaObject(Expression parameter)
+    {
+      return new LuaResultMetaObject(parameter, this);
+    } // func GetMetaObject
+
+    #endregion
+
+    #region -- IConvertible members ---------------------------------------------------
+
+    /// <summary></summary>
+    /// <returns></returns>
+    public TypeCode GetTypeCode()
+    {
+      return TypeCode.Object;
+    } // func GetTypeCode
+
+    /// <summary></summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="iIndex"></param>
+    /// <param name="default"></param>
+    /// <returns></returns>
+    public T GetValueOrDefault<T>(int iIndex, T @default)
+    {
+      object v = this[iIndex];
+      try
+      {
+        return (T)Lua.RtConvert(v, typeof(T)); 
+      }
+      catch
+      {
+        return @default;
+      }
+    } // func GetValueOrDefault
+
+    /// <summary></summary>
+    /// <param name="provider"></param>
+    /// <returns></returns>
+    public bool ToBoolean(IFormatProvider provider = null)
+    {
+      return Convert.ToBoolean(this[0], provider);
+    } // func ToBoolean
+
+    /// <summary></summary>
+    /// <param name="provider"></param>
+    /// <returns></returns>
+    public byte ToByte(IFormatProvider provider = null)
+    {
+      return Convert.ToByte(this[0], provider);
+    } // func ToByte
+
+    /// <summary></summary>
+    /// <param name="provider"></param>
+    /// <returns></returns>
+    public char ToChar(IFormatProvider provider = null)
+    {
+      return Convert.ToChar(this[0], provider);
+    } // func ToChar
+
+    /// <summary></summary>
+    /// <param name="provider"></param>
+    /// <returns></returns>
+    public DateTime ToDateTime(IFormatProvider provider = null)
+    {
+      return Convert.ToDateTime(this[0], provider);
+    } // func ToDateTime
+
+    /// <summary></summary>
+    /// <param name="provider"></param>
+    /// <returns></returns>
+    public decimal ToDecimal(IFormatProvider provider = null)
+    {
+      return Convert.ToDecimal(this[0], provider);
+    } // func ToDecimal
+
+    /// <summary></summary>
+    /// <param name="provider"></param>
+    /// <returns></returns>
+    public double ToDouble(IFormatProvider provider = null)
+    {
+      return Convert.ToDouble(this[0], provider);
+    } // func ToDouble
+
+    /// <summary></summary>
+    /// <param name="provider"></param>
+    /// <returns></returns>
+    public short ToInt16(IFormatProvider provider = null)
+    {
+      return Convert.ToInt16(this[0], provider);
+    } // func ToInt16
+
+    /// <summary></summary>
+    /// <param name="provider"></param>
+    /// <returns></returns>
+    public int ToInt32(IFormatProvider provider = null)
+    {
+      return Convert.ToInt32(this[0], provider);
+    } // func ToInt32
+
+    /// <summary></summary>
+    /// <param name="provider"></param>
+    /// <returns></returns>
+    public long ToInt64(IFormatProvider provider = null)
+    {
+      return Convert.ToInt64(this[0], provider);
+    } // func ToInt64
+
+    /// <summary></summary>
+    /// <param name="provider"></param>
+    /// <returns></returns>
+    public sbyte ToSByte(IFormatProvider provider = null)
+    {
+      return Convert.ToSByte(this[0], provider);
+    } // func ToSByte
+
+    /// <summary></summary>
+    /// <param name="provider"></param>
+    /// <returns></returns>
+    public float ToSingle(IFormatProvider provider = null)
+    {
+      return Convert.ToSingle(this[0], provider);
+    } // func ToSingle
+
+    /// <summary></summary>
+    /// <param name="provider"></param>
+    /// <returns></returns>
+    public string ToString(IFormatProvider provider = null)
+    {
+      return Convert.ToString(this[0], provider);
+    } // func ToString
+
+    /// <summary></summary>
+    /// <param name="conversionType"></param>
+    /// <param name="provider"></param>
+    /// <returns></returns>
+    public object ToType(Type conversionType, IFormatProvider provider = null)
+    {
+      object o = this[0];
+      if (o == null)
+        return null;
+
+      TypeConverter conv = TypeDescriptor.GetConverter(o);
+      return conv.ConvertTo(o, conversionType);
+    } // func ToType
+
+    /// <summary></summary>
+    /// <param name="provider"></param>
+    /// <returns></returns>
+    public ushort ToUInt16(IFormatProvider provider = null)
+    {
+      return Convert.ToUInt16(this[0], provider);
+    } // func ToUInt16
+
+    /// <summary></summary>
+    /// <param name="provider"></param>
+    /// <returns></returns>
+    public uint ToUInt32(IFormatProvider provider = null)
+    {
+      return Convert.ToUInt32(this[0], provider);
+    } // func ToUInt32
+
+    /// <summary></summary>
+    /// <param name="provider"></param>
+    /// <returns></returns>
+    public ulong ToUInt64(IFormatProvider provider = null)
+    {
+      return Convert.ToUInt64(this[0], provider);
+    } // func ToUInt64
+
+    #endregion
+
+    /// <summary>Return values.</summary>
+    /// <param name="iIndex"></param>
+    /// <returns></returns>
+    public object this[int iIndex] { get { return result != null && iIndex >= 0 && iIndex < result.Length ? result[iIndex] : null; } }
+    /// <summary>Access to the raw-result values.</summary>
+    public object[] Values { get { return result; } }
+
+    // -- Static --------------------------------------------------------------
+
+    private static LuaResult empty = new LuaResult();
+    private static object[] emptyArray = new object[0];
+
+    /// <summary></summary>
+    /// <param name="r"></param>
+    /// <returns></returns>
+    public static implicit operator object[](LuaResult r)
+    {
+      return r.result;
+    } // operator object[]
+    
+    /// <summary></summary>
+    /// <param name="v"></param>
+    /// <returns></returns>
+    public static implicit operator LuaResult(object[] v)
+    {
+      return new LuaResult(v);
+    } // operator LuaResult
+
+    /// <summary>Represents a empty result</summary>
+    public static LuaResult Empty
+    {
+      get { return empty; }
+    } // prop Empty
+  } // struct LuaResult
+
+  #endregion
+
+  #region -- class Lua ----------------------------------------------------------------
+
   ///////////////////////////////////////////////////////////////////////////////
   /// <summary></summary>
   public partial class Lua
@@ -48,7 +445,7 @@ namespace Neo.IronLua
         // restrictions
         var restrictions = target.Restrictions;
         if (target.Value == null)
-          restrictions = restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, target.LimitType));
+          restrictions = restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, null));
         else
           restrictions = restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
 
@@ -214,7 +611,7 @@ namespace Neo.IronLua
           return Defer(target, args);
 
         if (target.Value == null) // Invoke on null value
-          return new DynamicMetaObject(ThrowExpression(Properties.Resources.rsNilNotCallable), BindingRestrictions.GetInstanceRestriction(target.Expression, target.Value));
+          return new DynamicMetaObject(ThrowExpression(Properties.Resources.rsNilNotCallable), BindingRestrictions.GetInstanceRestriction(target.Expression, null));
 
         return BindFallbackInvoke(target, args, errorSuggestion);
       } // func FallbackInvoke
@@ -226,7 +623,7 @@ namespace Neo.IronLua
 
     ///////////////////////////////////////////////////////////////////////////////
     /// <summary></summary>
-    private class LuaInvokeMemberBinder : InvokeMemberBinder
+    internal class LuaInvokeMemberBinder : InvokeMemberBinder
     {
       public LuaInvokeMemberBinder(string sName, CallInfo callInfo)
         : base(sName, false, callInfo)
@@ -342,7 +739,7 @@ namespace Neo.IronLua
     private class LuaConvertFunctionResultBinder : ConvertBinder
     {
       public LuaConvertFunctionResultBinder()
-        : base(typeof(object[]), false)
+        : base(typeof(LuaResult), false)
       {
       } // ctor
 
@@ -351,12 +748,12 @@ namespace Neo.IronLua
         if (!target.HasValue)
           return Defer(target);
 
-        if (target.LimitType == typeof(object[]) || typeof(object[]).IsAssignableFrom(target.LimitType))
-          return new DynamicMetaObject(Expression.Convert(target.Expression, typeof(object[])), target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType)));
+        if (target.LimitType == typeof(LuaResult))
+          return new DynamicMetaObject(Expression.Convert(target.Expression, typeof(LuaResult)), target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType)));
         else if (target.Value != null)
-          return new DynamicMetaObject(Expression.NewArrayInit(typeof(object), Expression.Convert(target.Expression, typeof(object))), target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType)));
+          return new DynamicMetaObject(Expression.New(Lua.ResultConstructorInfo2, Expression.Convert(target.Expression, typeof(object))) , target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType)));
         else
-          return new DynamicMetaObject(Expression.Constant(emptyResult, typeof(object[])), target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, target.Value)));
+          return new DynamicMetaObject(Expression.Property(null, Lua.ResultEmptyPropertyInfo), target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, target.Value)));
       } // func FallbackConvert
     } // class LuaConvertFunctionResultBinder
 
@@ -626,8 +1023,6 @@ namespace Neo.IronLua
 
     #region -- TryBindInvokeMember ----------------------------------------------------
 
-    private static object[] emptyResult = new object[0];
-
     internal static BindResult TryBindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject target, DynamicMetaObject[] arguments, out Expression expr)
     {
       MethodBase miBind = binder == null ?
@@ -715,7 +1110,7 @@ namespace Neo.IronLua
         {
           expr = Expression.Block(
             exprCall,
-            Expression.Constant(emptyResult, typeof(object[]))
+            Expression.Property(null, Lua.ResultEmptyPropertyInfo)
             );
         }
         else if (returnType == typeof(object[])) // Call has the correct result-array
@@ -764,7 +1159,7 @@ namespace Neo.IronLua
               for (int j = 0; j < iCount; j++)
               {
                 Expression c = arguments[i + j].Expression;
-                if (j == iCount - 1 && c.Type == typeof(object[])) // Start the array counting
+                if (j == iCount - 1 && c.Type == typeof(LuaResult)) // Start the array counting
                 {
                   iLastArgIndex = i + j;
                   iLastIndexCount = 0;
@@ -781,7 +1176,7 @@ namespace Neo.IronLua
                   LuaRuntimeHelper.ConcatArrays,
                   Expression.Constant(elementType, typeof(Type)),
                   Expression.Convert(Expression.NewArrayInit(elementType, exprArray), typeof(Array)),
-                  Expression.Convert(arguments[iLastArgIndex].Expression, typeof(Array)),
+                  Expression.Convert(Expression.Property(arguments[iLastArgIndex].Expression, Lua.ResultValuesPropertyInfo), typeof(Array)),
                   Expression.Constant(iLastIndexCount, typeof(int))
                 ),
                 p.ParameterType);
@@ -795,8 +1190,8 @@ namespace Neo.IronLua
           // Holds the argument get
           Expression exprGet;
 
-          // The last argument is an array (object[] eg. function), start the stretching of the array
-          if (i == arguments.Length - 1 && arguments[i].LimitType == typeof(object[]))
+          // The last argument is a LuaResult (eg. function), start the stretching of the array
+          if (i == arguments.Length - 1 && arguments[i].LimitType == typeof(LuaResult))
           {
             iLastArgIndex = i;
             iLastIndexCount = 0;
@@ -810,7 +1205,9 @@ namespace Neo.IronLua
 
           // get-Expression for the argument
           if (iLastArgIndex >= 0)
-            exprGet = Parser.RuntimeHelperConvertExpression(Parser.RuntimeHelperExpression(LuaRuntimeHelper.GetObject, arguments[iLastArgIndex].Expression, Expression.Constant(iLastIndexCount++, typeof(int))), typeof(object), typeParameter); // We stretch the last argument
+            exprGet = Parser.RuntimeHelperConvertExpression(
+              Expression.MakeIndex(arguments[iLastArgIndex].Expression, Lua.ResultIndexPropertyInfo, new Expression[]{ Expression.Constant(iLastIndexCount++, typeof(int)) }), 
+              typeof(object), typeParameter); // We stretch the last argument
           else if (i < arguments.Length)
             exprGet = Parser.RuntimeHelperConvertExpression(arguments[i].Expression, arguments[i].LimitType, typeParameter); // Convert the Argument
           else if (p.IsOptional)
@@ -865,7 +1262,7 @@ namespace Neo.IronLua
       if (arguments.Length > 0)
       {
         iMaxParameterLength =
-          arguments[arguments.Length - 1].LimitType == typeof(object[]) ?
+          arguments[arguments.Length - 1].LimitType == typeof(LuaResult) ?
           Int32.MaxValue :
           arguments.Length;
       }
@@ -1049,7 +1446,7 @@ namespace Neo.IronLua
       {
         restrictions = target.Restrictions.Merge(BindingRestrictions.Combine(args));
         if (target.Value == null)
-          restrictions = restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, target.Value));
+          restrictions = restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, null));
         else
           restrictions = restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
       }
@@ -1175,8 +1572,7 @@ namespace Neo.IronLua
 
     internal static CallSiteBinder FunctionResultBinder { get { return functionResultBinder; } }
     internal static CallSiteBinder ConvertToBooleanBinder { get { return convertToBooleanBinder; } }
-
-    /// <summary>Returns the instance for an empty result.</summary>
-    public static object[] EmptyResult { get { return emptyResult; } }
   } // class Lua
+
+  #endregion
 }

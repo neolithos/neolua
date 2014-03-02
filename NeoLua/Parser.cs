@@ -22,6 +22,7 @@ namespace Neo.IronLua
     private const string csBreakLabel = "#break";
     private const string csContinueLabel = "#continue";
     private const string csEnv = "_G";
+    private const string csArgListP = "#arglistP";
     private const string csArgList = "#arglist";
     private const string csClr = "clr";
 
@@ -415,7 +416,7 @@ namespace Neo.IronLua
 
           // Functions always return an array objects
           Instance =
-            Expression.Dynamic(Lua.FunctionResultBinder, typeof(object[]),
+            Expression.Dynamic(Lua.FunctionResultBinder, typeof(LuaResult),
               Expression.Dynamic(Member == null ?
                 scope.Runtime.GetInvokeBinder(new CallInfo(Arguments.Length)) :
                 scope.Runtime.GetInvokeMemberBinder(Member, new CallInfo(Arguments.Length)), typeof(object), r
@@ -462,7 +463,7 @@ namespace Neo.IronLua
       List<ParameterExpression> parameters = new List<ParameterExpression>();
 
       if (returnType == null)
-        returnType = typeof(object[]);
+        returnType = typeof(LuaResult);
 
       var globalScope = new GlobalScope(runtime, lDebug, returnType);
 
@@ -540,16 +541,20 @@ namespace Neo.IronLua
 
       // Build the return expression for all parameters
       Expression exprReturnValue;
-      
+
       if (IsExpressionStart(code)) // there is a return value
       {
-        if (scope.ReturnType == typeof(object[]))
+        if (scope.ReturnType == typeof(LuaResult))
         {
-          exprReturnValue = RuntimeHelperExpression(LuaRuntimeHelper.ReturnResult,
-            Expression.NewArrayInit(typeof(object),
-              from c in ParseExpressionList(scope, code) select Expression.Convert(c, typeof(object))
-              )
-            );
+          Expression[] exprs = ParseExpressionList(scope, code).ToArray();
+          if (exprs.Length == 1 && exprs[0].Type == typeof(LuaResult))
+            exprReturnValue = exprs[0];
+          else
+            exprReturnValue = Expression.New(Lua.ResultConstructorInfo,
+              Expression.NewArrayInit(typeof(object),
+                from c in exprs select Expression.Convert(c, typeof(object))
+                )
+              );
         }
         else if (scope.ReturnType.IsArray)
         {
@@ -560,14 +565,14 @@ namespace Neo.IronLua
         }
         else
         {
-          List<Expression> exprList = new List<Expression>( ParseExpressionList(scope, code));
+          List<Expression> exprList = new List<Expression>(ParseExpressionList(scope, code));
 
           if (exprList.Count == 1)
             exprReturnValue = ToTypeExpression(exprList[0], scope.ReturnType);
           else
           {
             ParameterExpression tmpVar = Expression.Variable(scope.ReturnType);
-            exprList[0] = Expression.Assign(tmpVar, exprList[0]);
+            exprList[0] = Expression.Assign(tmpVar, ToTypeExpression(exprList[0], scope.ReturnType));
             exprList.Add(tmpVar);
             exprReturnValue = Expression.Block(scope.ReturnType, new ParameterExpression[] { tmpVar }, exprList);
           }
@@ -575,11 +580,10 @@ namespace Neo.IronLua
       }
       else // use the default-value
       {
-        if (scope.ReturnType.IsArray)
-          if (scope.ReturnType == typeof(object[]))
-            exprReturnValue = Expression.Constant(Lua.EmptyResult, typeof(object[]));
-          else
-            exprReturnValue = Expression.NewArrayInit(scope.ReturnType.GetElementType());
+        if (scope.ReturnType == typeof(LuaResult))
+          exprReturnValue = Expression.Property(null, Lua.ResultEmptyPropertyInfo);
+        else if (scope.ReturnType.IsArray)
+          exprReturnValue = Expression.NewArrayInit(scope.ReturnType.GetElementType());
         else
           exprReturnValue = Expression.Default(scope.ReturnType);
       }
@@ -694,39 +698,39 @@ namespace Neo.IronLua
     {
       List<PrefixMemberInfo> prefixes = new List<PrefixMemberInfo>();
 
-      // Parse die Zuweisungen
+      // parse the assgiee list (var0, var1, var2, ...)
       while (true)
       {
-        if (lLocal)
+        if (lLocal) // parse local variables
         {
           Token tVar;
           string sVarType;
           ParseLocalVariable(code, out tVar, out sVarType);
           prefixes.Add(new PrefixMemberInfo(tVar, scope.RegisterVariable(sVarType == null ? typeof(object) : GetType(tVar, sVarType), tVar.Value) , null, null, null));
         }
-        else
+        else // parse a assignee
         {
-          // Parse Prefix
+          // parse as a prefix
           prefixes.Add(ParsePrefix(scope, code));
         }
 
-        // Noch ein Prefix
+        // is there another prefix
         if (code.Current.Typ == LuaToken.Comma)
           code.Next();
         else
           break;
       }
 
-      // Kommt eine Zuweisung
+      // Optional assign
       if (code.Current.Typ == LuaToken.Assign)
       {
         code.Next();
 
-        // Zuweise parsen
+        // parse all expressions
         IEnumerator<Expression> expr = ParseExpressionList(scope, code).GetEnumerator();
         expr.MoveNext();
 
-        if (prefixes.Count == 1) // Es handelt sich nur um ein Prefix 1 zu 1 zuweisung
+        if (prefixes.Count == 1) // one expression, one variable?
         {
           scope.AddExpression(
             prefixes[0].GenerateSet(scope,
@@ -736,12 +740,12 @@ namespace Neo.IronLua
             )
           );
         }
-        else if (expr.Current == null) // Keine Zuweisungen, null initialisieren
+        else if (expr.Current == null) // No expression, assign null
         {
           for (int i = 0; i < prefixes.Count; i++)
             scope.AddExpression(prefixes[i].GenerateSet(scope, Expression.Constant(null, typeof(object))));
         }
-        else // Zuweisung mit unbekannter Anzahl von Parametern, 
+        else // assign on an unknown number of expressions
         {
           int iPrefix = 0;
           Expression l = expr.Current;
@@ -750,8 +754,8 @@ namespace Neo.IronLua
 
           while (true)
           {
-            // Hole die nächste Expression ab
-            if (expr.MoveNext())
+            // parse the next expression
+            if (expr.MoveNext()) // there should be more, a normal assign
             {
               c = expr.Current;
 
@@ -760,14 +764,14 @@ namespace Neo.IronLua
                  ToTypeExpression(l) :
                  Expression.Constant(null, typeof(object))));
             }
-            else
+            else // it was the last expression
             {
-              // Generiere Zuweisung via t Variable
-              if (l.Type == typeof(object[]) || typeof(object[]).IsAssignableFrom(l.Type))
+              // is the last expression a function
+              if (l.Type == typeof(LuaResult))
               {
-                v = scope.RegisterVariable(typeof(object[]), "#tmp");
+                v = scope.RegisterVariable(typeof(LuaResult), "#tmp");
                 scope.AddExpression(Expression.Assign(v, l));
-                scope.AddExpression(prefixes[iPrefix++].GenerateSet(scope, RuntimeHelperExpression(LuaRuntimeHelper.GetObject, Expression.Convert(v, typeof(object[])), Expression.Constant(0, typeof(int)))));
+                scope.AddExpression(prefixes[iPrefix++].GenerateSet(scope, GetResultExpression(v, 0)));
               }
               else
                 scope.AddExpression(prefixes[iPrefix++].GenerateSet(scope, ToTypeExpression(l)));
@@ -783,14 +787,14 @@ namespace Neo.IronLua
             }
           }
 
-          // Weise den Rest aus dem eventuellen Array zu
+          // assign the rest of the result-array
           if (v != null)
           {
             int iLastIndex = 1;
 
             while (iPrefix < prefixes.Count)
             {
-              scope.AddExpression(prefixes[iPrefix].GenerateSet(scope, RuntimeHelperExpression(LuaRuntimeHelper.GetObject, Expression.Convert(v, typeof(object[])), Expression.Constant(iLastIndex, typeof(int)))));
+              scope.AddExpression(prefixes[iPrefix].GenerateSet(scope, GetResultExpression(v, iLastIndex)));
               iPrefix++;
               iLastIndex++;
             }
@@ -865,7 +869,7 @@ namespace Neo.IronLua
         exprConst = ToTypeExpression(exprConst, GetType(tVarName, sType));
 
       // Try to eval the statement
-      if (exprConst.Type == typeof(object) || exprConst.Type == typeof(object[])) // dynamic calls, no constant possible
+      if (exprConst.Type == typeof(object) || exprConst.Type == typeof(LuaResult)) // dynamic calls, no constant possible
         throw ParseError(tVarName, Properties.Resources.rsConstExpressionNeeded);
       else
         try
@@ -950,8 +954,8 @@ namespace Neo.IronLua
           info = new PrefixMemberInfo(tStart, ToTypeExpression(expr), null, null, null);
           break;
 
-        case LuaToken.Identifier:
         case LuaToken.DotDotDot:
+        case LuaToken.Identifier:
           var t = code.Current;
           if (t.Value == csClr) // clr is a special package, that always exists
           {
@@ -1797,7 +1801,7 @@ namespace Neo.IronLua
       const string csState = "#s";
       const string csVar = "#var";
 
-      ParameterExpression varTmp = Expression.Variable(typeof(object[]), "#tmp");
+      ParameterExpression varTmp = Expression.Variable(typeof(LuaResult), "#tmp");
       ParameterExpression varFunc = Expression.Variable(typeof(Delegate), csFunc);
       ParameterExpression varState = Expression.Variable(typeof(object), csState);
       ParameterExpression varVar = Expression.Variable(typeof(object), csVar);
@@ -1809,24 +1813,24 @@ namespace Neo.IronLua
 
       // local var1, ..., varn = tmp;
       for (int i = 0; i < loopVars.Count; i++)
-        loopScope.InsertExpression(i, Expression.Assign(loopVars[i], ToTypeExpression(Parser.RuntimeHelperExpression(LuaRuntimeHelper.GetObject, varTmp, Expression.Constant(i)), loopVars[i].Type)));
+        loopScope.InsertExpression(i, Expression.Assign(loopVars[i], ToTypeExpression(GetResultExpression(varTmp, i), loopVars[i].Type)));
       return Expression.Block(new ParameterExpression[] { varTmp, varFunc, varState, varVar },
         // fill the local loop variables initial
         // local #f, #s, #var = explist
         Expression.Assign(varTmp,
-          explist.Length == 1 && explist[0].Type == typeof(object[]) ? explist[0] : Parser.RuntimeHelperExpression(LuaRuntimeHelper.ReturnResult, Expression.NewArrayInit(typeof(object), explist))
+          explist.Length == 1 && explist[0].Type == typeof(LuaResult) ? explist[0] : Expression.New(Lua.ResultConstructorInfo, Expression.NewArrayInit(typeof(object), explist))
         ),
-        Expression.Assign(varFunc, ToTypeExpression(Parser.RuntimeHelperExpression(LuaRuntimeHelper.GetObject, varTmp, Expression.Constant(0, typeof(int))), typeof(Delegate))),
-        Expression.Assign(varState, Parser.RuntimeHelperExpression(LuaRuntimeHelper.GetObject, varTmp, Expression.Constant(1, typeof(int)))),
-        Expression.Assign(varVar, Parser.RuntimeHelperExpression(LuaRuntimeHelper.GetObject, varTmp, Expression.Constant(2, typeof(int)))),
+        Expression.Assign(varFunc, ToTypeExpression(GetResultExpression(varTmp, 0), typeof(Delegate))),
+        Expression.Assign(varState, GetResultExpression(varTmp, 1)),
+        Expression.Assign(varVar, GetResultExpression(varTmp, 2)),
 
         Expression.Label(loopScope.ContinueLabel),
 
         // local tmp = f(s, var)
-        Expression.Assign(varTmp, Expression.Dynamic(Lua.FunctionResultBinder, typeof(object[]), Expression.Dynamic(loopScope.Runtime.GetInvokeBinder(new CallInfo(2)), typeof(object), varFunc, varState, varVar))),
+        Expression.Assign(varTmp, Expression.Dynamic(Lua.FunctionResultBinder, typeof(LuaResult), Expression.Dynamic(loopScope.Runtime.GetInvokeBinder(new CallInfo(2)), typeof(object), varFunc, varState, varVar))),
 
         // var = tmp[0]
-        Expression.Assign(varVar, Parser.RuntimeHelperExpression(LuaRuntimeHelper.GetObject, varTmp, Expression.Constant(0, typeof(int)))),
+        Expression.Assign(varVar, GetResultExpression(varTmp, 0)),
 
         // if var == nil then goto break;
         Expression.IfThenElse(Expression.Equal(varVar, Expression.Constant(null, typeof(object))),
@@ -1933,7 +1937,7 @@ namespace Neo.IronLua
     private static Expression ParseLamdaDefinition(Scope parent, LuaLexer code, string sName, bool lSelfParameter)
     {
       List<ParameterExpression> parameters = new List<ParameterExpression>();
-      LambdaScope scope = new LambdaScope(parent, typeof(object[]));
+      LambdaScope scope = new LambdaScope(parent, typeof(LuaResult));
 
       // Lese die Parameterliste ein
       FetchToken(LuaToken.BracketOpen, code);
@@ -1945,7 +1949,7 @@ namespace Neo.IronLua
         if (code.Current.Typ == LuaToken.DotDotDot)
         {
           code.Next();
-          parameters.Add(scope.RegisterParameter(typeof(object[]), csArgList));
+          ParseLamdaDefinitionArgList(scope, parameters);
         }
         else
         {
@@ -1958,7 +1962,7 @@ namespace Neo.IronLua
             if (code.Current.Typ == LuaToken.DotDotDot)
             {
               code.Next();
-              parameters.Add(scope.RegisterParameter(typeof(object[]), csArgList)); // last argument
+              ParseLamdaDefinitionArgList(scope, parameters); // last argument
               break;
             }
             else
@@ -1974,6 +1978,14 @@ namespace Neo.IronLua
       FetchToken(LuaToken.KwEnd, code);
       return Expression.Lambda(scope.ExpressionBlock, scope.Runtime.CreateEmptyChunk(sName).Name, parameters);
     } // proc ParseLamdaDefinition
+
+    private static void ParseLamdaDefinitionArgList(LambdaScope scope, List<ParameterExpression> parameters)
+    {
+      ParameterExpression paramArgList = scope.RegisterParameter(typeof(object[]), csArgListP);
+      ParameterExpression varArgList = scope.RegisterVariable(typeof(LuaResult), csArgList);
+      parameters.Add(paramArgList);
+      scope.AddExpression(Expression.Assign(varArgList, Expression.New(Lua.ResultConstructorInfo, paramArgList)));
+    } // proc ParseLamdaDefinitionArgList
 
     #endregion
 

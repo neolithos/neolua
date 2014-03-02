@@ -138,10 +138,10 @@ namespace Neo.IronLua
         return sb.ToString();
       } // func TranslateRegularExpression
 
-      public static object[] @byte(string s, int i = 1, int j = int.MaxValue)
+      public static LuaResult @byte(string s, int i = 1, int j = int.MaxValue)
       {
         if(String.IsNullOrEmpty(s) || i > j)
-          return Lua.EmptyResult;
+          return LuaResult.Empty;
 
         if (i < 1)
           i = 1; // default for i is 1
@@ -176,12 +176,12 @@ namespace Neo.IronLua
         throw new NotImplementedException();
       } // func dump
 
-      public static object[] find(string s, string pattern, int init = 1, bool plain = false)
+      public static LuaResult find(string s, string pattern, int init = 1, bool plain = false)
       {
         if (String.IsNullOrEmpty(s))
-          return EmptyResult;
+          return LuaResult.Empty;
         if (String.IsNullOrEmpty(pattern))
-          return EmptyResult;
+          return LuaResult.Empty;
 
         // correct the init parameter
         if (init < 0)
@@ -192,7 +192,7 @@ namespace Neo.IronLua
         if (plain) // plain pattern
         {
           int iIndex = s.IndexOf(pattern, init - 1);
-          return new object[] { iIndex + 1, iIndex + pattern.Length };
+          return new LuaResult(iIndex + 1, iIndex + pattern.Length);
         }
         else
         {
@@ -213,7 +213,7 @@ namespace Neo.IronLua
             return result;
           }
           else
-            return new object[] { 0 };
+            return new LuaResult(0);
         }
       } // func find
 
@@ -222,7 +222,7 @@ namespace Neo.IronLua
         return AT.MIN.Tools.sprintf(formatstring, args);
       } // func format
 
-      private static object[] matchEnum(object s, object current)
+      private static LuaResult matchEnum(object s, object current)
       {
         System.Collections.IEnumerator e = (System.Collections.IEnumerator)s;
 
@@ -233,16 +233,16 @@ namespace Neo.IronLua
           return MatchResult(m);
         }
         else
-          return Lua.EmptyResult;
+          return LuaResult.Empty;
       } // func matchEnum
 
-      public static object[] gmatch(string s, string pattern)
+      public static LuaResult gmatch(string s, string pattern)
       {
         // f,s,v
         if (String.IsNullOrEmpty(s))
-          return EmptyResult;
+          return LuaResult.Empty;
         if (String.IsNullOrEmpty(pattern))
-          return EmptyResult;
+          return LuaResult.Empty;
 
         // translate the regular expression
         pattern = TranslateRegularExpression(pattern);
@@ -251,7 +251,7 @@ namespace Neo.IronLua
         MatchCollection m = r.Matches(s);
         System.Collections.IEnumerator e = m.GetEnumerator();
 
-        return new object[] { new Func<object, object, object[]>(matchEnum), e, e };
+        return new LuaResult(new Func<object, object, LuaResult>(matchEnum), e, e);
       } // func gmatch
 
       public static string gsub(string s, string pattern, string repl, int n)
@@ -271,12 +271,12 @@ namespace Neo.IronLua
         return s.ToLower();
       } // func lower
 
-      public static object[] match(string s, string pattern, int init = 1)
+      public static LuaResult match(string s, string pattern, int init = 1)
       {
         if (String.IsNullOrEmpty(s))
-          return EmptyResult;
+          return LuaResult.Empty;
         if (String.IsNullOrEmpty(pattern))
-          return EmptyResult;
+          return LuaResult.Empty;
 
         // correct the init parameter
         if (init < 0)
@@ -291,7 +291,7 @@ namespace Neo.IronLua
         return MatchResult(r.Match(s, init));
       } // func match
 
-      private static object[] MatchResult(Match m)
+      private static LuaResult MatchResult(Match m)
       {
         if (m.Success)
         {
@@ -303,7 +303,7 @@ namespace Neo.IronLua
           return result;
         }
         else
-          return EmptyResult;
+          return LuaResult.Empty;
       } // func MatchResult
 
       public static string rep(string s, int n, string sep = "")
@@ -458,7 +458,7 @@ namespace Neo.IronLua
         if (sort == null)
           Array.Sort(values);
         else
-          Array.Sort(values, (a, b) => Convert.ToInt32(Lua.RtGetObject(((Func<object, object, object[]>)sort)(a, b), 0)));
+          Array.Sort(values, (a, b) => ((Func<object, object, LuaResult>)sort)(a, b).ToInt32());
 
         // copy the values back
         for (int i = 0; i < values.Length; i++)
@@ -477,7 +477,7 @@ namespace Neo.IronLua
           t[removeValues[i]] = null;
       } // proc sort
 
-      public static object[] unpack(LuaTable t, int i = 0, int j = int.MaxValue)
+      public static LuaResult unpack(LuaTable t, int i = 0, int j = int.MaxValue)
       {
         List<object> r = new List<object>();
 
@@ -600,17 +600,17 @@ namespace Neo.IronLua
         return r;
       } // func min
 
-      public static object[] modf(double x)
+      public static LuaResult modf(double x)
       {
         if (x < 0)
         {
           double y = Math.Ceiling(x);
-          return new object[] { y, y - x };
+          return new LuaResult(y, y - x);
         }
         else
         {
           double y = Math.Floor(x);
-          return new object[] { y, x - y };
+          return new LuaResult(y, x - y);
         }
       } // func modf
 
@@ -791,7 +791,7 @@ namespace Neo.IronLua
     /// <summary>default files are not supported.</summary>
     private static class LuaLibraryIO
     {
-      public static object[] close(LuaFile file = null)
+      public static LuaResult close(LuaFile file = null)
       {
         if (file != null)
           return file.close();
@@ -816,7 +816,7 @@ namespace Neo.IronLua
         throw new NotImplementedException();
       } // func lines
 
-      public static object[] open(string filename, string mode = "r")
+      public static LuaResult open(string filename, string mode = "r")
       {
         throw new NotImplementedException();
       } // func open
@@ -829,7 +829,7 @@ namespace Neo.IronLua
           return file;
       } // proc output
 
-      public static object[] popen(string program, string mode = "r")
+      public static LuaResult popen(string program, string mode = "r")
       {
         throw new NotImplementedException();
       } // func popen
@@ -878,7 +878,7 @@ namespace Neo.IronLua
         throw new NotImplementedException();
       } // func difftime
 
-      public static object[] execute(string command)
+      public static LuaResult execute(string command)
       {
         throw new NotImplementedException();
       } // func execute
@@ -893,12 +893,12 @@ namespace Neo.IronLua
         return Environment.GetEnvironmentVariable(varname);
       } // func getenv
 
-      public static object[] remove(string filename)
+      public static LuaResult remove(string filename)
       {
         throw new NotImplementedException();
       } // func remove
 
-      public static object[] rename(string oldname, string newname)
+      public static LuaResult rename(string oldname, string newname)
       {
         throw new NotImplementedException();
       } // func rename

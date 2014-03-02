@@ -45,8 +45,8 @@ namespace Neo.IronLua
 
     internal static Expression ToTypeExpression(Expression expr, Type type = null, bool? lForce = null)
     {
-      if (expr.Type == typeof(object[]))
-        return ToTypeExpression(RuntimeHelperExpression(LuaRuntimeHelper.GetObject, Expression.Convert(expr, typeof(object[])), Expression.Constant(0, typeof(int))), type, lForce);
+      if (expr.Type == typeof(LuaResult))
+        return ToTypeExpression(GetResultExpression(expr, 0), type, lForce);
       else if (type != null && (lForce.HasValue && lForce.Value || expr.Type != type))
         return Expression.Convert(expr, type);
       else
@@ -62,6 +62,15 @@ namespace Neo.IronLua
       else
         return Expression.Dynamic(Lua.ConvertToBooleanBinder, typeof(bool), ToTypeExpression(expr, typeof(object)));
     } // func ToBooleanExpression
+
+    internal static Expression GetResultExpression(Expression target, int iIndex)
+    {
+      return Expression.MakeIndex(
+        Expression.Convert(target, typeof(LuaResult)),
+        Lua.ResultIndexPropertyInfo,
+        new Expression[] { Expression.Constant(iIndex) }
+        );
+    } // func GetFirstValueExpression
 
     internal static Expression RuntimeHelperExpression(LuaRuntimeHelper runtimeHelper, params Expression[] args)
     {

@@ -169,7 +169,7 @@ namespace Neo.IronLua
 
         // Is there a member with this Name
         int iIndex = t.GetValueIndex(binder.Name, binder.IgnoreCase, false);
-        if (iIndex >= 0 && t.IsIndexMarkedAsMethod(iIndex)) // check if the value is a method
+        if (iIndex >= 0 && (binder is Lua.LuaInvokeMemberBinder || t.IsIndexMarkedAsMethod(iIndex))) // check if the value is a method
         {
           // add the target and the self parameter
           Expression[] expanedArgs = new Expression[args.Length + 2];
@@ -188,12 +188,19 @@ namespace Neo.IronLua
         else // do a fallback to a normal invoke
         {
           DynamicMetaObject moGet = t.GetMemberAccess(binder, Expression, binder.Name, MemberAccessFlag.MemberInvoke | (binder.IgnoreCase ? MemberAccessFlag.IgnoreCase : MemberAccessFlag.None));
-          Expression[] exprArgs = new Expression[args.Length + 1];
-          exprArgs[0] = moGet.Expression;
-          for (int i = 0; i < args.Length; i++)
-            exprArgs[i + 1] = args[i].Expression;
+          if (binder is Lua.LuaInvokeMemberBinder) // use the lua-binder
+          {
+            return binder.FallbackInvoke(moGet, args, null);
+          }
+          else // call a different binder
+          {
+            Expression[] exprArgs = new Expression[args.Length + 1];
+            exprArgs[0] = moGet.Expression;
+            for (int i = 0; i < args.Length; i++)
+              exprArgs[i + 1] = args[i].Expression;
 
-          return new DynamicMetaObject(Expression.Dynamic(t.GetInvokeBinder(binder.CallInfo), typeof(object), exprArgs), moGet.Restrictions);
+            return new DynamicMetaObject(Expression.Dynamic(t.GetInvokeBinder(binder.CallInfo), typeof(object), exprArgs), moGet.Restrictions);
+          }
         }
       } // BindInvokeMember
 
