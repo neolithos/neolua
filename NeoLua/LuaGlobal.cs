@@ -624,13 +624,16 @@ namespace Neo.IronLua
     } // func LuaDoFile
 
     /// <summary></summary>
-    /// <param name="sCode"></param>
+    /// <param name="code">LuaChunk or string</param>
     /// <param name="sName"></param>
     /// <returns></returns>
     [LuaFunction("dochunk")]
-    private LuaResult LuaDoChunk(string sCode, string sName)
+    private LuaResult LuaDoChunk(object code, string sName = null)
     {
-      return DoChunk(sCode, sName);
+      if (code is LuaChunk)
+        return DoChunk((LuaChunk)code);
+      else
+        return DoChunk((string)code, sName);
     } // func LuaDoChunk
 
     /// <summary></summary>

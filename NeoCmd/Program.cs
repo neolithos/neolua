@@ -14,32 +14,32 @@ namespace Neo.IronLua
   {
     public static void Main(string[] args)
     {
-      dynamic ra = new LuaResult(1, 2, 3);
-      int aaa = ra[1];
-      Console.WriteLine(aaa);
+      //dynamic ra = new LuaResult(1, 2, 3);
+      //int aaa = ra[1];
+      //Console.WriteLine(aaa);
       
-      //CodePlexExample6();
-      CodePlexExample7();
-      //TestMemory(@"..\..\Samples\Test.lua");
-      return;
+      ////CodePlexExample6();
+      //CodePlexExample7();
+      ////TestMemory(@"..\..\Samples\Test.lua");
+      //return;
 
       // create lua script compiler
       using (Lua l = new Lua())
         try
         {
           // create an environment that is associated  to the lua scripts
-          LuaGlobal g = l.CreateEnvironment();
+          dynamic g = l.CreateEnvironment();
 
           // register new functions
-          g.RegisterFunction("print", new Action<object[]>(Print));
-          g.RegisterFunction("read", new Func<string, string>(Read));
+          g.print = new Action<object[]>(Print);
+          g.read = new Func<string, string>(Read);
 
           foreach (string c in args)
           {
             using (LuaChunk chunk = l.CompileChunk(c, true)) // compile the script with debug informations, that is needed for a complete stacktrace
               try
               {
-                object[] r = g.DoChunk(chunk); // execute the chunk
+                object[] r = g.dochunk(chunk); // execute the chunk
                 if (r != null && r.Length > 0)
                 {
                   Console.WriteLine(new string('=', 79));
