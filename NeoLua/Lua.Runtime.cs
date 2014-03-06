@@ -42,6 +42,7 @@ namespace Neo.IronLua
     private static PropertyInfo piResultIndex = null;
     private static PropertyInfo piResultValues = null;
     private static PropertyInfo piResultEmpty = null;
+    private static MethodInfo miTableSetMethod = null;
     private static Dictionary<string, IDynamicMetaObjectProvider> luaSystemLibraries = new Dictionary<string, IDynamicMetaObjectProvider>(); // Array with system libraries
     private static Dictionary<string, Type> knownTypes = null; // Known types of the current AppDomain
     private static List<Type> luaFunctionTypes = new List<Type>();
@@ -241,6 +242,17 @@ namespace Neo.IronLua
           if (piResultValues == null)
             piResultValues = typeof(LuaResult).GetProperty("Values", BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Instance);
         return piResultValues;
+      }
+    } // prop ResultValuesPropertyInfo
+
+    internal static MethodInfo TableSetMethodInfo
+    {
+      get
+      {
+        lock (luaStaticLock)
+          if (miTableSetMethod == null)
+            miTableSetMethod = typeof(LuaTable).GetMethod("SetMethod", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod);
+        return miTableSetMethod;
       }
     } // prop ResultValuesPropertyInfo
 

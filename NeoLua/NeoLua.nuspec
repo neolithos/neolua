@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>NeoLua</id>
+    <version>0.8.0</version>
+    <title>NeoLua</title>
+    <authors>Neolithos</authors>
+    <projectUrl>https://neolua.codeplex.com/</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>A Lua implementation for the Dynamic Language Runtime (DLR).</description>
+    <summary>
+      A Lua implementation for the Dynamic Language Runtime (DLR).
+
+      NeoLua is an implementation of the Lua language. Currently the implementation is on the level of Lua 5.2 (http://www.lua.org/manual/5.2/manual.html). The goal is to match the reference of the C-Lua implementation and combine this with full .net framework support.
+
+      NeoLua is implemented in C# and uses the Dynamic Language Runtime. It therefore integrates very well with the .net framework.
+    </summary>
+  </metadata>
+  <files>
+    <file src="bin\Release\Neo.Lua.dll" target="\lib\net4" />
+    <file src="bin\Release\Neo.Lua.pdb" target="\lib\net4" />
+    <file src="bin\Release\Neo.Lua.xml" target="\lib\net4" />
+  </files>
+</package>

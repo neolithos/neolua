@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <Import Project="..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets"/>
+  <Import Project="..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -88,20 +88,30 @@
   <ItemGroup>
     <EmbeddedResource Include="NeoLua.snk" />
   </ItemGroup>
- 
+  <ItemGroup>
+    <None Include="NeoLua.nuspec" />
+    <None Include="nuspec.2010.7.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="nuspec.2011.8.xsd">
+      <SubType>Designer</SubType>
+    </None>
+  </ItemGroup>
   <Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
     <CreateItem Include="$(TargetDir)\Neo.Lua.*;$(TargetDir)\de\*">
-      <Output ItemName="ZipFile" TaskParameter="Include"/>
+      <Output ItemName="ZipFile" TaskParameter="Include" />
     </CreateItem>
     <Zip Files="@(ZipFile)" WorkingDirectory="$(TargetDir)" ZipFileName="$(TargetDir)\NeoLua.zip" />
   </Target>
-  
+  <Target Name="NuGet" Condition=" '$(Configuration)' == 'Release' ">
+    <Exec Command='c:\Projects\Bin\NuGet.exe pack NeoLua.nuspec -OutputDirectory $(TargetDir)' />
+    <Exec Command='c:\Projects\Bin\NuGet.exe push $(TargetDir)*.nupkg' />
+  </Target>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
   </Target>-->
-  <Target Name="AfterBuild" DependsOnTargets="ZipLua">
+  <Target Name="AfterBuild" DependsOnTargets="ZipLua;NuGet">
   </Target>
-  
 </Project>

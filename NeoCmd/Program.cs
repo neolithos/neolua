@@ -18,10 +18,9 @@ namespace Neo.IronLua
       //int aaa = ra[1];
       //Console.WriteLine(aaa);
       
-      ////CodePlexExample6();
-      //CodePlexExample7();
-      ////TestMemory(@"..\..\Samples\Test.lua");
-      //return;
+      CodePlexExample4b();
+      //TestMemory(@"..\..\Samples\Test.lua");
+      return;
 
       // create lua script compiler
       using (Lua l = new Lua())
@@ -29,7 +28,7 @@ namespace Neo.IronLua
         {
           // create an environment that is associated  to the lua scripts
           dynamic g = l.CreateEnvironment();
-
+          
           // register new functions
           g.print = new Action<object[]>(Print);
           g.read = new Func<string, string>(Read);
@@ -117,12 +116,16 @@ namespace Neo.IronLua
       using (Lua l = new Lua())
       {
         var g = l.CreateEnvironment();
+        dynamic dg = g;
 
-        object[] r = g.DoChunk("return a + b", "test.lua",
+        LuaResult r = g.DoChunk("return a + b", "test.lua",
           new KeyValuePair<string, object>("a", 2),
           new KeyValuePair<string, object>("b", 4));
 
         Console.WriteLine(r[0]);
+
+        dynamic dr = dg.dochunk("return a + b", "test.lua", "a", 2, "b", 4);
+        Console.WriteLine((int)dr);
       }
     }
 
@@ -135,9 +138,36 @@ namespace Neo.IronLua
         
         dg.a = 2; // dynamic way to set a variable
         g["b"] = 4; // second way to access variable
-        g.DoChunk("c = a + b", "test.lua");
+        dg.dochunk("c = a + b", "test.lua");
 
         Console.WriteLine(dg.c);
+        Console.WriteLine(g["c"]);
+      }
+    }
+
+    private static void CodePlexExample2a()
+    {
+      using (Lua l = new Lua())
+      {
+        dynamic dg = l.CreateEnvironment();
+        dg.t = new LuaTable();
+        dg.t.a = 2;
+        dg.t.b = 4;
+        dg.dochunk("t.c = t.a + t.b", "test.lua");
+        Console.WriteLine(dg.t.c);
+      }
+    }
+
+    private static void CodePlexExample2b()
+    {
+      using (Lua l = new Lua())
+      {
+        dynamic dg = l.CreateEnvironment();
+        dg.t = new LuaTable();
+        dg.t[0] = 2;
+        dg.t[1] = 4;
+        dg.dochunk("t[2] = t[0] + t[1]", "test.lua");
+        Console.WriteLine(dg.t[2]);
       }
     }
 
@@ -145,18 +175,33 @@ namespace Neo.IronLua
     {
       using (Lua l = new Lua())
       {
-        var g = l.CreateEnvironment();
+        dynamic dg = l.CreateEnvironment();
 
-        g["myadd"] = new Func<int, int, int>((a, b) => a + b);
+        dg.myadd = new Func<int, int, int>((a, b) => a + b);
 
-        g.DoChunk("function Add(a, b) return myadd(a, b) end;", "test.lua");
+        dg.dochunk("function Add(a, b) return myadd(a, b) end;", "test.lua");
 
-        dynamic dg = g;
-        Console.WriteLine(dg.Add(2, 4)[0]);
+        Console.WriteLine((int)dg.Add(2, 4));
 
-        var f = (Func<object, object, object[]>)g["Add"];
-        object[] r = f(2, 4);
-        Console.WriteLine(r[0]);
+        var f = (Func<object, object, LuaResult>)dg.Add;
+        Console.WriteLine(f(2, 4).ToInt32());
+      }
+    }
+
+    private static void CodePlexExample3a()
+    {
+      using (Lua l = new Lua())
+      {
+        dynamic dg = l.CreateEnvironment();
+
+        dg.myadd = new Func<int, int, int>((a, b) => a + b);
+
+        dg.dochunk("function Add(a : int, b : int) : int return myadd(a, b) end;", "test.lua");
+
+        Console.WriteLine((int)dg.Add(2, 4));
+
+        var f = (Func<int, int, int>)dg.Add;
+        Console.WriteLine(f(2, 4));
       }
     }
 
@@ -164,22 +209,80 @@ namespace Neo.IronLua
     {
       using (Lua l = new Lua())
       {
-        var g = l.CreateEnvironment();
+        dynamic dg = l.CreateEnvironment();
 
-        LuaTable t = new LuaTable();
-        g["t"] = t;
-
-        t["a"] = 2;
-        t["b"] = 4;
-        t["add"] = new Func<dynamic, int>(self => 
+        dg.t = new LuaTable();
+        dg.t.a = 2;
+        dg.t.b = 4;
+        
+        dg.t.add = new Func<dynamic, int>(self => 
           {
             return self.a + self.b;
           });
-        
-        object[] r = g.DoChunk("return t:add()", "test.lua");
-        Console.WriteLine(r[0]);
+
+        ((LuaTable)dg.t).DefineMethod("add2", (Delegate)dg.t.add);
+
+        Console.WriteLine(dg.dochunk("return t:add()", "test.lua")[0]);
+        Console.WriteLine(dg.dochunk("return t:add2()", "test.lua")[0]);
+        Console.WriteLine(dg.t.add(dg.t));
+        Console.WriteLine(dg.t.add2());
       }
     }
+
+    private static void CodePlexExample4a()
+    {
+      using (Lua l = new Lua())
+      {
+        dynamic dg = l.CreateEnvironment();
+        LuaResult r = dg.dochunk("t = { a = 2, b = 4 };" +
+          "t.add = function(self)" +
+          "  return self.a + self.b;" +
+          "end;" +
+          "function t.add1(self)" +
+          "  return self.a + self.b;" +
+          "end;" +
+          "t:add2 = function (self)" +
+          "  return self.a + self.b;" +
+          "end;" +
+          "function t:add3()" +
+          "  return self.a + self.b;" +
+          "end;" +
+          "return t:add(), t:add2(), t:add3(), t.add(t), t.add2(t), t.add3(t);", 
+          "test.lua");
+        Console.WriteLine(r[0]);
+        Console.WriteLine(r[1]);
+        Console.WriteLine(r[2]);
+        Console.WriteLine(r[3]);
+        Console.WriteLine(r[4]);
+        Console.WriteLine(r[5]);
+        Console.WriteLine(dg.t.add(dg.t)[0]);
+        Console.WriteLine(dg.t.add2()[0]);
+        Console.WriteLine(dg.t.add3()[0]);
+      }
+    }
+
+    private static void CodePlexExample4b()
+    {
+      using (Lua l = new Lua())
+      {
+        dynamic dg = l.CreateEnvironment();
+
+        dg.dochunk("function classA()" +
+          "  local c = { sum = 0 };" +
+          "  function c:add(a)" +
+          "    self.sum = self.sum + a;" +
+          "  end;" +
+          "  return c;" +
+          "end;", "classA.lua");
+
+        dynamic o = dg.classA()[0];
+        o.add(1);
+        o.add(2);
+        o.add(3);
+        Console.WriteLine(o.sum);
+      }
+    }
+
 
     private static void CodePlexExample5()
     {

@@ -380,7 +380,14 @@ namespace Neo.IronLua
         else if (Instance != null && Member != null && Indices == null && Arguments == null)
         {
           // Assign the value to a member
-          expr = Expression.Dynamic(scope.Runtime.GetSetMemberBinder(Member), typeof(object), Instance, ToTypeExpression(exprToSet, typeof(object)));
+          if (MethodMember)
+            expr = Expression.Call(
+              ToTypeExpression(Instance, typeof(LuaTable)),
+              Lua.TableSetMethodInfo,
+              Expression.Constant(Member, typeof(string)),
+              ToTypeExpression(exprToSet, typeof(Delegate)));
+          else
+            expr = Expression.Dynamic(scope.Runtime.GetSetMemberBinder(Member), typeof(object), Instance, ToTypeExpression(exprToSet, typeof(object)));
         }
         else if (Instance != null && Member == null && Indices == null && Arguments == null && Instance is ParameterExpression)
         {
@@ -417,6 +424,7 @@ namespace Neo.IronLua
           Instance = WrapDebugInfo(scope.EmitDebug, true, Position, Position, Instance);
           Instance = Expression.Dynamic(scope.Runtime.GetGetMemberBinder(Member), typeof(object), ToTypeExpression(Instance, typeof(object)));
           Member = null;
+          MethodMember = false;
         }
         else if (Instance != null && Member == null && Indices == null && Arguments == null)
         {
@@ -448,6 +456,7 @@ namespace Neo.IronLua
           );
 
           Member = null;
+          MethodMember = false;
           Arguments = null;
         }
         else
@@ -456,15 +465,17 @@ namespace Neo.IronLua
         return Instance;
       } // func GenerateGet
 
-      public void SetMember(Token tMember)
+      public void SetMember(Token tMember, bool lMethod)
       {
         Position = tMember;
+        MethodMember = lMethod;
         Member = tMember.Value;
       } // proc SetMember
 
       public Token Position { get; set; }
       public Expression Instance { get; private set; }
       public string Member { get; private set; }
+      public bool MethodMember { get; private set; }
       public Expression[] Indices { get; set; }
       public Expression[] Arguments { get; set; }
     } // class PrefixMemberInfo
@@ -1062,7 +1073,7 @@ namespace Neo.IronLua
           case LuaToken.Dot: // Property of an class
             code.Next();
             info.GenerateGet(scope);
-            info.SetMember(FetchToken(LuaToken.Identifier, code));
+            info.SetMember(FetchToken(LuaToken.Identifier, code), false);
             break;
 
           case LuaToken.BracketOpen: // List of arguments
@@ -1085,7 +1096,7 @@ namespace Neo.IronLua
 
             // Lese den Namen um den Member zu belegen
             info.GenerateGet(scope);
-            info.SetMember(FetchToken(LuaToken.Identifier, code));
+            info.SetMember(FetchToken(LuaToken.Identifier, code), true);
 
             // Parse die Parameter
             switch (code.Current.Typ)
@@ -1924,7 +1935,7 @@ namespace Neo.IronLua
           scope.AddExpression(
             Expression.Call(
               ToTypeExpression(assignee, typeof(LuaTable)),
-              typeof(LuaTable).GetMethod("SetMethod", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod),
+              Lua.TableSetMethodInfo,
               Expression.Constant(sMember, typeof(string)),
               ToTypeExpression(ParseLamdaDefinition(scope, code, sMember, true), typeof(Delegate)))
             );

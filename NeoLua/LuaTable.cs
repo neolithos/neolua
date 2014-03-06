@@ -499,6 +499,18 @@ namespace Neo.IronLua
       return method;
     } // proc SetMethod
 
+    /// <summary></summary>
+    /// <param name="sMethodName"></param>
+    /// <param name="method"></param>
+    public void DefineMethod(string sMethodName, Delegate method)
+    {
+      Type typeFirstParameter = method.Method.GetParameters()[0].ParameterType;
+      if (!typeFirstParameter.IsAssignableFrom(typeof(LuaTable)))
+        throw new ArgumentException("Methods must have a LuaTable as first parameter.");
+
+      SetValue(sMethodName, method, true);
+    } // func DefineMethod
+
     internal bool CheckMethodVersion(int iLastVersion)
     {
       return iMethodVersion == iLastVersion;

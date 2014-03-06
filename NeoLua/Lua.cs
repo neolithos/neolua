@@ -259,6 +259,9 @@ namespace Neo.IronLua
 
     internal LuaChunk CompileChunk(string sChunkName, bool lDebug, TextReader tr, IEnumerable<KeyValuePair<string, Type>> args)
     {
+      if (String.IsNullOrEmpty(sChunkName))
+        throw new ArgumentNullException("chunkname");
+
       using (LuaLexer l = new LuaLexer(sChunkName, tr))
       {
         LambdaExpression expr = Parser.ParseChunk(this, lDebug, true, l, null, typeof(LuaResult), args);

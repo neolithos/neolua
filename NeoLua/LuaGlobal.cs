@@ -615,27 +615,75 @@ namespace Neo.IronLua
     } // func LuaCollectgarbage
 
     /// <summary></summary>
-    /// <param name="sFileName"></param>
+    /// <param name="args"></param>
     /// <returns></returns>
     [LuaFunction("dofile")]
-    private LuaResult LuaDoFile(string sFileName)
+    private LuaResult LuaDoFile(object[] args)
     {
-      return DoChunk(sFileName);
+      if (args == null || args.Length == 0)
+        throw new ArgumentException();
+      else if (args.Length == 1)
+        return DoChunk((string)args[0]);
+      else
+        return DoChunk((string)args[0], CreateArguments(1, args));
     } // func LuaDoFile
 
     /// <summary></summary>
-    /// <param name="code">LuaChunk or string</param>
-    /// <param name="sName"></param>
+    /// <param name="args"></param>
     /// <returns></returns>
     [LuaFunction("dochunk")]
-    private LuaResult LuaDoChunk(object code, string sName = null)
+    private LuaResult LuaDoChunk(object[] args)
     {
-      if (code is LuaChunk)
-        return DoChunk((LuaChunk)code);
+      if (args == null || args.Length == 0)
+        throw new ArgumentException();
+      if (args[0] is LuaChunk)
+      {
+        if (args.Length == 1)
+          return DoChunk((LuaChunk)args[0]);
+        else
+        {
+          object[] p = new object[args.Length - 1];
+          Array.Copy(args, 1, p, 0, p.Length);
+          return DoChunk((LuaChunk)args[0], p);
+        }
+      }
+      else if (args[0] is string)
+      {
+        if (args.Length == 1)
+          throw new ArgumentOutOfRangeException();
+        else if (args.Length == 2)
+          return DoChunk((string)args[0], (string)args[1]);
+        else
+          return DoChunk((string)args[0], (string)args[1], CreateArguments(2, args));
+      }
+      else if (args[0] is TextReader)
+      {
+        if (args.Length == 1)
+          throw new ArgumentOutOfRangeException();
+        else if (args.Length == 2)
+          return DoChunk((TextReader)args[0], (string)args[1]);
+        else
+          return DoChunk((TextReader)args[0], (string)args[1], CreateArguments(2, args));
+      }
       else
-        return DoChunk((string)code, sName);
+        throw new ArgumentException();
     } // func LuaDoChunk
 
+    private static KeyValuePair<string, object>[] CreateArguments(int iOffset, object[] args)
+    {
+      KeyValuePair<string, object>[] p = new KeyValuePair<string, object>[(args.Length - iOffset + 1) / 2]; // on 3 arguments we have 1 parameter
+
+      // create parameter
+      for (int i = 0; i < p.Length; i++)
+      {
+        int j = 2 + i * 2;
+        string sName = (string)args[j++];
+        object value = j < args.Length ? args[j] : null;
+        p[i] = new KeyValuePair<string, object>(sName, value);
+      }
+      return p;
+    } // func CreateArguments
+    
     /// <summary></summary>
     /// <param name="sMessage"></param>
     /// <param name="level"></param>

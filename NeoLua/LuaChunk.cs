@@ -141,7 +141,7 @@ namespace Neo.IronLua
     /// <summary>Name of the compiled chunk.</summary>
     public string ChunkName { get { return sChunkName ?? sName; } internal set { sChunkName = value; } }
 
-    /// <summary>Is the chunk compiled and is executable.</summary>
+    /// <summary>Is the chunk compiled and executable.</summary>
     public bool IsCompiled { get { return chunk != null; } }
     /// <summary>Is the chunk compiled with debug infos</summary>
     public bool HasDebugInfo { get { return debugInfos != null; } }
