@@ -47,12 +47,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Exceptions.cs" />
@@ -101,17 +95,29 @@
     <CreateItem Include="$(TargetDir)\Neo.Lua.*;$(TargetDir)\de\*">
       <Output ItemName="ZipFile" TaskParameter="Include" />
     </CreateItem>
-    <Zip Files="@(ZipFile)" WorkingDirectory="$(TargetDir)" ZipFileName="$(TargetDir)\NeoLua.zip" />
+    <Zip Files="@(ZipFile)" WorkingDirectory="$(TargetDir)" ZipFileName="$(TargetDir)\NeoLua-$(Version).zip" />
   </Target>
   <Target Name="NuGet" Condition=" '$(Configuration)' == 'Release' ">
-    <Exec Command='c:\Projects\Bin\NuGet.exe pack NeoLua.nuspec -OutputDirectory $(TargetDir)' />
-    <Exec Command='c:\Projects\Bin\NuGet.exe push $(TargetDir)*.nupkg' />
+    <Exec Command="c:\Projects\Bin\NuGet.exe pack NeoLua.nuspec -OutputDirectory $(TargetDir) -Version $(Version)" />
+    <Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir).$(Version).nupkg" />
   </Target>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
+       Other similar extension points exist, see Microsoft.Common.targets.-->
   <Target Name="BeforeBuild">
-  </Target>-->
+    <ReadLinesFromFile File="Properties\AssemblyInfo.cs">
+      <Output TaskParameter="Lines"
+              ItemName="AssemblyVersionContent"/>
+    </ReadLinesFromFile>
+    
+    <PropertyGroup>
+      <Pattern>\[assembly: AssemblyFileVersion\(.(\d+)\.(\d+)\.(\d+)</Pattern>
+      <AssemblyVersionLines>@(AssemblyVersionContent)</AssemblyVersionLines>
+      <AssemblyVersionLine>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyVersionLines), $(Pattern)))</AssemblyVersionLine>
+      <Version>$(AssemblyVersionLine.Remove(0, 32))</Version>
+    </PropertyGroup>
+    <Message Text="Version: $(Version)" />
+  </Target>
   <Target Name="AfterBuild" DependsOnTargets="ZipLua;NuGet">
   </Target>
 </Project>

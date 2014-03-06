@@ -2,10 +2,11 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
     <id>NeoLua</id>
-    <version>0.8.0</version>
+    <version>$version$</version>
     <title>NeoLua</title>
     <authors>Neolithos</authors>
     <projectUrl>https://neolua.codeplex.com/</projectUrl>
+    <licenseUrl>https://neolua.codeplex.com/license</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>A Lua implementation for the Dynamic Language Runtime (DLR).</description>
     <summary>
@@ -15,6 +16,10 @@
 
       NeoLua is implemented in C# and uses the Dynamic Language Runtime. It therefore integrates very well with the .net framework.
     </summary>
+    <tags>Lua C# .net DLR Dynamic Language</tags>
+    <frameworkAssemblies>
+      <frameworkAssembly assemblyName="System" />
+    </frameworkAssemblies>
   </metadata>
   <files>
     <file src="bin\Release\Neo.Lua.dll" target="\lib\net4" />

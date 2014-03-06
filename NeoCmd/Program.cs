@@ -18,9 +18,9 @@ namespace Neo.IronLua
       //int aaa = ra[1];
       //Console.WriteLine(aaa);
       
-      CodePlexExample4b();
+      //CodePlexExample4b();
       //TestMemory(@"..\..\Samples\Test.lua");
-      return;
+      //return;
 
       // create lua script compiler
       using (Lua l = new Lua())
