@@ -99,7 +99,7 @@
   </Target>
   <Target Name="NuGet" Condition=" '$(Configuration)' == 'Release' ">
     <Exec Command="c:\Projects\Bin\NuGet.exe pack NeoLua.nuspec -OutputDirectory $(TargetDir) -Version $(Version)" />
-    <Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir).$(Version).nupkg" />
+    <Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir)NeoLua.$(Version).nupkg" />
   </Target>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

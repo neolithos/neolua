@@ -17,53 +17,44 @@ namespace Neo.IronLua
       //dynamic ra = new LuaResult(1, 2, 3);
       //int aaa = ra[1];
       //Console.WriteLine(aaa);
-      
+
       //CodePlexExample4b();
       //TestMemory(@"..\..\Samples\Test.lua");
       //return;
 
       // create lua script compiler
       using (Lua l = new Lua())
-        try
-        {
-          // create an environment that is associated  to the lua scripts
-          dynamic g = l.CreateEnvironment();
-          
-          // register new functions
-          g.print = new Action<object[]>(Print);
-          g.read = new Func<string, string>(Read);
+      {
+        // create an environment that is associated  to the lua scripts
+        dynamic g = l.CreateEnvironment();
 
-          foreach (string c in args)
-          {
-            using (LuaChunk chunk = l.CompileChunk(c, true)) // compile the script with debug informations, that is needed for a complete stacktrace
-              try
-              {
-                object[] r = g.dochunk(chunk); // execute the chunk
-                if (r != null && r.Length > 0)
-                {
-                  Console.WriteLine(new string('=', 79));
-                  for (int i = 0; i < r.Length; i++)
-                    Console.WriteLine("[{0}] = {1}", i, r[i]);
-                }
-              }
-              catch (TargetInvocationException e)
-              {
-                Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine("Expception: {0}", e.InnerException.Message);
-                LuaExceptionData d = LuaExceptionData.GetData(e.InnerException); // get stack trace
-                Console.WriteLine("StackTrace: {0}", d.GetStackTrace(0, false));
-                Console.ForegroundColor = ConsoleColor.Gray;
-              }
-          }
-        }
-        catch (Exception e)
+        // register new functions
+        g.print = new Action<object[]>(Print);
+        g.read = new Func<string, string>(Read);
+
+        foreach (string c in args)
         {
-          Exception re = e is TargetInvocationException ? e.InnerException : e;
-          Console.WriteLine();
-          Console.ForegroundColor = ConsoleColor.DarkRed;
-          Console.WriteLine("Expception: {0}", re.Message);
-          Console.ForegroundColor = ConsoleColor.Gray;
+          using (LuaChunk chunk = l.CompileChunk(c, true)) // compile the script with debug informations, that is needed for a complete stacktrace
+            try
+            {
+              object[] r = g.dochunk(chunk); // execute the chunk
+              if (r != null && r.Length > 0)
+              {
+                Console.WriteLine(new string('=', 79));
+                for (int i = 0; i < r.Length; i++)
+                  Console.WriteLine("[{0}] = {1}", i, r[i]);
+              }
+            }
+            catch (TargetInvocationException e)
+            {
+              Console.ForegroundColor = ConsoleColor.DarkRed;
+              Console.WriteLine("Expception: {0}", e.InnerException.Message);
+              LuaExceptionData d = LuaExceptionData.GetData(e.InnerException); // get stack trace
+              Console.WriteLine("StackTrace: {0}", d.GetStackTrace(0, false));
+              Console.ForegroundColor = ConsoleColor.Gray;
+            }
         }
+      }
 #if DEBUG
       Console.WriteLine();
       Console.Write("<return>");
