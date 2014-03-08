@@ -141,6 +141,18 @@
   <data name="rsDelegateCouldNotHaveOut" xml:space="preserve">
     <value>Delegates dürfen keine Ausgabeparameter haben.</value>
   </data>
+  <data name="rsFileInvalidModeFormat" xml:space="preserve">
+    <value>Format für mode-parameter nicht erkannt.</value>
+  </data>
+  <data name="rsFileNotReadable" xml:space="preserve">
+    <value>Datei kann nicht gelesen werden.</value>
+  </data>
+  <data name="rsFileNotSeekable" xml:space="preserve">
+    <value>Dateizeiger kann nicht neu positioniert werden.</value>
+  </data>
+  <data name="rsFileNotWriteable" xml:space="preserve">
+    <value>In die Datei kann nicht geschrieben werden.</value>
+  </data>
   <data name="rsGlobalFunctionNotUnique" xml:space="preserve">
     <value>Funktion '{0}' wurde bereits in '{1}' definiert.</value>
   </data>

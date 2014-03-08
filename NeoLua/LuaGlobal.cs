@@ -470,6 +470,8 @@ namespace Neo.IronLua
 
     #endregion
 
+    #region -- void RegisterPackage ---------------------------------------------------
+
     /// <summary>Registers a type as an library.</summary>
     /// <param name="sName"></param>
     /// <param name="type"></param>
@@ -482,6 +484,8 @@ namespace Neo.IronLua
 
       this[sName] = new LuaPackageProxy(type);
     } // func RegisterPackage
+
+    #endregion
 
     #region -- DoChunk ----------------------------------------------------------------
 
@@ -608,7 +612,10 @@ namespace Neo.IronLua
           long iMem = GC.GetTotalMemory(false);
           return new LuaResult(iMem / 1024.0, iMem % 1024);
         case "isrunning":
+        case "step":
           return new LuaResult(true);
+        case "setpause":
+          return new LuaResult(false);
         default:
           return LuaResult.Empty;
       }
@@ -621,7 +628,7 @@ namespace Neo.IronLua
     private LuaResult LuaDoFile(object[] args)
     {
       if (args == null || args.Length == 0)
-        throw new ArgumentException();
+        throw new ArgumentException(); // no support for stdin
       else if (args.Length == 1)
         return DoChunk((string)args[0]);
       else
@@ -744,6 +751,14 @@ namespace Neo.IronLua
       return new LuaResult(new Func<object, object, LuaResult>(pairsEnum), e, e);
     } // func LuaPairs
 
+    private object LuaLoadReturn(LuaChunk c, LuaGlobal env)
+    {
+      if (env == null)
+        return new Func<LuaResult>(() => this.DoChunk(c));
+      else
+        return new Func<LuaResult>(() => env.DoChunk(c));
+    } // func LuaLoadReturn
+
     /// <summary></summary>
     /// <param name="ld"></param>
     /// <param name="source"></param>
@@ -751,9 +766,16 @@ namespace Neo.IronLua
     /// <param name="env"></param>
     /// <returns></returns>
     [LuaFunction("load")]
-    private object LuaLoad(object ld, string source, string mode, LuaTable env)
+    private object LuaLoad(object ld, string source, string mode, LuaGlobal env)
     {
-      throw new NotImplementedException();
+      if (source == null)
+        source = "=(load)";
+
+      if (mode == "b" || !(ld is string)) // binary chunks are not implementeted
+        throw new NotImplementedException();
+
+      // create the chunk
+      return LuaLoadReturn(lua.CompileChunk((string)ld, source, false), env); // is only disposed, when Lua-Script-Engine disposed.
     } // func LuaLoad
 
     /// <summary></summary>
@@ -762,9 +784,13 @@ namespace Neo.IronLua
     /// <param name="env"></param>
     /// <returns></returns>
     [LuaFunction("loadfile")]
-    private object LuaLoadFile(string filename, string mode, LuaTable env)
+    private object LuaLoadFile(string filename, string mode, LuaGlobal env)
     {
-      throw new NotImplementedException();
+      if (mode == "b") // binary chunks are not implementeted
+        throw new NotImplementedException();
+
+      // create the chunk
+      return LuaLoadReturn(lua.CompileChunk(filename, false), env);
     } // func LuaLoadFile
 
     /// <summary></summary>
@@ -911,10 +937,37 @@ namespace Neo.IronLua
     [LuaFunction("tonumber")]
     private object LuaToNumber(object v, int iBase)
     {
+      return ToNumber(v, iBase);
+    } // func LuaToNumber
+
+    internal static object ToNumber(object v, int iBase)
+    {
       if (v == null)
         return null;
       else if (v is string)
-        return Convert.ToInt32((string)v, iBase == 0 ? 10 : iBase); // todo: Incompatible to lua reference
+      {
+        string sValue = (string)v;
+        if (iBase == 0)
+        {
+          if (sValue.StartsWith("0x", StringComparison.Ordinal))
+          {
+            iBase = 16;
+            sValue = sValue.Substring(2);
+          }
+          else
+            iBase = 10;
+        }
+        if (iBase == 10)
+        {
+          int iTmp;
+          if (int.TryParse(sValue, out iTmp))
+            return iTmp;
+          else
+            return Convert.ToDouble(sValue);
+        }
+        else
+          return Convert.ToInt32((string)v, iBase); // todo: Incompatible to lua reference
+      }
       else if (v is int || v is double)
         return v;
       else if (v is byte ||
@@ -932,7 +985,7 @@ namespace Neo.IronLua
         return (bool)v ? 1 : 0;
       else
         return null;
-    } // func LuaToNumber
+    } // func ToNumber
 
     /// <summary></summary>
     /// <param name="v"></param>
@@ -960,11 +1013,15 @@ namespace Neo.IronLua
       else if (v is string)
         return "string";
       else if (v is bool)
-        return "bool";
+        return "boolean";
       else if (v is LuaTable)
         return "table";
       else if (v is Delegate)
         return "function";
+      else if (v is LuaThread)
+        return "thread";
+      else if (v is LuaFile)
+        return ((LuaFile)v).IsClosed ? "closed file" : "file";
       else
         return lClr ? "userdata" : v.GetType().FullName;
     } // func LuaType

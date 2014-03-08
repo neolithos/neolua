@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Dynamic;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Runtime.InteropServices;
@@ -791,68 +793,127 @@ namespace Neo.IronLua
     /// <summary>default files are not supported.</summary>
     private static class LuaLibraryIO
     {
+      private static LuaFile defaultOutput = null;
+      private static LuaFile defaultInput = null;
+      private static LuaFile tempFile = null;
+
+      public static LuaResult open(string filename, string mode = "r")
+      {
+        try
+        {
+          return new LuaResult(new LuaFile(filename, mode));
+        }
+        catch (Exception e)
+        {
+          return new LuaResult(null, e.Message);
+        }
+      } // func open
+
+      public static LuaResult lines(object[] args)
+      {
+        if (args == null || args.Length == 0)
+          return defaultInput.lines(null);
+        else
+          return Lua.GetEnumIteratorResult(new LuaLinesEnumerator(new LuaFile((string)args[0], "r"), true, args, 1));
+      } // func lines
+
       public static LuaResult close(LuaFile file = null)
       {
         if (file != null)
           return file.close();
+        else if (defaultOutput != null)
+        {
+          LuaResult r = defaultOutput.close();
+          defaultOutput = null;
+          return r;
+        }
         else
-          throw new NotImplementedException();
+          return null;
       } // proc close
+
+      public static LuaFile input(object file = null)
+      {
+        if (file is string)
+        {
+          if (defaultInput != null)
+            defaultInput.close();
+          defaultInput = new LuaFile((string)file, "r");
+
+          return defaultInput;
+        }
+        else if (file is LuaFile)
+        {
+          if (defaultInput != null)
+            defaultInput.close();
+          defaultInput = (LuaFile)file;
+        }
+        return defaultInput;
+      } // proc input
+
+      public static LuaFile output(object file = null)
+      {
+        if (file is string)
+        {
+          if (defaultOutput != null)
+            defaultOutput.close();
+          defaultOutput = new LuaFile((string)file, "w");
+
+          return defaultOutput;
+        }
+        else if (file is LuaFile)
+        {
+          if (defaultOutput != null)
+            defaultOutput.close();
+          defaultOutput = (LuaFile)file;
+        }
+        return defaultOutput;
+      } // proc output
 
       public static void flush()
       {
+        if (defaultOutput != null)
+          defaultOutput.flush();
       } // proc flush
 
-      public static LuaFile input(LuaFile file = null)
+      public static LuaResult read(object[] args)
       {
-        if (file == null)
-          throw new NotImplementedException();
-        else
-          return file;
-      } // proc input
-
-      public static Delegate lines(string filename)
-      {
-        throw new NotImplementedException();
-      } // func lines
-
-      public static LuaResult open(string filename, string mode = "r")
-      {
-        throw new NotImplementedException();
-      } // func open
-
-      public static LuaFile output(LuaFile file = null)
-      {
-        if (file == null)
-          throw new NotImplementedException();
-        else
-          return file;
-      } // proc output
-
-      public static LuaResult popen(string program, string mode = "r")
-      {
-        throw new NotImplementedException();
-      } // func popen
-
-      public static void read()
-      {
-        throw new NotImplementedException();
+        return defaultInput == null ? LuaResult.Empty : defaultInput.read(args);
       } // proc read
+
+      public static LuaResult write(object [] args)
+      {
+        return defaultOutput == null ? LuaResult.Empty : defaultOutput.write(args);
+      } // proc write
 
       public static LuaFile tmpfile()
       {
-        throw new NotImplementedException();
+        if (tempFile == null)
+          tempFile = tmpfilenew();
+        return tempFile;
+      } // func read
+
+      public static LuaFile tmpfilenew()
+      {
+        return new LuaTempFile(Path.GetTempFileName());
       } // func read
 
       public static string type(object obj)
       {
-        throw new NotImplementedException();
+        if (obj is LuaFile && !((LuaFile)obj).IsClosed)
+          return "file";
+        else
+          return "file closed";
       } // func type
 
-      public static void write()
+      public static LuaFile popen(string program, string mode = "r")
       {
-        throw new NotImplementedException();
-      } // proc write
+        ProcessStartInfo psi = new ProcessStartInfo(null, program);
+        psi.RedirectStandardOutput = mode.IndexOf('r') >= 0;
+        psi.RedirectStandardInput = mode.IndexOf('w') >= 0;
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+        return new LuaFile(Process.Start(psi));
+      } // func popen
     } // class LuaLibraryOS
 
     #endregion
@@ -863,9 +924,9 @@ namespace Neo.IronLua
     /// <summary></summary>
     private static class LuaLibraryOS
     {
-      public static int clock()
+      public static LuaResult clock()
       {
-        return Environment.TickCount;
+        return new LuaResult(Process.GetCurrentProcess().TotalProcessorTime.TotalSeconds);
       } // func clock
 
       public static object date(string format, string time)
@@ -880,12 +941,25 @@ namespace Neo.IronLua
 
       public static LuaResult execute(string command)
       {
-        throw new NotImplementedException();
+        if (command == null)
+          return new LuaResult(true);
+        try
+        {
+          using (Process p = Process.Start(null, command))
+          {
+            p.WaitForExit();
+            return new LuaResult(true, "exit", p.ExitCode);
+          }
+        }
+        catch (Exception e)
+        {
+          return new LuaResult(null, e.Message);
+        }
       } // func execute
 
       public static void exit(int code = 0, bool close = true)
       {
-        throw new NotImplementedException();
+        Environment.Exit(code);
       } // func exit
 
       public static string getenv(string varname)
@@ -895,12 +969,28 @@ namespace Neo.IronLua
 
       public static LuaResult remove(string filename)
       {
-        throw new NotImplementedException();
+        try
+        {
+          File.Delete(filename);
+          return new LuaResult(true);
+        }
+        catch (Exception e)
+        {
+          return new LuaResult(null, e.Message);
+        }
       } // func remove
 
       public static LuaResult rename(string oldname, string newname)
       {
-        throw new NotImplementedException();
+        try
+        {
+          File.Move(oldname, newname);
+          return new LuaResult(true);
+        }
+        catch (Exception e)
+        {
+          return new LuaResult(null, e.Message);
+        }
       } // func rename
 
       public static void setlocale()
@@ -915,10 +1005,30 @@ namespace Neo.IronLua
 
       public static string tmpname()
       {
-        throw new NotImplementedException();
+        return Path.GetTempFileName();
       } // func tmpname
     } // class LuaLibraryOS
 
     #endregion
+
+    // -- Static --------------------------------------------------------------
+
+    private readonly static Func<object, object, LuaResult> funcLuaEnumIterator = new Func<object, object, LuaResult>(LuaEnumIteratorImpl);
+
+    private static LuaResult LuaEnumIteratorImpl(object s, object c)
+    {
+      System.Collections.IEnumerator e = (System.Collections.IEnumerator)s;
+      if (e.MoveNext())
+        return new LuaResult(e.Current);
+      else
+        return LuaResult.Empty;
+    } // func LuaEnumIteratorImpl
+
+    /// <summary>Convert IEnumerator's to lua enumerator-functions.</summary>
+   
+    public static LuaResult GetEnumIteratorResult(System.Collections.IEnumerator e)
+    {
+      return new LuaResult(funcLuaEnumIterator, e, null);
+    } // func GetEnumIteratorResult
   } // class Lua
 }

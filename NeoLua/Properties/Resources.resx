@@ -141,6 +141,18 @@
   <data name="rsDelegateCouldNotHaveOut" xml:space="preserve">
     <value>Delegate must not have out parameters.</value>
   </data>
+  <data name="rsFileInvalidModeFormat" xml:space="preserve">
+    <value>Invalid mode format.</value>
+  </data>
+  <data name="rsFileNotReadable" xml:space="preserve">
+    <value>Can not read from file.</value>
+  </data>
+  <data name="rsFileNotSeekable" xml:space="preserve">
+    <value>File pointer can not set to a new position.</value>
+  </data>
+  <data name="rsFileNotWriteable" xml:space="preserve">
+    <value>Can not write into file.</value>
+  </data>
   <data name="rsGlobalFunctionNotUnique" xml:space="preserve">
     <value>Function '{0}' on type '{1}' already exists.</value>
   </data>
