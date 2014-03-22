@@ -165,5 +165,21 @@ namespace LuaDLR.Test
         Assert.IsTrue(g.add(1, 2) == 3);
       }
     } // proc TestFunctions15
+
+    [TestMethod]
+    public void TestFunctions17()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        dynamic g = l.CreateEnvironment();
+        object a = g.dochunk("function test(a) if a ~= nil then return a; end; end;", "test.lua");
+        object b = g.test();
+        LuaResult c = g.test(1);
+        Assert.IsTrue(a == LuaResult.Empty);
+        Assert.IsTrue(b == LuaResult.Empty);
+        Assert.IsTrue(c.ToInt32() == 1);
+      }
+    } // proc TestFunctions15
   } // class Functions
 }

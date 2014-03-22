@@ -124,6 +124,42 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Argument ar must from the same LuaThread. ähnelt.
+        /// </summary>
+        internal static string rsCoroutineInvalidAR {
+            get {
+                return ResourceManager.GetString("rsCoroutineInvalidAR", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Argument co must be a LuaThread or a Thread. ähnelt.
+        /// </summary>
+        internal static string rsCoroutineInvalidCO {
+            get {
+                return ResourceManager.GetString("rsCoroutineInvalidCO", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die BeginResume is not called. ähnelt.
+        /// </summary>
+        internal static string rsCoroutineNoBeginResume {
+            get {
+                return ResourceManager.GetString("rsCoroutineNoBeginResume", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Yield from wrong thread. ähnelt.
+        /// </summary>
+        internal static string rsCoroutineWrongThread {
+            get {
+                return ResourceManager.GetString("rsCoroutineWrongThread", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Sucht eine lokalisierte Zeichenfolge, die Delegate must not have out parameters. ähnelt.
         /// </summary>
         internal static string rsDelegateCouldNotHaveOut {
@@ -318,6 +354,15 @@ namespace Neo.IronLua.Properties {
         internal static string rsParseNoArgList {
             get {
                 return ResourceManager.GetString("rsParseNoArgList", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die It is not allowed to redefine the type. ähnelt.
+        /// </summary>
+        internal static string rsParseTypeRedef {
+            get {
+                return ResourceManager.GetString("rsParseTypeRedef", resourceCulture);
             }
         }
         

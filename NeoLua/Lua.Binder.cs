@@ -386,7 +386,7 @@ namespace Neo.IronLua
     /// <returns></returns>
     public static implicit operator object[](LuaResult r)
     {
-      return r.result;
+      return r == null ? emptyArray : r.result;
     } // operator object[]
     
     /// <summary></summary>

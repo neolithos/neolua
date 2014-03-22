@@ -84,13 +84,15 @@
     <EmbeddedResource Include="NeoLua.snk" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\packages\NuGet.Manifest.Schema.2.0.4\Content\nuspec.2010.7.xsd">
+      <Link>nuspec.2010.7.xsd</Link>
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="..\packages\NuGet.Manifest.Schema.2.0.4\Content\nuspec.2011.8.xsd">
+      <Link>nuspec.2011.8.xsd</Link>
+      <SubType>Designer</SubType>
+    </None>
     <None Include="NeoLua.nuspec" />
-    <None Include="nuspec.2010.7.xsd">
-      <SubType>Designer</SubType>
-    </None>
-    <None Include="nuspec.2011.8.xsd">
-      <SubType>Designer</SubType>
-    </None>
   </ItemGroup>
   <Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
     <CreateItem Include="$(TargetDir)\Neo.Lua.*;$(TargetDir)\de\*">

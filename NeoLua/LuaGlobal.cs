@@ -828,7 +828,7 @@ namespace Neo.IronLua
       if (args == null)
         return;
 
-      OnPrint(String.Concat((from a in args select a == null ? String.Empty : a.ToString())));
+      OnPrint(String.Join(" ", (from a in args select a == null ? String.Empty : a.ToString())));
     } // proc LuaPrint
 
     /// <summary></summary>

@@ -142,14 +142,14 @@ namespace Neo.IronLua
 
       public static LuaResult @byte(string s, int i = 1, int j = int.MaxValue)
       {
-        if(String.IsNullOrEmpty(s) || i > j)
+        if (String.IsNullOrEmpty(s) || i > j)
           return LuaResult.Empty;
 
         if (i < 1)
           i = 1; // default for i is 1
         if (j == int.MaxValue)
           j = i; // default for j is i
-        else if(j > s.Length)
+        else if (j > s.Length)
           j = s.Length; // correct the length
 
         int iLen = j - i + 1; // how many chars to we need
@@ -163,7 +163,7 @@ namespace Neo.IronLua
 
       public static string @char(params int[] chars)
       {
-        if(chars == null)
+        if (chars == null)
           return String.Empty;
 
         StringBuilder sb = new StringBuilder(chars.Length);
@@ -190,7 +190,7 @@ namespace Neo.IronLua
           init = s.Length + init + 1;
         if (init <= 0)
           init = 1;
-        
+
         if (plain) // plain pattern
         {
           int iIndex = s.IndexOf(pattern, init - 1);
@@ -202,7 +202,7 @@ namespace Neo.IronLua
           pattern = TranslateRegularExpression(pattern);
 
           Regex r = new Regex(pattern);
-          Match m =  r.Match(s, init);
+          Match m = r.Match(s, init);
           if (m.Success)
           {
             object[] result = new object[m.Captures.Count + 2];
@@ -317,7 +317,7 @@ namespace Neo.IronLua
 
       public static string reverse(string s)
       {
-        if(String.IsNullOrEmpty(s) || s.Length == 1)
+        if (String.IsNullOrEmpty(s) || s.Length == 1)
           return s;
 
         char[] a = s.ToCharArray();

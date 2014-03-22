@@ -138,6 +138,18 @@
   <data name="rsConversationError" xml:space="preserve">
     <value>'{0}' kann nicht in '{1}' konvertiert werden.</value>
   </data>
+  <data name="rsCoroutineInvalidAR" xml:space="preserve">
+    <value>Argument ar muss vom selben LuaThread stammen.</value>
+  </data>
+  <data name="rsCoroutineInvalidCO" xml:space="preserve">
+    <value>Argument co muss ein LuaThread oder Thread sein.</value>
+  </data>
+  <data name="rsCoroutineNoBeginResume" xml:space="preserve">
+    <value>BeginResume wurde nicht aufgerufen.</value>
+  </data>
+  <data name="rsCoroutineWrongThread" xml:space="preserve">
+    <value>Yield wurde vom falsche Thread aus gerufen.</value>
+  </data>
   <data name="rsDelegateCouldNotHaveOut" xml:space="preserve">
     <value>Delegates dürfen keine Ausgabeparameter haben.</value>
   </data>
@@ -203,6 +215,9 @@
   </data>
   <data name="rsParseNoArgList" xml:space="preserve">
     <value>Keine Argumentenliste definiert.</value>
+  </data>
+  <data name="rsParseTypeRedef" xml:space="preserve">
+    <value>Es nicht erlaubt den Type neu zu definieren.</value>
   </data>
   <data name="rsParseUnexpectedToken" xml:space="preserve">
     <value>'{1}' erwartet, aber '{0}' gefunden.</value>

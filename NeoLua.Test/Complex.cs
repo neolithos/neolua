@@ -73,5 +73,11 @@ namespace LuaDLR.Test
         Assert.IsTrue(dlg(1, 2) == 3);
       }
     } // proc Delegate03
+
+    [TestMethod]
+    public void Coroutines01()
+    {
+      TestReturn(GetCode("Lua.Coroutines01.lua"));
+    }
   } // class ComplexStructures
 }

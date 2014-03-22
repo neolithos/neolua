@@ -296,6 +296,7 @@ namespace Neo.IronLua
               luaSystemLibraries[sName] = new LuaPackageProxy(t);
             }
           }
+          luaSystemLibraries.Add("coroutine", new LuaPackageProxy(typeof(LuaThread)));
         }
         return luaSystemLibraries.TryGetValue(sLibraryName, out lib);
       }
