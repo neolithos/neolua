@@ -598,5 +598,148 @@ namespace Neo.IronLua
 
     /// <summary>Length if it is an array.</summary>
     public int Length { get { return iLength; } }
+
+    #region -- Table Manipulation -----------------------------------------------------
+
+    /// <summary></summary>
+    /// <param name="t"></param>
+    /// <param name="sep"></param>
+    /// <param name="i"></param>
+    /// <param name="j"></param>
+    /// <returns></returns>
+    public static string concat(LuaTable t, string sep = null, int i = 0, int j = int.MaxValue)
+    {
+      StringBuilder sb = new StringBuilder();
+
+      foreach (var c in t)
+      {
+        int k = c.Key is int ? (int)c.Key : -1;
+        if (k >= i && k <= j)
+        {
+          if (!String.IsNullOrEmpty(sep) && sb.Length > 0)
+            sb.Append(sep);
+          sb.Append(c.Value);
+        }
+      }
+
+      return sb.ToString();
+    } // func concat
+
+    /// <summary></summary>
+    /// <param name="t"></param>
+    /// <param name="pos"></param>
+    /// <param name="value"></param>
+    public static void insert(LuaTable t, object pos, object value = null)
+    {
+      // the pos is optional
+      if (!(pos is int) && value == null)
+      {
+        value = pos;
+        if (t.Length < 0)
+          pos = 0;
+        else
+          pos = t.Length;
+      }
+
+      // insert the value at the position
+      int iPos = Convert.ToInt32(pos);
+      object c = value;
+      while (true)
+      {
+        if (t[iPos] == null)
+        {
+          t[iPos] = c;
+          break;
+        }
+        else
+        {
+          object tmp = t[iPos];
+          t[iPos] = c;
+          c = tmp;
+        }
+        iPos++;
+      }
+    } // proc insert
+
+    /// <summary></summary>
+    /// <param name="values"></param>
+    /// <returns></returns>
+    public static LuaTable pack(object[] values)
+    {
+      LuaTable t = new LuaTable();
+      for (int i = 0; i < values.Length; i++)
+        t[i] = values[i];
+      return t;
+    } // func pack
+
+    /// <summary></summary>
+    /// <param name="t"></param>
+    /// <param name="pos"></param>
+    public static void remove(LuaTable t, int pos = -1)
+    {
+      if (pos == -1)
+        pos = t.Length;
+      if (pos == -1)
+        return;
+
+      while (true)
+      {
+        if (t[pos] == null)
+          break;
+        t[pos] = t[pos + 1];
+        pos++;
+      }
+    } // proc remove
+
+    /// <summary></summary>
+    /// <param name="t"></param>
+    /// <param name="sort"></param>
+    public static void sort(LuaTable t, Delegate sort = null)
+    {
+      object[] values = unpack(t); // unpack in a normal array
+
+      // sort the array
+      if (sort == null)
+        Array.Sort(values);
+      else
+        Array.Sort(values, (a, b) => ((Func<object, object, LuaResult>)sort)(a, b).ToInt32());
+
+      // copy the values back
+      for (int i = 0; i < values.Length; i++)
+        t[i] = values[i];
+
+      // remove the overflow
+      List<int> removeValues = new List<int>();
+      foreach (var c in t)
+      {
+        int i = c.Key is int ? (int)c.Key : -1;
+        if (i >= values.Length)
+          removeValues.Add(i);
+      }
+
+      for (int i = 0; i < removeValues.Count; i++)
+        t[removeValues[i]] = null;
+    } // proc sort
+
+    /// <summary></summary>
+    /// <param name="t"></param>
+    /// <param name="i"></param>
+    /// <param name="j"></param>
+    /// <returns></returns>
+    public static LuaResult unpack(LuaTable t, int i = 0, int j = int.MaxValue)
+    {
+      List<object> r = new List<object>();
+
+      foreach (var c in t)
+      {
+        int k = c.Key is int ? (int)c.Key : -1;
+        if (k >= i && k <= j)
+          r.Add(c.Value);
+      }
+
+      return r.ToArray();
+    } // func unpack
+
+    #endregion
   } // class LuaTable
 }

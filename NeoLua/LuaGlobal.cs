@@ -396,6 +396,7 @@ namespace Neo.IronLua
     #endregion
 
     private Lua lua;
+    private LuaFilePackage io = null;
 
     #region -- Ctor/Dtor --------------------------------------------------------------
 
@@ -417,7 +418,14 @@ namespace Neo.IronLua
     {
       Lua.CoreFunction f;
       IDynamicMetaObjectProvider lib;
-      if (Lua.TryGetLuaFunction(sName, GetType(), out f))
+      if (sName == "io")
+      {
+        if (io == null)
+          io = new LuaFilePackage();
+        expr = Expression.Constant(io);
+        return true;
+      }
+      else if (Lua.TryGetLuaFunction(sName, GetType(), out f))
       {
         expr = Expression.Constant(f.GetDelegate(this), typeof(object));
         return true;

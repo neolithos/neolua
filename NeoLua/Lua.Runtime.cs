@@ -29,6 +29,64 @@ namespace Neo.IronLua
 
   #endregion
 
+  #region -- class LuaPackageProxy ----------------------------------------------------
+
+  ///////////////////////////////////////////////////////////////////////////////
+  /// <summary>Little proxy for static classes that provide Library for Lua</summary>
+  internal class LuaPackageProxy : IDynamicMetaObjectProvider
+  {
+    #region -- class LuaPackageMetaObject ---------------------------------------------
+
+    ///////////////////////////////////////////////////////////////////////////////
+    /// <summary></summary>
+    private class LuaPackageMetaObject : DynamicMetaObject
+    {
+      public LuaPackageMetaObject(Expression expression, LuaPackageProxy value)
+        : base(expression, BindingRestrictions.Empty, value)
+      {
+      } // ctor
+
+      public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
+      {
+        LuaPackageProxy val = (LuaPackageProxy)Value;
+        Expression expr = null;
+
+        // Call try to bind the static methods
+        switch (Lua.TryBindGetMember(binder, new DynamicMetaObject(Expression.Default(val.type), BindingRestrictions.Empty, null), out expr))
+        {
+          case Lua.BindResult.Ok:
+            expr = Expression.Convert(expr, typeof(object));
+            break;
+        }
+
+        return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(Expression, Value));
+      } // func BindGetMember
+
+      public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
+      {
+        Expression expr;
+        Lua.TryBindInvokeMember(binder, new DynamicMetaObject(Expression.Default((Type)Value), BindingRestrictions.Empty, null), args, out expr);
+        return new DynamicMetaObject(expr, Lua.GetMethodSignatureRestriction(null, args).Merge(BindingRestrictions.GetInstanceRestriction(Expression, Value)));
+      } // func BindInvokeMember
+    } // class LuaPackageMetaObject
+
+    #endregion
+
+    private Type type;
+
+    public LuaPackageProxy(Type type)
+    {
+      this.type = type;
+    } // ctor
+
+    public DynamicMetaObject GetMetaObject(Expression parameter)
+    {
+      return new LuaPackageMetaObject(parameter, this);
+    } // func GetMetaObject
+  } // class LuaPackageProxy
+
+  #endregion
+
   #region -- class Lua ----------------------------------------------------------------
 
   ///////////////////////////////////////////////////////////////////////////////
@@ -296,6 +354,7 @@ namespace Neo.IronLua
               luaSystemLibraries[sName] = new LuaPackageProxy(t);
             }
           }
+          luaSystemLibraries.Add("table", new LuaPackageProxy(typeof(LuaTable)));
           luaSystemLibraries.Add("coroutine", new LuaPackageProxy(typeof(LuaThread)));
         }
         return luaSystemLibraries.TryGetValue(sLibraryName, out lib);
@@ -392,6 +451,29 @@ namespace Neo.IronLua
 
       return false;
     } // func TryGetLuaFunction 
+
+    #endregion
+
+    #region -- Enumerator -------------------------------------------------------------
+
+    private readonly static Func<object, object, LuaResult> funcLuaEnumIterator = new Func<object, object, LuaResult>(LuaEnumIteratorImpl);
+
+    private static LuaResult LuaEnumIteratorImpl(object s, object c)
+    {
+      System.Collections.IEnumerator e = (System.Collections.IEnumerator)s;
+      if (e.MoveNext())
+        return new LuaResult(e.Current);
+      else
+        return LuaResult.Empty;
+    } // func LuaEnumIteratorImpl
+
+    /// <summary>Convert IEnumerator's to lua enumerator-functions.</summary>
+    /// <param name="e"></param>
+    /// <returns></returns>
+    public static LuaResult GetEnumIteratorResult(System.Collections.IEnumerator e)
+    {
+      return new LuaResult(funcLuaEnumIterator, e, null);
+    } // func GetEnumIteratorResult
 
     #endregion
   } // class Lua

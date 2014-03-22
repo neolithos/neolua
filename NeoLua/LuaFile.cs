@@ -68,6 +68,171 @@ namespace Neo.IronLua
 
   #endregion
 
+  #region -- class LuaFilePackage -----------------------------------------------------
+
+  ///////////////////////////////////////////////////////////////////////////////
+  /// <summary>default files are not supported.</summary>
+  public sealed class LuaFilePackage
+  {
+    private LuaFile defaultOutput = null;
+    private LuaFile defaultInput = null;
+    private LuaFile tempFile = null;
+
+    /// <summary></summary>
+    /// <param name="filename"></param>
+    /// <param name="mode"></param>
+    /// <returns></returns>
+    public LuaResult open(string filename, string mode = "r")
+    {
+      try
+      {
+        return new LuaResult(new LuaFile(filename, mode));
+      }
+      catch (Exception e)
+      {
+        return new LuaResult(null, e.Message);
+      }
+    } // func open
+
+    /// <summary></summary>
+    /// <param name="args"></param>
+    /// <returns></returns>
+    public LuaResult lines(object[] args)
+    {
+      if (args == null || args.Length == 0)
+        return defaultInput.lines(null);
+      else
+        return Lua.GetEnumIteratorResult(new LuaLinesEnumerator(new LuaFile((string)args[0], "r"), true, args, 1));
+    } // func lines
+
+    /// <summary></summary>
+    /// <param name="file"></param>
+    /// <returns></returns>
+    public LuaResult close(LuaFile file = null)
+    {
+      if (file != null)
+        return file.close();
+      else if (defaultOutput != null)
+      {
+        LuaResult r = defaultOutput.close();
+        defaultOutput = null;
+        return r;
+      }
+      else
+        return null;
+    } // proc close
+
+    /// <summary></summary>
+    /// <param name="file"></param>
+    /// <returns></returns>
+    public LuaFile input(object file = null)
+    {
+      if (file is string)
+      {
+        if (defaultInput != null)
+          defaultInput.close();
+        defaultInput = new LuaFile((string)file, "r");
+
+        return defaultInput;
+      }
+      else if (file is LuaFile)
+      {
+        if (defaultInput != null)
+          defaultInput.close();
+        defaultInput = (LuaFile)file;
+      }
+      return defaultInput;
+    } // proc input
+
+    /// <summary></summary>
+    /// <param name="file"></param>
+    /// <returns></returns>
+    public LuaFile output(object file = null)
+    {
+      if (file is string)
+      {
+        if (defaultOutput != null)
+          defaultOutput.close();
+        defaultOutput = new LuaFile((string)file, "w");
+
+        return defaultOutput;
+      }
+      else if (file is LuaFile)
+      {
+        if (defaultOutput != null)
+          defaultOutput.close();
+        defaultOutput = (LuaFile)file;
+      }
+      return defaultOutput;
+    } // proc output
+
+    /// <summary></summary>
+    public void flush()
+    {
+      if (defaultOutput != null)
+        defaultOutput.flush();
+    } // proc flush
+
+    /// <summary></summary>
+    /// <param name="args"></param>
+    /// <returns></returns>
+    public LuaResult read(object[] args)
+    {
+      return defaultInput == null ? LuaResult.Empty : defaultInput.read(args);
+    } // proc read
+
+    /// <summary></summary>
+    /// <param name="args"></param>
+    /// <returns></returns>
+    public LuaResult write(object[] args)
+    {
+      return defaultOutput == null ? LuaResult.Empty : defaultOutput.write(args);
+    } // proc write
+
+    /// <summary></summary>
+    /// <returns></returns>
+    public LuaFile tmpfile()
+    {
+      if (tempFile == null)
+        tempFile = tmpfilenew();
+      return tempFile;
+    } // func read
+
+    /// <summary></summary>
+    /// <returns></returns>
+    public LuaFile tmpfilenew()
+    {
+      return new LuaTempFile(Path.GetTempFileName());
+    } // func read
+
+    /// <summary></summary>
+    /// <param name="obj"></param>
+    /// <returns></returns>
+    public string type(object obj)
+    {
+      if (obj is LuaFile && !((LuaFile)obj).IsClosed)
+        return "file";
+      else
+        return "file closed";
+    } // func type
+
+    /// <summary></summary>
+    /// <param name="program"></param>
+    /// <param name="mode"></param>
+    /// <returns></returns>
+    public LuaFile popen(string program, string mode = "r")
+    {
+      ProcessStartInfo psi = new ProcessStartInfo(null, program);
+      psi.RedirectStandardOutput = mode.IndexOf('r') >= 0;
+      psi.RedirectStandardInput = mode.IndexOf('w') >= 0;
+      psi.UseShellExecute = false;
+      psi.CreateNoWindow = true;
+      return new LuaFile(Process.Start(psi));
+    } // func popen  
+  } // class LuaFilePackage
+
+  #endregion
+
   #region -- class LuaFile ------------------------------------------------------------
 
   ///////////////////////////////////////////////////////////////////////////////
