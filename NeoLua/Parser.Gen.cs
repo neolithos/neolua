@@ -302,12 +302,12 @@ namespace Neo.IronLua
       );
     } // func GetDelegateType
 
-    internal static Delegate CreateDelegate(MethodInfo mi)
+    internal static Delegate CreateDelegate(object firstArgument, MethodInfo mi)
     {
       if ((mi.CallingConvention & CallingConventions.VarArgs) != 0)
         throw new ArgumentException("Call of VarArgs not implemented.");
       Type typeDelegate = GetDelegateType(mi);
-      return Delegate.CreateDelegate(typeDelegate, mi);
+      return Delegate.CreateDelegate(typeDelegate, firstArgument, mi);
     } // func CreateDelegateFromMethodInfo
 
   } // class Parser

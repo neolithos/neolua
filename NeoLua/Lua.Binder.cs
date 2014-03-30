@@ -1002,7 +1002,7 @@ namespace Neo.IronLua
         }
         else if (member.MemberType == MemberTypes.Method)
         {
-          expr = Expression.Constant(Parser.CreateDelegate((MethodInfo)member), typeof(Delegate));
+          expr = Expression.Constant(Parser.CreateDelegate(target.Value, (MethodInfo)member), typeof(Delegate));
           return BindResult.Ok;
         }
         else if (member.MemberType == MemberTypes.NestedType)

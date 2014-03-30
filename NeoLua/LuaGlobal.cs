@@ -26,7 +26,7 @@ namespace Neo.IronLua
     {
       private LuaTable t;
       private int[] indexes;
-      private int iCurrent  = -1;
+      private int iCurrent = -1;
 
       public LuaIndexPairEnumerator(LuaTable t)
       {
@@ -89,33 +89,21 @@ namespace Neo.IronLua
 
     #region -- Dynamic Members --------------------------------------------------------
 
-    private bool TryGetLuaSystem(string sName, out Expression expr)
+    private Expression GetMemberExpression(Expression exprTable, MemberInfo member)
     {
-      Lua.CoreFunction f;
-      IDynamicMetaObjectProvider lib;
-      if (sName == "io")
+      PropertyInfo pi;
+      MethodInfo mi;
+      if ((pi = member as PropertyInfo) != null)
       {
-        if (io == null)
-          io = new LuaFilePackage();
-        expr = Expression.Constant(io);
-        return true;
+        return Expression.Property(Parser.ToTypeExpression(exprTable, pi.DeclaringType), pi);
       }
-      else if (Lua.TryGetLuaFunction(sName, GetType(), out f))
+      else if ((mi = member as MethodInfo) != null)
       {
-        expr = Expression.Constant(f.GetDelegate(this), typeof(object));
-        return true;
-      }
-      else if (Lua.TryGetSystemLibrary(sName, out lib))
-      {
-        expr = Expression.Constant(lib, typeof(object));
-        return true;
+        return Expression.Constant(Parser.CreateDelegate(this, mi));
       }
       else
-      {
-        expr = null;
-        return false;
-      }
-    } // func TryGetLuaSystem
+        throw new ArgumentException();
+    } // func GetMemberExpression
 
     /// <summary></summary>
     /// <param name="binder"></param>
@@ -125,24 +113,24 @@ namespace Neo.IronLua
     /// <returns></returns>
     protected override DynamicMetaObject GetMemberAccess(DynamicMetaObjectBinder binder, Expression exprTable, object memberName, MemberAccessFlag flags)
     {
-      if ((flags & MemberAccessFlag.ForWrite) == 0  && memberName is string)
+      if ((flags & MemberAccessFlag.ForWrite) == 0 && memberName is string)
       {
         string sMemberName = (string)memberName;
 
         // Access to clr can not overload
-        if (String.Compare(sMemberName, "_VERSION", (flags & MemberAccessFlag.IgnoreCase) !=0) == 0)
+        if (String.Compare(sMemberName, "_VERSION", (flags & MemberAccessFlag.IgnoreCase) != 0) == 0)
           return new DynamicMetaObject(Expression.Constant(VersionString, typeof(string)), BindingRestrictions.GetInstanceRestriction(exprTable, this));
 
         // Bind the value
         DynamicMetaObject moGet = base.GetMemberAccess(binder, exprTable, memberName, flags);
 
-        // Check for system function or library
-        Expression expr;
-        if (TryGetLuaSystem(sMemberName, out expr))
+        // Check for system members
+        MemberInfo mi = TryGetLuaMember(sMemberName, GetType());
+        if (mi != null)
         {
           return new DynamicMetaObject(
-          Expression.Coalesce(moGet.Expression, expr),
-          moGet.Restrictions);
+            Expression.Coalesce(moGet.Expression, GetMemberExpression(exprTable, mi)),
+            moGet.Restrictions);
         }
         else
           return moGet;
@@ -165,7 +153,7 @@ namespace Neo.IronLua
       if (type == null)
         throw new ArgumentNullException("type");
 
-      this[sName] = Neo.IronLua.LuaType.GetType(type);
+      this[sName] = LuaType.GetType(type);
     } // func RegisterPackage
 
     #endregion
@@ -242,11 +230,11 @@ namespace Neo.IronLua
       args[0] = this;
       if (callArgs != null)
         Array.Copy(callArgs, 0, args, 1, callArgs.Length);
-      
+
       object r = chunk.Chunk.DynamicInvoke(args);
       return r is LuaResult ? (LuaResult)r : new LuaResult(r);
     } // func DoChunk
-    
+
     #endregion
 
     #region -- Basic Functions --------------------------------------------------------
@@ -272,7 +260,7 @@ namespace Neo.IronLua
     /// <param name="value"></param>
     /// <param name="sMessage"></param>
     /// <returns></returns>
-    [LuaFunction("assert")]
+    [LuaMember("assert")]
     private object LuaAssert(object value, string sMessage)
     {
       Debug.Assert(IsTrue(value), sMessage);
@@ -283,7 +271,7 @@ namespace Neo.IronLua
     /// <param name="opt"></param>
     /// <param name="arg"></param>
     /// <returns></returns>
-    [LuaFunction("collectgarbage")]
+    [LuaMember("collectgarbage")]
     private LuaResult LuaCollectgarbage(string opt, object arg = null)
     {
       switch (opt)
@@ -307,7 +295,7 @@ namespace Neo.IronLua
     /// <summary></summary>
     /// <param name="args"></param>
     /// <returns></returns>
-    [LuaFunction("dofile")]
+    [LuaMember("dofile")]
     private LuaResult LuaDoFile(object[] args)
     {
       if (args == null || args.Length == 0)
@@ -321,7 +309,7 @@ namespace Neo.IronLua
     /// <summary></summary>
     /// <param name="args"></param>
     /// <returns></returns>
-    [LuaFunction("dochunk")]
+    [LuaMember("dochunk")]
     private LuaResult LuaDoChunk(object[] args)
     {
       if (args == null || args.Length == 0)
@@ -373,11 +361,11 @@ namespace Neo.IronLua
       }
       return p;
     } // func CreateArguments
-    
+
     /// <summary></summary>
     /// <param name="sMessage"></param>
     /// <param name="level"></param>
-    [LuaFunction("error")]
+    [LuaMember("error")]
     private void LuaError(string sMessage, int level)
     {
       if (level == 0)
@@ -390,7 +378,7 @@ namespace Neo.IronLua
     /// <summary></summary>
     /// <param name="obj"></param>
     /// <returns></returns>
-    [LuaFunction("getmetatable")]
+    [LuaMember("getmetatable")]
     private object LuaGetMetaTable(object obj)
     {
       LuaTable t = obj as LuaTable;
@@ -417,7 +405,7 @@ namespace Neo.IronLua
     /// <summary></summary>
     /// <param name="t"></param>
     /// <returns></returns>
-    [LuaFunction("ipairs")]
+    [LuaMember("ipairs")]
     private LuaResult LuaIPairs(LuaTable t)
     {
       var e = new LuaIndexPairEnumerator(t);
@@ -427,10 +415,10 @@ namespace Neo.IronLua
     /// <summary></summary>
     /// <param name="t"></param>
     /// <returns></returns>
-    [LuaFunction("pairs")]
+    [LuaMember("pairs")]
     private LuaResult LuaPairs(LuaTable t)
     {
-      var e = ((System.Collections.IEnumerable) t).GetEnumerator();
+      var e = ((System.Collections.IEnumerable)t).GetEnumerator();
       return new LuaResult(new Func<object, object, LuaResult>(pairsEnum), e, e);
     } // func LuaPairs
 
@@ -448,7 +436,7 @@ namespace Neo.IronLua
     /// <param name="mode"></param>
     /// <param name="env"></param>
     /// <returns></returns>
-    [LuaFunction("load")]
+    [LuaMember("load")]
     private object LuaLoad(object ld, string source, string mode, LuaGlobal env)
     {
       if (source == null)
@@ -466,7 +454,7 @@ namespace Neo.IronLua
     /// <param name="mode"></param>
     /// <param name="env"></param>
     /// <returns></returns>
-    [LuaFunction("loadfile")]
+    [LuaMember("loadfile")]
     private object LuaLoadFile(string filename, string mode, LuaGlobal env)
     {
       if (mode == "b") // binary chunks are not implementeted
@@ -480,7 +468,7 @@ namespace Neo.IronLua
     /// <param name="t"></param>
     /// <param name="next"></param>
     /// <returns></returns>
-    [LuaFunction("next")]
+    [LuaMember("next")]
     private object LuaNext(LuaTable t, object next = null)
     {
       throw new NotImplementedException();
@@ -490,7 +478,7 @@ namespace Neo.IronLua
     /// <param name="dlg"></param>
     /// <param name="args"></param>
     /// <returns></returns>
-    [LuaFunction("pcall")]
+    [LuaMember("pcall")]
     private LuaResult LuaPCall(Delegate dlg, params object[] args)
     {
       return LuaXPCall(dlg, null, args);
@@ -505,7 +493,7 @@ namespace Neo.IronLua
 
     /// <summary></summary>
     /// <param name="args"></param>
-    [LuaFunction("print")]
+    [LuaMember("print")]
     private void LuaPrint(params object[] args)
     {
       if (args == null)
@@ -518,7 +506,7 @@ namespace Neo.IronLua
     /// <param name="a"></param>
     /// <param name="b"></param>
     /// <returns></returns>
-    [LuaFunction("rawequal")]
+    [LuaMember("rawequal")]
     private bool LuaRawEqual(object a, object b)
     {
       if (a == null && b == null)
@@ -543,7 +531,7 @@ namespace Neo.IronLua
     /// <param name="t"></param>
     /// <param name="index"></param>
     /// <returns></returns>
-    [LuaFunction("rawget")]
+    [LuaMember("rawget")]
     private object LuaRawGet(LuaTable t, object index)
     {
       return t[index];
@@ -552,7 +540,7 @@ namespace Neo.IronLua
     /// <summary></summary>
     /// <param name="v"></param>
     /// <returns></returns>
-    [LuaFunction("rawlen")]
+    [LuaMember("rawlen")]
     private int LuaRawLen(object v)
     {
       if (v == null)
@@ -571,7 +559,7 @@ namespace Neo.IronLua
     /// <param name="index"></param>
     /// <param name="value"></param>
     /// <returns></returns>
-    [LuaFunction("rawset")]
+    [LuaMember("rawset")]
     private LuaTable LuaRawSet(LuaTable t, object index, object value)
     {
       t[index] = value;
@@ -582,7 +570,7 @@ namespace Neo.IronLua
     /// <param name="index"></param>
     /// <param name="values"></param>
     /// <returns></returns>
-    [LuaFunction("select")]
+    [LuaMember("select")]
     private LuaResult LuaSelect(int index, params object[] values)
     {
       if (index < 0)
@@ -606,7 +594,7 @@ namespace Neo.IronLua
     /// <param name="t"></param>
     /// <param name="metaTable"></param>
     /// <returns></returns>
-    [LuaFunction("setmetatable")]
+    [LuaMember("setmetatable")]
     private LuaTable LuaSetMetaTable(LuaTable t, LuaTable metaTable)
     {
       t[csMetaTable] = metaTable;
@@ -617,7 +605,7 @@ namespace Neo.IronLua
     /// <param name="v"></param>
     /// <param name="iBase"></param>
     /// <returns></returns>
-    [LuaFunction("tonumber")]
+    [LuaMember("tonumber")]
     private object LuaToNumber(object v, int iBase)
     {
       return ToNumber(v, iBase);
@@ -673,7 +661,7 @@ namespace Neo.IronLua
     /// <summary></summary>
     /// <param name="v"></param>
     /// <returns></returns>
-    [LuaFunction("tostring")]
+    [LuaMember("tostring")]
     private string LuaToString(object v)
     {
       if (v == null)
@@ -686,8 +674,8 @@ namespace Neo.IronLua
     /// <param name="v"></param>
     /// <param name="lClr"></param>
     /// <returns></returns>
-    [LuaFunction("type")]
-    private string LuaType(object v, bool lClr = false)
+    [LuaMember("type")]
+    private string LuaTypeTest(object v, bool lClr = false)
     {
       if (v == null)
         return "nil";
@@ -714,7 +702,7 @@ namespace Neo.IronLua
     /// <param name="msgh"></param>
     /// <param name="args"></param>
     /// <returns></returns>
-    [LuaFunction("xpcall")]
+    [LuaMember("xpcall")]
     private LuaResult LuaXPCall(Delegate dlg, Delegate msgh, params object[] args)
     {
       // call the function save
@@ -727,6 +715,112 @@ namespace Neo.IronLua
         return new LuaResult(false, e.Message, e);
       }
     } // func LuaPCall
+
+    #endregion
+
+    #region -- Basic Libraries --------------------------------------------------------
+
+    [LuaMember("table")]
+    private LuaType LuaLibraryTable
+    {
+      get { return LuaType.GetType(typeof(LuaTable)); }
+    } // prop LuaLibraryTable
+
+    [LuaMember("coroutine")]
+    private LuaType LuaLibraryCoroutine
+    {
+      get { return LuaType.GetType(typeof(LuaThread)); }
+    } // prop LuaLibraryTable
+
+    [LuaMember("io")]
+    private LuaFilePackage LuaLibraryIO
+    {
+      get
+      {
+        if (io == null)
+          io = new LuaFilePackage();
+        return io;
+      }
+    } // prop LuaLibraryIO
+
+    [LuaMember("bit32")]
+    private LuaType LuaLibraryBit32
+    {
+      get { return LuaType.GetType(typeof(LuaLibraryBit32)); }
+    } // prop LuaLibraryTable
+
+    [LuaMember("math")]
+    private LuaType LuaLibraryMath
+    {
+      get { return LuaType.GetType(typeof(LuaLibraryMath)); }
+    } // prop LuaLibraryTable
+
+    [LuaMember("os")]
+    private LuaType LuaLibraryOS
+    {
+      get { return LuaType.GetType(typeof(LuaLibraryOS)); }
+    } // prop LuaLibraryTable
+
+    [LuaMember("string")]
+    private LuaType LuaLibraryString
+    {
+      get { return LuaType.GetType(typeof(LuaLibraryString)); }
+    } // prop LuaLibraryTable
+
+    #endregion
+
+    // -- Static --------------------------------------------------------------
+
+    private static List<Type> luaMemberTypes = new List<Type>(); // Types they are already collected
+    private static Dictionary<string, MemberInfo> luaMember = new Dictionary<string, MemberInfo>(); // Collected members
+
+    #region -- Member Cache -----------------------------------------------------------
+
+    private static void CollectLuaFunctions(Type type)
+    {
+      lock (luaMember)
+      {
+        if (luaMemberTypes.IndexOf(type) != -1) // did we already collect the functions of this type
+          return;
+
+        foreach (var mi in type.GetMembers(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+        {
+          Attribute[] attrs = Attribute.GetCustomAttributes(mi, typeof(LuaMemberAttribute), false);
+          foreach (Attribute c in attrs)
+          {
+            LuaMemberAttribute attr = c as LuaMemberAttribute;
+            if (attr != null)
+            {
+              MemberInfo miFound;
+              if (luaMember.TryGetValue(mi.Name, out miFound))
+                throw new LuaRuntimeException(String.Format(Properties.Resources.rsGlobalFunctionNotUnique, attr.Name, miFound.DeclaringType.Name), null);
+              else
+                luaMember[attr.Name] = mi;
+            }
+          }
+        }
+
+        // type collected
+        luaMemberTypes.Add(type);
+
+        // collect lua-functions in the base types
+        if (type.BaseType != typeof(object))
+          CollectLuaFunctions(type.BaseType);
+      }
+    } // func CollectLuaFunctions
+
+    internal static MemberInfo TryGetLuaMember(string sName, Type typeGlobal)
+    {
+      CollectLuaFunctions(typeGlobal);
+
+      // Get the cached function
+      MemberInfo mi;
+      lock (luaMember)
+        if (luaMember.TryGetValue(sName, out mi) && (typeGlobal == mi.DeclaringType || typeGlobal.IsSubclassOf(mi.DeclaringType)))
+          return mi;
+
+      return null;
+    } // func TryGetLuaFunction
 
     #endregion
   } // class LuaGlobal

@@ -43,9 +43,6 @@ namespace Neo.IronLua
     private static PropertyInfo piResultValues = null;
     private static PropertyInfo piResultEmpty = null;
     private static MethodInfo miTableSetMethod = null;
-    private static Dictionary<string, IDynamicMetaObjectProvider> luaSystemLibraries = new Dictionary<string, IDynamicMetaObjectProvider>(); // Array with system libraries
-    private static List<Type> luaFunctionTypes = new List<Type>();
-    private static Dictionary<string, CoreFunction> luaFunctions = new Dictionary<string, CoreFunction>(); // Core functions for the object
 
     #region -- RtConcatArrays, RtStringConcat -----------------------------------------
 
@@ -254,108 +251,6 @@ namespace Neo.IronLua
         return miTableSetMethod;
       }
     } // prop ResultValuesPropertyInfo
-
-    #endregion
-
-    #region -- struct CoreFunction ----------------------------------------------------
-
-    ///////////////////////////////////////////////////////////////////////////////
-    /// <summary></summary>
-    internal struct CoreFunction
-    {
-      public Delegate GetDelegate(object self)
-      {
-        return Delegate.CreateDelegate(DelegateType, self, Method);
-      } // func GetDelegate
-
-      public MethodInfo Method;
-      public Type DeclaredType;
-      public Type DelegateType;
-    } // struct CoreFunction
-
-    #endregion
-
-    #region -- TryGetSystemLibrary ----------------------------------------------------
-
-    /// <summary>Gets the system library.</summary>
-    /// <param name="sLibraryName">name of the library</param>
-    /// <param name="lib">Library</param>
-    /// <returns>dynamic object for the library</returns>
-    internal static bool TryGetSystemLibrary(string sLibraryName, out IDynamicMetaObjectProvider lib)
-    {
-      lock (luaStaticLock)
-      {
-        if (luaSystemLibraries.Count == 0)
-        {
-          foreach (Type t in typeof(Lua).GetNestedTypes(BindingFlags.NonPublic))
-          {
-            if (t.Name.StartsWith("LuaLibrary", StringComparison.OrdinalIgnoreCase))
-            {
-              string sName = t.Name.Substring(10).ToLower();
-              luaSystemLibraries[sName] = LuaType.GetType(t);
-            }
-          }
-          luaSystemLibraries.Add("table", LuaType.GetType(typeof(LuaTable)));
-          luaSystemLibraries.Add("coroutine", LuaType.GetType(typeof(LuaThread)));
-        }
-        return luaSystemLibraries.TryGetValue(sLibraryName, out lib);
-      }
-    } // func GetSystemLibrary
-
-    #endregion
-
-    #region -- TryGetLuaFunction ------------------------------------------------------
-
-    internal static void CollectLuaFunctions(Type type)
-    {
-      lock (luaStaticLock)
-      {
-        if (luaFunctionTypes.IndexOf(type) != -1) // did we already collect the functions of this type
-          return;
-
-        foreach (var mi in type.GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-        {
-          LuaFunctionAttribute attr = (LuaFunctionAttribute)Attribute.GetCustomAttribute(mi, typeof(LuaFunctionAttribute), false);
-          if (attr != null)
-          {
-            CoreFunction f;
-            if (luaFunctions.TryGetValue(attr.Name, out f))
-            {
-              throw new LuaRuntimeException(String.Format(Properties.Resources.rsGlobalFunctionNotUnique, attr.Name, type.Name), null);
-            }
-            else
-            {
-              // create the delegate type
-              Type typeDelegate = Parser.GetDelegateType(mi);
-              luaFunctions[attr.Name] = new CoreFunction
-              {
-                DeclaredType = type,
-                DelegateType = typeDelegate,
-                Method = mi
-              };
-            }
-          }
-        }
-
-        // type collected
-        luaFunctionTypes.Add(type);
-
-        // collect lua-functions in the base types
-        if (type.BaseType != typeof(object))
-          CollectLuaFunctions(type.BaseType);
-      }
-    } // func CollectLuaFunctions
-
-    internal static bool TryGetLuaFunction(string sName, Type typeGlobal, out CoreFunction function)
-    {
-      CollectLuaFunctions(typeGlobal);
-
-      // Get the cached function
-      if (luaFunctions.TryGetValue(sName, out function))
-        return typeGlobal == function.DeclaredType || typeGlobal.IsSubclassOf(function.DeclaredType);
-
-      return false;
-    } // func TryGetLuaFunction 
 
     #endregion
 

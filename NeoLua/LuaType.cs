@@ -665,7 +665,7 @@ namespace Neo.IronLua
           Lua.InvokeMemberExpression(
             val.instance == null ?
               null :
-              new DynamicMetaObject(Expression.Property(Expression, "Instance"), BindingRestrictions.Empty, val.instance),
+              new DynamicMetaObject(Expression.Property(Expression.Convert(Expression, typeof(LuaOverloadedMethod)), piInstance), BindingRestrictions.Empty, val.instance),
             miBind, null, args
           ),
           val.instance == null ? GetTypeRestriction(val) : GetInstanceRestriction(val)
@@ -745,7 +745,7 @@ namespace Neo.IronLua
           }
 
           if (lMatch)
-            return Parser.CreateDelegate(methods[i]);
+            return Parser.CreateDelegate(instance, methods[i]);
         }
       }
       return null;
@@ -756,7 +756,7 @@ namespace Neo.IronLua
     public IEnumerator<Delegate> GetEnumerator()
     {
       for (int i = 0; i < methods.Length; i++)
-        yield return Parser.CreateDelegate(methods[i]);
+        yield return Parser.CreateDelegate(instance, methods[i]);
     } // func GetEnumerator
 
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
@@ -767,7 +767,7 @@ namespace Neo.IronLua
     /// <summary></summary>
     /// <param name="iIndex"></param>
     /// <returns></returns>
-    public Delegate this[int iIndex] { get { return Parser.CreateDelegate(methods[iIndex]); } }
+    public Delegate this[int iIndex] { get { return Parser.CreateDelegate(instance, methods[iIndex]); } }
 
     /// <summary>Name of the overloaded member.</summary>
     public string Name { get { return methods[0].Name; } }

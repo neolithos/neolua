@@ -17,6 +17,20 @@ namespace LuaDLR.Test
   {
     public class SubClass
     {
+      public void Test()
+      {
+        Console.WriteLine("Empty");
+      }
+
+      public void Test(string a)
+      {
+        Console.WriteLine(a);
+      }
+
+      public void Test(string a, string b)
+      {
+        Console.WriteLine(a + b);
+      }
     }
 
     [TestMethod]
@@ -136,5 +150,23 @@ namespace LuaDLR.Test
         //g.dochunk("c('Hallo!')");
       }
     } // proc TypeTest07
+
+    [TestMethod]
+    public void TypeTest08()
+    {
+      using (Lua l = new Lua())
+      {
+        dynamic g = l.CreateEnvironment();
+        dynamic r = g.dochunk(String.Join(Environment.NewLine,
+          new string[] {
+            "local c = clr.LuaDLR.Test.LuaTypeTests.SubClass()",
+            "c.Test('Test');",
+            "return c.Test;"
+          }));
+
+        foreach (var c in r[0])
+          Console.WriteLine(c.GetType().Name);
+      }
+    } // proc TypeTest08
   } // class LuaTypeTests 
 }
