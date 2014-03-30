@@ -127,7 +127,7 @@
     <value>Kein Type für den generischen Parameter {0} gefunden.</value>
   </data>
   <data name="rsClrGenericTypeExpected" xml:space="preserve">
-    <value>Clr-Type erwartet (Index={0}).</value>
+    <value>Clr-Type erwartet.</value>
   </data>
   <data name="rsConstExpressionEvalError" xml:space="preserve">
     <value>Konstanter Ausdruck konnte nicht ausgewertet werden ({0}).</value>

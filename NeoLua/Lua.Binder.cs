@@ -420,7 +420,6 @@ namespace Neo.IronLua
     {
       Ok,
       MemberNotFound,
-      MemberNotUnique,
       NotReadable,
       NotWriteable
     } // enum BindResult
@@ -457,8 +456,6 @@ namespace Neo.IronLua
         {
           case BindResult.Ok:
             return new DynamicMetaObject(Parser.ToTypeExpression(expr, typeof(object)), restrictions);
-          case BindResult.MemberNotFound:
-            return new DynamicMetaObject(Expression.Constant(null, typeof(object)), restrictions);
           default:
             return errorSuggestion ?? new DynamicMetaObject(expr, restrictions);
         }
@@ -972,13 +969,16 @@ namespace Neo.IronLua
 
       if (members.Length == 0)// Nothing found
       {
-        expr = ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, binder.Name));
-        return BindResult.MemberNotFound;
+        expr = Expression.Constant(null, typeof(object));
+        return BindResult.Ok;
       }
       else if (members.Length > 1) // only one member is allowed
       {
-        expr = ThrowExpression(String.Format(Properties.Resources.rsPropertyNotUnique, binder.Name));
-        return BindResult.MemberNotUnique;
+        expr = Expression.New(LuaOverloadedMethod.ciCtor,
+          Expression.Convert(target.Expression, typeof(object)),
+          Expression.NewArrayInit(typeof(MethodInfo), (from m in members select Expression.Constant((MethodInfo)m)))
+        );
+        return BindResult.Ok;
       }
       else // Member must be unique
       {
@@ -1002,16 +1002,13 @@ namespace Neo.IronLua
         }
         else if (member.MemberType == MemberTypes.Method)
         {
-          MethodInfo mi = (MethodInfo)member;
-          Type typeDelegate = Expression.GetDelegateType((from p in mi.GetParameters() select p.ParameterType).Concat(new Type[] { mi.ReturnType }).ToArray());
-          Delegate dlg = Delegate.CreateDelegate(typeDelegate, mi);
-          expr = Expression.Constant(dlg, typeof(Delegate));
+          expr = Expression.Constant(Parser.CreateDelegate((MethodInfo)member), typeof(Delegate));
           return BindResult.Ok;
         }
         else if (member.MemberType == MemberTypes.NestedType)
         {
-          expr = ThrowExpression(String.Format(Properties.Resources.rsMemberNotReadable, binder.Name));
-          return BindResult.MemberNotFound;
+          expr = Expression.Call(LuaType.miGetTypeFromType, Expression.Constant((Type)member));
+          return BindResult.Ok;
         }
         else // Member is not readable
         {
@@ -1047,7 +1044,7 @@ namespace Neo.IronLua
       return BindResult.Ok;
     } // func TryBindInvokeMember
 
-    private static MethodInfo MakeNonGenericMethod(MethodInfo mi, DynamicMetaObject[] arguments)
+    internal static MethodInfo MakeNonGenericMethod(MethodInfo mi, DynamicMetaObject[] arguments)
     {
       ParameterInfo[] parameters = mi.GetParameters();
       Type[] genericArguments = mi.GetGenericArguments();
@@ -1252,6 +1249,12 @@ namespace Neo.IronLua
       else
         throw new ArgumentException();
 
+      return BindFindInvokeMember<T>(members, arguments);
+    } // proc BindFindInvokeMember
+
+    internal static T BindFindInvokeMember<T>(MemberInfo[] members, DynamicMetaObject[] arguments)
+      where T : MemberInfo
+    {
       int iMaxParameterLength = 0;    // Max length of the argument list, can also MaxInt for variable argument length
       T miBind = null;                // Member that matches best
       int iCurParameterLength = 0;    // Length of the arguments of the current match
@@ -1272,6 +1275,11 @@ namespace Neo.IronLua
         T miCur = members[i] as T;
         if (miCur != null)
         {
+          // do not test methods with __arglist
+          MethodInfo methodInfo = miCur as MethodInfo;
+          if (methodInfo != null && (methodInfo.CallingConvention & CallingConventions.VarArgs) != 0)
+            continue;
+
           // Get the Parameters
           ParameterInfo[] parameters = GetMemberParameter<T>(miCur);
 
@@ -1355,7 +1363,7 @@ namespace Neo.IronLua
         }
       }
       return miBind;
-    } // proc BindFindInvokeMember
+    } // func BindFindInvokeMember
 
     private static ParameterInfo[] GetMemberParameter<T>(T mi)
       where T : MemberInfo

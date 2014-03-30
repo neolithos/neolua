@@ -146,5 +146,17 @@ namespace LuaDLR.Test
     {
       Assert.IsTrue(TestReturn("return string.find('   abc', '%a+');", 4, 6, "abc"));
     } // proc TestRuntimeLua13
+
+    [TestMethod]
+    public void TestRuntimeLua14()
+    {
+      using (Lua l = new Lua())
+      {
+        var g = l.CreateEnvironment();
+        l.PrintExpressionTree = true;
+        g.RegisterPackage("debug", typeof(System.Diagnostics.Debug));
+        g.DoChunk("debug:Print('Hallo World!');", "test.lua");
+      }
+    } // proc TestRuntimeLua13
   } // class Runtime
 }

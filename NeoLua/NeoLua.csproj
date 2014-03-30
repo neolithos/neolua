@@ -56,6 +56,7 @@
     <Compile Include="Lua.cs" />
     <Compile Include="Lua.Libraries.cs" />
     <Compile Include="Lua.Runtime.cs" />
+    <Compile Include="LuaType.cs" />
     <Compile Include="LuaFile.cs" />
     <Compile Include="LuaFunctionAttribute.cs" />
     <Compile Include="LuaGlobal.cs" />

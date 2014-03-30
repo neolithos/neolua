@@ -88,7 +88,7 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
-        ///   Sucht eine lokalisierte Zeichenfolge, die Clr type expected (index={0}). ähnelt.
+        ///   Sucht eine lokalisierte Zeichenfolge, die Clr type expected. ähnelt.
         /// </summary>
         internal static string rsClrGenericTypeExpected {
             get {

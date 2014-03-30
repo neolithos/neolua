@@ -1005,7 +1005,7 @@ namespace Neo.IronLua
           if (t.Value == csClr) // clr is a special package, that always exists
           {
             code.Next();
-            info = new PrefixMemberInfo(tStart, Expression.Constant(LuaGlobal.Clr, typeof(IDynamicMetaObjectProvider)), null, null, null);
+            info = new PrefixMemberInfo(tStart, Expression.Constant(LuaType.Clr, typeof(IDynamicMetaObjectProvider)), null, null, null);
           }
           else
           {
@@ -1076,7 +1076,10 @@ namespace Neo.IronLua
           case LuaToken.BracketSquareOpen: // Index
             code.Next();
             info.GenerateGet(scope, true);
-            info.Indices = ParseExpressionList(scope, code).ToArray();
+            if (code.Current.Typ == LuaToken.BracketSquareClose)
+              info.Indices = new Expression[0];
+            else
+              info.Indices = ParseExpressionList(scope, code).ToArray();
             FetchToken(LuaToken.BracketSquareClose, code);
             break;
 
@@ -1458,7 +1461,7 @@ namespace Neo.IronLua
         FetchToken(LuaToken.BracketOpen, code);
 
         // Lies den Typ aus
-        string sTypeName = ParseType(code);
+        LuaType typeName = ParseType(code);
         FetchToken(LuaToken.Comma, code);
 
         Expression expr = ParseExpression(scope, code, ref lWrap);
@@ -1466,7 +1469,7 @@ namespace Neo.IronLua
         FetchToken(LuaToken.BracketClose, code);
 
         lWrap |= true;
-        return RuntimeHelperConvertExpression(expr, expr.Type, GetType(t, sTypeName));
+        return RuntimeHelperConvertExpression(expr, expr.Type, typeName);
       }
       else
         return ParsePrefix(scope, code).GenerateGet(scope, true);
@@ -1479,72 +1482,114 @@ namespace Neo.IronLua
       if (code.Current.Typ == LuaToken.Colon)
       {
         code.Next();
-        type = GetType(tName, ParseType(code));
+        type = ParseType(code);
       }
       else
         type = typeof(object);
     } // func ParseIdentifierAndType
 
-    private static string ParseType(LuaLexer code)
+    private static LuaType ParseType(LuaLexer code)
     {
-      StringBuilder sbTypeName = new StringBuilder();
-      sbTypeName.Append(FetchToken(LuaToken.Identifier, code).Value);
-      while (code.Current.Typ == LuaToken.Dot || code.Current.Typ == LuaToken.Plus)
+      // is the first token an alias
+      LuaType currentType = ParseFirstType(code);
+
+      while (code.Current.Typ == LuaToken.Dot || 
+        code.Current.Typ == LuaToken.Plus ||
+        code.Current.Typ == LuaToken.BracketSquareOpen)
       {
-        if (code.Current.Typ == LuaToken.Plus)
-          sbTypeName.Append('+');
+        if (code.Current.Typ == LuaToken.BracketSquareOpen)
+        {
+          List<LuaType> genericeTypes = new List<LuaType>();
+          code.Next();
+          if (code.Current.Typ != LuaToken.BracketSquareClose)
+          {
+            genericeTypes.Add(ParseType(code));
+            while (code.Current.Typ == LuaToken.Comma)
+            {
+              code.Next();
+              genericeTypes.Add(ParseType(code));
+            }
+          }
+          FetchToken(LuaToken.BracketSquareClose, code);
+
+          if (genericeTypes.Count == 0) // create a array at the end
+          {
+            if (currentType.Type == null)
+              throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
+            
+            currentType = LuaType.GetType(currentType.GetIndex("[]", false, () => currentType.Type.MakeArrayType()));
+          }
+          else // build a generic type
+          {
+            Type typeGeneric = Type.GetType(currentType.FullName + "`" + genericeTypes.Count.ToString());
+            if (typeGeneric == null)
+              throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
+
+            currentType = LuaType.GetType(currentType.GetGenericItem(typeGeneric, genericeTypes.ToArray()));
+          }
+        }
         else
-          sbTypeName.Append('.');
-        code.Next();
-        sbTypeName.Append(FetchToken(LuaToken.Identifier, code).Value);
+        {
+          code.Next();
+          currentType = LuaType.GetType(currentType.GetIndex(FetchToken(LuaToken.Identifier, code).Value, false, null));
+        }
       }
-      return sbTypeName.ToString();
+      
+      if (currentType.Type == null)
+        throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
+
+      return currentType;
     } // func ParseType
 
-    private static Type GetType(Token t, string sTypeName)
+    private static LuaType ParseFirstType(LuaLexer code)
     {
-      switch (sTypeName)
+      string sType = FetchToken(LuaToken.Identifier, code).Value;
+      switch (sType)
       {
         case "byte":
-          return typeof(byte);
+          return LuaType.GetType(typeof(byte));
         case "sbyte":
-          return typeof(sbyte);
+          return LuaType.GetType(typeof(sbyte));
         case "short":
-          return typeof(short);
+          return LuaType.GetType(typeof(short));
         case "ushort":
-          return typeof(ushort);
+          return LuaType.GetType(typeof(ushort));
         case "int":
-          return typeof(int);
+          return LuaType.GetType(typeof(int));
         case "uint":
-          return typeof(uint);
+          return LuaType.GetType(typeof(uint));
         case "long":
-          return typeof(long);
+          return LuaType.GetType(typeof(long));
         case "ulong":
-          return typeof(ulong);
+          return LuaType.GetType(typeof(ulong));
         case "float":
-          return typeof(float);
+          return LuaType.GetType(typeof(float));
         case "double":
-          return typeof(double);
+          return LuaType.GetType(typeof(double));
         case "decimal":
-          return typeof(decimal);
+          return LuaType.GetType(typeof(decimal));
         case "datetime":
-          return typeof(DateTime);
+          return LuaType.GetType(typeof(DateTime));
+        case "char":
+          return LuaType.GetType(typeof(char));
         case "string":
-          return typeof(string);
+          return LuaType.GetType(typeof(string));
+        case "bool":
+          return LuaType.GetType(typeof(bool));
         case "object":
-          return typeof(object);
+          return LuaType.GetType(typeof(object));
         case "type":
-          return typeof(Type);
+          return LuaType.GetType(typeof(Type));
+        case "thread":
+          return LuaType.GetType(typeof(LuaThread));
+        case "luatype":
+          return LuaType.GetType(typeof(LuaType));
         case "table":
-          return typeof(LuaTable);
+          return LuaType.GetType(typeof(LuaTable));
         default:
-          Type type = Lua.GetType(sTypeName);
-          if (type == null)
-            throw ParseError(t, String.Format(Properties.Resources.rsParseUnknownType, sTypeName));
-          else
-            return type;
+          return LuaType.GetType(LuaType.Clr.GetIndex(sType, false, null));
       }
-    } // func GetType
+    } // func ParseFirstType
 
     #endregion
 
@@ -2027,7 +2072,7 @@ namespace Neo.IronLua
       {
         var t = code.Current;
         code.Next();
-        Type typeResult = GetType(t, ParseType(code));
+        Type typeResult = ParseType(code);
         scope.ResetReturnLabel(typeResult, null);
       }
       else

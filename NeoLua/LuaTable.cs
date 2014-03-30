@@ -521,6 +521,24 @@ namespace Neo.IronLua
       return methods.BinarySearch(iIndex) >= 0;
     } // func IsIndexMarkedAsMethod
 
+    /// <summary>Returns the value of the table.</summary>
+    /// <typeparam name="T">Excpected type for the value</typeparam>
+    /// <param name="sName">Name of the member.</param>
+    /// <param name="default">Replace value, if the member not exists or can not converted.</param>
+    /// <returns>Value or default.</returns>
+    public T GetOptionalValue<T>(string sName, T @default)
+    {
+      try
+      {
+        object o = GetValue(sName);
+        return (T)Lua.RtConvert(o, typeof(T));
+      }
+      catch
+      {
+        return @default;
+      }
+    } // func GetOptionalValue
+
     /// <summary>Checks if the Member exists.</summary>
     /// <param name="sName">Membername</param>
     /// <param name="lIgnoreCase"></param>
@@ -741,5 +759,105 @@ namespace Neo.IronLua
     } // func unpack
 
     #endregion
+
+    // -- Static --------------------------------------------------------------
+
+    ///// <summary>add</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
+    //public static object operator +(LuaTable a, LuaTable b)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator +
+
+    ///// <summary>sub</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
+    //public static object operator -(LuaTable a, LuaTable b)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator -
+
+    ///// <summary>mul</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
+    //public static object operator *(LuaTable a, LuaTable b)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator *
+
+    ///// <summary>div</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
+    //public static object operator /(LuaTable a, LuaTable b)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator /
+
+    ///// <summary>mod</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
+    //public static object operator %(LuaTable a, LuaTable b)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator %
+
+    ///// <summary>unm</summary>
+    ///// <param name="a"></param>
+    ///// <returns></returns>
+    //public static object operator -(LuaTable a)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator -
+
+    ///// <summary>eq</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
+    //public static bool operator ==(LuaTable a, LuaTable b)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator  ==
+
+    //public static bool operator !=(LuaTable a, LuaTable b)
+    //{
+    //  return !(a == b);
+    //} // operator  !=
+
+    ///// <summary>lt</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
+    //public static object operator <(LuaTable a, LuaTable b)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator  <
+
+    //public static object operator >(LuaTable a, LuaTable b)
+    //{
+    //  return b < a;
+    //} // operator >
+
+    ///// <summary>le</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
+    //public static object operator <=(LuaTable a, LuaTable b)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator  <=
+
+    //public static object operator >=(LuaTable a, LuaTable b)
+    //{
+    //  return b <= a;
+    //} // operator  >=
+
+    //// nicht definiert: >, >=, !=, +, !, ~, ++, --, true, false, &, |, ^, <<, >>
+    //// nicht in c#: pow, concat, index, newindex, call
   } // class LuaTable
 }

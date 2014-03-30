@@ -29,64 +29,6 @@ namespace Neo.IronLua
 
   #endregion
 
-  #region -- class LuaPackageProxy ----------------------------------------------------
-
-  ///////////////////////////////////////////////////////////////////////////////
-  /// <summary>Little proxy for static classes that provide Library for Lua</summary>
-  internal class LuaPackageProxy : IDynamicMetaObjectProvider
-  {
-    #region -- class LuaPackageMetaObject ---------------------------------------------
-
-    ///////////////////////////////////////////////////////////////////////////////
-    /// <summary></summary>
-    private class LuaPackageMetaObject : DynamicMetaObject
-    {
-      public LuaPackageMetaObject(Expression expression, LuaPackageProxy value)
-        : base(expression, BindingRestrictions.Empty, value)
-      {
-      } // ctor
-
-      public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
-      {
-        LuaPackageProxy val = (LuaPackageProxy)Value;
-        Expression expr = null;
-
-        // Call try to bind the static methods
-        switch (Lua.TryBindGetMember(binder, new DynamicMetaObject(Expression.Default(val.type), BindingRestrictions.Empty, null), out expr))
-        {
-          case Lua.BindResult.Ok:
-            expr = Expression.Convert(expr, typeof(object));
-            break;
-        }
-
-        return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(Expression, Value));
-      } // func BindGetMember
-
-      public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
-      {
-        Expression expr;
-        Lua.TryBindInvokeMember(binder, new DynamicMetaObject(Expression.Default((Type)Value), BindingRestrictions.Empty, null), args, out expr);
-        return new DynamicMetaObject(expr, Lua.GetMethodSignatureRestriction(null, args).Merge(BindingRestrictions.GetInstanceRestriction(Expression, Value)));
-      } // func BindInvokeMember
-    } // class LuaPackageMetaObject
-
-    #endregion
-
-    private Type type;
-
-    public LuaPackageProxy(Type type)
-    {
-      this.type = type;
-    } // ctor
-
-    public DynamicMetaObject GetMetaObject(Expression parameter)
-    {
-      return new LuaPackageMetaObject(parameter, this);
-    } // func GetMetaObject
-  } // class LuaPackageProxy
-
-  #endregion
-
   #region -- class Lua ----------------------------------------------------------------
 
   ///////////////////////////////////////////////////////////////////////////////
@@ -102,7 +44,6 @@ namespace Neo.IronLua
     private static PropertyInfo piResultEmpty = null;
     private static MethodInfo miTableSetMethod = null;
     private static Dictionary<string, IDynamicMetaObjectProvider> luaSystemLibraries = new Dictionary<string, IDynamicMetaObjectProvider>(); // Array with system libraries
-    private static Dictionary<string, Type> knownTypes = null; // Known types of the current AppDomain
     private static List<Type> luaFunctionTypes = new List<Type>();
     private static Dictionary<string, CoreFunction> luaFunctions = new Dictionary<string, CoreFunction>(); // Core functions for the object
 
@@ -351,51 +292,15 @@ namespace Neo.IronLua
             if (t.Name.StartsWith("LuaLibrary", StringComparison.OrdinalIgnoreCase))
             {
               string sName = t.Name.Substring(10).ToLower();
-              luaSystemLibraries[sName] = new LuaPackageProxy(t);
+              luaSystemLibraries[sName] = LuaType.GetType(t);
             }
           }
-          luaSystemLibraries.Add("table", new LuaPackageProxy(typeof(LuaTable)));
-          luaSystemLibraries.Add("coroutine", new LuaPackageProxy(typeof(LuaThread)));
+          luaSystemLibraries.Add("table", LuaType.GetType(typeof(LuaTable)));
+          luaSystemLibraries.Add("coroutine", LuaType.GetType(typeof(LuaThread)));
         }
         return luaSystemLibraries.TryGetValue(sLibraryName, out lib);
       }
     } // func GetSystemLibrary
-
-    #endregion
-
-    #region -- GetType ----------------------------------------------------------------
-
-    /// <summary>Resolve typename to a type.</summary>
-    /// <param name="sTypeName">Fullname of the type</param>
-    /// <returns>The resolved type or <c>null</c>.</returns>
-    internal static Type GetType(string sTypeName)
-    {
-      Type type = Type.GetType(sTypeName, false);
-      if (type == null)
-        lock (luaStaticLock)
-        {
-          // Lookup the type in the cache
-          if (knownTypes != null && knownTypes.TryGetValue(sTypeName, out type))
-            return type;
-
-          // Lookup the type in all loaded assemblies
-          var asms = AppDomain.CurrentDomain.GetAssemblies();
-          for (int i = 0; i < asms.Length; i++)
-          {
-            if ((type = asms[i].GetType(sTypeName, false)) != null)
-              break;
-          }
-
-          // Put the type in the cache
-          if (type != null)
-          {
-            if (knownTypes == null)
-              knownTypes = new Dictionary<string, Type>();
-            knownTypes[sTypeName] = type;
-          }
-        }
-      return type;
-    } // func GetType
 
     #endregion
 
@@ -421,7 +326,7 @@ namespace Neo.IronLua
             else
             {
               // create the delegate type
-              Type typeDelegate = Expression.GetDelegateType((from p in mi.GetParameters() select p.ParameterType).Concat(new Type[] { mi.ReturnType }).ToArray());
+              Type typeDelegate = Parser.GetDelegateType(mi);
               luaFunctions[attr.Name] = new CoreFunction
               {
                 DeclaredType = type,

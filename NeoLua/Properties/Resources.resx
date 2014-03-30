@@ -127,7 +127,7 @@
     <value>No type for the generic argument {0}.</value>
   </data>
   <data name="rsClrGenericTypeExpected" xml:space="preserve">
-    <value>Clr type expected (index={0}).</value>
+    <value>Clr type expected.</value>
   </data>
   <data name="rsConstExpressionEvalError" xml:space="preserve">
     <value>Constant expression could not evaluate ({0}).</value>

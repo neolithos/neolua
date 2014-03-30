@@ -289,6 +289,27 @@ namespace Neo.IronLua
           return false;
       }
     } // func IsNumericType
+
+    internal static Type GetDelegateType(MethodInfo mi)
+    {
+      return Expression.GetDelegateType(
+        (
+          from p in mi.GetParameters()
+          select p.ParameterType
+        ).Concat(
+          new Type[] { mi.ReturnType }
+        ).ToArray()
+      );
+    } // func GetDelegateType
+
+    internal static Delegate CreateDelegate(MethodInfo mi)
+    {
+      if ((mi.CallingConvention & CallingConventions.VarArgs) != 0)
+        throw new ArgumentException("Call of VarArgs not implemented.");
+      Type typeDelegate = GetDelegateType(mi);
+      return Delegate.CreateDelegate(typeDelegate, mi);
+    } // func CreateDelegateFromMethodInfo
+
   } // class Parser
 
   #endregion
