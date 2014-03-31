@@ -35,6 +35,12 @@ namespace LuaDLR.Test
     public void TestFunctions01()
     {
       Assert.IsTrue(TestReturn("function test(a) return 1 + a; end; return test(2);", 3));
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        var f = l.CreateLambda<Func<int>>("test", "local function test(a:int):int return 1 + a; end; return test(2);");
+        Assert.IsTrue(f() == 3);
+      }
     } // proc TestFunctions01
 
     [TestMethod]

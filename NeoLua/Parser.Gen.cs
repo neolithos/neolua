@@ -14,6 +14,8 @@ namespace Neo.IronLua
   /// <summary></summary>
   internal static partial class Parser
   {
+    #region -- Debug-Information ------------------------------------------------------
+
     private static Expression WrapDebugInfo(bool lWrap, bool lAfter, Token tStart, Token tEnd, Expression expr)
     {
       if (lWrap)
@@ -43,9 +45,13 @@ namespace Neo.IronLua
       return Expression.DebugInfo(tStart.Start.Document, tStart.Start.Line, tStart.Start.Col, tEnd.End.Line, tEnd.End.Col);
     } // func GetDebugInfo
 
+    #endregion
+
+    #region -- ToTypeExpression, ToBooleanExpression, GetResultExpression -------------
+
     internal static Expression ToTypeExpression(Expression expr, Type type = null, bool? lForce = null)
     {
-      if (expr.Type == typeof(LuaResult))
+      if (expr.Type == typeof(LuaResult) && type != typeof(LuaResult))
         return ToTypeExpression(GetResultExpression(expr, 0), type, lForce);
       else if (type != null && (lForce.HasValue && lForce.Value || expr.Type != type))
         return Expression.Convert(expr, type);
@@ -66,11 +72,13 @@ namespace Neo.IronLua
     internal static Expression GetResultExpression(Expression target, int iIndex)
     {
       return Expression.MakeIndex(
-        Expression.Convert(target, typeof(LuaResult)),
+        ToTypeExpression(target, typeof(LuaResult)),
         Lua.ResultIndexPropertyInfo,
         new Expression[] { Expression.Constant(iIndex) }
         );
     } // func GetFirstValueExpression
+
+    #endregion
 
     internal static Expression RuntimeHelperExpression(LuaRuntimeHelper runtimeHelper, params Expression[] args)
     {

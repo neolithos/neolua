@@ -762,7 +762,7 @@ namespace Neo.IronLua
 
     // -- Static --------------------------------------------------------------
 
-    ///// <summary>add</summary>
+    ///// <summary>add op_Addition</summary>
     ///// <param name="a"></param>
     ///// <param name="b"></param>
     ///// <returns></returns>
@@ -771,7 +771,7 @@ namespace Neo.IronLua
     //  throw new NotImplementedException();
     //} // operator +
 
-    ///// <summary>sub</summary>
+    ///// <summary>sub op_Substraction</summary>
     ///// <param name="a"></param>
     ///// <param name="b"></param>
     ///// <returns></returns>
@@ -780,7 +780,7 @@ namespace Neo.IronLua
     //  throw new NotImplementedException();
     //} // operator -
 
-    ///// <summary>mul</summary>
+    ///// <summary>mul op_Multiply</summary>
     ///// <param name="a"></param>
     ///// <param name="b"></param>
     ///// <returns></returns>
@@ -789,7 +789,7 @@ namespace Neo.IronLua
     //  throw new NotImplementedException();
     //} // operator *
 
-    ///// <summary>div</summary>
+    ///// <summary>div op_Division</summary>
     ///// <param name="a"></param>
     ///// <param name="b"></param>
     ///// <returns></returns>
@@ -798,7 +798,7 @@ namespace Neo.IronLua
     //  throw new NotImplementedException();
     //} // operator /
 
-    ///// <summary>mod</summary>
+    ///// <summary>mod op_Modulus</summary>
     ///// <param name="a"></param>
     ///// <param name="b"></param>
     ///// <returns></returns>
@@ -807,7 +807,7 @@ namespace Neo.IronLua
     //  throw new NotImplementedException();
     //} // operator %
 
-    ///// <summary>unm</summary>
+    ///// <summary>unm op_UnaryNegation</summary>
     ///// <param name="a"></param>
     ///// <returns></returns>
     //public static object operator -(LuaTable a)
@@ -815,49 +815,185 @@ namespace Neo.IronLua
     //  throw new NotImplementedException();
     //} // operator -
 
-    ///// <summary>eq</summary>
+    ///// <summary>eq op_Equality</summary>
     ///// <param name="a"></param>
     ///// <param name="b"></param>
     ///// <returns></returns>
     //public static bool operator ==(LuaTable a, LuaTable b)
     //{
     //  throw new NotImplementedException();
-    //} // operator  ==
+    //} // operator ==
 
+    ///// <summary>op_Inequality</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
     //public static bool operator !=(LuaTable a, LuaTable b)
     //{
     //  return !(a == b);
-    //} // operator  !=
+    //} // operator !=
 
-    ///// <summary>lt</summary>
+    ///// <summary>lt op_LessThan</summary>
     ///// <param name="a"></param>
     ///// <param name="b"></param>
     ///// <returns></returns>
     //public static object operator <(LuaTable a, LuaTable b)
     //{
     //  throw new NotImplementedException();
-    //} // operator  <
+    //} // operator <
 
+    ///// <summary>op_GreaterThan</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
     //public static object operator >(LuaTable a, LuaTable b)
     //{
     //  return b < a;
     //} // operator >
 
-    ///// <summary>le</summary>
+    ///// <summary>le op_LessThanOrEqual</summary>
     ///// <param name="a"></param>
     ///// <param name="b"></param>
     ///// <returns></returns>
     //public static object operator <=(LuaTable a, LuaTable b)
     //{
     //  throw new NotImplementedException();
-    //} // operator  <=
+    //} // operator <=
 
+    ///// <summary>op_GreaterThanOrEqual</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
     //public static object operator >=(LuaTable a, LuaTable b)
     //{
     //  return b <= a;
-    //} // operator  >=
+    //} // operator >=
 
-    //// nicht definiert: >, >=, !=, +, !, ~, ++, --, true, false, &, |, ^, <<, >>
-    //// nicht in c#: pow, concat, index, newindex, call
+    ///// <summary>shr op_RightShift</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
+    //public static object operator >>(LuaTable a, int b)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator >>
+
+    ///// <summary>shl op_LeftShift</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
+    //public static object operator <<(LuaTable a, int b)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator <<
+
+    ///// <summary>band op_BitwiseAnd</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
+    //public static object operator &(LuaTable a, LuaTable b)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator &
+
+    ///// <summary>bor op_BitwiseOr</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
+    //public static object operator |(LuaTable a, LuaTable b)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator |
+
+    ///// <summary>bxor op_ExclusiveOr</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
+    //public static object operator ^(LuaTable a, LuaTable b)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator ^
+
+    ///// <summary>bnot op_OnesComplement</summary>
+    ///// <param name="a"></param>
+    ///// <returns></returns>
+    //public static object operator ~(LuaTable a)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator ~
+
+    ///// <summary>pow</summary>
+    ///// <param name="a"></param>
+    ///// <param name="iExponent"></param>
+    ///// <returns></returns>
+    //[EditorBrowsable(EditorBrowsableState.Never)]
+    //public static object op_Power(LuaTable a, int iExponent)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator op_Power
+
+    ///// <summary>concat</summary>
+    ///// <param name="a"></param>
+    ///// <param name="b"></param>
+    ///// <returns></returns>
+    //[EditorBrowsable(EditorBrowsableState.Never)]
+    //public static object op_Concat(LuaTable a, LuaTable b)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator op_Concat
+
+    ///// <summary>index</summary>
+    ///// <param name="a"></param>
+    ///// <param name="i"></param>
+    ///// <returns></returns>
+    //[EditorBrowsable(EditorBrowsableState.Never)]
+    //public static object op_Index(LuaTable a, object i)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator op_Index
+
+    ///// <summary>newindex</summary>
+    ///// <param name="a"></param>
+    ///// <param name="i"></param>
+    ///// <param name="v"></param>
+    ///// <returns></returns>
+    //[EditorBrowsable(EditorBrowsableState.Never)]
+    //public static object op_NewIndex(LuaTable a, object i, object v)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator op_NewIndex
+
+    ///// <summary>call</summary>
+    ///// <param name="a"></param>
+    ///// <param name="sMember"></param>
+    ///// <param name="args"></param>
+    ///// <returns></returns>
+    //[EditorBrowsable(EditorBrowsableState.Never)]
+    //public static object op_Call(LuaTable a, string sMember, object[] args)
+    //{
+    //  throw new NotImplementedException();
+    //} // operator op_Call
+
+    // op_Implicit
+    // op_Explicit
+
+    //// nicht definiert: !, &&, ||, ++, --, true, false
+    /* 
+     * 32 vs. 64 bit ints
+     * math.type
+     * string.packfloat
+     * string.packint
+     * string.unpackfloat
+     * string.unpackint
+
+// idiv
+&  band
+|  bor
+~  bxor
+~  bnot
+>> ahl
+<< shr
+
+*/
   } // class LuaTable
 }
