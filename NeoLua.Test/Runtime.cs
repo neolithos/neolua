@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Dynamic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -168,39 +169,35 @@ namespace LuaDLR.Test
 
         g.dochunk("print(os.date('Today is %A, in %B'))");
 
-        TestReturn(g.dochunk("return os.date('%x', 906000490)", new DateTime(1998, 09, 17).ToString("d")));
-        TestReturn(g.dochunk("return os.date('%d.%m.%Y')", DateTime.Today.ToString("d")));
+        TestResult(g.dochunk("return os.date('%x', 906000490)"), new DateTime(1998, 09, 17).ToString("d"));
+        TestResult(g.dochunk("return os.date('%d.%m.%Y')"), DateTime.Today.ToString("d"));
+        g.dochunk("t = os.date('*t');");
+        DateTime dt = DateTime.Now;
+        TestResult(g.dochunk("return t.year"), dt.Year);
+        TestResult(g.dochunk("return t.month"), dt.Month);
+        TestResult(g.dochunk("return t.day"), dt.Day);
+        TestResult(g.dochunk("return t.hour"), dt.Hour);
+        TestResult(g.dochunk("return t.min"), dt.Minute);
+        TestResult(g.dochunk("return t.sec"), dt.Second);
+        TestResult(g.dochunk("return t.wday"), (int)dt.DayOfWeek);
+        TestResult(g.dochunk("return t.yday"), dt.DayOfYear);
+        TestResult(g.dochunk("return t.isdst"), true);
+        g.dochunk("t = os.date('!*t');");
+        dt = DateTime.UtcNow;
+        TestResult(g.dochunk("return t.year"), dt.Year);
+        TestResult(g.dochunk("return t.month"), dt.Month);
+        TestResult(g.dochunk("return t.day"), dt.Day);
+        TestResult(g.dochunk("return t.hour"), dt.Hour);
+        TestResult(g.dochunk("return t.min"), dt.Minute);
+        TestResult(g.dochunk("return t.sec"), dt.Second);
+        TestResult(g.dochunk("return t.wday"), (int)dt.DayOfWeek);
+        TestResult(g.dochunk("return t.yday"), dt.DayOfYear);
+        TestResult(g.dochunk("return t.isdst"), false);
 
+        TestResult(g.dochunk("return os.date()"), DateTime.Now.ToString("G"));
+
+        g.dochunk("t={};t.year = 2001; print(os.time(t))");
       }
-      //for k, v in pairs(os.date('*t')) do print(k, v) end
-      //--> year    2014
-      //--> month   4
-      //--> day     4
-      //--> hour    10
-      //--> min     20
-      //--> sec     39
-      //--> wday    5
-      //--> yday    94
-      //--> isdst   True
-      //for k, v in pairs(os.date('!*t')) do print(k, v) end
-      //--> year    2014
-      //--> month   4
-      //--> day     4
-      //--> hour    8
-      //--> min     22
-      //--> sec     56
-      //--> wday    5
-      //--> yday    94
-      //--> isdst   False
-      //print(os.date())
-      //--> 04/04/2014 10:35:45
-      //print('Unit NeoLua Test: os.time()')
-      //print('====================')
-      //t=os.date('*t')
-      //print(os.time(t))
-      //t = {}
-      //t.year = 2001
-      //print(os.time(t))
     }
   } // class Runtime
 }
