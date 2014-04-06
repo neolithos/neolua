@@ -531,7 +531,7 @@ namespace Neo.IronLua
       try
       {
         object o = GetValue(sName);
-        return (T)Lua.RtConvert(o, typeof(T));
+        return (T)Parser.ConvertValue(o, typeof(T));
       }
       catch
       {
@@ -789,13 +789,13 @@ namespace Neo.IronLua
     //  throw new NotImplementedException();
     //} // operator *
 
-    ///// <summary>div op_Division</summary>
+    ///// <summary>div oder idiv op_Division</summary>
     ///// <param name="a"></param>
     ///// <param name="b"></param>
     ///// <returns></returns>
     //public static object operator /(LuaTable a, LuaTable b)
     //{
-    //  throw new NotImplementedException();
+    //  throw new NotImplementedException(); // IDIV wenn beides Ints
     //} // operator /
 
     ///// <summary>mod op_Modulus</summary>

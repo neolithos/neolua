@@ -58,7 +58,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestFunctions04()
     {
-      Assert.IsTrue(TestReturn("local test = function () return 1, 2, 3; end; return (test());", 1));
+      TestCode("local test = function () return 1, 2, 3; end; return (test());", 1);
     } // proc TestFunctions04
 
     [TestMethod]
@@ -84,6 +84,12 @@ namespace LuaDLR.Test
     {
       Assert.IsTrue(TestReturn(GetCode("Lua.Function08.lua"), 1, 4));
     } // proc TestFunctions08
+
+    [TestMethod]
+    public void TestFunctions08a()
+    {
+      Assert.IsTrue(TestReturn(GetCode("Lua.Function08a.lua"), 1, 4));
+    } // proc TestFunctions08a
 
     [TestMethod]
     public void TestFunctions09()
@@ -187,5 +193,19 @@ namespace LuaDLR.Test
         Assert.IsTrue(c.ToInt32() == 1);
       }
     } // proc TestFunctions15
+    
+    [TestMethod]
+    public void TestFunctions18()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        dynamic g = l.CreateEnvironment();
+        var c = l.CompileChunk("print(a)", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)));
+
+        g.dochunk(c, 1);
+        g.dochunk(c, "a");
+      }
+    }
   } // class Functions
 }

@@ -93,14 +93,20 @@ namespace LuaDLR.Test
         T(LuaToken.Identifier, "label"), 
         T(LuaToken.ColonColon, String.Empty)));
 
-      Assert.IsTrue(TokenTest("+     -     *     /     %     ^     #",
+      Assert.IsTrue(TokenTest("+     -     *     /     %     ^     #    //    &    |    ~    >>    <<",
         T(LuaToken.Plus, String.Empty),
         T(LuaToken.Minus, String.Empty),
         T(LuaToken.Star, String.Empty),
         T(LuaToken.Slash, String.Empty),
         T(LuaToken.Percent, String.Empty),
         T(LuaToken.Caret, String.Empty),
-        T(LuaToken.Cross, String.Empty)
+        T(LuaToken.Cross, String.Empty),
+        T(LuaToken.SlashShlash, String.Empty),
+        T(LuaToken.BitAnd, String.Empty),
+        T(LuaToken.BitOr, String.Empty),
+        T(LuaToken.Dilde, String.Empty),
+        T(LuaToken.ShiftRight, String.Empty),
+        T(LuaToken.ShiftLeft, String.Empty)
         ));
       Assert.IsTrue(TokenTest("==    ~=    <=    >=    <     >     =",
         T(LuaToken.Equal, String.Empty),
@@ -180,7 +186,7 @@ namespace LuaDLR.Test
     private bool TestConstant(Lua l, string sVarValue, object result)
     {
       Debug.Print("Test: " + sVarValue);
-      object[] r = l.CreateEnvironment().DoChunk("local a = " + sVarValue + "; return a;", "test.lua");
+      LuaResult r = l.CreateEnvironment().DoChunk("return " + sVarValue + ";", "test.lua");
       return Object.Equals(r[0], result);
     } // func TestConstant
 

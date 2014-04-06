@@ -641,6 +641,8 @@ namespace Neo.IronLua
     public StreamReader TextReader { get { return tr; } }
     /// <summary>Access to the internal TextWriter.</summary>
     public StreamWriter TextWriter { get { return tw; } }
+    /// <summary>Length of the file.</summary>
+    public long Length { get { return src.Length; } }
   } // class LuaFile
 
   #endregion

@@ -95,7 +95,7 @@ namespace Neo.IronLua
       MethodInfo mi;
       if ((pi = member as PropertyInfo) != null)
       {
-        return Expression.Property(Parser.ToTypeExpression(exprTable, pi.DeclaringType), pi);
+        return Expression.Property(Parser.ConvertExpression(null, exprTable, pi.DeclaringType), pi);
       }
       else if ((mi = member as MethodInfo) != null)
       {
@@ -488,7 +488,10 @@ namespace Neo.IronLua
     /// <param name="sText"></param>
     protected virtual void OnPrint(string sText)
     {
-      Debug.WriteLine(sText);
+      if (Environment.UserInteractive)
+        Console.WriteLine(sText);
+      else
+        Debug.WriteLine(sText);
     } // proc OnPrint
 
     /// <summary></summary>

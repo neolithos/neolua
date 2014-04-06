@@ -134,12 +134,24 @@ namespace Neo.IronLua
     /// <summary>/</summary>
     [Description("/")]
     Slash,
+    /// <summary>//</summary>
+    [Description("//")]
+    SlashShlash,
     /// <summary>%</summary>
     [Description("%")]
     Percent,
     /// <summary>^</summary>
     [Description("^")]
     Caret,
+    /// <summary>&amp;</summary>
+    [Description("&")]
+    BitAnd,
+    /// <summary>|</summary>
+    [Description("|")]
+    BitOr,
+    /// <summary>~</summary>
+    [Description("~")]
+    Dilde,
     /// <summary>#</summary>
     [Description("#")]
     Cross,
@@ -161,6 +173,12 @@ namespace Neo.IronLua
     /// <summary>&gt;</summary>
     [Description(">")]
     Greater,
+    /// <summary>&lt;&lt;</summary>
+    [Description("<<")]
+    ShiftLeft,
+    /// <summary>&gt;&gt;</summary>
+    [Description(">>")]
+    ShiftRight,
     /// <summary>=</summary>
     [Description("=")]
     Assign,
@@ -542,11 +560,15 @@ namespace Neo.IronLua
             else if (c == '*')
               return NextCharAndCreateToken(0, LuaToken.Star);
             else if (c == '/')
-              return NextCharAndCreateToken(0, LuaToken.Slash);
+              NextChar(28);
             else if (c == '%')
               return NextCharAndCreateToken(0, LuaToken.Percent);
             else if (c == '^')
               return NextCharAndCreateToken(0, LuaToken.Caret);
+            else if (c == '&')
+              return NextCharAndCreateToken(0, LuaToken.BitAnd);
+            else if (c == '|')
+              return NextCharAndCreateToken(0, LuaToken.BitOr);
             else if (c == '#')
               return NextCharAndCreateToken(0, LuaToken.Cross);
             else if (c == '=')
@@ -648,15 +670,19 @@ namespace Neo.IronLua
             if (c == '=')
               return NextCharAndCreateToken(0, LuaToken.NotEqual);
             else
-              return CreateToken(0, LuaToken.InvalidChar);
+              return CreateToken(0, LuaToken.Dilde);
           case 22:
             if (c == '=')
               return NextCharAndCreateToken(0, LuaToken.LowerEqual);
+            else if (c == '<')
+              return NextCharAndCreateToken(0, LuaToken.ShiftLeft);
             else
               return CreateToken(0, LuaToken.Lower);
           case 23:
             if (c == '=')
               return NextCharAndCreateToken(0, LuaToken.GreaterEqual);
+            else if (c == '>')
+              return NextCharAndCreateToken(0, LuaToken.ShiftRight);
             else
               return CreateToken(0, LuaToken.Greater);
           case 24:
@@ -681,6 +707,11 @@ namespace Neo.IronLua
               return ReadTextBlock(true);
             else
               return CreateToken(0, LuaToken.BracketSquareOpen);
+          case 28:
+            if (c == '/')
+              return NextCharAndCreateToken(0, LuaToken.SlashShlash);
+            else
+              return CreateToken(0, LuaToken.Slash);
           #endregion
           #region -- 30 Label ---------------------------------------------------------
           case 30:

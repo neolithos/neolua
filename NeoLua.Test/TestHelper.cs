@@ -5,24 +5,107 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Neo.IronLua;
 
 namespace LuaDLR.Test
 {
   public class TestHelper
   {
+    public string Lines(params string[] lines)
+    {
+      return String.Join(Environment.NewLine, lines);
+    } // func Lines
+
+    public void TestCode(string sCode, params object[] expectedResult)
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        var g = l.CreateEnvironment();
+        Console.WriteLine("Test: {0}", sCode);
+        Console.WriteLine(new string('=', 66));
+        Stopwatch sw = new Stopwatch();
+        sw.Start();
+        TestResult(g.DoChunk(sCode, "test.lua"), expectedResult);
+        Console.WriteLine("  Dauer: {0}ms", sw.ElapsedMilliseconds);
+        Console.WriteLine();
+        Console.WriteLine();
+      }
+    } // proc TestCode
+
+    public void TestExpr(string sExpression, params object[] expectedResult)
+    {
+      TestCode("return " + sExpression + ";", expectedResult);
+    } // proc TestStmt
+
+    private static string FormatValue(object v)
+    {
+      return String.Format("({0}){1}", v == null ? "object" : v.GetType().Name, v);
+    } // func FormatValue
+
+    public static void TestResult(LuaResult result, params object[] expectedResult)
+    {
+      if(result == null)
+        throw new ArgumentNullException("no result");
+
+      if (expectedResult == null || expectedResult.Length == 0) // no results expected
+      {
+        if (result.Values.Length == 0)
+        {
+          Console.WriteLine("OK: no result == no result");
+        }
+        else
+        {
+          Console.WriteLine("FAIL: no result != {0}", FormatValue(result[0]));
+          Assert.Fail();
+        }
+      }
+      else
+      {
+        for (int i = 0; i < expectedResult.Length; i++)
+        {
+          object valueResult = result[i];
+          object valueExpected = expectedResult[i];
+
+          if (valueResult is double)
+            valueResult = Math.Round((double)valueResult, 3);
+          if (valueExpected is double)
+            valueExpected = Math.Round((double)valueExpected, 3);
+
+          bool lOk = Object.Equals(valueResult, valueExpected);
+          Console.WriteLine("{0}: {1} {2} {3}", lOk ? "OK" : "FAIL", FormatValue(valueResult), lOk ? "==" : "!=", FormatValue(valueExpected));
+          if (!lOk)
+            Assert.Fail();
+        }
+        if (result.Values.Length != expectedResult.Length)
+        {
+          Console.WriteLine("FAIL: Result Count {0} != {1}", result.Values.Length, expectedResult.Length);
+          Assert.Fail();
+        }
+      }
+    } // proc TestResult
+
+    public object[] NullResult { get { return new object[] { null }; } }
+
+
+
+
+
     protected static bool TestExpression(bool lFullCode, string sExpr, object result)
     {
       Debug.Print("Test: " + sExpr);
-      Lua l = new Lua();
-      l.PrintExpressionTree = true;
-      LuaResult r = l.CreateEnvironment().DoChunk(lFullCode ? sExpr : "local a = " + sExpr + "; return a;", "test.lua");
-      if (result == null && r[0] == result || (Object.Equals(r[0].ToString(), result.ToString()) && r[0].GetType() == result.GetType()))
-        return true;
-      else
+      using (Lua l = new Lua())
       {
-        Debug.Print("{0} != {1}", r[0], result);
-        return false;
+        l.PrintExpressionTree = true;
+        LuaResult r = l.CreateEnvironment().DoChunk(lFullCode ? sExpr : "local a = " + sExpr + "; return a;", "test.lua");
+        if (result == null && r[0] == result || (Object.Equals(r[0].ToString(), result.ToString()) && r[0].GetType() == result.GetType()))
+          return true;
+        else
+        {
+          Debug.Print("{0} != {1}", r[0], result);
+          return false;
+        }
       }
     } // func TestConstant
 

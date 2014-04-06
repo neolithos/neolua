@@ -25,6 +25,16 @@ namespace LuaDLR.Test
       Assert.IsTrue(TestReturn("hallo = 42; _G['hallo'] = 43; return hallo;", 43));
     } // proc TestMemberSet02
 
+    //[TestMethod]
+    //public void TestMemberSet03()
+    //{
+    //  TestCode(
+    //    Lines(
+    //    "test.year = 2001;",
+    //    "return test.year;"
+    //     ),2001);
+    //} // proc TestMemberSet02
+
     [TestMethod]
     public void EnvDynamicCall01()
     {

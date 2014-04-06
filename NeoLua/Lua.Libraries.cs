@@ -607,19 +607,119 @@ namespace Neo.IronLua
   /// <summary></summary>
   internal static class LuaLibraryOS
   {
+    private static readonly DateTime dtUnixStartTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+    
     public static LuaResult clock()
     {
       return new LuaResult(Process.GetCurrentProcess().TotalProcessorTime.TotalSeconds);
     } // func clock
 
-    public static object date(string format, string time)
+    /// <summary>Converts a number representing the date and time back to some higher-level representation.</summary>
+    /// <param name="format">Format string. Same format as the C <see href="http://www.cplusplus.com/reference/ctime/strftime/">strftime()</see> function.</param>
+    /// <param name="time">Numeric date-time. It defaults to the current date and time.</param>
+    /// <returns>Formatted date string, or table of time information.</returns>
+    /// <remarks>by PapyRef</remarks>
+    public static object date(string format, object time)
     {
-      throw new NotImplementedException();
+      // Unix timestamp is seconds past epoch. Epoch date for time_t is 00:00:00 UTC, January 1, 1970.
+      DateTime dt;
+
+      var firstC = string.IsNullOrEmpty(format) ? (char?)null : format[0];
+      if (firstC == '!')
+      {
+        // Date and time expressed as coordinated universal time (UTC).
+        dt = time == null ? DateTime.UtcNow : dtUnixStartTime.AddSeconds((int)time).ToUniversalTime();
+        format = format.Substring(1);
+      }
+      else
+      {
+        // Date and time adjusted to the local time zone.
+        dt = time == null ? DateTime.Now : dtUnixStartTime.AddSeconds((int)time).ToLocalTime(); 
+      }
+
+      if (String.Compare(format, "*t", false) == 0)
+      {
+        LuaTable lt = new LuaTable();
+        lt["year"] = dt.Year;
+        lt["month"] = dt.Month;
+        lt["day"] = dt.Day;
+        lt["hour"] = dt.Hour;
+        lt["min"] = dt.Minute;
+        lt["sec"] = dt.Second;
+        lt["wday"] = (int)dt.DayOfWeek;
+        lt["yday"] = dt.DayOfYear;
+        lt["isdst"] = (dt.Kind == DateTimeKind.Local ? true : false);
+        return lt;
+      }
+      else
+        return AT.MIN.Tools.ToStrFTime(dt, format);
     } // func date
 
-    public static int difftime(object t2, object t1)
+    /// <summary>Calculate the current date and time, coded as a number. That number is the number of seconds since 
+    /// Epoch date, that is 00:00:00 UTC, January 1, 1970. When called with a table, it returns the number representing 
+    /// the date and time described by the table.</summary>
+    /// <param name="table">Table representing the date and time</param>
+    /// <returns>The time in system seconds. </returns>
+    /// <remarks>by PapyRef</remarks>
+    public static LuaResult time(LuaTable table)
     {
-      throw new NotImplementedException();
+      TimeSpan ts;
+
+      if (table == null)
+      {
+        // Returns the current time when called without arguments
+        ts = DateTime.Now.Subtract(dtUnixStartTime);  //DateTime.UtcNow.Subtract(unixStartTime);
+      }
+      else
+      {
+        try
+        {
+          ts = datetime(table).Subtract(dtUnixStartTime);
+        }
+        catch (Exception e)
+        {
+          return new LuaResult(null, e.Message);
+        }
+      }
+
+      return new LuaResult(Convert.ToInt64(ts.TotalSeconds));
+    } // func time
+
+    /// <summary>Converts a time to a .net DateTime</summary>
+    /// <param name="time"></param>
+    /// <returns></returns>
+    public static DateTime datetime(object time)
+    {
+      if (time is LuaTable)
+      {
+        LuaTable table = (LuaTable)time;
+        return new DateTime(
+          table.ContainsKey("year") ? (int)table["year"] < 1970 ? 1970 : (int)table["year"] : 1970,
+          table.ContainsKey("month") ? (int)table["month"] : 1,
+          table.ContainsKey("day") ? (int)table["day"] : 1,
+          table.ContainsKey("hour") ? (int)table["hour"] : 0,
+          table.ContainsKey("min") ? (int)table["min"] : 0,
+          table.ContainsKey("sec") ? (int)table["sec"] : 0,
+          table.ContainsKey("isdst") ? (table.ContainsKey("isdst") == true) ? DateTimeKind.Local : DateTimeKind.Utc : DateTimeKind.Local
+        );
+      }
+      else if (time is int)
+        return dtUnixStartTime.AddSeconds((int)time);
+      else if (time is double)
+        return dtUnixStartTime.AddSeconds((double)time);
+      else
+        throw new ArgumentException();
+    } // func datetime
+
+
+    /// <summary>Calculate the number of seconds between time t1 to time t2.</summary>
+    /// <param name="t2">Higher bound of the time interval whose length is calculated.</param>
+    /// <param name="t1">Lower bound of the time interval whose length is calculated. If this describes a time point later than end, the result is negative.</param>
+    /// <returns>The number of seconds from time t1 to time t2. In other words, the result is t2 - t1.</returns>
+    /// <remarks>by PapyRef</remarks>
+    public static int difftime(int t2, int t1)
+    {
+      return t2 - t1;
     } // func difftime
 
     public static LuaResult execute(string command)
@@ -680,11 +780,6 @@ namespace Neo.IronLua
     {
       throw new NotImplementedException();
     } // func setlocale
-
-    public static object time(LuaTable table)
-    {
-      throw new NotImplementedException();
-    } // func time
 
     public static string tmpname()
     {

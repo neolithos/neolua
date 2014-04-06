@@ -17,10 +17,6 @@ namespace Neo.IronLua
   /// <summary>Enumeration with the runtime-functions.</summary>
   internal enum LuaRuntimeHelper
   {
-    /// <summary>Converts a value via the TypeConverter</summary>
-    Convert,
-    /// <summary>Concats the string.</summary>
-    StringConcat,
     /// <summary>Sets the table from an initializion list.</summary>
     TableSetObjects,
     /// <summary>Concats Result-Array</summary>
@@ -37,12 +33,112 @@ namespace Neo.IronLua
   {
     private static object luaStaticLock = new object();
     private static Dictionary<LuaRuntimeHelper, MethodInfo> runtimeHelperCache = new Dictionary<LuaRuntimeHelper, MethodInfo>();
-    private static ConstructorInfo ciResultConstructor = null;
-    private static ConstructorInfo ciResultConstructor2 = null;
+    private static ConstructorInfo ciResultConstructorArg1 = null;
+    private static ConstructorInfo ciResultConstructorArgN = null;
     private static PropertyInfo piResultIndex = null;
     private static PropertyInfo piResultValues = null;
     private static PropertyInfo piResultEmpty = null;
     private static MethodInfo miTableSetMethod = null;
+    private static MethodInfo miParseNumber = null;
+    private static MethodInfo miConvertValue = null;
+    private static MethodInfo miEquals = null;
+    private static MethodInfo miReferenceEquals = null;
+    private static MethodInfo miToString = null;
+    private static FieldInfo fiStringEmpty = null;
+    private static PropertyInfo piCultureInvariant = null;
+    private static MethodInfo miRuntimeLength = null;
+
+    #region -- sctor ------------------------------------------------------------------
+
+    static Lua()
+    {
+      ciResultConstructorArg1 = typeof(LuaResult).GetConstructor(new Type[] { typeof(object) });
+      ciResultConstructorArgN = typeof(LuaResult).GetConstructor(new Type[] { typeof(object[]) });
+      piResultIndex = typeof(LuaResult).GetProperty("Item", BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Instance);
+      piResultEmpty = typeof(LuaResult).GetProperty("Empty", BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Static);
+      piResultValues = typeof(LuaResult).GetProperty("Values", BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Instance);
+      
+      miTableSetMethod = typeof(LuaTable).GetMethod("SetMethod", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod);
+      
+      miConvertValue = typeof(Parser).GetMethod("ConvertValue", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(object), typeof(Type) }, null);
+      
+      miParseNumber = typeof(Lua).GetMethod("ParseNumber", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod);
+      miRuntimeLength = typeof(Lua).GetMethod("RtLength", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod);
+
+      miEquals = typeof(Object).GetMethod("Equals", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod);
+      miReferenceEquals = typeof(Object).GetMethod("ReferenceEquals", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod);
+      
+      miToString = typeof(Convert).GetMethod("ToString", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(object), typeof(CultureInfo) }, null);
+
+      fiStringEmpty = typeof(String).GetField("Empty", BindingFlags.Public | BindingFlags.Static | BindingFlags.GetField);
+      piCultureInvariant = typeof(CultureInfo).GetProperty("InvariantCulture", BindingFlags.Public | BindingFlags.Static | BindingFlags.GetProperty);
+      
+#if DEBUG
+      if (ciResultConstructorArg1 == null ||
+          ciResultConstructorArgN == null ||
+          piResultIndex == null ||
+          piResultEmpty == null ||
+          piResultValues == null ||
+          miTableSetMethod == null ||
+          miParseNumber == null ||
+          miConvertValue == null ||
+          miEquals == null ||
+          miReferenceEquals == null ||
+          miToString == null ||
+          fiStringEmpty == null ||
+          piCultureInvariant == null ||
+          miRuntimeLength == null)
+        throw new ArgumentNullException();
+#endif
+    } // sctor
+
+    #endregion
+
+    #region -- RtLength ---------------------------------------------------------------
+
+    /// <summary>Get's the length of an value.</summary>
+    /// <param name="v">Value</param>
+    /// <returns>Length of the value or 0.</returns>
+    public static int RtLength(object v)
+    {
+      if (v == null)
+        return 0;
+      else if (v is LuaTable)
+        return ((LuaTable)v).Length;
+      else if (v is LuaFile)
+        return unchecked((int)((LuaFile)v).Length);
+      else if (v is String)
+        return ((String)v).Length;
+      else if (v is System.IO.Stream)
+        return unchecked((int)((System.IO.Stream)v).Length);
+      else if (v is System.Collections.ICollection)
+        return ((System.Collections.ICollection)v).Count;
+      else
+      {
+        Type t = v.GetType();
+        PropertyInfo  pi;
+
+        // search for a generic collection
+        foreach (Type tInterface in t.GetInterfaces())
+          if (tInterface.IsGenericType && tInterface.GetGenericTypeDefinition() == typeof(ICollection<>))
+          {
+            pi = tInterface.GetProperty("Count");
+            return (int)pi.GetValue(v, null);
+          }
+
+        // try find a Length or Count property
+        pi = t.GetProperty("Count", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty, null, typeof(int), new Type[0], null);
+        if (pi != null)
+          return (int)pi.GetValue(v, null);
+        pi = t.GetProperty("Length", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty, null, typeof(int), new Type[0], null);
+        if (pi != null)
+          return (int)pi.GetValue(v, null);
+        
+        return 0;
+      }
+    } // func RtLength
+
+    #endregion
 
     #region -- RtConcatArrays, RtStringConcat -----------------------------------------
 
@@ -55,7 +151,7 @@ namespace Neo.IronLua
         Array.Copy(a, r, a.Length);
       if (iStartIndex < b.Length)
         for (int i = 0; i < iCountB; i++)
-          r.SetValue(RtConvert(b.GetValue(i + iStartIndex), elementType), i + a.Length);
+          r.SetValue(Parser.ConvertValue(b.GetValue(i + iStartIndex), elementType), i + a.Length);
 
       return r;
     } // func RtConcatArrays
@@ -64,88 +160,6 @@ namespace Neo.IronLua
     {
       return String.Concat(strings);
     } // func RtStringConcat
-
-    #endregion
-
-    #region -- RtConvert --------------------------------------------------------------
-
-    internal static object RtConvert(object value, Type typeTo)
-    {
-      if (typeTo == typeof(bool)) // Convert to bool
-        return ConvertToBoolean(value);
-      else if (value == null) // Convert from null
-        if (typeTo.IsValueType)
-          return Activator.CreateInstance(typeTo); // Default value
-        else
-          return null;
-      else if (typeTo == typeof(string)) // Convert to string
-      {
-        if (value is string)
-          return value;
-        TypeConverter conv = TypeDescriptor.GetConverter(value.GetType());
-        return conv.ConvertToInvariantString(value);
-      }
-      else
-      {
-        Type typeFrom = value.GetType();
-
-        if (typeFrom == typeTo)
-          return value;
-
-        // Specials cases
-        if (typeFrom.IsEnum)
-          typeFrom = typeFrom.GetEnumUnderlyingType();
-
-        if (typeTo.IsAssignableFrom(typeFrom))
-          return value;
-        else
-        {
-          TypeConverter conv = TypeDescriptor.GetConverter(typeTo);
-          if (conv.CanConvertFrom(typeFrom))
-            return conv.ConvertFrom(null, CultureInfo.InvariantCulture, value);
-          else
-          {
-            conv = TypeDescriptor.GetConverter(typeFrom);
-            if (conv.CanConvertTo(typeTo))
-              return conv.ConvertTo(null, CultureInfo.InvariantCulture, value, typeTo);
-            else
-              throw new LuaRuntimeException(String.Format(Properties.Resources.rsConversationError, value, typeTo.Name), null);
-          }
-        }
-      }
-    } // func RtConvert
-
-    private static bool ConvertToBoolean(object value)
-    {
-      if (value == null)
-        return false;
-      else if (value is bool)
-        return (bool)value;
-      else if (value is byte)
-        return (byte)value != 0;
-      else if (value is sbyte)
-        return (sbyte)value != 0;
-      else if (value is short)
-        return (short)value != 0;
-      else if (value is ushort)
-        return (ushort)value != 0;
-      else if (value is int)
-        return (int)value != 0;
-      else if (value is uint)
-        return (uint)value != 0;
-      else if (value is long)
-        return (long)value != 0;
-      else if (value is ulong)
-        return (ulong)value != 0;
-      else if (value is float)
-        return (float)value != 0;
-      else if (value is double)
-        return (double)value != 0;
-      else if (value is decimal)
-        return (decimal)value != 0;
-      else
-        return true;
-    } // func RtConvertToBoolean
 
     #endregion
 
@@ -186,71 +200,20 @@ namespace Neo.IronLua
       return mi;
     } // func GetRuntimeHelper
 
-    internal static ConstructorInfo ResultConstructorInfo
-    {
-      get
-      {
-        lock (luaStaticLock)
-          if (ciResultConstructor == null)
-            ciResultConstructor = typeof(LuaResult).GetConstructor(new Type[] { typeof(object[]) });
-        return ciResultConstructor;
-      }
-    } // prop ResultConstructorInfo
-
-    internal static ConstructorInfo ResultConstructorInfo2
-    {
-      get
-      {
-        lock (luaStaticLock)
-          if (ciResultConstructor2 == null)
-            ciResultConstructor2 = typeof(LuaResult).GetConstructor(new Type[] { typeof(object) });
-        return ciResultConstructor2;
-      }
-    } // prop ResultConstructorInfo
-
-    internal static PropertyInfo ResultIndexPropertyInfo
-    {
-      get
-      {
-        lock (luaStaticLock)
-          if (piResultIndex == null)
-            piResultIndex = typeof(LuaResult).GetProperty("Item", BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Instance);
-        return piResultIndex;
-      }
-    } // prop ResultIndexPropertyInfo
-
-    internal static PropertyInfo ResultEmptyPropertyInfo
-    {
-      get
-      {
-        lock (luaStaticLock)
-          if (piResultEmpty == null)
-            piResultEmpty = typeof(LuaResult).GetProperty("Empty", BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Static);
-        return piResultEmpty;
-      }
-    } // prop ResultEmptyPropertyInfo
-
-    internal static PropertyInfo ResultValuesPropertyInfo
-    {
-      get
-      {
-        lock (luaStaticLock)
-          if (piResultValues == null)
-            piResultValues = typeof(LuaResult).GetProperty("Values", BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Instance);
-        return piResultValues;
-      }
-    } // prop ResultValuesPropertyInfo
-
-    internal static MethodInfo TableSetMethodInfo
-    {
-      get
-      {
-        lock (luaStaticLock)
-          if (miTableSetMethod == null)
-            miTableSetMethod = typeof(LuaTable).GetMethod("SetMethod", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod);
-        return miTableSetMethod;
-      }
-    } // prop ResultValuesPropertyInfo
+    internal static ConstructorInfo ResultConstructorInfoArg1 { get { return ciResultConstructorArg1; } }
+    internal static ConstructorInfo ResultConstructorInfoArgN { get { return ciResultConstructorArgN; } }
+    internal static PropertyInfo ResultIndexPropertyInfo { get { return piResultIndex; } }
+    internal static PropertyInfo ResultEmptyPropertyInfo { get { return piResultEmpty; } }
+    internal static PropertyInfo ResultValuesPropertyInfo { get { return piResultValues; } }
+    internal static MethodInfo TableSetMethodInfo { get { return miTableSetMethod; } }
+    internal static MethodInfo ParserNumberMethodInfo { get { return miParseNumber; } }
+    internal static MethodInfo ConvertValueMethodInfo { get { return miConvertValue; } }
+    internal static MethodInfo ObjectEqualsMethodInfo { get { return miEquals; } }
+    internal static MethodInfo ObjectReferenceEqualsMethodInfo { get { return miReferenceEquals; } }
+    internal static MethodInfo ConvertToStringMethodInfo { get { return miToString; } }
+    internal static FieldInfo StringEmptyFieldInfo { get { return fiStringEmpty; } }
+    internal static PropertyInfo CultureInvariantPropertyInfo { get { return piCultureInvariant; } }
+    internal static MethodInfo RtLengthMethodInfo { get { return miRuntimeLength; } }
 
     #endregion
 

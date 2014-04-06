@@ -37,7 +37,7 @@ namespace Neo.IronLua
           switch (Lua.TryBindGetMember(binder, new DynamicMetaObject(Expression.Default(type), BindingRestrictions.Empty, null), out expr))
           {
             case Lua.BindResult.Ok:
-              expr = Parser.ToTypeExpression(expr, binder.ReturnType);
+              expr = Parser.ConvertExpression(null, expr, binder.ReturnType);
               break;
           }
         }
@@ -111,7 +111,7 @@ namespace Neo.IronLua
           if (String.Compare(binder.Name, "GetType", binder.IgnoreCase) == 0 && args.Length == 0)
           {
             return new DynamicMetaObject(
-              Parser.ToTypeExpression(
+              Parser.ConvertExpression(null, 
                 Expression.Property(Expression.Convert(Expression, typeof(LuaType)), piType), binder.ReturnType),
                 BindingRestrictions.GetInstanceRestriction(Expression, Value), type);
           }
@@ -575,9 +575,9 @@ namespace Neo.IronLua
     internal static Expression ConvertToLuaType(DynamicMetaObject a)
     {
       if (a.LimitType == typeof(LuaType))
-        return Parser.ToTypeExpression(a.Expression, typeof(LuaType));
+        return Parser.ConvertExpression(null, a.Expression, typeof(LuaType));
       else if (typeof(Type).IsAssignableFrom(a.LimitType))
-        return Parser.ToTypeExpression(Expression.Call(miGetTypeFromType, Parser.ToTypeExpression(a.Expression, typeof(Type))));
+        return Parser.ConvertExpression(null, Expression.Call(miGetTypeFromType, Parser.ConvertExpression(null, a.Expression, typeof(Type))), typeof(object));
       else
         throw new ArgumentException();
     } // func ConvertToLuaType
@@ -585,9 +585,9 @@ namespace Neo.IronLua
     internal static Expression ConvertToType(DynamicMetaObject a)
     {
       if (a.LimitType == typeof(LuaType))
-        return Parser.ToTypeExpression(Expression.Property(Parser.ToTypeExpression(a.Expression, typeof(LuaType)), piType), typeof(Type));
+        return Parser.ConvertExpression(null, Expression.Property(Parser.ConvertExpression(null, a.Expression, typeof(LuaType)), piType), typeof(Type));
       else if (typeof(Type).IsAssignableFrom(a.LimitType))
-        return Parser.ToTypeExpression(a.Expression, typeof(Type));
+        return Parser.ConvertExpression(null, a.Expression, typeof(Type));
       else
         throw new ArgumentException();
     } // func ConvertToLuaType
@@ -635,7 +635,7 @@ namespace Neo.IronLua
         }
 
         return new DynamicMetaObject(
-          Expression.Call(Parser.ToTypeExpression(Expression, typeof(LuaOverloadedMethod)),
+          Expression.Call(Parser.ConvertExpression(null, Expression, typeof(LuaOverloadedMethod)),
             miGetExplicitDelegate,
             Expression.Constant(false),
             Expression.NewArrayInit(typeof(Type), (from a in indexes select LuaType.ConvertToType(a)).AsEnumerable())
@@ -665,7 +665,7 @@ namespace Neo.IronLua
           Lua.InvokeMemberExpression(
             val.instance == null ?
               null :
-              new DynamicMetaObject(Expression.Property(Expression.Convert(Expression, typeof(LuaOverloadedMethod)), piInstance), BindingRestrictions.Empty, val.instance),
+              Expression.Convert(Expression.Property(Expression.Convert(Expression, typeof(LuaOverloadedMethod)), piInstance), val.Type),
             miBind, null, args
           ),
           val.instance == null ? GetTypeRestriction(val) : GetInstanceRestriction(val)

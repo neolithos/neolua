@@ -61,6 +61,24 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die No conversion defined from {0} to {1}. ähnelt.
+        /// </summary>
+        internal static string rsBindConversionNotDefined {
+            get {
+                return ResourceManager.GetString("rsBindConversionNotDefined", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die No operator is defined for {1} {0} {2}. ähnelt.
+        /// </summary>
+        internal static string rsBindOperatorNotDefined {
+            get {
+                return ResourceManager.GetString("rsBindOperatorNotDefined", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Sucht eine lokalisierte Zeichenfolge, die Chunk is not compiled. ähnelt.
         /// </summary>
         internal static string rsChunkNotCompiled {
@@ -115,15 +133,6 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
-        ///   Sucht eine lokalisierte Zeichenfolge, die Can not convert &apos;{0}&apos; in &apos;{1}&apos;. ähnelt.
-        /// </summary>
-        internal static string rsConversationError {
-            get {
-                return ResourceManager.GetString("rsConversationError", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Sucht eine lokalisierte Zeichenfolge, die Argument ar must from the same LuaThread. ähnelt.
         /// </summary>
         internal static string rsCoroutineInvalidAR {
@@ -165,6 +174,15 @@ namespace Neo.IronLua.Properties {
         internal static string rsDelegateCouldNotHaveOut {
             get {
                 return ResourceManager.GetString("rsDelegateCouldNotHaveOut", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Expression is not enumerable. ähnelt.
+        /// </summary>
+        internal static string rsExpressionNotEnumerable {
+            get {
+                return ResourceManager.GetString("rsExpressionNotEnumerable", resourceCulture);
             }
         }
         
