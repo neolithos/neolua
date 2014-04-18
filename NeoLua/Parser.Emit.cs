@@ -62,7 +62,7 @@ namespace Neo.IronLua
       }
     } // func SafeExpression
 
-    private static Expression ConvertObjectExpression(Lua runtime, Token tStart, Expression expr)
+    private static Expression ConvertObjectExpression(Lua runtime, Token tStart, Expression expr, bool lConvertToObject = false)
     {
       if (expr.Type == typeof(LuaResult))
         return GetResultExpression(runtime, tStart, expr, 0);
@@ -71,9 +71,13 @@ namespace Neo.IronLua
         DynamicExpression exprDynamic = (DynamicExpression)expr;
         if (exprDynamic.Binder is InvokeBinder || exprDynamic.Binder is InvokeMemberBinder)
           return Expression.Dynamic(runtime.GetConvertBinder(typeof(object)), typeof(object), expr);
+        else if (lConvertToObject)
+          return Lua.EnsureType(expr, typeof(object));
         else
           return expr;
       }
+      else if (lConvertToObject)
+        return Lua.EnsureType(expr, typeof(object));
       else
         return expr;
     } // func ConvertObjectExpression
@@ -129,12 +133,48 @@ namespace Neo.IronLua
 
     private static Expression IndexGetExpression(Lua runtime, Token tStart, Expression instance, Expression[] indexes)
     {
-      return SafeExpression(() => LuaEmit.GetIndex(runtime, instance, indexes, e => e, e => e.Type, true), tStart);
+      if (instance.Type == typeof(LuaTable))
+      {
+        if (indexes.Length == 1)
+          return Expression.Call(instance, Lua.TableGetValueIdxMethodInfo, ConvertObjectExpression(runtime, tStart, indexes[0], true));
+        else
+          return Expression.Call(instance, Lua.TableGetValueIdxNMethodInfo, Expression.NewArrayInit(typeof(object), from i in indexes select ConvertObjectExpression(runtime, tStart,i, true)));
+      }
+      else if (instance.Type == typeof(LuaResult) && indexes.Length == 1)
+      {
+        return Expression.MakeIndex(
+          instance,
+          Lua.ResultIndexPropertyInfo,
+          new Expression[] { ConvertExpression(runtime, tStart, indexes[0], typeof(int)) }
+        );
+      }
+      else
+        return SafeExpression(() => LuaEmit.GetIndex(runtime, instance, indexes, e => e, e => e.Type, true), tStart);
     } // func IndexGetExpression
 
-    private static Expression IndexSetExpression(Lua runtime, Token tStart, Expression instance, Expression[] indexes, Expression set)
+    private static Expression IndexSetExpression(Lua runtime, Token tStart, Expression instance, Expression[] indexes, Expression set, bool lNoResult = true)
     {
-      return SafeExpression(() => LuaEmit.SetIndex(runtime, instance, indexes, set, e => e, e => e.Type, true), tStart);
+      if (instance.Type == typeof(LuaTable))
+      {
+        Expression expr;
+        if (indexes.Length == 1)
+          expr = Expression.Call(instance, Lua.TableSetValueIdxMethodInfo,
+            ConvertExpression(runtime, tStart, indexes[0], typeof(object)),
+            ConvertObjectExpression(runtime, tStart, set, true),
+            Expression.Constant(false)
+          );
+        else
+          expr = Expression.Call(instance, Lua.TableSetValueIdxNMethodInfo,
+            Expression.NewArrayInit(typeof(object), from i in indexes select ConvertObjectExpression(runtime, tStart, i, true)),
+            ConvertObjectExpression(runtime, tStart, set, true)
+          );
+        if (lNoResult)
+          return expr;
+        else
+          return Expression.Block(expr, set);
+      }
+      else
+        return SafeExpression(() => LuaEmit.SetIndex(runtime, instance, indexes, set, e => e, e => e.Type, true), tStart);
     } // func IndexSetExpression
 
     private static Expression InvokeExpression(Lua runtime, Token tStart, Expression instance, InvokeResult result, Expression[] arguments, bool lParse)

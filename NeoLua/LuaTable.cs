@@ -208,10 +208,13 @@ namespace Neo.IronLua
           // the index is normaly an expression --> call setvalue
           var t = new DynamicMetaObject(
             Expression.Block(
-              SetValueExpression(
-                Expression.Convert(Expression, typeof(LuaTable)),
-                indexes[0].Expression,
-                exprSet),
+              Expression.Call(
+                Lua.EnsureType(Expression, typeof(LuaTable)),
+                Lua.TableSetValueIdxMethodInfo,
+                Lua.EnsureType(indexes[0].Expression, typeof(object)),
+                exprSet,
+                Expression.Constant(false)
+              ),
               exprSet
             ),
             restrictions
@@ -926,21 +929,6 @@ namespace Neo.IronLua
     {
       return GetMetaTableOperator<Func<object[], object>>("__call", "object f(object[])")(args);
     } // func OnCall
-
-    #endregion
-
-    #region -- Expressions ------------------------------------------------------------
-
-    internal static Expression SetValueExpression(Expression table, Expression index, Expression set)
-    {
-      return Expression.Call(
-        Lua.EnsureType(table, typeof(LuaTable)),
-        Lua.TableSetValueIdxMethodInfo,
-        Lua.EnsureType(index, typeof(object)),
-        Lua.EnsureType(set, typeof(object)),
-        Expression.Constant(false)
-      );
-    } // func SetValueExpression
 
     #endregion
 

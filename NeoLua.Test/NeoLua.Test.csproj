@@ -111,9 +111,6 @@
     <EmbeddedResource Include="Lua\Control10.lua" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Lua\Function15.lua" />
-  </ItemGroup>
-  <ItemGroup>
     <EmbeddedResource Include="Lua\Runtime11.lua" />
     <EmbeddedResource Include="Lua\Runtime12.lua" />
   </ItemGroup>

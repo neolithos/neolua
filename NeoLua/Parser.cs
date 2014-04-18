@@ -1602,6 +1602,8 @@ namespace Neo.IronLua
           return LuaType.GetType(typeof(LuaTable));
         case "result":
           return LuaType.GetType(typeof(LuaResult));
+        case "void":
+          return LuaType.GetType(typeof(void));
         default:
           {
             ConstantExpression expr = scope.LookupExpression(sType, false) as ConstantExpression;
@@ -2157,11 +2159,12 @@ namespace Neo.IronLua
 
         // Expression that results in a value
         scope.AddExpression(
-          LuaTable.SetValueExpression(tableVar,
-            index,
-            ParseExpression(scope, code, InvokeResult.Object, scope.EmitDebug)
+          IndexSetExpression(scope.Runtime, code.Current, tableVar, new Expression[] { index },
+            ParseExpression(scope, code, InvokeResult.Object, scope.EmitDebug),
+            true
           )
         );
+          
       }
       else if (code.Current.Typ == LuaToken.Identifier && code.LookAhead.Typ == LuaToken.Assign)
       {
@@ -2197,11 +2200,7 @@ namespace Neo.IronLua
         else // Normal index set
         {
           scope.AddExpression(
-            Expression.Call(tableVar, Lua.TableSetValueIdxMethodInfo,
-              Expression.Constant(iIndex++, typeof(object)),
-              ConvertExpression(scope.Runtime, tStart, ConvertObjectExpression(scope.Runtime, tStart, expr), typeof(object)),
-              Expression.Constant(false)
-            )
+            IndexSetExpression(scope.Runtime, code.Current, tableVar, new Expression[] { Expression.Constant(iIndex++, typeof(object)) }, expr, true)
           );
         }
       }

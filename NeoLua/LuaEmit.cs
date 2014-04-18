@@ -332,21 +332,21 @@ namespace Neo.IronLua
       }
     } // func GetOperationMethodName
 
-    private static Expression[] CreateDynamicArgs<TARG>(Lua runtime, Expression instance, Type instanceType, TARG[] arguments, Func<TARG, Expression> getExpr, Func<TARG, Type> getType)
+    internal static Expression[] CreateDynamicArgs<TARG>(Lua runtime, Expression instance, Type instanceType, TARG[] arguments, Func<TARG, Expression> getExpr, Func<TARG, Type> getType)
       where TARG : class
     {
       Expression[] dynArgs = new Expression[arguments.Length + 1];
-      dynArgs[0] = Convert(runtime, instance, instanceType, typeof(object), false);
+      dynArgs[0] = Lua.EnsureType(instance, typeof(object));
       for (int i = 0; i < arguments.Length; i++)
         dynArgs[i + 1] = Convert(runtime, getExpr(arguments[i]), getType(arguments[i]), typeof(object), false);
       return dynArgs;
     } // func CreateDynamicArgs
 
-    private static Expression[] CreateDynamicArgs<TARG>(Lua runtime, Expression instance, Type instanceType, TARG[] arguments, TARG setTo, Func<TARG, Expression> getExpr, Func<TARG, Type> getType)
+    internal static Expression[] CreateDynamicArgs<TARG>(Lua runtime, Expression instance, Type instanceType, TARG[] arguments, TARG setTo, Func<TARG, Expression> getExpr, Func<TARG, Type> getType)
       where TARG : class
     {
       Expression[] dynArgs = new Expression[arguments.Length + 2];
-      dynArgs[0] = Convert(runtime, instance, instanceType, typeof(object), false);
+      dynArgs[0] = Lua.EnsureType(instance, typeof(object));
       for (int i = 0; i < arguments.Length; i++)
         dynArgs[i + 1] = Convert(runtime, getExpr(arguments[i]), getType(arguments[i]), typeof(object), false);
       dynArgs[dynArgs.Length - 1] = Convert(runtime, getExpr(setTo), getType(setTo), typeof(object), false);
@@ -1100,6 +1100,7 @@ namespace Neo.IronLua
       }
 
       MemberInfo[] members = type.GetMember(sMemberName, GetBindingFlags(instance != null, lIgnoreCase));
+      instance = instance == null ? null : Convert(runtime, instance, type, type, lParse);
 
       if (members == null || members.Length == 0)
         throw new LuaEmitException(LuaEmitException.MemberNotFound, type.Name, sMemberName);
@@ -1112,12 +1113,12 @@ namespace Neo.IronLua
           PropertyInfo pi = (PropertyInfo)members[0];
           if (!pi.CanWrite)
             throw new LuaEmitException(LuaEmitException.CanNotWriteMember, type.Name, sMemberName);
-          return Expression.Assign(Expression.Property(Convert(runtime, instance, type, type, lParse), pi), Convert(runtime, set, typeSet, pi.PropertyType, lParse));
+          return Expression.Assign(Expression.Property(instance, pi), Convert(runtime, set, typeSet, pi.PropertyType, lParse));
         }
         else if (members[0].MemberType == MemberTypes.Field)
         {
           FieldInfo fi = (FieldInfo)members[0];
-          return Expression.Assign(Expression.Field(Convert(runtime, instance, type, type, lParse), fi), Convert(runtime, set, typeSet, fi.FieldType, lParse));
+          return Expression.Assign(Expression.Field(instance, fi), Convert(runtime, set, typeSet, fi.FieldType, lParse));
         }
         else
           throw new LuaEmitException(LuaEmitException.CanNotWriteMember, type.Name, sMemberName);

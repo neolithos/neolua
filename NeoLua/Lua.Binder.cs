@@ -37,20 +37,38 @@ namespace Neo.IronLua
         return LuaEmit.GetResultExpression(Expression, typeof(LuaResult), 0);
       } // func GetFirstResultExpression
 
-      private object GetFirstResult()
-      {
-        LuaResult v = (LuaResult)Value;
-        return v != null ? v[0] : null;
-      } // GetFirstResult
-
-      private DynamicMetaObject GetTargetMetaObject()
+      private DynamicMetaObject GetTargetDynamicCall(CallSiteBinder binder, Type typeReturn, Expression[] exprs)
       {
         return new DynamicMetaObject(
-          GetFirstResultExpression(),
-          BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaResult)),
-          GetFirstResult()
+          Expression.Dynamic(binder, typeReturn, exprs),
+          BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaResult))
         );
-      } // func GetTargetMetaObject
+      } // func GetTargetDynamicCall
+
+      private DynamicMetaObject GetTargetDynamicCall(CallSiteBinder binder, Type typeReturn)
+      {
+        return GetTargetDynamicCall(binder, typeReturn,
+          new Expression[] { GetFirstResultExpression() }
+        );
+      } // func GetTargetDynamicCall
+
+      private DynamicMetaObject GetTargetDynamicCall(CallSiteBinder binder, Type typeReturn, DynamicMetaObject arg)
+      {
+        return GetTargetDynamicCall(binder, typeReturn,
+          new Expression[] 
+          {
+            GetFirstResultExpression(),
+            LuaEmit.Convert(Lua.GetRuntime(binder), arg.Expression, arg.LimitType, typeof(object), false)
+          }
+        );
+      } // func GetTargetDynamicCall
+
+      private DynamicMetaObject GetTargetDynamicCall(CallSiteBinder binder, Type typeReturn, DynamicMetaObject[] args)
+      {
+        return GetTargetDynamicCall(binder, typeReturn,
+          LuaEmit.CreateDynamicArgs(Lua.GetRuntime(binder), GetFirstResultExpression(), typeof(object), args, mo => mo.Expression, mo => mo.LimitType)
+        );
+      } // func GetTargetDynamicCall
 
       public override DynamicMetaObject BindConvert(ConvertBinder binder)
       {
@@ -66,17 +84,17 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject BindInvoke(InvokeBinder binder, DynamicMetaObject[] args)
       {
-        return binder.FallbackInvoke(GetTargetMetaObject(), args);
+        return GetTargetDynamicCall(binder, binder.ReturnType, args);
       } // func BindInvoke
 
       public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
       {
-        return binder.FallbackInvokeMember(GetTargetMetaObject(), args);
+        return GetTargetDynamicCall(binder, binder.ReturnType, args);
       } // func BindInvokeMember
 
       public override DynamicMetaObject BindBinaryOperation(BinaryOperationBinder binder, DynamicMetaObject arg)
       {
-        return binder.FallbackBinaryOperation(GetTargetMetaObject(), arg);
+        return GetTargetDynamicCall(binder, binder.ReturnType, arg);
       } // func BindBinaryOperation
 
       public override DynamicMetaObject BindGetIndex(GetIndexBinder binder, DynamicMetaObject[] indexes)
@@ -86,22 +104,24 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject BindSetIndex(SetIndexBinder binder, DynamicMetaObject[] indexes, DynamicMetaObject value)
       {
-        return binder.FallbackSetIndex(GetTargetMetaObject(), indexes, value);
+        return GetTargetDynamicCall(binder, binder.ReturnType,
+          LuaEmit.CreateDynamicArgs(Lua.GetRuntime(binder), GetFirstResultExpression(), typeof(object), indexes, value, mo => mo.Expression, mo => mo.LimitType)
+        );
       } // func BindSetIndex
 
       public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
       {
-        return binder.FallbackGetMember(GetTargetMetaObject());
+        return GetTargetDynamicCall(binder, binder.ReturnType);
       } // func BindGetMember
 
       public override DynamicMetaObject BindSetMember(SetMemberBinder binder, DynamicMetaObject value)
       {
-        return binder.FallbackSetMember(GetTargetMetaObject(), value);
+        return GetTargetDynamicCall(binder, binder.ReturnType, value);
       } // func BindSetMember
 
       public override DynamicMetaObject BindUnaryOperation(UnaryOperationBinder binder)
       {
-        return binder.FallbackUnaryOperation(GetTargetMetaObject());
+        return GetTargetDynamicCall(binder, binder.ReturnType);
       } // func BindUnaryOperation
     } // class LuaResultMetaObject
 

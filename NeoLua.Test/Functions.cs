@@ -290,103 +290,48 @@ namespace LuaDLR.Test
       }
     }
 
+    [TestMethod]
+    public void TestFunctions60()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        dynamic g = l.CreateEnvironment();
+        g.dochunk(String.Join(Environment.NewLine,
+          "function add(a : int, b : int) : int",
+          "  return a + b;",
+          "end;"), "add.lua");
+        Func<int, int, int> a = g.add;
+        Assert.IsTrue(a(1, 3) == 4);
+        Assert.IsTrue(g.add(1, 2) == 3);
+      }
+    }
 
+    [TestMethod]
+    public void TestFunctions61()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        dynamic g = l.CreateEnvironment();
+        TestResult(g.dochunk("function test(a) if a ~= nil then return a; end; end;", "test.lua"));
+        TestResult(g.test());
+        TestResult(g.test(1), 1);
+      }
+    }
 
-    // index tests
-    //[TestMethod]
-    //public void TestFunctions60()
-    //{
-    //  using (Lua l = new Lua())
-    //  {
-    //    l.PrintExpressionTree = true;
-    //    dynamic g = l.CreateEnvironment();
-    //    g.test = new int[] { 1, 2, 3 };
-    //    TestResult(g.dochunk("return test[0], test[1], test[2];"),  1, 2, 3);
-    //  }
-    //}
+    [TestMethod]
+    public void TestFunctions62()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        dynamic g = l.CreateEnvironment();
+        var c = l.CompileChunk("print(a)", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)));
 
-    //[TestMethod]
-    //public void TestFunctions12()
-    //{
-    //  int[,] test = new int[,] { {1, 2}, {3, 4} };
-    //  Lua l = new Lua();
-    //  l.PrintExpressionTree = true;
-    //  LuaGlobal g = l.CreateEnvironment();
-    //  g["test"] = test;
-    //  Assert.IsTrue(TestReturn(g.DoChunk("return test[0, 0], test[0, 1], test[1,0], test[1,1];", "test.lua"), 1, 2, 3, 4));
-    //} // proc TestFunction12
-
-    //[TestMethod]
-    //public void TestFunctions13()
-    //{
-    //  Lua l = new Lua();
-    //  l.PrintExpressionTree = true;
-    //  LuaGlobal g = l.CreateEnvironment();
-    //  g["test"] = new TestParam();
-    //  Assert.IsTrue(TestReturn(g.DoChunk("return test[0], test[1];", "test.lua"), 0, 1));
-    //} // proc TestFunction13
-
-    //[TestMethod]
-    //public void TestFunctions14()
-    //{
-    //  int[] test = new int[] { 1, 2, 3 };
-    //  using (Lua l = new Lua())
-    //  {
-    //    l.PrintExpressionTree = true;
-    //    LuaGlobal g = l.CreateEnvironment();
-    //    g["test"] = test;
-    //    Assert.IsTrue(TestReturn(g.DoChunk("test[0] = 42; return test[0];", "test.lua"), 42));
-    //  }
-    //} // proc TestFunction14
-
-    //[TestMethod]
-    //public void TestFunctions15()
-    //{
-    //  Assert.IsTrue(TestReturn(GetCode("Lua.Function15.lua"), 123));
-    //} // proc TestFunctions15
-
-    //[TestMethod]
-    //public void TestFunctions16()
-    //{
-    //  using (Lua l = new Lua())
-    //  {
-    //    l.PrintExpressionTree = true;
-    //    dynamic g = l.CreateEnvironment();
-    //    g.dochunk("function add(a : int, b : int) : int return a + b; end;", "add.lua");
-    //    Func<int, int, int> a = g.add;
-    //    Assert.IsTrue(a(1, 3) == 4);
-    //    Assert.IsTrue(g.add(1, 2) == 3);
-    //  }
-    //} // proc TestFunctions15
-
-    //[TestMethod]
-    //public void TestFunctions17()
-    //{
-    //  using (Lua l = new Lua())
-    //  {
-    //    l.PrintExpressionTree = true;
-    //    dynamic g = l.CreateEnvironment();
-    //    object a = g.dochunk("function test(a) if a ~= nil then return a; end; end;", "test.lua");
-    //    object b = g.test();
-    //    LuaResult c = g.test(1);
-    //    Assert.IsTrue(a == LuaResult.Empty);
-    //    Assert.IsTrue(b == LuaResult.Empty);
-    //    Assert.IsTrue(c.ToInt32() == 1);
-    //  }
-    //} // proc TestFunctions15
-    
-    //[TestMethod]
-    //public void TestFunctions18()
-    //{
-    //  using (Lua l = new Lua())
-    //  {
-    //    l.PrintExpressionTree = true;
-    //    dynamic g = l.CreateEnvironment();
-    //    var c = l.CompileChunk("print(a)", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)));
-
-    //    g.dochunk(c, 1);
-    //    g.dochunk(c, "a");
-    //  }
-    //}
+        g.dochunk(c, 1);
+        g.dochunk(c, "a");
+      }
+    }
   } // class Functions
 }

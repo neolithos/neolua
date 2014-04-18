@@ -38,7 +38,14 @@ namespace LuaDLR.Test
           EventTest();
       }
 
+      public static int Value { get; set; }
+
       public event Action EventTest;
+    }
+
+    public static void Test()
+    {
+      Console.WriteLine("Hallo");
     }
 
     [TestMethod]
@@ -121,21 +128,10 @@ namespace LuaDLR.Test
     }
 
     [TestMethod]
-    public void MethodTest05()
+    public void TypeTest06()
     {
-      using (Lua l = new Lua())
-      {
-        dynamic g = l.CreateEnvironment();
-        dynamic r = g.dochunk(String.Join(Environment.NewLine,
-          new string[] {
-            "local c = clr.LuaDLR.Test.LuaTypeTests.SubClass()",
-            "c.Test('Test');",
-            "return c.Test;"
-          }));
-
-        foreach (var c in r[0])
-          Console.WriteLine(c.GetType().Name);
-      }
+      TestCode("clr.LuaDLR.Test.LuaTypeTests.SubClass.Value = 3;");
+      Assert.IsTrue(SubClass.Value == 3);
     }
 
     [TestMethod]
@@ -194,11 +190,57 @@ namespace LuaDLR.Test
     }
 
     [TestMethod]
+    public void MethodTest04()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        var g = l.CreateEnvironment();
+        dynamic m = g.DoChunk("return clr.LuaDLR.Test.LuaTypeTests.Test", "dummy");
+        MethodInfo mi = m;
+        Action action = m;
+        Delegate dlg = m;
+        m();
+        Assert.IsTrue(mi != null);
+        Assert.IsTrue(action != null);
+        Assert.IsTrue(dlg != null);
+      }
+    }
+
+    [TestMethod]
+    public void MethodTest05()
+    {
+      using (Lua l = new Lua())
+      {
+        dynamic g = l.CreateEnvironment();
+        dynamic r = g.dochunk(String.Join(Environment.NewLine,
+          new string[] {
+            "local c = clr.LuaDLR.Test.LuaTypeTests.SubClass()",
+            "c.Test('Test');",
+            "return c.Test;"
+          }));
+
+        foreach (var c in r[0])
+          Console.WriteLine(c.GetType().Name);
+      }
+    }
+
+    [TestMethod]
     public void EventTest01()
     {
       SubClass c = new SubClass();
       c.EventTest += () => Console.WriteLine("Fired.");
       c.Fire();
+    }
+
+    [TestMethod]
+    public void EventTest02()
+    {
+      TestCode(String.Join(Environment.NewLine,
+        "const SubClass typeof LuaDLR.Test.LuaTypeTests.SubClass;",
+        "local c : SubClass = SubClass();",
+        "c.EventTest:add(function():void print('Fired.'); end);",
+        "c:Fire();"));
     }
   } // class LuaTypeTests 
 }

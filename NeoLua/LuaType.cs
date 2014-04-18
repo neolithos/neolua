@@ -23,7 +23,7 @@ namespace Neo.IronLua
       #region -- Ctor/Dtor ------------------------------------------------------------
 
       public LuaTypeMetaObject(Expression expression, LuaType value)
-        : base(expression, BindingRestrictions.GetTypeRestriction(expression, typeof(LuaType)), value)
+        : base(expression, BindingRestrictions.Empty, value)
       {
       } // ctor
 
@@ -47,6 +47,7 @@ namespace Neo.IronLua
           {
             expr = Lua.ThrowExpression(e.Message, binder.ReturnType);
           }
+          return new DynamicMetaObject(expr, GetTypeResolvedRestriction(type));
         }
         else
         {
@@ -56,8 +57,8 @@ namespace Neo.IronLua
             binder.GetUpdateExpression(binder.ReturnType),
             Lua.EnsureType(Expression.Call(Lua.TypeGetTypeMethodInfoArgIndex, Expression.Constant(val.GetIndex(binder.Name, binder.IgnoreCase, null), typeof(int))), binder.ReturnType)
           );
+          return new DynamicMetaObject(expr, GetTypeNotResolvedRestriction());
         }
-        return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(Expression, val));
       } // func BindGetMember
 
       #endregion
@@ -69,10 +70,8 @@ namespace Neo.IronLua
         Type type = ((LuaType)Value).Type;
 
         Expression expr;
-        var restrictions = BindingRestrictions.GetInstanceRestriction(Expression, Value);
         if (type != null)
         {
-          restrictions = restrictions.Merge(BindingRestrictions.GetTypeRestriction(value.Expression, value.LimitType));
           try
           {
             expr = Lua.EnsureType(LuaEmit.SetMember(Lua.GetRuntime(binder), null, type, binder.Name, binder.IgnoreCase, value.Expression, value.LimitType, false), binder.ReturnType);
@@ -81,6 +80,7 @@ namespace Neo.IronLua
           {
             expr = Lua.ThrowExpression(e.Message, binder.ReturnType);
           }
+          return new DynamicMetaObject(expr, GetTypeResolvedRestriction(type));
         }
         else
         {
@@ -89,8 +89,8 @@ namespace Neo.IronLua
             binder.GetUpdateExpression(binder.ReturnType),
             Lua.ThrowExpression(String.Format(Properties.Resources.rsMemberNotWritable, "LuaType", binder.Name), binder.ReturnType)
           );
+          return new DynamicMetaObject(expr, GetTypeNotResolvedRestriction());
         }
-        return new DynamicMetaObject(expr, restrictions);
       } // proc BindSetMember
 
       #endregion
@@ -100,13 +100,16 @@ namespace Neo.IronLua
       public override DynamicMetaObject BindGetIndex(GetIndexBinder binder, DynamicMetaObject[] indexes)
       {
         LuaType val = (LuaType)Value;
-
-        if (indexes.Length == 0)
+        Type type = val.Type;
+        if (type != null && indexes.Length == 0)
         {
           // create a array of the type
           return new DynamicMetaObject(
-            Expression.Call(Lua.TypeGetTypeMethodInfoArgIndex, Expression.Constant(val.GetIndex("[]", true, () => val.Type.MakeArrayType()), typeof(int))),
-            BindingRestrictions.GetInstanceRestriction(Expression, Value));
+            Expression.Call(Lua.TypeGetTypeMethodInfoArgIndex,
+              Expression.Constant(val.GetIndex("[]", true, () => type.MakeArrayType()), typeof(int))
+            ),
+            GetTypeResolvedRestriction(type)
+          );
         }
         else
         {
@@ -137,9 +140,12 @@ namespace Neo.IronLua
           // create the call to the runtime
           return new DynamicMetaObject(
             Expression.Call(Expression.Convert(Expression, typeof(LuaType)), Lua.TypeGetGenericItemMethodInfo,
-            Expression.Constant(typeGeneric),
-            Expression.NewArrayInit(typeof(LuaType), (from a in indexes select ConvertToLuaType(a)).AsEnumerable())),
-            Lua.GetMethodSignatureRestriction(this, indexes));
+              Expression.Constant(typeGeneric),
+              Expression.NewArrayInit(typeof(LuaType), (from a in indexes select ConvertToLuaType(a)).AsEnumerable())
+            ),
+            BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaType))
+              .Merge(Lua.GetMethodSignatureRestriction(null, indexes))
+          );
         }
       } // func BindGetIndex
 
@@ -202,18 +208,18 @@ namespace Neo.IronLua
             restrictions = BindingRestrictions.GetInstanceRestriction(Expression, Value);
             expr = Lua.ThrowExpression(e.Message, binder.ReturnType);
           }
+          return new DynamicMetaObject(expr, GetTypeResolvedRestriction(type));
         }
         else
         {
-          restrictions = BindingRestrictions.GetInstanceRestriction(Expression, Value);
           expr = Expression.Condition(
-            GetUpdateCondition(),
-            binder.GetUpdateExpression(binder.ReturnType),
-            Lua.ThrowExpression(Properties.Resources.rsNilNotCallable, binder.ReturnType)
-          );
-        }
+             GetUpdateCondition(),
+             binder.GetUpdateExpression(binder.ReturnType),
+             Lua.ThrowExpression(Properties.Resources.rsNilNotCallable, binder.ReturnType)
+           );
 
-        return new DynamicMetaObject(expr, restrictions);
+          return new DynamicMetaObject(expr, GetTypeNotResolvedRestriction());
+        }
       } // func BindInvokeMember
 
       #endregion
@@ -250,7 +256,7 @@ namespace Neo.IronLua
         {
           return new DynamicMetaObject(
             Lua.EnsureType(Expression.Property(Lua.EnsureType(Expression, typeof(LuaType)), Lua.TypeTypePropertyInfo), typeof(Type)),
-            BindingRestrictions.GetInstanceRestriction(Expression, Value)
+            BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaType))
           );
         }
         return base.BindConvert(binder);
@@ -277,8 +283,34 @@ namespace Neo.IronLua
         {
           expr = Lua.ThrowExpression(e.Message, returnType);
         }
-        return new DynamicMetaObject(expr, Lua.GetMethodSignatureRestriction(this, args));
+        return new DynamicMetaObject(expr, GetTypeResolvedRestriction(typeNew));
       } // func BindNewObject
+
+      private BindingRestrictions GetTypeNotResolvedRestriction()
+      {
+        return BindingRestrictions.GetExpressionRestriction(
+          Expression.AndAlso(
+            Expression.TypeEqual(Expression, typeof(LuaType)),
+            Expression.Equal(
+              Expression.Property(Lua.EnsureType(Expression, typeof(LuaType)), Lua.TypeTypePropertyInfo),
+              Expression.Default(typeof(Type))
+            )
+          )
+        );
+      } // func GetTypeNotResolvedRestriction
+
+      private BindingRestrictions GetTypeResolvedRestriction(Type type)
+      {
+        return BindingRestrictions.GetExpressionRestriction(
+          Expression.AndAlso(
+            Expression.TypeEqual(Expression, typeof(LuaType)),
+            Expression.Equal(
+              Expression.Property(Lua.EnsureType(Expression, typeof(LuaType)), Lua.TypeTypePropertyInfo),
+              Expression.Constant(type)
+            )
+          )
+        );
+      } // func GetTypeResolvedRestriction
 
       private BinaryExpression GetUpdateCondition()
       {
@@ -1123,16 +1155,13 @@ namespace Neo.IronLua
       private const string csAdd = "add";
       private const string csDel = "del";
       private const string csRemove = "remove";
-      private const string csFire = "fire";
-      private const string csInvoke = "Invoke";
-      private const string csRaise = "raise";
 
       public LuaEventMetaObject(Expression parameter, LuaEvent value)
         : base(parameter, BindingRestrictions.Empty, value)
       {
       } // ctor
 
-      #region -- BindAddMethod, BindRemoveMethod, BindRaiseMethod, BindGetMember ------
+      #region -- BindAddMethod, BindRemoveMethod, BindGetMember -----------------------
 
       private DynamicMetaObject BindAddMethod(DynamicMetaObjectBinder binder, DynamicMetaObject[] args)
       {
@@ -1145,12 +1174,6 @@ namespace Neo.IronLua
         LuaEvent value = (LuaEvent)Value;
         return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, value, value.eventInfo.GetRemoveMethod(), args, binder.ReturnType);
       } // func BindRemoveMethod
-
-      private DynamicMetaObject BindRaiseMethod(DynamicMetaObjectBinder binder, DynamicMetaObject[] args)
-      {
-        LuaEvent value = (LuaEvent)Value;
-        return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, value, value.eventInfo.GetRaiseMethod(), args, binder.ReturnType);
-      } // func BindRaiseMethod
 
       private DynamicMetaObject BindGetMember(DynamicMetaObjectBinder binder, PropertyInfo piMethodGet)
       {
@@ -1173,10 +1196,9 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject BindBinaryOperation(BinaryOperationBinder binder, DynamicMetaObject arg)
       {
-        if (binder.Operation == ExpressionType.LeftShift ||  // << translate to add
-          binder.Operation == ExpressionType.Assign) // =
+        if (binder.Operation == ExpressionType.LeftShift)  // << translate to add, not useable under lua
           return BindAddMethod(binder, new DynamicMetaObject[] { arg });
-        else if (binder.Operation == ExpressionType.RightShift) // >> translate to remove
+        else if (binder.Operation == ExpressionType.RightShift) // >> translate to remove, not useable under lua
           return BindRemoveMethod(binder, new DynamicMetaObject[] { arg });
         else
           return base.BindBinaryOperation(binder, arg);
@@ -1193,20 +1215,9 @@ namespace Neo.IronLua
         {
           return BindGetMember(binder, Lua.RemoveMethodInfoPropertyInfo);
         }
-        else if (String.Compare(binder.Name, csFire, binder.IgnoreCase) == 0 ||
-          String.Compare(binder.Name, csInvoke, binder.IgnoreCase) == 0 ||
-          String.Compare(binder.Name, csRaise, binder.IgnoreCase) == 0)
-        {
-          return BindGetMember(binder, Lua.RaiseMethodInfoPropertyInfo);
-        }
         else
           return base.BindGetMember(binder);
       } // func BindGetMember
-
-      public override DynamicMetaObject BindInvoke(InvokeBinder binder, DynamicMetaObject[] args)
-      {
-        return BindRaiseMethod(binder, args);
-      } // func BindInvoke
 
       public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
       {
@@ -1218,12 +1229,6 @@ namespace Neo.IronLua
           String.Compare(binder.Name, csRemove, binder.IgnoreCase) == 0)
         {
           return BindRemoveMethod(binder, args);
-        }
-        else if (String.Compare(binder.Name, csFire, binder.IgnoreCase) == 0 ||
-          String.Compare(binder.Name, csRaise, binder.IgnoreCase) == 0 ||
-          String.Compare(binder.Name, csInvoke, binder.IgnoreCase) == 0)
-        {
-          return BindRaiseMethod(binder, args);
         }
         else
           return base.BindInvokeMember(binder, args);

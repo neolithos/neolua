@@ -241,6 +241,11 @@ namespace LuaDLR.Test
       Console.WriteLine("ReturnVoid Called");
     }
 
+    public class IndexAccess
+    {
+      public int this[int i] { get { return i; } }
+    }
+
     #endregion
 
     #region -- Conversion -------------------------------------------------------------
@@ -1078,6 +1083,105 @@ namespace LuaDLR.Test
           TV(2, 2)
         )
       );
+    }
+
+    #endregion
+
+    #region -- Index Tests ------------------------------------------------------------
+
+    [TestMethod]
+    public void TestIndex01()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        var g = l.CreateEnvironment();
+        TestResult(
+          g.DoChunk("return test[0], test[1], test[2];", "dummy",
+            new KeyValuePair<string, object>("test", new int[] { 1, 2, 3 })
+          ), 1, 2, 3);
+      }
+    }
+
+    [TestMethod]
+    public void TestIndex02()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        var g = l.CreateEnvironment();
+        TestResult(
+          g.DoChunk("return test[0, 0], test[0, 1], test[1,0], test[1,1];", "dummy",
+            new KeyValuePair<string, object>("test", new int[,] { { 1, 2 }, { 3, 4 } })
+          ), 1, 2, 3, 4);
+      }
+    }
+
+    [TestMethod]
+    public void TestIndex03()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        var g = l.CreateEnvironment();
+        TestResult(
+          g.DoChunk("return test[0], test[1];", "dummy",
+            new KeyValuePair<string, object>("test", new IndexAccess())
+          ), 0, 1);
+      }
+    }
+
+    [TestMethod]
+    public void TestIndex04()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        var g = l.CreateEnvironment();
+        TestResult(
+          g.DoChunk("test[1] = 42; return test[0], test[1], test[2];", "dummy",
+            new KeyValuePair<string, object>("test", new int[] { 1, 2, 3 })
+          ), 1, 42, 3);
+      }
+    }
+
+    #endregion
+
+    #region -- TestVarArg01 -----------------------------------------------------------
+
+    [TestMethod]
+    public void TestVarArg01()
+    {
+      TestCode(String.Join(Environment.NewLine,
+        "function sum(...)",
+        "  local a, b, c = ...;",
+        "  return a + b + c;",
+        "end;",
+        "return sum(3, 20, 100);"),
+        123);
+    }
+
+    [TestMethod]
+    public void TestVarArg02()
+    {
+      TestCode(String.Join(Environment.NewLine,
+        "function test(...)",
+        "  local a : table = {...};",
+        "  return a[2];",
+        "end;",
+        "return test(1,2,3);"),
+        2);
+    }
+
+    [TestMethod]
+    public void TestVarArg03()
+    {
+      TestCode(String.Join(Environment.NewLine,
+        "function test(...)",
+        "  return ...[1];",
+        "end;",
+        "return test(1,2,3);"),
+        2);
     }
 
     #endregion
