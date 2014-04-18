@@ -18,7 +18,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestMember01()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "local t : table = {};",
         "t.test = 3;",
         "return t.test;"), 3);
@@ -27,7 +27,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestMember02()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "t = {};",
         "t.test = 3;",
         "return t.test;"), 3);
@@ -44,7 +44,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestMember04()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "t = {};",
         "t.hallo = 42;",
         "t.hallo1 = 43;",
@@ -63,7 +63,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestMember06()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "t = {};",
         "t.hallo = 42;",
         "t.hallo = 43;",
@@ -110,7 +110,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestIndex01()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "local t : table = {};",
         "t[2] = 3;",
         "return t[2];"), 3);
@@ -119,7 +119,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestIndex02()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "t = {};",
         "t[2] = 3;",
         "return t[2];"), 3);
@@ -136,7 +136,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestIndex04()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "local t : table = {};",
         "t['test'] = 3;",
         "return t.test;"), 3);
@@ -145,7 +145,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestIndex05()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "t = {};",
         "t['test'] = 3;",
         "return t.test;"), 3);
@@ -178,7 +178,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestMetaTable02()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "tm = {}",
         "tm.__add = function (t, a) return t.n + a; end;",
         "tm.__sub = function (t, a) return t.n - a; end;",
@@ -193,7 +193,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestMetaTable03()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "tm = {}",
         "tm.__band = function (t, a) return t.n & a; end;",
         "tm.__bor = function (t, a) return t.n | a; end;",
@@ -207,7 +207,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestMetaTable04()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "tm = {}",
         "tm.__unm = function (t) return -t.n; end;",
         "tm.__bnot = function (t) return ~t.n; end;",
@@ -218,7 +218,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestMetaTable05()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "tm = {}",
         "tm.__concat = function (t, a) return t.s .. a; end;",
         "t = { __metatable = tm, s = 'a' };",
@@ -228,7 +228,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestMetaTable06()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "tm = {}",
         "tm.__len = function (t) return 4; end;",
         "t = { __metatable = tm };",
@@ -238,7 +238,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestMetaTable07()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "tm = {}",
         "tm.__eq = function (t, a) return t.n == a; end;",
         "tm.__lt = function (t, a) return t.n < a; end;",
@@ -250,7 +250,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestMetaTable08()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "tm = {}",
         "tm.__index = function (t, key) return key; end;",
         "t = { __metatable = tm, n = 4 };",
@@ -260,7 +260,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestMetaTable09()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "tm = {}",
         "tm.__index = { test = 1, [1] = 2 };",
         "t = { __metatable = tm, n = 4 };",
@@ -270,7 +270,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestMetaTable10()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "tm = {}",
         "tm.__newindex = function (t, key, value) rawset(t, '_' .. key .. '_', value); end;",
         "t = { n = 4, __metatable = tm };",
@@ -283,7 +283,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestMetaTable11()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "tm = {}",
         "tm.__call = function (t, ...) return #{...}; end;",
         "t = { __metatable = tm };",
@@ -299,23 +299,23 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         dynamic g = l.CreateEnvironment();
-        g.dochunk(GetCode("Lua.EnvDynamicCall01.lua"), "test.lua");
+        g.dochunk(GetLines("Lua.EnvDynamicCall01.lua"), "test.lua");
 
         // test of c# binders
         Debug.Print("C# Binders:");
-        Assert.IsTrue(TestReturn(g.b.a(5), 20));
-        Assert.IsTrue(TestReturn(g.b.b(5), 115));
-        Assert.IsTrue(TestReturn(g.b.c(g.b, 5), 110));
-        Assert.IsTrue(TestReturn(g.test(5), 10));
+        TestResult(g.b.a(5), 20);
+        TestResult(g.b.b(5), 115);
+        TestResult(g.b.c(g.b, 5), 110);
+        TestResult(g.test(5), 10);
 
         // test of lua binders
         Debug.Print("Lua Binders:");
-        Assert.IsTrue(TestReturn(g.dochunk("return b.a(5)", "test.lua"), 20));
-        Assert.IsTrue(TestReturn(g.dochunk("return b:b(5)", "test.lua"), 115));
-        Assert.IsTrue(TestReturn(g.dochunk("return b.b(b, 5)","test.lua"),  115));
-        Assert.IsTrue(TestReturn(g.dochunk("return b:c(5)","test.lua"),  110));
-        Assert.IsTrue(TestReturn(g.dochunk("return b.c(b, 5)","test.lua"),  110));
-        Assert.IsTrue(TestReturn(g.dochunk("return test(5)", "test.lua"), 10));
+        TestResult(g.dochunk("return b.a(5)", "test.lua"), 20);
+        TestResult(g.dochunk("return b:b(5)", "test.lua"), 115);
+        TestResult(g.dochunk("return b.b(b, 5)","test.lua"),  115);
+        TestResult(g.dochunk("return b:c(5)","test.lua"),  110);
+        TestResult(g.dochunk("return b.c(b, 5)","test.lua"),  110);
+        TestResult(g.dochunk("return test(5)", "test.lua"), 10);
       }
     } // prop EnvDynamicCall01
   } // class LuaTableTests

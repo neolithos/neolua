@@ -297,7 +297,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         dynamic g = l.CreateEnvironment();
-        g.dochunk(String.Join(Environment.NewLine,
+        g.dochunk(Lines(
           "function add(a : int, b : int) : int",
           "  return a + b;",
           "end;"), "add.lua");

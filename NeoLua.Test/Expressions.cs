@@ -1003,15 +1003,15 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestTable05()
     {
-      string sCode = String.Join(Environment.NewLine,
-          "function f(a)",
-          "  return a;",
-          "end;",
-          "local g = 32;",
-          "local x = 24;",
-          "a = { [f('z')] = g; 'x', 'y'; x = 1, f(x), [30] = 23; 45 }",
-          "return a"
-        );
+      string sCode = Lines(
+        "function f(a)",
+        "  return a;",
+        "end;",
+        "local g = 32;",
+        "local x = 24;",
+        "a = { [f('z')] = g; 'x', 'y'; x = 1, f(x), [30] = 23; 45 }",
+        "return a"
+      );
 
       TestCode(sCode,
         Table(
@@ -1035,7 +1035,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestTable07()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "function f()",
         "  return 1, 2, 3, 4;",
         "end;",
@@ -1053,7 +1053,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestTable08()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "function f()",
         "  return 1, 2, 3, 4;",
         "end;",
@@ -1072,7 +1072,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestTable09()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "function f()",
         "  return 1, 2, 3, 4;",
         "end;",
@@ -1152,7 +1152,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestVarArg01()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "function sum(...)",
         "  local a, b, c = ...;",
         "  return a + b + c;",
@@ -1164,7 +1164,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestVarArg02()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "function test(...)",
         "  local a : table = {...};",
         "  return a[2];",
@@ -1176,7 +1176,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestVarArg03()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "function test(...)",
         "  return ...[1];",
         "end;",

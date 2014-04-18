@@ -28,14 +28,14 @@ namespace LuaDLR.Test
     [TestMethod]
     public void Generics01()
     {
-      Assert.IsTrue(TestExpression(true, GetCode("Lua.Generics01.lua"), 3));
+      TestCode(GetLines("Lua.Generics01.lua"), 3);
     } // proc Generics01
 
     [TestMethod]
     public void Generics02()
     {
-      Assert.IsTrue(TestExpression(true, "return clr.LuaDLR.Test.ComplexTestClass:GenericSimple(3)", 3));
-      Assert.IsTrue(TestExpression(true, "return clr.LuaDLR.Test.ComplexTestClass:GenericSimple('3')", "3"));
+      TestCode("return clr.LuaDLR.Test.ComplexTestClass:GenericSimple(3)", 3);
+      TestCode("return clr.LuaDLR.Test.ComplexTestClass:GenericSimple('3')", "3");
     } // proc Generics02
 
     private delegate string TestDelegate(int value);
@@ -77,7 +77,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void Coroutines01()
     {
-      TestReturn(GetCode("Lua.Coroutines01.lua"));
+      TestCode(GetLines("Lua.Coroutines01.lua"));
     }
   } // class ComplexStructures
 }

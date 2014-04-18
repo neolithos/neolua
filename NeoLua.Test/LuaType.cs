@@ -116,7 +116,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TypeTest05()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         new string[]
         {
           "const StringBuilder typeof System.Text.StringBuilder;",
@@ -213,7 +213,7 @@ namespace LuaDLR.Test
       using (Lua l = new Lua())
       {
         dynamic g = l.CreateEnvironment();
-        dynamic r = g.dochunk(String.Join(Environment.NewLine,
+        dynamic r = g.dochunk(Lines(
           new string[] {
             "local c = clr.LuaDLR.Test.LuaTypeTests.SubClass()",
             "c.Test('Test');",
@@ -236,7 +236,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void EventTest02()
     {
-      TestCode(String.Join(Environment.NewLine,
+      TestCode(Lines(
         "const SubClass typeof LuaDLR.Test.LuaTypeTests.SubClass;",
         "local c : SubClass = SubClass();",
         "c.EventTest:add(function():void print('Fired.'); end);",

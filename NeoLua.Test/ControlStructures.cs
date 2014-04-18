@@ -144,75 +144,67 @@ namespace LuaDLR.Test
     [TestMethod]
     public void Control01()
     {
-      Assert.IsTrue(TestExpression(true, GetCode("Lua.Control01.lua"), 3));
+      TestCode(GetLines("Lua.Control01.lua"), 3);
     }
 
     [TestMethod]
     public void Control02()
     {
-      Assert.IsTrue(TestExpression(true, GetCode("Lua.Control02.lua"), 10));
+      TestCode(GetLines("Lua.Control02.lua"), 10);
     }
 
     [TestMethod]
     public void Control03()
     {
-      Assert.IsTrue(TestExpression(true, GetCode("Lua.Control03.lua"), 10));
+      TestCode(GetLines("Lua.Control03.lua"), 10);
     }
 
     [TestMethod]
     public void Control04()
     {
-      Assert.IsTrue(TestExpression(true, GetCode("Lua.Control04.lua"), 4));
+      TestCode(GetLines("Lua.Control04.lua"), 4);
     }
 
     [TestMethod]
     public void Control05()
     {
-      Assert.IsTrue(TestExpression(true, GetCode("Lua.Control05.lua"), 10));
+      TestCode(GetLines("Lua.Control05.lua"), 10);
     }
 
     [TestMethod]
     public void Control06()
     {
-      Assert.IsTrue(TestExpression(true, GetCode("Lua.Control06.lua"), 55));
+      TestCode(GetLines("Lua.Control06.lua"), 55);
     }
 
     [TestMethod]
     public void Control07()
     {
-      Assert.IsTrue(TestExpression(true, "return;", null));
+      TestCode("return;");
     }
 
     [TestMethod]
     public void Control08()
     {
-      Assert.IsTrue(TestExpression(true, GetCode("Lua.Control08.lua"), 4321));
+      TestCode(GetLines("Lua.Control08.lua"), 4321);
     }
 
     [TestMethod]
     public void Control09()
     {
-      Assert.IsTrue(TestExpression(true, GetCode("Lua.Control09.lua"), 4321));
+      TestCode(GetLines("Lua.Control09.lua"), 4321);
     }
 
     [TestMethod]
     public void Control10()
     {
-      Assert.IsTrue(TestExpression(true, GetCode("Lua.Control10.lua"), 4321));
+      TestCode(GetLines("Lua.Control10.lua"), 4321);
     }
 
     [TestMethod]
     public void Control11()
     {
-      Assert.IsTrue(TestExpression(true, GetCode("Lua.Control11.lua"), 6));
+      TestCode(GetLines("Lua.Control11.lua"), 6);
     }
-
-    //[TestMethod]
-    //public void Control12()
-    //{
-    //  CompareMe a = 1;
-    //  System.Diagnostics.Debug.Print("{0}", a + 3);
-    //  //Assert.IsTrue(TestExpression(true, GetCode("Lua.Control12.lua"), 4));
-    //}
   } // class ControlStructures
 }
