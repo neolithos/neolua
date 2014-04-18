@@ -16,9 +16,8 @@ namespace Neo.IronLua
   /// <summary></summary>
   public class LuaGlobal : LuaTable
   {
-    private const string csMetaTable = "__metatable";
     /// <summary></summary>
-    public const string VersionString = "NeoLua 5.2";
+    public const string VersionString = "NeoLua 5.3";
 
     #region -- class LuaIndexPairEnumerator -------------------------------------------
 
@@ -95,7 +94,7 @@ namespace Neo.IronLua
       MethodInfo mi;
       if ((pi = member as PropertyInfo) != null)
       {
-        return Expression.Property(Parser.ConvertExpression(null, exprTable, pi.DeclaringType), pi);
+        return Expression.Property(LuaEmit.Convert(lua, exprTable, exprTable.Type, pi.DeclaringType, false), pi);
       }
       else if ((mi = member as MethodInfo) != null)
       {

@@ -174,17 +174,23 @@
   <data name="rsGlobalFunctionNotUnique" xml:space="preserve">
     <value>Funktion '{0}' wurde bereits in '{1}' definiert.</value>
   </data>
-  <data name="rsInvokeFailed" xml:space="preserve">
-    <value>'{0}' hat keine Invoke-Methode.</value>
+  <data name="rsIndexNotFound" xml:space="preserve">
+    <value>'{0}' hat keinen Index.</value>
   </data>
   <data name="rsInvokeNoDelegate" xml:space="preserve">
     <value>'{0}' kann nicht aufgerufen werden.</value>
   </data>
   <data name="rsMemberNotReadable" xml:space="preserve">
-    <value>'{0}' kann nicht gelesen werden.</value>
+    <value>'{0}:{1}' kann nicht gelesen werden.</value>
   </data>
   <data name="rsMemberNotResolved" xml:space="preserve">
-    <value>'{0}' nicht gefunden.</value>
+    <value>'{0}:{1}' nicht gefunden.</value>
+  </data>
+  <data name="rsMemberNotUnique" xml:space="preserve">
+    <value>'{0}:{1}' nicht eindeutig.</value>
+  </data>
+  <data name="rsMemberNotWritable" xml:space="preserve">
+    <value>'{0}:{1}' nicht schreibbar.</value>
   </data>
   <data name="rsNilNotCallable" xml:space="preserve">
     <value>Nil kann nicht aufgerufen werden.</value>
@@ -192,11 +198,8 @@
   <data name="rsNilOperatorError" xml:space="preserve">
     <value>Operator ist nicht für nil definiert.</value>
   </data>
-  <data name="rsNoIndexFound" xml:space="preserve">
-    <value>'{0}' hat keinen Index.</value>
-  </data>
-  <data name="rsNoPropertyOrField" xml:space="preserve">
-    <value>'{0}' ist keine Eigenschaft/Feld.</value>
+  <data name="rsNullReference" xml:space="preserve">
+    <value>Objekt ist nil.</value>
   </data>
   <data name="rsParseConvertNumberError" xml:space="preserve">
     <value>Zahl erwartet ('{0}' nicht konvertiert).</value>
@@ -237,18 +240,6 @@
   <data name="rsParseUnknownType" xml:space="preserve">
     <value>Typ '{0}' nicht gefunden.</value>
   </data>
-  <data name="rsPropertyNotFound" xml:space="preserve">
-    <value>Eigenschaft/Feld '{0}' nicht gefunden.</value>
-  </data>
-  <data name="rsPropertyNotReadable" xml:space="preserve">
-    <value>Eigenschaft '{0}' nicht lesbar.</value>
-  </data>
-  <data name="rsPropertyNotUnique" xml:space="preserve">
-    <value>Eigenschaft/Feld '{0}' nicht eindeutig.</value>
-  </data>
-  <data name="rsPropertyNotWritable" xml:space="preserve">
-    <value>Eigenschaft '{0}' nicht schreibbar.</value>
-  </data>
   <data name="rsStackTraceAt" xml:space="preserve">
     <value> bei </value>
   </data>
@@ -260,5 +251,11 @@
   </data>
   <data name="rsStackTraceUnknownMethod" xml:space="preserve">
     <value>&lt;Unbekannte Methode&gt;</value>
+  </data>
+  <data name="rsTableOperatorIncompatible" xml:space="preserve">
+    <value>Operator '{0}' ist nicht kompatibel (erwartet {1}).</value>
+  </data>
+  <data name="rsTableOperatorNotFound" xml:space="preserve">
+    <value>Operator '{0}' ist für die Table nicht definiert.</value>
   </data>
 </root>

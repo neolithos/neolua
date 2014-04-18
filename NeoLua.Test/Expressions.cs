@@ -680,6 +680,12 @@ namespace LuaDLR.Test
       TestExpr("nil", NullResult);
     }
 
+    [TestMethod]
+    public void TestArithmetic22()
+    {
+      TestExpr("clr.LuaDLR.Test.Expressions.ReturnLua2() + 1", 3);
+    }
+
     #endregion
 
     #region -- Const ------------------------------------------------------------------
@@ -948,61 +954,132 @@ namespace LuaDLR.Test
       }
     }
     #endregion
+
+    #region -- Table ------------------------------------------------------------------
+
+    [TestMethod]
+    public void TestTable01() 
+    {
+      TestCode("return {}", Table());
+    }
+
+    [TestMethod]
+    public void TestTable02()
+    {
+      TestCode("return {1, 2, 3; 4}",
+        Table(
+          TV(1, 1),
+          TV(2, 2),
+          TV(3, 3),
+          TV(4, 4)
+        )
+      );
+    }
+
+    [TestMethod]
+    public void TestTable03()
+    {
+      TestCode("return {a = 1, b = 2, c = 3;  d = 4}",
+        Table(
+          TV("a", 1),
+          TV("b", 2),
+          TV("c", 3),
+          TV("d", 4)
+        )
+      );
+    }
+
+    [TestMethod]
+    public void TestTable04()
+    {
+      TestCode("return {['a'] = 1}", Table(TV("a", 1)));
+    }
+
+    [TestMethod]
+    public void TestTable05()
+    {
+      string sCode = String.Join(Environment.NewLine,
+          "function f(a)",
+          "  return a;",
+          "end;",
+          "local g = 32;",
+          "local x = 24;",
+          "a = { [f('z')] = g; 'x', 'y'; x = 1, f(x), [30] = 23; 45 }",
+          "return a"
+        );
+
+      TestCode(sCode,
+        Table(
+          TV("z", 32),
+          TV(1, "x"),
+          TV(2, "y"),
+          TV("x", 1),
+          TV(3, 24),
+          TV(30, 23),
+          TV(4, 45)
+        )
+      );
+    }
+
+    [TestMethod]
+    public void TestTable06()
+    {
+      TestCode("return {a = {}}", Table(TV("a", Table())));
+    }
+
+    [TestMethod]
+    public void TestTable07()
+    {
+      TestCode(String.Join(Environment.NewLine,
+        "function f()",
+        "  return 1, 2, 3, 4;",
+        "end;",
+        "return {f()};"
+        ),
+        Table(
+          TV(1, 1),
+          TV(2, 2),
+          TV(3, 3),
+          TV(4, 4)
+        )
+      );
+    }
+
+    [TestMethod]
+    public void TestTable08()
+    {
+      TestCode(String.Join(Environment.NewLine,
+        "function f()",
+        "  return 1, 2, 3, 4;",
+        "end;",
+        "return {0,f()};"
+        ),
+        Table(
+          TV(1, 0),
+          TV(2, 1),
+          TV(3, 2),
+          TV(4, 3),
+          TV(5, 4)
+        )
+      );
+    }
+
+    [TestMethod]
+    public void TestTable09()
+    {
+      TestCode(String.Join(Environment.NewLine,
+        "function f()",
+        "  return 1, 2, 3, 4;",
+        "end;",
+        "return {f(),2};"
+        ),
+        Table(
+          TV(1, 1),
+          TV(2, 2)
+        )
+      );
+    }
+
+    #endregion
   } // class Expressions
-
-  [TestClass]
-  public class ExpressionsTables : TestHelper
-  {
-    [TestMethod]
-    public void TestExpr01() { Assert.IsTrue(TestExpressionTable(false, "{}")); }
-
-    [TestMethod]
-    public void TestExpr02()
-    {
-      Assert.IsTrue(TestExpressionTable(false, "{1, 2, 3; 4}",
-        TV(1, 1),
-        TV(2, 2),
-        TV(3, 3),
-        TV(4, 4)));
-    } // proc TestExpr
-
-    [TestMethod]
-    public void TestExpr03()
-    {
-      Assert.IsTrue(TestExpressionTable(false,"{a = 1, b = 2, c = 3;  d = 4}",
-        TV("a", 1),
-        TV("b", 2),
-        TV("c", 3),
-        TV("d", 4)));
-    } // proc TestExpr
-
-    [TestMethod]
-    public void TestExpr04()
-    {
-      Assert.IsTrue(TestExpressionTable(false, "{['a'] = 1}",
-        TV("a", 1)));
-    } // proc TestExpr
-
-    [TestMethod]
-    public void TestExpr06()
-    {
-      Assert.IsTrue(TestExpressionTable(true, "function f(a) return a; end;" + Environment.NewLine +
-        "local g = 32; local x = 24;" + Environment.NewLine+
-        "a = { [f('z')] = g; 'x', 'y'; x = 1, f(x), [30] = 23; 45 }" + Environment.NewLine +
-        "return a;",
-        TV("z", 32),
-        TV(1, "x"),
-        TV(2, "y"),
-        TV("x", 1),
-        TV(3, 24),
-        TV(30, 23),
-        TV(4, 45)));
-    } // proc TestExpr06
-
-    //[TestMethod]
-    //public void TestExpr05()
-    //{
-    //  Assert.IsTrue(TestExpressionTable("{a = {}}"));
-    //} // proc TestExpr
-  } // class ExpressionsTables
 }

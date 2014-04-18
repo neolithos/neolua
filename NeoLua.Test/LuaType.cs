@@ -31,6 +31,14 @@ namespace LuaDLR.Test
       {
         Console.WriteLine(a + b);
       }
+
+      public void Fire()
+      {
+        if (EventTest != null)
+          EventTest();
+      }
+
+      public event Action EventTest;
     }
 
     [TestMethod]
@@ -46,30 +54,32 @@ namespace LuaDLR.Test
       Assert.IsTrue(t.Type != null);
       t = LuaType.GetType(typeof(string[]));
       Assert.IsTrue(t.Type != null);
-    } // proc TypeTest01
+    }
 
     [TestMethod]
     public void TypeTest02()
     {
+
       using (Lua l = new Lua())
       {
         dynamic g = l.CreateEnvironment();
-        LuaType t = g.dochunk("return clr.LuaDLR.Test.LuaTypeTests.SubClass", "test");
-        Type t2 = g.dochunk("return clr.LuaDLR.Test.LuaTypeTests.SubClass:GetType()", "test");
-        Assert.IsTrue(t.Type == t2);
 
-        t = g.dochunk("return clr.System.IO.Stream", "test");
-        Assert.IsTrue(t.Type == typeof(Stream));
-        t = g.dochunk("return clr.System.Test.Test", "test");
-        Assert.IsTrue(t.Type == null);
-        t = g.dochunk("return clr.LuaDLR.Test.LuaTypeTests.SubClass", "test");
-        Assert.IsTrue(t.Type == typeof(SubClass));
-        t = g.dochunk("return clr.System.Collections.Generic.List[clr.System.String]", "test");
-        Assert.IsTrue(t.Type == typeof(List<string>));
-        t = g.dochunk("return clr.System.String[]", "test");
-        Assert.IsTrue(t.Type == typeof(string[]));
+        Type t = typeof(SubClass);
+        LuaType tl = LuaType.GetType(t);
+        TestResult(g.dochunk("return clr.LuaDLR.Test.LuaTypeTests.SubClass"), tl);
+        TestResult(g.dochunk("return clr.LuaDLR.Test.LuaTypeTests.SubClass:GetType()"), t);
+
+        TestResult(g.dochunk("return clr.System.IO.Stream"), LuaType.GetType(typeof(Stream)));
+
+        LuaType tNull = g.dochunk("return clr.System.Test.Test");
+        Assert.IsTrue(tNull.Type == null);
+
+        tl = g.dochunk("return clr.System.Collections.Generic.List[clr.System.String]", "test");
+        TestResult(new LuaResult(tl.Type), typeof(List<string>));
+        tl = g.dochunk("return clr.System.String[]", "test");
+        TestResult(new LuaResult(tl.Type), typeof(string[]));
       }
-    } // propc TypeTest02
+    }
 
     [TestMethod]
     public void TypeTest03()
@@ -84,10 +94,52 @@ namespace LuaDLR.Test
         g.dochunk("return cast(System.String[], null);");
         g.dochunk("return cast(string[], null);");
       }
-    } // proc TypeTest03
+    }
 
     [TestMethod]
     public void TypeTest04()
+    {
+      dynamic t = LuaType.GetType(typeof(int));
+      Type t1 = t;
+      Type t2 = (Type)t;
+      Assert.IsTrue(t1 == typeof(int));
+      Assert.IsTrue(t2 == typeof(int));
+    }
+
+    [TestMethod]
+    public void TypeTest05()
+    {
+      TestCode(String.Join(Environment.NewLine,
+        new string[]
+        {
+          "const StringBuilder typeof System.Text.StringBuilder;",
+          "local sb : StringBuilder = StringBuilder();",
+          "sb:Append('hallo');",
+          "return sb:ToString();"
+        }),
+        "hallo");
+    }
+
+    [TestMethod]
+    public void MethodTest05()
+    {
+      using (Lua l = new Lua())
+      {
+        dynamic g = l.CreateEnvironment();
+        dynamic r = g.dochunk(String.Join(Environment.NewLine,
+          new string[] {
+            "local c = clr.LuaDLR.Test.LuaTypeTests.SubClass()",
+            "c.Test('Test');",
+            "return c.Test;"
+          }));
+
+        foreach (var c in r[0])
+          Console.WriteLine(c.GetType().Name);
+      }
+    }
+
+    [TestMethod]
+    public void MethodTest01()
     {
       using (Lua l = new Lua())
       {
@@ -106,20 +158,10 @@ namespace LuaDLR.Test
             Console.WriteLine("{0}: {1}", i, wl[i].GetType().Name);
         }
       }
-    } // propc TypeTest04
+    }
 
     [TestMethod]
-    public void TypeTest05()
-    {
-      dynamic t = LuaType.GetType(typeof(int));
-      Type t1 = t;
-      Type t2 = (Type)t;
-      Assert.IsTrue(t1 == typeof(int));
-      Assert.IsTrue(t2 == typeof(int));
-    } // propc TypeTest05
-
-    [TestMethod]
-    public void TypeTest06()
+    public void MethodTest02()
     {
       using (Lua l = new Lua())
       {
@@ -133,10 +175,10 @@ namespace LuaDLR.Test
         Assert.IsTrue(dlg1 == dlg2);
         Assert.IsTrue(dlg3 != null);
       }
-    } // propc TypeTest06
+    }
 
     [TestMethod]
-    public void TypeTest07()
+    public void MethodTest03()
     {
       using (Lua l = new Lua())
       {
@@ -146,27 +188,17 @@ namespace LuaDLR.Test
         g.dochunk("console.WriteLine('Hallo!');", "test");
         g.dochunk("c = console.WriteLine[clr.System.String];");
         //g.c = g.console.WriteLine[typeof(string)];
-        //g.c("Hallo");
-        //g.dochunk("c('Hallo!')");
+        g.c("Hallo");
+        g.dochunk("c('Hallo!')");
       }
-    } // proc TypeTest07
+    }
 
     [TestMethod]
-    public void TypeTest08()
+    public void EventTest01()
     {
-      using (Lua l = new Lua())
-      {
-        dynamic g = l.CreateEnvironment();
-        dynamic r = g.dochunk(String.Join(Environment.NewLine,
-          new string[] {
-            "local c = clr.LuaDLR.Test.LuaTypeTests.SubClass()",
-            "c.Test('Test');",
-            "return c.Test;"
-          }));
-
-        foreach (var c in r[0])
-          Console.WriteLine(c.GetType().Name);
-      }
-    } // proc TypeTest08
+      SubClass c = new SubClass();
+      c.EventTest += () => Console.WriteLine("Fired.");
+      c.Fire();
+    }
   } // class LuaTypeTests 
 }

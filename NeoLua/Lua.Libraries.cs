@@ -306,6 +306,10 @@ namespace Neo.IronLua
       return s.ToUpper();
     } // func lower
 
+    // todo: packfloat
+    // todo: packint
+    // todo: unpackfloat
+    // todo: unpackint
   } // class LuaLibraryString
 
   #endregion
@@ -482,6 +486,8 @@ namespace Neo.IronLua
     {
       return Math.Tanh(x);
     } // func tanh
+
+    // todo: type
 
     public static double pi { get { return Math.PI; } }
     public static double e { get { return Math.E; } }
@@ -711,15 +717,17 @@ namespace Neo.IronLua
         throw new ArgumentException();
     } // func datetime
 
-
     /// <summary>Calculate the number of seconds between time t1 to time t2.</summary>
     /// <param name="t2">Higher bound of the time interval whose length is calculated.</param>
     /// <param name="t1">Lower bound of the time interval whose length is calculated. If this describes a time point later than end, the result is negative.</param>
     /// <returns>The number of seconds from time t1 to time t2. In other words, the result is t2 - t1.</returns>
     /// <remarks>by PapyRef</remarks>
-    public static int difftime(int t2, int t1)
+    public static long difftime(object t2, object t1)
     {
-      return t2 - t1;
+      long time2 = Convert.ToInt64(t2 is LuaTable ? time((LuaTable)t2)[0] : t2);
+      long time1 = Convert.ToInt64(t1 is LuaTable ? time((LuaTable)t1)[0] : t1);
+
+      return time2 - time1;
     } // func difftime
 
     public static LuaResult execute(string command)

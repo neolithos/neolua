@@ -31,66 +31,469 @@ namespace Neo.IronLua
   /// <summary>All static methods for the language implementation</summary>
   public partial class Lua
   {
-    private static object luaStaticLock = new object();
-    private static Dictionary<LuaRuntimeHelper, MethodInfo> runtimeHelperCache = new Dictionary<LuaRuntimeHelper, MethodInfo>();
-    private static ConstructorInfo ciResultConstructorArg1 = null;
-    private static ConstructorInfo ciResultConstructorArgN = null;
-    private static PropertyInfo piResultIndex = null;
-    private static PropertyInfo piResultValues = null;
-    private static PropertyInfo piResultEmpty = null;
-    private static MethodInfo miTableSetMethod = null;
-    private static MethodInfo miParseNumber = null;
-    private static MethodInfo miConvertValue = null;
-    private static MethodInfo miEquals = null;
-    private static MethodInfo miReferenceEquals = null;
-    private static MethodInfo miToString = null;
-    private static FieldInfo fiStringEmpty = null;
-    private static PropertyInfo piCultureInvariant = null;
-    private static MethodInfo miRuntimeLength = null;
+    internal const ExpressionType IntegerDivide = (ExpressionType)(-100);
 
+    // LuaResult
+    internal readonly static ConstructorInfo ResultConstructorInfoArg1;
+    internal readonly static ConstructorInfo ResultConstructorInfoArgN;
+    internal readonly static PropertyInfo ResultIndexPropertyInfo;
+    internal readonly static PropertyInfo ResultValuesPropertyInfo;
+    internal readonly static PropertyInfo ResultEmptyPropertyInfo;
+    // LuaException
+    internal readonly static ConstructorInfo RuntimeExceptionConstructorInfo;
+    // LuaTable
+    internal readonly static MethodInfo TableSetMethodMethodInfo;
+    internal readonly static MethodInfo TableSetValueIdxMethodInfo;
+    internal readonly static MethodInfo TableSetValueIdxNMethodInfo;
+    internal readonly static MethodInfo TableGetValueIdxMethodInfo;
+    internal readonly static MethodInfo TableGetValueIdxNMethodInfo;
+    internal readonly static PropertyInfo TableMetaTablePropertyInfo;
+    internal readonly static MethodInfo TableOnPropertyChangedMethodInfo;
+    internal readonly static MethodInfo TableCheckMethodVersionMethodInfo;
+
+    internal readonly static MethodInfo TableAddMethodInfo;
+    internal readonly static MethodInfo TableSubMethodInfo;
+    internal readonly static MethodInfo TableMulMethodInfo;
+    internal readonly static MethodInfo TableDivMethodInfo;
+    internal readonly static MethodInfo TableModMethodInfo;
+    internal readonly static MethodInfo TablePowMethodInfo;
+    internal readonly static MethodInfo TableUnMinusMethodInfo;
+    internal readonly static MethodInfo TableIDivMethodInfo;
+    internal readonly static MethodInfo TableBAndMethodInfo;
+    internal readonly static MethodInfo TableBOrMethodInfo;
+    internal readonly static MethodInfo TableBXOrMethodInfo;
+    internal readonly static MethodInfo TableBNotMethodInfo;
+    internal readonly static MethodInfo TableShlMethodInfo;
+    internal readonly static MethodInfo TableShrMethodInfo;
+    internal readonly static MethodInfo TableConcatMethodInfo;
+    internal readonly static MethodInfo TableLenMethodInfo;
+    internal readonly static MethodInfo TableEqualMethodInfo;
+    internal readonly static MethodInfo TableLessThanMethodInfo;
+    internal readonly static MethodInfo TableLessEqualMethodInfo;
+    internal readonly static MethodInfo TableIndexMethodInfo;
+    internal readonly static MethodInfo TableNewIndexMethodInfo;
+    internal readonly static MethodInfo TableCallMethodInfo;
+    // LuaType
+    internal readonly static PropertyInfo TypeClrPropertyInfo;
+    internal readonly static MethodInfo TypeGetTypeMethodInfoArgIndex; 
+    internal readonly static MethodInfo TypeGetGenericItemMethodInfo;
+    internal readonly static MethodInfo TypeGetTypeMethodInfoArgType; 
+    internal readonly static PropertyInfo TypeTypePropertyInfo;
+    // LuaMethod
+    internal readonly static ConstructorInfo MethodConstructorInfo;
+    internal readonly static ConstructorInfo OverloadedMethodConstructorInfo;
+    internal readonly static MethodInfo OverloadedMethodGetMethodMethodInfo;
+    internal readonly static PropertyInfo MethodMethodPropertyInfo;
+    internal readonly static PropertyInfo MethodNamePropertyInfo;
+    internal readonly static PropertyInfo MethodInstancePropertyInfo;
+    internal readonly static PropertyInfo MethodTypePropertyInfo;
+    // LuaEvent
+    internal readonly static ConstructorInfo EventConstructorInfo;
+    internal readonly static PropertyInfo AddMethodInfoPropertyInfo;
+    internal readonly static PropertyInfo RemoveMethodInfoPropertyInfo;
+    internal readonly static PropertyInfo RaiseMethodInfoPropertyInfo;
+    // Lua
+    internal readonly static MethodInfo ParseNumberMethodInfo;
+    internal readonly static MethodInfo RuntimeLengthMethodInfo;
+    internal readonly static MethodInfo ConvertValueMethodInfo;
+    internal readonly static MethodInfo GetResultValuesMethodInfo;
+    internal readonly static MethodInfo CombineArrayWithResultMethodInfo;
+    internal readonly static MethodInfo ConvertArrayMethodInfo;
+    internal readonly static MethodInfo TableSetObjectsMethod;
+    // Object
+    internal readonly static MethodInfo ObjectEqualsMethodInfo;
+    internal readonly static MethodInfo ObjectReferenceEqualsMethodInfo;
+    // Convert
+    internal readonly static MethodInfo ConvertToStringMethodInfo;
+    // String
+    internal readonly static FieldInfo StringEmptyFieldInfo;
+    internal readonly static MethodInfo StringConcatMethodInfo;
+    // CultureInvariant
+    internal readonly static PropertyInfo CultureInvariantPropertyInfo;
+    // Delegate
+    internal readonly static PropertyInfo DelegateMethodPropertyInfo;
+    internal readonly static MethodInfo CreateDelegateMethodInfo;
+    // List
+    internal readonly static PropertyInfo ListItemPropertyInfo;
+    internal readonly static PropertyInfo ListCountPropertyInfo;
+    
     #region -- sctor ------------------------------------------------------------------
 
     static Lua()
     {
-      ciResultConstructorArg1 = typeof(LuaResult).GetConstructor(new Type[] { typeof(object) });
-      ciResultConstructorArgN = typeof(LuaResult).GetConstructor(new Type[] { typeof(object[]) });
-      piResultIndex = typeof(LuaResult).GetProperty("Item", BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Instance);
-      piResultEmpty = typeof(LuaResult).GetProperty("Empty", BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Static);
-      piResultValues = typeof(LuaResult).GetProperty("Values", BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Instance);
-      
-      miTableSetMethod = typeof(LuaTable).GetMethod("SetMethod", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod);
-      
-      miConvertValue = typeof(Parser).GetMethod("ConvertValue", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(object), typeof(Type) }, null);
-      
-      miParseNumber = typeof(Lua).GetMethod("ParseNumber", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod);
-      miRuntimeLength = typeof(Lua).GetMethod("RtLength", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod);
-
-      miEquals = typeof(Object).GetMethod("Equals", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod);
-      miReferenceEquals = typeof(Object).GetMethod("ReferenceEquals", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod);
-      
-      miToString = typeof(Convert).GetMethod("ToString", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(object), typeof(CultureInfo) }, null);
-
-      fiStringEmpty = typeof(String).GetField("Empty", BindingFlags.Public | BindingFlags.Static | BindingFlags.GetField);
-      piCultureInvariant = typeof(CultureInfo).GetProperty("InvariantCulture", BindingFlags.Public | BindingFlags.Static | BindingFlags.GetProperty);
-      
+      // LuaResult
+      ResultConstructorInfoArg1 = typeof(LuaResult).GetConstructor(new Type[] { typeof(object) });
+      ResultConstructorInfoArgN = typeof(LuaResult).GetConstructor(new Type[] { typeof(object[]) });
+      ResultIndexPropertyInfo = typeof(LuaResult).GetProperty("Item", BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Instance);
+      ResultEmptyPropertyInfo = typeof(LuaResult).GetProperty("Empty", BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Static);
+      ResultValuesPropertyInfo = typeof(LuaResult).GetProperty("Values", BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Instance);
 #if DEBUG
-      if (ciResultConstructorArg1 == null ||
-          ciResultConstructorArgN == null ||
-          piResultIndex == null ||
-          piResultEmpty == null ||
-          piResultValues == null ||
-          miTableSetMethod == null ||
-          miParseNumber == null ||
-          miConvertValue == null ||
-          miEquals == null ||
-          miReferenceEquals == null ||
-          miToString == null ||
-          fiStringEmpty == null ||
-          piCultureInvariant == null ||
-          miRuntimeLength == null)
-        throw new ArgumentNullException();
+      if (ResultConstructorInfoArg1 == null || ResultConstructorInfoArgN == null || ResultIndexPropertyInfo == null || ResultEmptyPropertyInfo == null || ResultValuesPropertyInfo == null)
+        throw new ArgumentNullException("@1", "LuaResult");
+#endif
+
+      // LuaException
+      RuntimeExceptionConstructorInfo = typeof(LuaRuntimeException).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(string), typeof(Exception) }, null);
+#if DEBUG
+      if (RuntimeExceptionConstructorInfo == null)
+        throw new ArgumentNullException("@2", "LuaException");
+#endif
+
+      // LuaTable
+      TableSetMethodMethodInfo = typeof(LuaTable).GetMethod("SetMethod", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod);
+      TableSetValueIdxMethodInfo = typeof(LuaTable).GetMethod("SetValue", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly , null, new Type[] { typeof(object), typeof(object), typeof(bool) }, null);
+      TableSetValueIdxNMethodInfo = typeof(LuaTable).GetMethod("SetValue", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly, null, new Type[] { typeof(object[]), typeof(object) }, null);
+      TableGetValueIdxMethodInfo = typeof(LuaTable).GetMethod("GetValue", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly, null, new Type[] { typeof(object) }, null);
+      TableGetValueIdxNMethodInfo = typeof(LuaTable).GetMethod("GetValue", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly, null, new Type[] { typeof(object[]) }, null);
+      TableMetaTablePropertyInfo = typeof(LuaTable).GetProperty("MetaTable", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty);
+      TableOnPropertyChangedMethodInfo = typeof(LuaTable).GetMethod("OnPropertyChanged", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod);
+      TableCheckMethodVersionMethodInfo = typeof(LuaTable).GetMethod("CheckMethodVersion", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod);
+
+      TableAddMethodInfo = typeof(LuaTable).GetMethod("OnAdd", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableSubMethodInfo = typeof(LuaTable).GetMethod("OnSub", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableMulMethodInfo = typeof(LuaTable).GetMethod("OnMul", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableDivMethodInfo = typeof(LuaTable).GetMethod("OnDiv", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableModMethodInfo = typeof(LuaTable).GetMethod("OnMod", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TablePowMethodInfo = typeof(LuaTable).GetMethod("OnPow", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableUnMinusMethodInfo = typeof(LuaTable).GetMethod("OnUnMinus", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableIDivMethodInfo = typeof(LuaTable).GetMethod("OnIDiv", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableBAndMethodInfo = typeof(LuaTable).GetMethod("OnBAnd", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableBOrMethodInfo = typeof(LuaTable).GetMethod("OnBOr", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableBXOrMethodInfo = typeof(LuaTable).GetMethod("OnBXor", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableBNotMethodInfo = typeof(LuaTable).GetMethod("OnBNot", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableShlMethodInfo = typeof(LuaTable).GetMethod("OnShl", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableShrMethodInfo = typeof(LuaTable).GetMethod("OnShr", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableConcatMethodInfo = typeof(LuaTable).GetMethod("OnConcat", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableLenMethodInfo = typeof(LuaTable).GetMethod("OnLen", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableEqualMethodInfo = typeof(LuaTable).GetMethod("OnEqual", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableLessThanMethodInfo = typeof(LuaTable).GetMethod("OnLessThan", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableLessEqualMethodInfo = typeof(LuaTable).GetMethod("OnLessEqual", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableIndexMethodInfo = typeof(LuaTable).GetMethod("OnIndex", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableNewIndexMethodInfo = typeof(LuaTable).GetMethod("OnNewIndex", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+      TableCallMethodInfo = typeof(LuaTable).GetMethod("OnCall", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
+
+#if DEBUG
+      if (TableSetMethodMethodInfo == null || TableSetValueIdxMethodInfo == null || TableSetValueIdxNMethodInfo == null ||
+          TableOnPropertyChangedMethodInfo == null || TableCheckMethodVersionMethodInfo == null ||
+          TableAddMethodInfo == null || TableSubMethodInfo == null || TableMulMethodInfo == null || 
+          TableDivMethodInfo == null || TableModMethodInfo == null || TablePowMethodInfo == null || 
+          TableUnMinusMethodInfo == null || TableIDivMethodInfo == null || TableBAndMethodInfo == null || 
+          TableBOrMethodInfo == null || TableBXOrMethodInfo == null || TableBNotMethodInfo == null || 
+          TableShlMethodInfo == null || TableShrMethodInfo == null || TableConcatMethodInfo == null || 
+          TableLenMethodInfo == null || TableEqualMethodInfo == null || TableLessThanMethodInfo == null || 
+          TableLessEqualMethodInfo == null || TableIndexMethodInfo == null || TableNewIndexMethodInfo == null || 
+          TableCallMethodInfo == null)
+        throw new ArgumentNullException("@3", "LuaTable");
+#endif
+
+      // LuaType
+      TypeClrPropertyInfo = typeof(LuaType).GetProperty("Clr", BindingFlags.Public | BindingFlags.Static | BindingFlags.GetProperty);
+      TypeGetGenericItemMethodInfo = typeof(LuaType).GetMethod("GetGenericItem", BindingFlags.Public | BindingFlags.Instance | BindingFlags.InvokeMethod);
+      TypeGetTypeMethodInfoArgIndex = typeof(LuaType).GetMethod("GetType", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly, null, new Type[] { typeof(int) }, null);
+      TypeGetTypeMethodInfoArgType = typeof(LuaType).GetMethod("GetType", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly, null, new Type[] { typeof(Type) }, null);
+      TypeTypePropertyInfo = typeof(LuaType).GetProperty("Type", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty | BindingFlags.DeclaredOnly);
+#if DEBUG
+      if (TypeClrPropertyInfo == null || TypeGetGenericItemMethodInfo == null || TypeGetTypeMethodInfoArgIndex == null || TypeGetTypeMethodInfoArgType == null || TypeTypePropertyInfo == null)
+        throw new ArgumentNullException("@4", "LuaType");
+#endif
+      
+      // Method
+      MethodConstructorInfo = typeof(LuaMethod).GetConstructor(BindingFlags.NonPublic | BindingFlags.CreateInstance | BindingFlags.DeclaredOnly | BindingFlags.Instance, null, new Type[] { typeof(object), typeof(MethodInfo) }, null);
+      OverloadedMethodConstructorInfo = typeof(LuaOverloadedMethod).GetConstructor(BindingFlags.NonPublic | BindingFlags.CreateInstance | BindingFlags.DeclaredOnly | BindingFlags.Instance, null, new Type[] { typeof(object), typeof(MethodInfo[]) }, null);
+      OverloadedMethodGetMethodMethodInfo = typeof(LuaOverloadedMethod).GetMethod("GetMethod", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly | BindingFlags.InvokeMethod, null, new Type[] { typeof(bool), typeof(Type[]) }, null);
+      MethodMethodPropertyInfo = typeof(LuaMethod).GetProperty("Method", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly | BindingFlags.GetProperty);
+      MethodNamePropertyInfo = typeof(ILuaMethod).GetProperty("Name", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly | BindingFlags.GetProperty);
+      MethodTypePropertyInfo = typeof(ILuaMethod).GetProperty("Type", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly | BindingFlags.GetProperty);
+      MethodInstancePropertyInfo = typeof(ILuaMethod).GetProperty("Instance", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly | BindingFlags.GetProperty);
+#if DEBUG
+      if (MethodConstructorInfo == null || OverloadedMethodConstructorInfo == null || OverloadedMethodGetMethodMethodInfo == null || MethodMethodPropertyInfo == null || MethodNamePropertyInfo == null || MethodTypePropertyInfo == null || MethodInstancePropertyInfo == null)
+        throw new ArgumentNullException("@4.1", "LuaMethod");
+#endif
+
+      // Event
+      EventConstructorInfo = typeof(LuaEvent).GetConstructor(BindingFlags.NonPublic | BindingFlags.CreateInstance | BindingFlags.DeclaredOnly | BindingFlags.Instance, null, new Type[] { typeof(object), typeof(EventInfo) }, null);
+      AddMethodInfoPropertyInfo = typeof(LuaEvent).GetProperty("AddMethodInfo", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetProperty);
+      RemoveMethodInfoPropertyInfo = typeof(LuaEvent).GetProperty("RemoveMethodInfo", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetProperty);
+      RaiseMethodInfoPropertyInfo = typeof(LuaEvent).GetProperty("RaiseMethodInfo", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetProperty);
+#if DEBUG
+      if (EventConstructorInfo == null || AddMethodInfoPropertyInfo == null || RemoveMethodInfoPropertyInfo == null || RaiseMethodInfoPropertyInfo == null)
+        throw new ArgumentNullException("@4.2", "LuaEvent");
+#endif
+
+      // Lua
+      ParseNumberMethodInfo = typeof(Lua).GetMethod("RtParseNumber", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod);
+      RuntimeLengthMethodInfo = typeof(Lua).GetMethod("RtLength", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod);
+      ConvertValueMethodInfo = typeof(Lua).GetMethod("RtConvertValue", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(object), typeof(Type) }, null);
+      GetResultValuesMethodInfo = typeof(Lua).GetMethod("RtGetResultValues", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(LuaResult), typeof(int), typeof(Type) }, null);
+      CombineArrayWithResultMethodInfo = typeof(Lua).GetMethod("RtCombineArrayWithResult", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(Array), typeof(LuaResult), typeof(Type) }, null);
+      ConvertArrayMethodInfo = typeof(Lua).GetMethod("RtConvertArray", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(Array), typeof(Type) }, null);
+      TableSetObjectsMethod = typeof(Lua).GetMethod("RtTableSetObjects", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(LuaTable), typeof(object), typeof(int) }, null);
+#if DEBUG
+      if (ParseNumberMethodInfo == null || RuntimeLengthMethodInfo == null || ConvertValueMethodInfo == null || GetResultValuesMethodInfo == null || CombineArrayWithResultMethodInfo == null || ConvertArrayMethodInfo == null || TableSetObjectsMethod == null)
+        throw new ArgumentNullException("@5", "Lua");
+#endif
+
+      // Object
+      ObjectEqualsMethodInfo = typeof(Object).GetMethod("Equals", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod);
+      ObjectReferenceEqualsMethodInfo = typeof(Object).GetMethod("ReferenceEquals", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod);
+#if DEBUG
+      if (ObjectEqualsMethodInfo == null || ObjectReferenceEqualsMethodInfo == null)
+        throw new ArgumentNullException("@6", "Object");
+#endif
+
+      // Convert
+      ConvertToStringMethodInfo = typeof(Convert).GetMethod("ToString", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(object), typeof(CultureInfo) }, null);
+#if DEBUG
+      if (ConvertToStringMethodInfo == null)
+        throw new ArgumentNullException("@7", "Convert");
+#endif
+
+      // String
+      StringEmptyFieldInfo = typeof(String).GetField("Empty", BindingFlags.Public | BindingFlags.Static | BindingFlags.GetField);
+      StringConcatMethodInfo = typeof(String).GetMethod("Concat", BindingFlags.Public | BindingFlags.Static, null, new Type[] { typeof(string[]) }, null);
+#if DEBUG
+      if (StringEmptyFieldInfo == null || StringConcatMethodInfo == null)
+        throw new ArgumentNullException("@8", "String");
+#endif
+
+      // CulureInfo
+      CultureInvariantPropertyInfo = typeof(CultureInfo).GetProperty("InvariantCulture", BindingFlags.Public | BindingFlags.Static | BindingFlags.GetProperty);
+#if DEBUG
+      if (CultureInvariantPropertyInfo == null)
+        throw new ArgumentNullException("@9", "CultureInfo");
+#endif
+
+      // Delegate
+      DelegateMethodPropertyInfo = typeof(Delegate).GetProperty("Method", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty);
+      CreateDelegateMethodInfo = typeof(Delegate).GetMethod("CreateDelegate", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(Type), typeof(object), typeof(MethodInfo) }, null);
+#if DEBUG
+      if (DelegateMethodPropertyInfo == null || CreateDelegateMethodInfo == null)
+        throw new ArgumentNullException("@10", "Delegate");
+#endif
+
+      ListItemPropertyInfo = typeof(List<object>).GetProperty("Item", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty);
+      ListCountPropertyInfo = typeof(List<object>).GetProperty("Count", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty);
+#if DEBUG
+      if (ListItemPropertyInfo == null || ListCountPropertyInfo == null)
+        throw new ArgumentNullException("@11", "List");
 #endif
     } // sctor
+
+    #endregion
+
+    #region -- RtParseNumber ----------------------------------------------------------
+
+    internal static object RtParseNumber(string sNumber, int numberType)
+    {
+      if (String.IsNullOrEmpty(sNumber))
+        return null;
+
+      // check for hex numbers
+      if (sNumber.Length > 2 && sNumber[0] == '0' && (sNumber[1] == 'x' || sNumber[1] == 'X'))
+      {
+        sNumber = sNumber.Substring(2);
+        numberType |= 8;
+        return ParseInteger(sNumber, numberType);
+      }
+
+      // try to convert the value
+      return ParseInteger(sNumber, numberType) ?? ParseFloat(sNumber, numberType);
+    } // func RtParseNumber
+
+    #endregion
+
+    #region -- RtConvertValue ---------------------------------------------------------
+
+    /// <summary>Converts the value to the type, like NeoLua will do it.</summary>
+    /// <param name="value">value, that should be converted.</param>
+    /// <param name="toType">type to which the value should be converted.</param>
+    /// <returns>converted value</returns>
+    public static object RtConvertValue(object value, Type toType)
+    {
+      if (value == null)
+        if (toType.IsValueType)
+          return Activator.CreateInstance(toType);
+        else
+          return null;
+      else
+      {
+        Type fromType = value.GetType();
+        if (fromType == toType)
+          return value;
+        else if (fromType == typeof(LuaResult))
+          return RtConvertValue(((LuaResult)value)[0], toType);
+        else if (toType == typeof(string))
+        {
+          foreach (MethodInfo mi in fromType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod))
+          {
+            if ((mi.Name == LuaEmit.csExplicit || mi.Name == LuaEmit.csImplicit) &&
+              mi.ReturnType == typeof(string))
+              return mi.Invoke(null, new object[] { value });
+          }
+
+          return value == null ? String.Empty : Convert.ToString(value, CultureInfo.InvariantCulture);
+        }
+        else if (toType.IsArray && fromType.IsArray)
+          return RtConvertArray((Array)value, toType.GetElementType());
+        else
+        {
+          TypeCode tcFrom = Type.GetTypeCode(fromType);
+          TypeCode tcTo = LuaEmit.GetTypeCode(toType);
+          if (tcTo == TypeCode.Object)
+          {
+            if (fromType.IsAssignableFrom(toType))
+              return value;
+            else
+            {
+              bool lImplicit = false;
+              bool lExactTo = false;
+              bool lExactFrom = false;
+              MethodInfo mi = LuaEmit.FindConvertMethod(toType.GetMethods(BindingFlags.Public | BindingFlags.Static), fromType, toType, ref lImplicit, ref lExactFrom, ref lExactTo);
+              if (mi != null)
+              {
+                if (!lExactFrom)
+                  value = RtConvertValue(value, mi.GetParameters()[0].ParameterType);
+                value = mi.Invoke(null, new object[] { value });
+                if (!lExactTo)
+                  value = RtConvertValue(value, toType);
+              }
+              return value;
+            }
+          }
+          else if (tcTo == TypeCode.DBNull)
+            return DBNull.Value;
+          else
+          {
+            // convert from string to number through lua parser
+            if (tcFrom == TypeCode.String && tcTo >= TypeCode.SByte && tcTo <= TypeCode.Decimal)
+              value = RtParseNumber((string)value, (int)LuaIntegerType.Int64 | (int)LuaFloatType.Double);
+
+            // convert to correct type
+            switch (tcTo)
+            {
+              case TypeCode.Boolean:
+                value = !Object.Equals(value, Activator.CreateInstance(toType));
+                break;
+              case TypeCode.Char:
+                value = Convert.ToChar(value, CultureInfo.InvariantCulture);
+                break;
+              case TypeCode.DateTime:
+                value = Convert.ToDateTime(value, CultureInfo.InvariantCulture);
+                break;
+              case TypeCode.SByte:
+                value = Convert.ToSByte(value, CultureInfo.InvariantCulture);
+                break;
+              case TypeCode.Int16:
+                value = Convert.ToInt16(value, CultureInfo.InvariantCulture);
+                break;
+              case TypeCode.Int32:
+                value = Convert.ToInt32(value, CultureInfo.InvariantCulture);
+                break;
+              case TypeCode.Int64:
+                value = Convert.ToInt64(value, CultureInfo.InvariantCulture);
+                break;
+              case TypeCode.Byte:
+                value = Convert.ToByte(value, CultureInfo.InvariantCulture);
+                break;
+              case TypeCode.UInt16:
+                value = Convert.ToUInt16(value, CultureInfo.InvariantCulture);
+                break;
+              case TypeCode.UInt32:
+                value = Convert.ToUInt32(value, CultureInfo.InvariantCulture);
+                break;
+              case TypeCode.UInt64:
+                value = Convert.ToUInt64(value, CultureInfo.InvariantCulture);
+                break;
+              case TypeCode.Single:
+                value = Convert.ToSingle(value, CultureInfo.InvariantCulture);
+                break;
+              case TypeCode.Double:
+                value = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+                break;
+              case TypeCode.Decimal:
+                value = Convert.ToDecimal(value, CultureInfo.InvariantCulture);
+                break;
+              case TypeCode.String:
+                value = Convert.ToString(value, CultureInfo.InvariantCulture);
+                break;
+              default:
+                throw new InvalidOperationException("TypeCode unknown");
+            }
+
+            // check for generic and enum
+            if (toType.IsGenericType && toType.GetGenericTypeDefinition() == typeof(Nullable<>))
+              return Activator.CreateInstance(toType, value);
+            else if (toType.IsEnum)
+              return Enum.ToObject(toType, value);
+            else
+              return value;
+          }
+        }
+      }
+    } // func RtConvertValue
+
+    #endregion
+
+    #region -- RtGetResultValues, RtCombineArrayWithResult, RtConvertArray ------------
+
+    /// <summary>Get the part of the result as an array. If there are not enough values in the array, it returns a empty array.</summary>
+    /// <param name="result"></param>
+    /// <param name="iStartIndex"></param>
+    /// <param name="typeElementType">Type of the elements of the result array.</param>
+    /// <returns></returns>
+    internal static Array RtGetResultValues(LuaResult result, int iStartIndex, Type typeElementType)
+    {
+      object[] values = result.Values;
+      int iLength = values.Length - iStartIndex;
+      if (iLength > 0)
+      {
+        Array r = Array.CreateInstance(typeElementType, iLength);
+        for (int i = 0; i < iLength; i++)
+          r.SetValue(RtConvertValue(values[i + iStartIndex], typeElementType), i);
+        return r;
+      }
+      else
+        return Array.CreateInstance(typeElementType, 0); // empty array
+    } // func GetResultValues
+
+    /// <summary>Combines a array with the result.</summary>
+    /// <param name="args"></param>
+    /// <param name="result"></param>
+    /// <param name="typeArray"></param>
+    /// <returns></returns>
+    internal static Array RtCombineArrayWithResult(Array args, LuaResult result, Type typeArray)
+    {
+      object[] values = result.Values;
+      int iArgsLength = args.Length;
+      int iValuesLength = values.Length;
+
+      Array r = Array.CreateInstance(typeArray, iArgsLength + iValuesLength);
+
+      // copy args
+      for (int i = 0; i < iArgsLength; i++)
+        r.SetValue(args.GetValue(i), i);
+
+      // add the result
+      for (int i = 0; i < iValuesLength; i++)
+        r.SetValue(RtConvertValue(values[i], typeArray), iArgsLength + i);
+
+      return r;
+    } // func CombineArrayWithResult
+
+    internal static Array RtConvertArray(Array src, Type typeArray)
+    {
+      if (src == null)
+        return Array.CreateInstance(typeArray, 0);
+      else
+      {
+        Array r = Array.CreateInstance(typeArray, src.Length);
+
+        for (int i = 0; i < src.Length; i++)
+          r.SetValue(RtConvertValue(src.GetValue(i), typeArray), i);
+
+        return r;
+      }
+    } // func ConvertArray
 
     #endregion
 
@@ -116,7 +519,7 @@ namespace Neo.IronLua
       else
       {
         Type t = v.GetType();
-        PropertyInfo  pi;
+        PropertyInfo pi;
 
         // search for a generic collection
         foreach (Type tInterface in t.GetInterfaces())
@@ -133,87 +536,28 @@ namespace Neo.IronLua
         pi = t.GetProperty("Length", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty, null, typeof(int), new Type[0], null);
         if (pi != null)
           return (int)pi.GetValue(v, null);
-        
+
         return 0;
       }
     } // func RtLength
 
     #endregion
 
-    #region -- RtConcatArrays, RtStringConcat -----------------------------------------
-
-    internal static Array RtConcatArrays(Type elementType, Array a, Array b, int iStartIndex)
-    {
-      int iCountB = b.Length - iStartIndex;
-
-      Array r = Array.CreateInstance(elementType, a.Length + iCountB);
-      if (a.Length > 0)
-        Array.Copy(a, r, a.Length);
-      if (iStartIndex < b.Length)
-        for (int i = 0; i < iCountB; i++)
-          r.SetValue(Parser.ConvertValue(b.GetValue(i + iStartIndex), elementType), i + a.Length);
-
-      return r;
-    } // func RtConcatArrays
-
-    internal static object RtStringConcat(string[] strings)
-    {
-      return String.Concat(strings);
-    } // func RtStringConcat
-
-    #endregion
-
-    #region -- Table Objects ----------------------------------------------------------
+    #region -- RtTableSetObjects ------------------------------------------------------
 
     internal static object RtTableSetObjects(LuaTable t, object value, int iStartIndex)
     {
-      if (value != null && (value is object[] || typeof(object[]).IsAssignableFrom(value.GetType())))
+      if (value != null && value is LuaResult)
       {
-        object[] v = (object[])value;
+        LuaResult v = (LuaResult)value;
 
-        for (int i = 0; i < v.Length; i++)
+        for (int i = 0; i < v.Count; i++)
           t[iStartIndex++] = v[i];
       }
       else
         t[iStartIndex] = value;
       return t;
     } // func RtTableSetObjects
-
-    #endregion
-
-    #region -- GetRuntimeHelper -------------------------------------------------------
-
-    internal static MethodInfo GetRuntimeHelper(LuaRuntimeHelper runtimeHelper)
-    {
-      MethodInfo mi;
-      lock (luaStaticLock)
-        if (!runtimeHelperCache.TryGetValue(runtimeHelper, out mi))
-        {
-          string sMemberName = "Rt" + runtimeHelper.ToString();
-
-          mi = typeof(Lua).GetMethod(sMemberName, BindingFlags.NonPublic | BindingFlags.Static);
-          if (mi == null)
-            throw new ArgumentException(String.Format("RuntimeHelper {0} not resolved.", runtimeHelper));
-
-          runtimeHelperCache[runtimeHelper] = mi;
-        }
-      return mi;
-    } // func GetRuntimeHelper
-
-    internal static ConstructorInfo ResultConstructorInfoArg1 { get { return ciResultConstructorArg1; } }
-    internal static ConstructorInfo ResultConstructorInfoArgN { get { return ciResultConstructorArgN; } }
-    internal static PropertyInfo ResultIndexPropertyInfo { get { return piResultIndex; } }
-    internal static PropertyInfo ResultEmptyPropertyInfo { get { return piResultEmpty; } }
-    internal static PropertyInfo ResultValuesPropertyInfo { get { return piResultValues; } }
-    internal static MethodInfo TableSetMethodInfo { get { return miTableSetMethod; } }
-    internal static MethodInfo ParserNumberMethodInfo { get { return miParseNumber; } }
-    internal static MethodInfo ConvertValueMethodInfo { get { return miConvertValue; } }
-    internal static MethodInfo ObjectEqualsMethodInfo { get { return miEquals; } }
-    internal static MethodInfo ObjectReferenceEqualsMethodInfo { get { return miReferenceEquals; } }
-    internal static MethodInfo ConvertToStringMethodInfo { get { return miToString; } }
-    internal static FieldInfo StringEmptyFieldInfo { get { return fiStringEmpty; } }
-    internal static PropertyInfo CultureInvariantPropertyInfo { get { return piCultureInvariant; } }
-    internal static MethodInfo RtLengthMethodInfo { get { return miRuntimeLength; } }
 
     #endregion
 

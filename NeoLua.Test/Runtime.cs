@@ -92,7 +92,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestRuntimeLua05()
     {
-      Assert.IsTrue(TestReturn("return string.byte('hallo', 2);", 97));
+      TestCode("return string.byte('hallo', 2);", 97);
     } // proc TestRuntimeLua05
 
     [TestMethod]

@@ -580,24 +580,7 @@ namespace Neo.IronLua
       int numberType = iNumberType;
       if(lHexNumber)
         numberType |= 8;
-      return ParseNumber(sNumber, numberType);
-    } // func ParseNumber
-
-    internal static object ParseNumber(string sNumber, int numberType)
-    {
-      if (String.IsNullOrEmpty(sNumber))
-        return null;
-
-      // check for hex numbers
-      if (sNumber.Length > 2 && sNumber[0] == '0' && (sNumber[1] == 'x' || sNumber[1] == 'X'))
-      {
-        sNumber = sNumber.Substring(2);
-        numberType |= 8;
-        return ParseInteger(sNumber, numberType);
-      }
-
-      // try to convert the value
-      return ParseInteger(sNumber, numberType) ?? ParseFloat(sNumber, numberType);
+      return Lua.RtParseNumber(sNumber, numberType);
     } // func ParseNumber
 
     internal int NumberType { get { return iNumberType; } }

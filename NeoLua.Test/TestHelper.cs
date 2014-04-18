@@ -17,6 +17,13 @@ namespace LuaDLR.Test
       return String.Join(Environment.NewLine, lines);
     } // func Lines
 
+    public string GetLines(string sName)
+    {
+      using (Stream src = typeof(TestHelper).Assembly.GetManifestResourceStream(typeof(TestHelper), sName))
+      using (TextReader tr = new StreamReader(src))
+        return tr.ReadToEnd();
+    } // func GetLines
+
     public void TestCode(string sCode, params object[] expectedResult)
     {
       using (Lua l = new Lua())
@@ -73,10 +80,15 @@ namespace LuaDLR.Test
           if (valueExpected is double)
             valueExpected = Math.Round((double)valueExpected, 3);
 
-          bool lOk = Object.Equals(valueResult, valueExpected);
-          Console.WriteLine("{0}: {1} {2} {3}", lOk ? "OK" : "FAIL", FormatValue(valueResult), lOk ? "==" : "!=", FormatValue(valueExpected));
-          if (!lOk)
-            Assert.Fail();
+          if (valueResult is LuaTable && valueExpected is KeyValuePair<object, object>[])
+            TestTable((LuaTable)valueResult, (KeyValuePair<object, object>[])valueExpected);
+          else
+          {
+            bool lOk = Object.Equals(valueResult, valueExpected);
+            Console.WriteLine("{0}: {1} {2} {3}", lOk ? "OK" : "FAIL", FormatValue(valueResult), lOk ? "==" : "!=", FormatValue(valueExpected));
+            if (!lOk)
+              Assert.Fail();
+          }
         }
         if (result.Values.Length != expectedResult.Length)
         {
@@ -85,6 +97,64 @@ namespace LuaDLR.Test
         }
       }
     } // proc TestResult
+
+    public static void TestTable(LuaTable table, KeyValuePair<object, object>[] tvs)
+    {
+      bool lFailed = false;
+      Console.WriteLine("Table {");
+      TestTable("  ", table, tvs, ref lFailed);
+      Console.WriteLine("}");
+      Assert.IsFalse(lFailed);
+    } // proc TestTable
+
+    private static void TestTable(string sIndent, LuaTable table, KeyValuePair<object, object>[] tvs, ref bool lFailed)
+    {
+      bool[] lTested = new bool[tvs.Length];
+      Array.Clear(lTested, 0, lTested.Length);
+
+      foreach (var tv in table)
+      {
+        int iIndex = Array.FindIndex(tvs, c => Object.Equals(tv.Key, c.Key));
+        if (iIndex == -1)
+        {
+          Console.WriteLine(sIndent + "Key not found: {0}", FormatValue(tv.Key));
+          lFailed |= true;
+        }
+        else
+        {
+          if (tv.Value is LuaTable && tvs[iIndex].Value is KeyValuePair<object, object>[])
+          {
+            Console.WriteLine(sIndent + "Table[{0}] {{", FormatValue(tv.Key));
+            TestTable(sIndent + "  ", (LuaTable)tv.Value, (KeyValuePair<object, object>[])(tvs[iIndex].Value), ref lFailed);
+            Console.WriteLine(sIndent + "}");
+          }
+          else
+          {
+            bool lOk = Object.Equals(tvs[iIndex].Value, tv.Value);
+            Console.WriteLine(sIndent + "[{0}]: {1} {2} {3}", FormatValue(tv.Key), FormatValue(tv.Value), lOk ? "==" : "!=", FormatValue(tvs[iIndex].Value));
+            lFailed |= !lOk;
+          }
+          lTested[iIndex] = true;
+        }
+      }
+
+      for (int i = 0; i < lTested.Length; i++)
+        if (!lTested[i])
+        {
+          Console.WriteLine(sIndent + "  Key not tested: {0}", FormatValue(tvs[i].Key));
+          lFailed |= true;
+        }
+    } // proc TestTable
+
+    public static KeyValuePair<object, object>[] Table(params KeyValuePair<object, object>[] tv)
+    {
+      return tv;
+    } // func Table
+
+    public static KeyValuePair<object, object> TV(object item, object value)
+    {
+      return new KeyValuePair<object, object>(item, value);
+    } // func TV
 
     public object[] NullResult { get { return new object[] { null }; } }
 
@@ -146,11 +216,6 @@ namespace LuaDLR.Test
       return (bool)r[0];
     } // func TestCompare
 
-    protected static KeyValuePair<object, object> TV(object item, object value)
-    {
-      return new KeyValuePair<object, object>(item, value);
-    } // func TV
-
     protected bool TestReturn(string sCode, params object[] result)
     {
       Lua l = new Lua();
@@ -181,11 +246,9 @@ namespace LuaDLR.Test
       return true;
     } // func TestReturn
 
-    protected static string GetCode(string sName)
+    protected string GetCode(string sName)
     {
-      using (Stream src = typeof(TestHelper).Assembly.GetManifestResourceStream(typeof(TestHelper), sName))
-      using (TextReader tr = new StreamReader(src))
-        return tr.ReadToEnd();
+      return GetLines(sName);
     } // func GetCode
   } // class TestHelper
 }

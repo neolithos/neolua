@@ -56,6 +56,7 @@
     <Compile Include="Lua.cs" />
     <Compile Include="Lua.Libraries.cs" />
     <Compile Include="Lua.Runtime.cs" />
+    <Compile Include="LuaEmit.cs" />
     <Compile Include="LuaType.cs" />
     <Compile Include="LuaFile.cs" />
     <Compile Include="LuaFunctionAttribute.cs" />
@@ -72,7 +73,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Parser.Gen.cs" />
+    <Compile Include="Parser.Emit.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\Resources.de.resx" />
@@ -94,6 +95,9 @@
       <SubType>Designer</SubType>
     </None>
     <None Include="NeoLua.nuspec" />
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
   </ItemGroup>
   <Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
     <CreateItem Include="$(TargetDir)\Neo.Lua.*;$(TargetDir)\de\*">

@@ -235,7 +235,7 @@ namespace Neo.IronLua
         if (v == null && p.IsOptional)
           v = p.DefaultValue;
         else
-          v = Parser.ConvertValue(v, p.ParameterType);
+          v = Lua.RtConvertValue(v, p.ParameterType);
 
         argsValidated[i] = v;
       }

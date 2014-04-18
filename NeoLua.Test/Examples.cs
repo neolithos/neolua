@@ -187,8 +187,9 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
+        l.PrintExpressionTree = true;
         dynamic dg = l.CreateEnvironment();
-
+        
         dg.dochunk("function classA()" +
           "  local c = { sum = 0 };" +
           "  function c:add(a)" +
@@ -233,6 +234,25 @@ namespace LuaDLR.Test
           String.Join(Environment.NewLine,
           "local sys = clr.System;",
           "local sb = sys.Text.StringBuilder();",
+          "sb:Append('Hallo '):Append('Welt!');",
+          "return sb:ToString();"
+          ),
+          "test.lua");
+        Console.WriteLine(r[0]);
+      }
+    }
+
+    [TestMethod]
+    public void CodePlexExample6a()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        var g = l.CreateEnvironment();
+        object[] r = g.DoChunk(
+          String.Join(Environment.NewLine,
+          "local sys : luatype = clr.System;",
+          "local sb : System.Text.StringBuilder = sys.Text.StringBuilder();",
           "sb:Append('Hallo '):Append('Welt!');",
           "return sb:ToString();"
           ),

@@ -10,18 +10,13 @@ using System.Text;
 
 namespace Neo.IronLua
 {
+  // todo: pow, concat, len, index, newindex
+        
   ///////////////////////////////////////////////////////////////////////////////
   /// <summary></summary>
   public class LuaTable : IDynamicMetaObjectProvider, INotifyPropertyChanged, IEnumerable<KeyValuePair<object, object>>
   {
-    [ThreadStatic]
-    private static PropertyInfo piItemIndex = null;
-    [ThreadStatic]
-    private static MethodInfo miCheckMethodVersion = null;
-    [ThreadStatic]
-    private static MethodInfo miSetValue1 = null;
-    [ThreadStatic]
-    private static MethodInfo miSetValue2 = null;
+    internal const string csMetaTable = "__metatable";
 
     #region -- enum MemberAccessFlag --------------------------------------------------
 
@@ -42,60 +37,208 @@ namespace Neo.IronLua
 
     #endregion
 
-    #region -- class LuaMetaObject ----------------------------------------------------
+    #region -- class LuaTableMetaObject -----------------------------------------------
 
     ///////////////////////////////////////////////////////////////////////////////
     /// <summary></summary>
-    private class LuaMetaObject : DynamicMetaObject
+    private class LuaTableMetaObject : DynamicMetaObject
     {
-      /// <summary></summary>
-      /// <param name="value"></param>
-      /// <param name="expression"></param>
-      public LuaMetaObject(LuaTable value, Expression expression)
+      #region -- Ctor/Dtor ------------------------------------------------------------
+
+      public LuaTableMetaObject(LuaTable value, Expression expression)
         : base(expression, BindingRestrictions.Empty, value)
       {
       } // ctor
 
-      /// <summary></summary>
-      /// <param name="binder"></param>
-      /// <param name="indexes"></param>
-      /// <param name="value"></param>
-      /// <returns></returns>
+      #endregion
+
+      #region -- Bind Helper ----------------------------------------------------------
+
+      private DynamicMetaObject BindBinaryCall(BinaryOperationBinder binder, MethodInfo mi, DynamicMetaObject arg)
+      {
+        return new DynamicMetaObject(
+          Lua.EnsureType(
+            BinaryOperationCall(binder, mi, arg), 
+            binder.ReturnType
+          ),
+          GetBinaryRestrictions(arg)
+        );
+      } // func BindBinaryCall
+
+      private Expression BinaryOperationCall(BinaryOperationBinder binder, MethodInfo mi, DynamicMetaObject arg)
+      {
+        return Expression.Call(
+          Lua.EnsureType(Expression, typeof(LuaTable)),
+          mi,
+          LuaEmit.Convert(Lua.GetRuntime(binder), arg.Expression, arg.LimitType, typeof(object), false)
+        );
+      } // func BinaryOperationCall
+
+      private DynamicMetaObject UnaryOperationCall(UnaryOperationBinder binder, MethodInfo mi)
+      {
+        return new DynamicMetaObject(
+          Lua.EnsureType(Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), mi), binder.ReturnType),
+          BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaTable))
+        );
+      } // func UnaryOperationCall
+
+      private BindingRestrictions GetBinaryRestrictions(DynamicMetaObject arg)
+      {
+        return Restrictions.Merge(
+            arg.Value == null ?
+              BindingRestrictions.GetInstanceRestriction(arg.Expression, null) :
+              BindingRestrictions.GetTypeRestriction(arg.Expression, arg.LimitType)
+          );
+      } // func GetBinaryRestrictions
+
+      #endregion
+
+      #region -- BindBinaryOperation --------------------------------------------------
+
+      public override DynamicMetaObject BindBinaryOperation(BinaryOperationBinder binder, DynamicMetaObject arg)
+      {
+        switch (binder.Operation)
+        {
+          case ExpressionType.Add:
+            return BindBinaryCall(binder, Lua.TableAddMethodInfo, arg);
+          case ExpressionType.Subtract:
+            return BindBinaryCall(binder, Lua.TableSubMethodInfo, arg);
+          case ExpressionType.Multiply:
+            return BindBinaryCall(binder, Lua.TableMulMethodInfo, arg);
+          case ExpressionType.Divide:
+            {
+              var luaOpBinder = binder as Lua.LuaBinaryOperationBinder;
+              if (luaOpBinder != null && luaOpBinder.IsInteger)
+                return BindBinaryCall(binder, Lua.TableIDivMethodInfo, arg);
+              else
+                return BindBinaryCall(binder, Lua.TableDivMethodInfo, arg);
+            }
+          case ExpressionType.Modulo:
+            return BindBinaryCall(binder, Lua.TableModMethodInfo, arg);
+          case ExpressionType.And:
+            return BindBinaryCall(binder, Lua.TableBAndMethodInfo, arg);
+          case ExpressionType.Or:
+            return BindBinaryCall(binder, Lua.TableBOrMethodInfo, arg);
+          case ExpressionType.ExclusiveOr:
+            return BindBinaryCall(binder, Lua.TableBXOrMethodInfo, arg);
+          case ExpressionType.LeftShift:
+            return BindBinaryCall(binder, Lua.TableShlMethodInfo, arg);
+          case ExpressionType.RightShift:
+            return BindBinaryCall(binder, Lua.TableShrMethodInfo, arg);
+          case ExpressionType.Equal:
+            return new DynamicMetaObject(Lua.EnsureType(BinaryOperationCall(binder, Lua.TableEqualMethodInfo, arg), binder.ReturnType), GetBinaryRestrictions(arg));
+          case ExpressionType.NotEqual:
+            return new DynamicMetaObject(Lua.EnsureType(Expression.Not(BinaryOperationCall(binder, Lua.TableEqualMethodInfo, arg)), binder.ReturnType), GetBinaryRestrictions(arg));
+          case ExpressionType.LessThan:
+            return new DynamicMetaObject(Lua.EnsureType(BinaryOperationCall(binder, Lua.TableLessThanMethodInfo, arg), binder.ReturnType), GetBinaryRestrictions(arg));
+          case ExpressionType.LessThanOrEqual:
+            return new DynamicMetaObject(Lua.EnsureType(BinaryOperationCall(binder, Lua.TableLessEqualMethodInfo, arg), binder.ReturnType), GetBinaryRestrictions(arg));
+          case ExpressionType.GreaterThan:
+            return new DynamicMetaObject(Lua.EnsureType(Expression.Not(BinaryOperationCall(binder, Lua.TableLessThanMethodInfo, arg)), binder.ReturnType), GetBinaryRestrictions(arg));
+          case ExpressionType.GreaterThanOrEqual:
+            return new DynamicMetaObject(Lua.EnsureType(Expression.Not(BinaryOperationCall(binder, Lua.TableLessEqualMethodInfo, arg)), binder.ReturnType), GetBinaryRestrictions(arg));
+        }
+        return base.BindBinaryOperation(binder, arg);
+      } // func BindBinaryOperation
+
+      #endregion
+
+      #region -- BindUnaryOperation----------------------------------------------------
+
+      public override DynamicMetaObject BindUnaryOperation(UnaryOperationBinder binder)
+      {
+        switch (binder.Operation)
+        {
+          case ExpressionType.Negate:
+            return UnaryOperationCall(binder, Lua.TableUnMinusMethodInfo);
+          case  ExpressionType.OnesComplement:
+            return UnaryOperationCall(binder, Lua.TableBNotMethodInfo);
+        }
+        return base.BindUnaryOperation(binder);
+      } // func BindUnaryOperation
+
+      #endregion
+
+      #region -- BindInvoke -----------------------------------------------------------
+
+      public override DynamicMetaObject BindInvoke(InvokeBinder binder, DynamicMetaObject[] args)
+      {
+        return new DynamicMetaObject(
+          Lua.EnsureType(
+            Expression.Call(
+              Lua.EnsureType(Expression, typeof(LuaTable)),
+              Lua.TableCallMethodInfo,
+              Expression.NewArrayInit(typeof(object), from a in args select Lua.EnsureType(a.Expression, typeof(object)))
+            ),
+            binder.ReturnType,
+            true
+          ),
+          Lua.GetMethodSignatureRestriction(this, args)
+        );
+      } // func BindInvoke 
+
+      #endregion
+
+      #region -- BindSetIndex ---------------------------------------------------------
+
       public override DynamicMetaObject BindSetIndex(SetIndexBinder binder, DynamicMetaObject[] indexes, DynamicMetaObject value)
       {
-        Expression exprSet = Expression.Convert(value.Expression, typeof(object));
+        if (Array.Exists(indexes, mo => !mo.HasValue))
+          return binder.Defer(indexes);
+        if (!value.HasValue)
+          return binder.Defer(value);
+
+        var restrictions = BindingRestrictions.GetExpressionRestriction(Expression.TypeIs(Expression, typeof(LuaTable)));
+
+        // create the result
+        Expression exprSet;
+        if (value.LimitType == typeof(LuaResult))
+        {
+          exprSet = LuaEmit.GetResultExpression(value.Expression, value.LimitType, 0);
+          restrictions = restrictions.Merge(BindingRestrictions.GetExpressionRestriction(Expression.TypeEqual(value.Expression, typeof(LuaResult))));
+        }
+        else
+        {
+          exprSet = Lua.EnsureType(value.Expression, typeof(object));
+          restrictions = restrictions.Merge(BindingRestrictions.GetExpressionRestriction(Expression.Not(Expression.TypeEqual(value.Expression, typeof(LuaResult)))));
+        }
 
         if (indexes.Length == 1)
         {
           // the index is normaly an expression --> call setvalue
-          return new DynamicMetaObject(
+          var t = new DynamicMetaObject(
             Expression.Block(
-              SetValueExpression(Expression.Convert(Expression, typeof(LuaTable)), Expression.Convert(indexes[0].Expression, typeof(object)), exprSet),
+              SetValueExpression(
+                Expression.Convert(Expression, typeof(LuaTable)),
+                indexes[0].Expression,
+                exprSet),
               exprSet
             ),
-            BindingRestrictions.GetInstanceRestriction(Expression, Value));
+            restrictions
+          );
+          return t;
         }
         else
         {
-          Expression[] args = new Expression[indexes.Length];
-
-          // Convert the indexes
-          for (int i = 0; i < indexes.Length; i++)
-            args[i] = Expression.Convert(indexes[i].Expression, typeof(object));
-
           return new DynamicMetaObject(
             Expression.Block(
-              SetValueExpression(Expression.Convert(Expression, typeof(LuaTable)), args, exprSet),
+              Expression.Call(
+                Lua.EnsureType(Expression, typeof(LuaTable)),
+                Lua.TableSetValueIdxNMethodInfo,
+                Expression.NewArrayInit(typeof(object), from i in indexes select Lua.EnsureType(i.Expression, typeof(object))),
+                exprSet
+              ),
               exprSet
             ),
-            BindingRestrictions.GetInstanceRestriction(Expression, Value));
+            restrictions
+          );
         }
       } // func BindSetIndex
 
-      /// <summary></summary>
-      /// <param name="binder"></param>
-      /// <param name="indexes"></param>
-      /// <returns></returns>
+      #endregion
+
+      #region -- BindGetIndex ---------------------------------------------------------
+
       public override DynamicMetaObject BindGetIndex(GetIndexBinder binder, DynamicMetaObject[] indexes)
       {
         if (indexes.Length == 1)
@@ -103,42 +246,35 @@ namespace Neo.IronLua
           // the index is normaly an expression
           return new DynamicMetaObject(
             Expression.Call(
-              Expression.Convert(Expression, typeof(LuaTable)),
-              typeof(LuaTable).GetMethod("GetValue", BindingFlags.Instance | BindingFlags.NonPublic, null, new Type[] { typeof(object) }, null),
-              Expression.Convert(indexes[0].Expression, typeof(object))
+              Lua.EnsureType(Expression, typeof(LuaTable)),
+              Lua.TableGetValueIdxMethodInfo,
+              Lua.EnsureType(Lua.EnsureType(indexes[0].Expression, indexes[0].LimitType), typeof(object))
             ),
-            BindingRestrictions.GetInstanceRestriction(Expression, Value));
+            Lua.GetMethodSignatureRestriction(this, indexes)
+          );
         }
         else
         {
-          Expression[] args = new Expression[indexes.Length];
-
-          // Convert the indexes
-          for (int i = 0; i < indexes.Length; i++)
-            args[i] = Expression.Convert(indexes[i].Expression, typeof(object));
-
           return new DynamicMetaObject(
             Expression.Call(
-              Expression.Convert(Expression, typeof(LuaTable)),
-              typeof(LuaTable).GetMethod("GetValue", BindingFlags.Instance | BindingFlags.NonPublic, null, new Type[] { typeof(object[]) }, null),
-              Expression.NewArrayInit(typeof(object), args)
+              Lua.EnsureType(Expression, typeof(LuaTable)),
+              Lua.TableGetValueIdxNMethodInfo,
+              Expression.NewArrayInit(typeof(object), from i in indexes select Lua.EnsureType(Lua.EnsureType(i.Expression, i.LimitType), typeof(object)))
             ),
-            BindingRestrictions.GetInstanceRestriction(Expression, Value));
+            Lua.GetMethodSignatureRestriction(this, indexes)
+          );
         }
       } // func BindGetIndex
 
-      /// <summary></summary>
-      /// <param name="binder"></param>
-      /// <returns></returns>
+      #endregion
+
+      #region -- BindGetMember, BindSetMember -----------------------------------------
+
       public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
       {
         return ((LuaTable)Value).GetMemberAccess(binder, Expression, binder.Name, binder.IgnoreCase ? MemberAccessFlag.ForWrite : MemberAccessFlag.None);
       } // func BindGetMember
 
-      /// <summary></summary>
-      /// <param name="binder"></param>
-      /// <param name="value"></param>
-      /// <returns></returns>
       public override DynamicMetaObject BindSetMember(SetMemberBinder binder, DynamicMetaObject value)
       {
         if (!value.HasValue)
@@ -152,17 +288,14 @@ namespace Neo.IronLua
             Expression.IfThen(Expression.NotEqual(tmp, moGet.Expression),
               Expression.Block(
                 Expression.Assign(moGet.Expression, tmp),
-                Expression.Call(Expression.Constant(Value, typeof(LuaTable)), typeof(LuaTable).GetMethod("OnPropertyChanged", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.InvokeMethod), Expression.Constant(binder.Name, typeof(string)))
+                Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableOnPropertyChangedMethodInfo, Expression.Constant(binder.Name, typeof(string)))
               )
             ),
             tmp
-          ), moGet.Restrictions);
+          ), moGet.Restrictions.Merge(Lua.GetSimpleRestriction(value))
+        );
       } // func BindSetMember
 
-      /// <summary></summary>
-      /// <param name="binder"></param>
-      /// <param name="args"></param>
-      /// <returns></returns>
       public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
       {
         LuaTable t = (LuaTable)Value;
@@ -204,6 +337,8 @@ namespace Neo.IronLua
         }
       } // BindInvokeMember
 
+      #endregion
+
       /// <summary></summary>
       /// <returns></returns>
       public override IEnumerable<string> GetDynamicMemberNames()
@@ -213,7 +348,7 @@ namespace Neo.IronLua
           if (c is string)
             yield return (string)c;
       } // func GetDynamicMemberNames
-    } // class LuaMetaObject
+    } // class LuaTableMetaObject
 
     #endregion
 
@@ -223,8 +358,9 @@ namespace Neo.IronLua
     private List<int> methods = null;             // Contains the indexes, they are method declarations
     private List<object> values = null;           // Array with values
     private Dictionary<object, int> names = null; // Names or Indices in the value-Array
+    private LuaTable metaTable = null;            // Currently attached metatable
     private int iLength = 0;
-
+    
     private int iMethodVersion = 0;   // if the methods-array is changed, then this values gets increased
     private Dictionary<CallInfo, CallSiteBinder> invokeBinder = new Dictionary<CallInfo, CallSiteBinder>();
 
@@ -238,6 +374,26 @@ namespace Neo.IronLua
       this.names = new Dictionary<object, int>();
     } // ctor
 
+    /// <summary></summary>
+    /// <param name="obj"></param>
+    /// <returns></returns>
+    public override bool Equals(object obj)
+    {
+      if (Object.ReferenceEquals(this, obj))
+        return true;
+      else if (obj != null)
+        return OnEqual(obj);
+      else
+        return false;
+    } // func Equals
+
+    /// <summary></summary>
+    /// <returns></returns>
+    public override int GetHashCode()
+    {
+      return base.GetHashCode();
+    } // func GetHashCode
+
     #endregion
 
     #region -- IDynamicMetaObjectProvider members -------------------------------------
@@ -247,7 +403,7 @@ namespace Neo.IronLua
     /// <returns></returns>
     public DynamicMetaObject GetMetaObject(Expression parameter)
     {
-      return new LuaMetaObject(this, parameter);
+      return new LuaTableMetaObject(this, parameter);
     } // func GetMetaObject
 
     #endregion
@@ -265,13 +421,20 @@ namespace Neo.IronLua
       // Get the index of the name
       int iIndex = GetValueIndex(memberName, (flags & MemberAccessFlag.IgnoreCase) != 0, (flags & MemberAccessFlag.ForWrite) != 0);
 
-      if (iIndex == -1) // Create an update rule
+      if (iIndex == -2) // create an access to metatable
+      {
+        return new DynamicMetaObject(
+          Expression.Property(Lua.EnsureType(exprTable, typeof(LuaTable)), Lua.TableMetaTablePropertyInfo),
+          BindingRestrictions.GetTypeRestriction(exprTable, typeof(LuaTable))
+        );
+      }
+      else if (iIndex == -1) // Create an update rule
       {
         // no fallback, to hide the static typed interface
         // if the length of the value-Array changed, then rebind
         Expression expr = Expression.Condition(
           TableChangedExpression(),
-          Expression.Constant(null, typeof(object)),
+          Expression.Default(typeof(object)),
           binder.GetUpdateExpression(typeof(object)));
 
         return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(exprTable, this));
@@ -294,26 +457,26 @@ namespace Neo.IronLua
 
     private Expression GetIndexAccess(int iIndex)
     {
-      if (piItemIndex == null)
-        piItemIndex = typeof(List<object>).GetProperty("Item", BindingFlags.Public | BindingFlags.Instance);
-
       // IndexAccess expression
-      return Expression.MakeIndex(Expression.Constant(values, typeof(List<object>)), piItemIndex, new Expression[] { Expression.Constant(iIndex, typeof(int)) });
+      return Expression.MakeIndex(Expression.Constant(values), Lua.ListItemPropertyInfo, new Expression[] { Expression.Constant(iIndex) });
     } // func GetIndexAccess
 
     private Expression TableChangedExpression()
     {
       return Expression.Equal(
-        Expression.Property(Expression.Constant(values, typeof(List<object>)), typeof(List<object>), "Count"),
+        Expression.Property(Expression.Constant(values), Lua.ListCountPropertyInfo),
         Expression.Constant(values.Count, typeof(int)));
     } // func TableChangedExpression
 
     private Expression CheckMethodVersionExpression(Expression exprTable)
     {
-      if (miCheckMethodVersion == null)
-        miCheckMethodVersion = typeof(LuaTable).GetMethod("CheckMethodVersion", BindingFlags.NonPublic | BindingFlags.InvokeMethod | BindingFlags.Instance);
-
-      return Expression.Convert(Expression.Call(Expression.Convert(exprTable, typeof(LuaTable)), miCheckMethodVersion, Expression.Constant(iMethodVersion, typeof(int))), typeof(bool));
+      return Lua.EnsureType(
+        Expression.Call(
+          Lua.EnsureType(exprTable, typeof(LuaTable)), 
+          Lua.TableCheckMethodVersionMethodInfo, 
+          Expression.Constant(iMethodVersion)
+        ), 
+        typeof(bool));
     } // func CheckMethodVersionExpression
 
     private CallSiteBinder GetInvokeBinder(CallInfo callInfo)
@@ -321,7 +484,7 @@ namespace Neo.IronLua
       CallSiteBinder b;
       lock (invokeBinder)
         if (!invokeBinder.TryGetValue(callInfo, out b))
-          b = invokeBinder[callInfo] = new Lua.LuaInvokeBinder(callInfo);
+          b = invokeBinder[callInfo] = new Lua.LuaInvokeBinder(null, callInfo);
       return b;
     } // func GetInvokeBinder
 
@@ -358,9 +521,13 @@ namespace Neo.IronLua
     {
       int iIndex = -1;
 
-      // Lookup the name in the hash-table
-      if (lIgnoreCase && item is string)
+      if (item is string && (string)item == csMetaTable)
+        return -2;
+      else if (lIgnoreCase && item is string) // Lookup the name in the hash-table
       {
+        if (String.Compare((string)item, csMetaTable, true) == 0)
+          return -2;
+
         foreach (var c in names)
         {
           if (c.Key is string && string.Compare((string)c.Key, (string)item, true) == 0)
@@ -431,7 +598,7 @@ namespace Neo.IronLua
     {
       // Search the name in the hash-table
       int iIndex = GetValueIndex(item, false, false);
-      return iIndex >= 0 ? values[iIndex] : null;
+      return iIndex >= 0 ? values[iIndex] : iIndex == -2 ? metaTable : null;
     } // func GetValue
 
     private object GetValue(object[] items)
@@ -459,8 +626,9 @@ namespace Neo.IronLua
       // Get the Index for the value, if the value is null then do not create a new value
       int iIndex = GetValueIndex(item, false, value != null);
 
-      // Set the value, if there is a index
-      if (iIndex != -1 && SetIndexValue(iIndex, value, lMarkAsMethod))
+      if (iIndex == -2)
+        metaTable = value as LuaTable;
+      else if (iIndex != -1 && SetIndexValue(iIndex, value, lMarkAsMethod)) // Set the value, if there is a index
       {
         // Notify property changed
         string sPropertyName = item as string;
@@ -483,7 +651,7 @@ namespace Neo.IronLua
       else
       {
         int i = GetValueIndex(items[iIndex], false, true);
-        LuaTable t = values[i] as LuaTable;
+        LuaTable t = i == -2 ? metaTable : (values[i] as LuaTable);
         if (t == null)
         {
           t = new LuaTable();
@@ -499,9 +667,9 @@ namespace Neo.IronLua
       return method;
     } // proc SetMethod
 
-    /// <summary></summary>
-    /// <param name="sMethodName"></param>
-    /// <param name="method"></param>
+    /// <summary>Defines a new method on the table.</summary>
+    /// <param name="sMethodName">Name of the member/name.</param>
+    /// <param name="method">Method that has as a first parameter a LuaTable.</param>
     public void DefineMethod(string sMethodName, Delegate method)
     {
       Type typeFirstParameter = method.Method.GetParameters()[0].ParameterType;
@@ -531,7 +699,7 @@ namespace Neo.IronLua
       try
       {
         object o = GetValue(sName);
-        return (T)Parser.ConvertValue(o, typeof(T));
+        return (T)Lua.RtConvertValue(o, typeof(T));
       }
       catch
       {
@@ -550,32 +718,228 @@ namespace Neo.IronLua
 
     #endregion
 
+    #region -- Metatable --------------------------------------------------------------
+
+    private T GetMetaTableOperator<T>(string sKey, string sOpDef)
+      where T : class
+    {
+      if (metaTable != null)
+      {
+        object o = metaTable[sKey];
+        if (o != null)
+        {
+          T f = o as T;
+          if (f != null)
+            return f;
+          else
+            throw new LuaRuntimeException(String.Format(Properties.Resources.rsTableOperatorIncompatible, sKey, sOpDef), 0, true);
+        }
+      }
+      throw new LuaRuntimeException(String.Format(Properties.Resources.rsTableOperatorNotFound, sKey), 0, true);
+    } // func GetMetaTableOperator
+
+    private object UnaryOperation(string sKey)
+    {
+      return GetMetaTableOperator<Func<object>>(sKey, "object f()")();
+    } // proc UnaryOperation
+
+    private object BinaryOperation(string sKey, object arg)
+    {
+      return GetMetaTableOperator<Func<object, object>>(sKey, "object f(object)")(arg);
+    } // proc BinaryOperation
+
+    private bool BinaryBoolOperation(string sKey, object arg)
+    {
+      return GetMetaTableOperator<Func<object, bool>>(sKey, "bool f(object)")(arg);
+    } // proc BinaryBoolOperation
+
+    /// <summary></summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    protected virtual object OnAdd(object arg)
+    {
+      return BinaryOperation("__add", arg);
+    } // func OnAdd
+
+    /// <summary></summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    protected virtual object OnSub(object arg)
+    {
+      return BinaryOperation("__sub", arg);
+    } // func OnSub
+
+    /// <summary></summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    protected virtual object OnMul(object arg)
+    {
+      return BinaryOperation("__mul", arg);
+    } // func OnMul
+
+    /// <summary></summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    protected virtual object OnDiv(object arg)
+    {
+      return BinaryOperation("__div", arg);
+    } // func OnDiv
+
+    /// <summary></summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    protected virtual object OnMod(object arg)
+    {
+      return BinaryOperation("__mod", arg);
+    } // func OnMod
+
+    /// <summary></summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    protected virtual object OnPow(object arg)
+    {
+      return BinaryOperation("__pow", arg);
+    } // func OnPow
+
+    /// <summary></summary>
+    /// <returns></returns>
+    protected virtual object OnUnMinus()
+    {
+      return UnaryOperation("__unm");
+    } // func OnUnMinus
+
+    /// <summary></summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    protected virtual object OnIDiv(object arg)
+    {
+      return BinaryOperation("__idiv", arg);
+    } // func OnIDiv
+
+    /// <summary></summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    protected virtual object OnBAnd(object arg)
+    {
+      return BinaryOperation("__band", arg);
+    } // func OnBAnd
+
+    /// <summary></summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    protected virtual object OnBOr(object arg)
+    {
+      return BinaryOperation("__bor", arg);
+    } // func OnBOr
+
+    /// <summary></summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    protected virtual object OnBXor(object arg)
+    {
+      return BinaryOperation("__bxor", arg);
+    } // func OnBXor
+
+    /// <summary></summary>
+    /// <returns></returns>
+    protected virtual object OnBNot()
+    {
+      return UnaryOperation("__bnot");
+    } // func OnBNot
+
+    /// <summary></summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    protected virtual object OnShl(object arg)
+    {
+      return BinaryOperation("__shl", arg);
+    } // func OnShl
+
+    /// <summary></summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    protected virtual object OnShr(object arg)
+    {
+      return BinaryOperation("__shr", arg);
+    } // func OnShr
+
+    /// <summary></summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    protected virtual object OnConcat(object arg)
+    {
+      return BinaryOperation("__concat", arg);
+    } // func OnShr
+
+    /// <summary></summary>
+    /// <returns></returns>
+    protected virtual object OnLen()
+    {
+      return UnaryOperation("__len");
+    } // func OnLen
+
+    /// <summary></summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    protected virtual bool OnEqual(object arg)
+    {
+      return BinaryBoolOperation("__eq", arg);
+    } // func OnEqual
+
+    /// <summary></summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    protected virtual bool OnLessThan(object arg)
+    {
+      return BinaryBoolOperation("__lt", arg);
+    } // func OnLessThan
+
+    /// <summary></summary>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    protected virtual bool OnLessEqual(object arg)
+    {
+      return BinaryBoolOperation("__le", arg);
+    } // func OnLessEqual
+
+    /// <summary></summary>
+    /// <param name="key"></param>
+    /// <returns></returns>
+    protected virtual object OnIndex(object key)
+    {
+      return BinaryOperation("__index", key);
+    } // func OnIndex
+
+    /// <summary></summary>
+    /// <param name="key"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    protected virtual object OnNewIndex(object key, object value)
+    {
+      return GetMetaTableOperator<Func<object, object, object>>("__newindex", "object f(key, object)")(key, value);
+    } // func OnIndex
+
+    /// <summary></summary>
+    /// <param name="args"></param>
+    /// <returns></returns>
+    protected virtual object OnCall(object[] args)
+    {
+      return GetMetaTableOperator<Func<object[], object>>("__call", "object f(object[])")(args);
+    } // func OnCall
+
+    #endregion
+
     #region -- Expressions ------------------------------------------------------------
 
     internal static Expression SetValueExpression(Expression table, Expression index, Expression set)
     {
-      if (miSetValue1 == null)
-        miSetValue1 = typeof(LuaTable).GetMethod("SetValue", BindingFlags.Instance | BindingFlags.NonPublic, null, new Type[] { typeof(object), typeof(object), typeof(bool) }, null);
-
       return Expression.Call(
-                table,
-                miSetValue1,
-                index,
-                set,
-                Expression.Constant(false)
-              );
-    } // func SetValueExpression
-
-    internal static Expression SetValueExpression(Expression table, Expression[] indexes, Expression set)
-    {
-      if (miSetValue2 == null)
-        miSetValue2 = typeof(LuaTable).GetMethod("SetValue", BindingFlags.Instance | BindingFlags.NonPublic, null, new Type[] { typeof(object[]), typeof(object) }, null);
-      return Expression.Call(
-                table,
-                miSetValue2,
-                Expression.NewArrayInit(typeof(object), indexes),
-                set
-              );
+        Lua.EnsureType(table, typeof(LuaTable)),
+        Lua.TableSetValueIdxMethodInfo,
+        Lua.EnsureType(index, typeof(object)),
+        Lua.EnsureType(set, typeof(object)),
+        Expression.Constant(false)
+      );
     } // func SetValueExpression
 
     #endregion
@@ -616,6 +980,8 @@ namespace Neo.IronLua
 
     /// <summary>Length if it is an array.</summary>
     public int Length { get { return iLength; } }
+    /// <summary>Access to the __metatable</summary>
+    public LuaTable MetaTable { get { return metaTable; } set { metaTable = value; } }
 
     #region -- Table Manipulation -----------------------------------------------------
 
@@ -762,238 +1128,174 @@ namespace Neo.IronLua
 
     // -- Static --------------------------------------------------------------
 
-    ///// <summary>add op_Addition</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //public static object operator +(LuaTable a, LuaTable b)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator +
+    #region -- c#/vb.net operators ----------------------------------------------------
 
-    ///// <summary>sub op_Substraction</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //public static object operator -(LuaTable a, LuaTable b)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator -
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    public static object operator +(LuaTable table, object arg)
+    {
+      return table.OnAdd(arg);
+    } // operator +
 
-    ///// <summary>mul op_Multiply</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //public static object operator *(LuaTable a, LuaTable b)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator *
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    public static object operator -(LuaTable table, object arg)
+    {
+      return table.OnSub(arg);
+    } // operator -
 
-    ///// <summary>div oder idiv op_Division</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //public static object operator /(LuaTable a, LuaTable b)
-    //{
-    //  throw new NotImplementedException(); // IDIV wenn beides Ints
-    //} // operator /
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    public static object operator *(LuaTable table, object arg)
+    {
+      return table.OnMul(arg);
+    } // operator *
 
-    ///// <summary>mod op_Modulus</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //public static object operator %(LuaTable a, LuaTable b)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator %
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    public static object operator /(LuaTable table, object arg)
+    {
+      return table.OnDiv(arg);
+    } // operator /
 
-    ///// <summary>unm op_UnaryNegation</summary>
-    ///// <param name="a"></param>
-    ///// <returns></returns>
-    //public static object operator -(LuaTable a)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator -
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    public static object operator %(LuaTable table, object arg)
+    {
+      return table.OnMod(arg);
+    } // operator %
 
-    ///// <summary>eq op_Equality</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //public static bool operator ==(LuaTable a, LuaTable b)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator ==
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <returns></returns>
+    public static object operator -(LuaTable table)
+    {
+      return table.OnUnMinus();
+    } // operator -
 
-    ///// <summary>op_Inequality</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //public static bool operator !=(LuaTable a, LuaTable b)
-    //{
-    //  return !(a == b);
-    //} // operator !=
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    public static bool operator ==(LuaTable table, object arg)
+    {
+      if (Object.ReferenceEquals(table, null))
+        return Object.ReferenceEquals(arg, null);
+      else
+        return table.Equals(arg);
+    } // operator ==
 
-    ///// <summary>lt op_LessThan</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //public static object operator <(LuaTable a, LuaTable b)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator <
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    public static bool operator !=(LuaTable table, object arg)
+    {
+      if (Object.ReferenceEquals(table, null))
+        return !Object.ReferenceEquals(arg, null);
+      else
+        return !table.Equals(arg);
+    } // operator !=
 
-    ///// <summary>op_GreaterThan</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //public static object operator >(LuaTable a, LuaTable b)
-    //{
-    //  return b < a;
-    //} // operator >
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    public static object operator <(LuaTable table, object arg)
+    {
+      return table.OnLessThan(arg);
+    } // operator <
 
-    ///// <summary>le op_LessThanOrEqual</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //public static object operator <=(LuaTable a, LuaTable b)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator <=
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    public static object operator >(LuaTable table, object arg)
+    {
+      return !table.OnLessThan(arg);
+    } // operator >
 
-    ///// <summary>op_GreaterThanOrEqual</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //public static object operator >=(LuaTable a, LuaTable b)
-    //{
-    //  return b <= a;
-    //} // operator >=
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    public static object operator <=(LuaTable table, object arg)
+    {
+      return table.OnLessEqual(arg);
+    } // operator <=
 
-    ///// <summary>shr op_RightShift</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //public static object operator >>(LuaTable a, int b)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator >>
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    public static object operator >=(LuaTable table, object arg)
+    {
+      return !table.OnLessEqual(arg);
+    } // operator >=
 
-    ///// <summary>shl op_LeftShift</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //public static object operator <<(LuaTable a, int b)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator <<
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    public static object operator >>(LuaTable table, int arg)
+    {
+      return table.OnShr(arg);
+    } // operator >>
 
-    ///// <summary>band op_BitwiseAnd</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //public static object operator &(LuaTable a, LuaTable b)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator &
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    public static object operator <<(LuaTable table, int arg)
+    {
+      return table.OnShl(arg);
+    } // operator <<
 
-    ///// <summary>bor op_BitwiseOr</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //public static object operator |(LuaTable a, LuaTable b)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator |
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    public static object operator &(LuaTable table, object arg)
+    {
+      return table.OnBAnd(arg);
+    } // operator &
 
-    ///// <summary>bxor op_ExclusiveOr</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //public static object operator ^(LuaTable a, LuaTable b)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator ^
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    public static object operator |(LuaTable table, object arg)
+    {
+      return table.OnBOr(arg);
+    } // operator |
 
-    ///// <summary>bnot op_OnesComplement</summary>
-    ///// <param name="a"></param>
-    ///// <returns></returns>
-    //public static object operator ~(LuaTable a)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator ~
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <param name="arg"></param>
+    /// <returns></returns>
+    public static object operator ^(LuaTable table, object arg)
+    {
+      return table.OnBXor(arg);
+    } // operator ^
 
-    ///// <summary>pow</summary>
-    ///// <param name="a"></param>
-    ///// <param name="iExponent"></param>
-    ///// <returns></returns>
-    //[EditorBrowsable(EditorBrowsableState.Never)]
-    //public static object op_Power(LuaTable a, int iExponent)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator op_Power
+    /// <summary></summary>
+    /// <param name="table"></param>
+    /// <returns></returns>
+    public static object operator ~(LuaTable table)
+    {
+      return table.OnBNot();
+    } // operator ~
 
-    ///// <summary>concat</summary>
-    ///// <param name="a"></param>
-    ///// <param name="b"></param>
-    ///// <returns></returns>
-    //[EditorBrowsable(EditorBrowsableState.Never)]
-    //public static object op_Concat(LuaTable a, LuaTable b)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator op_Concat
-
-    ///// <summary>index</summary>
-    ///// <param name="a"></param>
-    ///// <param name="i"></param>
-    ///// <returns></returns>
-    //[EditorBrowsable(EditorBrowsableState.Never)]
-    //public static object op_Index(LuaTable a, object i)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator op_Index
-
-    ///// <summary>newindex</summary>
-    ///// <param name="a"></param>
-    ///// <param name="i"></param>
-    ///// <param name="v"></param>
-    ///// <returns></returns>
-    //[EditorBrowsable(EditorBrowsableState.Never)]
-    //public static object op_NewIndex(LuaTable a, object i, object v)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator op_NewIndex
-
-    ///// <summary>call</summary>
-    ///// <param name="a"></param>
-    ///// <param name="sMember"></param>
-    ///// <param name="args"></param>
-    ///// <returns></returns>
-    //[EditorBrowsable(EditorBrowsableState.Never)]
-    //public static object op_Call(LuaTable a, string sMember, object[] args)
-    //{
-    //  throw new NotImplementedException();
-    //} // operator op_Call
-
-    // op_Implicit
-    // op_Explicit
-
-    //// nicht definiert: !, &&, ||, ++, --, true, false
-    /* 
-     * 32 vs. 64 bit ints
-     * math.type
-     * string.packfloat
-     * string.packint
-     * string.unpackfloat
-     * string.unpackint
-
-// idiv
-&  band
-|  bor
-~  bxor
-~  bnot
->> ahl
-<< shr
-
-*/
+    #endregion
   } // class LuaTable
 }

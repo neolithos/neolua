@@ -22,7 +22,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestMemberSet02()
     {
-      Assert.IsTrue(TestReturn("hallo = 42; _G['hallo'] = 43; return hallo;", 43));
+      TestCode("hallo = 42; _G['hallo'] = 43; return hallo;", 43);
     } // proc TestMemberSet02
 
     //[TestMethod]

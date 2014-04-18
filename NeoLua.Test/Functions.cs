@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -9,6 +10,8 @@ using Neo.IronLua;
 
 namespace LuaDLR.Test
 {
+  public delegate int ParamOutDelegate(int a, ref int b, out int c);
+
   public class TestParam
   {
     public int ParamOut(int a, ref int b, out int c)
@@ -25,187 +28,365 @@ namespace LuaDLR.Test
 
     public int Value { get { return 4; } }
 
+    public int Test{get;set;}
+
     public int this[int i] { get { return i; } }
   } // class TestParam
 
   [TestClass]
   public class Functions : TestHelper
   {
+    public delegate void GetByrefDelegate(out int a, ref int b, out int c);
+
+    public static int PropertyTest { get; set; }
+
+    public static int SumInts(int a, int b, int c, int[] r)
+    {
+      int s = a + b + c;
+      for (int i = 0; i < r.Length; i++)
+        s += r[i];
+      return s;
+    }
+
+    public static int SumInts2(int a, int b)
+    {
+      return a + b;
+    }
+
+    public static int[] GetArray(int l)
+    {
+      int[] a = new int[l];
+      for (int i = 0; i < l; i++)
+        a[i] = i + 1;
+      return a;
+    }
+
+    public static LuaResult GetResult(int l)
+    {
+      object[] a = new object[l];
+      for (int i = 0; i < l; i++)
+        a[i] = i + 1;
+      return new LuaResult(a);
+    }
+
+    public static void GetByref(out int a, ref int b, out int c)
+    {
+      int d = b;
+      a = d + 1;
+      b = d + 2;
+      c = d + 3;
+    }
+
     [TestMethod]
     public void TestFunctions01()
     {
-      Assert.IsTrue(TestReturn("function test(a) return 1 + a; end; return test(2);", 3));
-      using (Lua l = new Lua())
-      {
-        l.PrintExpressionTree = true;
-        var f = l.CreateLambda<Func<int>>("test", "local function test(a:int):int return 1 + a; end; return test(2);");
-        Assert.IsTrue(f() == 3);
-      }
-    } // proc TestFunctions01
+      TestCode(Lines(
+        "function test(a)",
+        "  return 1 + a;",
+        "end;",
+        "return test(2);"),
+        3);
+    }
+
+    private void PrintDelegateArguments(MethodInfo mi)
+    {
+      int i = 0;
+      foreach (ParameterInfo p in mi.GetParameters())
+        Console.WriteLine("[{0}] {1} : {2}", i++, p.Name, p.ParameterType.Name);
+    }
+
+    private void PrintDelegate(Delegate dlg)
+    {
+      Type t = dlg.GetType();
+      Console.WriteLine("{0} : {1}", dlg.Method.Name, t.Name);
+      PrintDelegateArguments(dlg.Method);
+      PrintDelegateArguments(t.GetMethod("Invoke"));
+
+      Console.WriteLine();
+      Console.WriteLine(new string('=', 66));
+    }
 
     [TestMethod]
     public void TestFunctions02()
     {
-      Assert.IsTrue(TestReturn("local function test(a) return 1 + a; end; return test(2);", 3));
-    } // proc TestFunctions02
+      TestParam p = new TestParam();
+      int i = 0;
+      Func<TestParam, int> f1 = (p_) => { i++; return p.Value + p_.Value; };
+      Func<int> f2 = p.GetValue;
+      Func<int> f3 = () => 1;
+      PrintDelegate(f1);
+      PrintDelegate(f2);
+      PrintDelegate(f3);
+      PrintDelegate(new ParamOutDelegate(p.ParamOut));
+      Console.WriteLine(i);
+    }
 
     [TestMethod]
     public void TestFunctions03()
     {
-      Assert.IsTrue(TestReturn("local test = function (a) return 1 + a; end; return test(2);", 3));
-    } // proc TestFunctions03
+      TestCode(Lines(
+        "local function test(a)",
+        "  return 1 + a;",
+        "end;",
+        "return test(2);"),
+        3);
+      TestCode(Lines(
+        "local function test(a : int) : int",
+        "  return 1 + a;",
+        "end;",
+        "local a : int = test(2);",
+        "return a;"),
+        3);
+    }
 
     [TestMethod]
     public void TestFunctions04()
     {
-      TestCode("local test = function () return 1, 2, 3; end; return (test());", 1);
-    } // proc TestFunctions04
+      TestCode(Lines(
+        "local f : System.Func[int, int, int, int[], int] = clr.LuaDLR.Test.Functions.SumInts;",
+        "return f(), f(1, 2), f(1, 2, 3), f(1, 2, 3, 4), f(1, 2, 3, 4, 5);"),
+        0, 3, 6, 10, 15);
+    }
 
     [TestMethod]
     public void TestFunctions05()
     {
-      Assert.IsTrue(TestReturn("local test = function () return 1, 2, 3; end; return test();", 1, 2, 3));
-    } // proc TestFunctions05
+      TestCode(Lines(
+        "local f : System.Func[int, int, int, int[], int] = clr.LuaDLR.Test.Functions.SumInts;",
+        "local r : result = clr.LuaDLR.Test.Functions.GetResult(0);",
+        "return f(r);"),
+        0);
+    }
 
     [TestMethod]
     public void TestFunctions06()
     {
-      Assert.IsTrue(TestReturn("local test = function () return 1, 2, 3; end; return 'a', test();", "a", 1, 2, 3));
-    } // proc TestFunctions06
+      TestCode(Lines(
+        "local f : System.Func[int, int, int, int[], int] = clr.LuaDLR.Test.Functions.SumInts;",
+        "local r : result = clr.LuaDLR.Test.Functions.GetResult(5);",
+        "return f(r), f(1, r),",
+        "   f(1, 1, 1, r), ",
+        "   f(1, 1, 1, 1, r);"),
+        15, 16, 18, 19);
+    }
 
     [TestMethod]
     public void TestFunctions07()
     {
-      Assert.IsTrue(TestReturn("local test = function () return 3, 2, 1; end; return 2 * test();", 6));
-    } // proc TestFunctions07
+      TestCode(Lines(
+        "local f : System.Func[int, int, int, int[], int] = clr.LuaDLR.Test.Functions.SumInts;",
+        "local r : int[] = clr.LuaDLR.Test.Functions.GetArray(5);",
+        "return f(1, 1, 1, r);"),
+        18);
+    }
 
     [TestMethod]
     public void TestFunctions08()
     {
-      Assert.IsTrue(TestReturn(GetCode("Lua.Function08.lua"), 1, 4));
-    } // proc TestFunctions08
-
-    [TestMethod]
-    public void TestFunctions08a()
-    {
-      Assert.IsTrue(TestReturn(GetCode("Lua.Function08a.lua"), 1, 4));
-    } // proc TestFunctions08a
+      TestCode(Lines(
+        "local f : LuaDLR.Test.Functions.GetByrefDelegate = clr.LuaDLR.Test.Functions.GetByref;",
+        "return f(1)"
+        ), 2, 3, 4);
+      TestCode(Lines(
+        "local f : LuaDLR.Test.Functions.GetByrefDelegate = clr.LuaDLR.Test.Functions.GetByref;",
+        "return f(0, 1)"
+        ),1, 2, 3);
+    }
 
     [TestMethod]
     public void TestFunctions09()
     {
-      Lua l = new Lua();
-      l.PrintExpressionTree = true;
-      object[] r = l.CreateEnvironment().DoChunk("return p:ParamOut(1, 2);", "test.lua",
-        new KeyValuePair<string, object>("p", new TestParam())
-        );
-      Assert.IsTrue(TestReturn(r, 1, 1, 2));
-    } // proc TestFunctions09
+      TestCode(Lines(
+        "local f : System.Func[int, int, int] = clr.LuaDLR.Test.Functions.SumInts2;",
+        "return f(), f(1), f(1, 2), f(1, 2, 3);"), 0, 1, 3, 3);
+    }
 
     [TestMethod]
     public void TestFunctions10()
     {
-      Lua l = new Lua();
-      l.PrintExpressionTree = true;
-      LuaGlobal g = l.CreateEnvironment();
-      g["a"] = new TestParam();
-      object[] r = g.DoChunk("local b = a:GetValue(); return b;", "test.lua");
-      Assert.IsTrue(TestReturn(r, 4));
-    } // proc TestFunctions10
-
-    [TestMethod]
-    public void TestFunctions11()
-    {
-      int[] test = new int[] { 1, 2, 3 };
-      Lua l = new Lua();
-      l.PrintExpressionTree = true;
-      LuaGlobal g = l.CreateEnvironment();
-      g["test"] = test;
-      Assert.IsTrue(TestReturn(g.DoChunk("return test[0], test[1], test[2];", "test.lua"), 1, 2, 3));
-    } // proc TestFunction11
-
-    [TestMethod]
-    public void TestFunctions12()
-    {
-      int[,] test = new int[,] { {1, 2}, {3, 4} };
-      Lua l = new Lua();
-      l.PrintExpressionTree = true;
-      LuaGlobal g = l.CreateEnvironment();
-      g["test"] = test;
-      Assert.IsTrue(TestReturn(g.DoChunk("return test[0, 0], test[0, 1], test[1,0], test[1,1];", "test.lua"), 1, 2, 3, 4));
-    } // proc TestFunction12
-
-    [TestMethod]
-    public void TestFunctions13()
-    {
-      Lua l = new Lua();
-      l.PrintExpressionTree = true;
-      LuaGlobal g = l.CreateEnvironment();
-      g["test"] = new TestParam();
-      Assert.IsTrue(TestReturn(g.DoChunk("return test[0], test[1];", "test.lua"), 0, 1));
-    } // proc TestFunction13
-
-    [TestMethod]
-    public void TestFunctions14()
-    {
-      int[] test = new int[] { 1, 2, 3 };
       using (Lua l = new Lua())
       {
         l.PrintExpressionTree = true;
-        LuaGlobal g = l.CreateEnvironment();
-        g["test"] = test;
-        Assert.IsTrue(TestReturn(g.DoChunk("test[0] = 42; return test[0];", "test.lua"), 42));
-      }
-    } // proc TestFunction14
-
-    [TestMethod]
-    public void TestFunctions15()
-    {
-      Assert.IsTrue(TestReturn(GetCode("Lua.Function15.lua"), 123));
-    } // proc TestFunctions15
-
-    [TestMethod]
-    public void TestFunctions16()
-    {
-      using (Lua l = new Lua())
-      {
-        l.PrintExpressionTree = true;
-        dynamic g = l.CreateEnvironment();
-        g.dochunk("function add(a : int, b : int) : int return a + b; end;", "add.lua");
-        Func<int, int, int> a = g.add;
-        Assert.IsTrue(a(1, 3) == 4);
-        Assert.IsTrue(g.add(1, 2) == 3);
-      }
-    } // proc TestFunctions15
-
-    [TestMethod]
-    public void TestFunctions17()
-    {
-      using (Lua l = new Lua())
-      {
-        l.PrintExpressionTree = true;
-        dynamic g = l.CreateEnvironment();
-        object a = g.dochunk("function test(a) if a ~= nil then return a; end; end;", "test.lua");
-        object b = g.test();
-        LuaResult c = g.test(1);
-        Assert.IsTrue(a == LuaResult.Empty);
-        Assert.IsTrue(b == LuaResult.Empty);
-        Assert.IsTrue(c.ToInt32() == 1);
-      }
-    } // proc TestFunctions15
-    
-    [TestMethod]
-    public void TestFunctions18()
-    {
-      using (Lua l = new Lua())
-      {
-        l.PrintExpressionTree = true;
-        dynamic g = l.CreateEnvironment();
-        var c = l.CompileChunk("print(a)", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)));
-
-        g.dochunk(c, 1);
-        g.dochunk(c, "a");
+        var g = l.CreateEnvironment();
+        var p = new TestParam();
+        g.DoChunk("p.Test = 3;", "dummy", new KeyValuePair<string, object>("p", p));
+        Assert.AreEqual(3, p.Test);
       }
     }
+
+    [TestMethod]
+    public void TestFunctions50()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        var f = l.CreateLambda<Func<int>>("test", "local function test(a:int):int return 1 + a; end; return test(2);");
+        TestResult(new LuaResult(f()), 3);
+      }
+    }
+
+    [TestMethod]
+    public void TestFunctions51()
+    {
+      TestCode("local function test(a) return 1 + a; end; return test(2);", 3);
+    }
+
+    [TestMethod]
+    public void TestFunctions52()
+    {
+      TestCode("local test = function (a) return 1 + a; end; return test(2);", 3);
+    }
+
+    [TestMethod]
+    public void TestFunctions53()
+    {
+      TestCode("local test = function () return 1, 2, 3; end; return (test());", 1);
+    }
+
+    [TestMethod]
+    public void TestFunctions54()
+    {
+      TestCode("local test = function () return 1, 2, 3; end; return test();", 1, 2, 3);
+    }
+
+    [TestMethod]
+    public void TestFunctions55()
+    {
+      TestCode("local test = function () return 1, 2, 3; end; return 'a', test();", "a", 1, 2, 3);
+    }
+
+    [TestMethod]
+    public void TestFunctions56()
+    {
+      TestCode("local test = function () return 3, 2, 1; end; return 2 * test();", 6);
+    }
+
+    [TestMethod]
+    public void TestFunctions57()
+    {
+      TestCode(GetLines("Lua.Function08.lua"), 1, 4);
+      TestCode(GetLines("Lua.Function08a.lua"), 1, 4);
+    }
+
+    [TestMethod]
+    public void TestFunctions58()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        dynamic  g = l.CreateEnvironment();
+        TestResult(g.dochunk("return p:ParamOut(1, 2);", "dummy", "p", new TestParam()), 1, 1, 2);
+      }
+    }
+
+    [TestMethod]
+    public void TestFunctions59()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        dynamic g = l.CreateEnvironment();
+        TestResult(g.dochunk("local b = p:GetValue(); return b;", "dummy", "p", new TestParam()), 4);
+      }
+    }
+
+
+
+    // index tests
+    //[TestMethod]
+    //public void TestFunctions60()
+    //{
+    //  using (Lua l = new Lua())
+    //  {
+    //    l.PrintExpressionTree = true;
+    //    dynamic g = l.CreateEnvironment();
+    //    g.test = new int[] { 1, 2, 3 };
+    //    TestResult(g.dochunk("return test[0], test[1], test[2];"),  1, 2, 3);
+    //  }
+    //}
+
+    //[TestMethod]
+    //public void TestFunctions12()
+    //{
+    //  int[,] test = new int[,] { {1, 2}, {3, 4} };
+    //  Lua l = new Lua();
+    //  l.PrintExpressionTree = true;
+    //  LuaGlobal g = l.CreateEnvironment();
+    //  g["test"] = test;
+    //  Assert.IsTrue(TestReturn(g.DoChunk("return test[0, 0], test[0, 1], test[1,0], test[1,1];", "test.lua"), 1, 2, 3, 4));
+    //} // proc TestFunction12
+
+    //[TestMethod]
+    //public void TestFunctions13()
+    //{
+    //  Lua l = new Lua();
+    //  l.PrintExpressionTree = true;
+    //  LuaGlobal g = l.CreateEnvironment();
+    //  g["test"] = new TestParam();
+    //  Assert.IsTrue(TestReturn(g.DoChunk("return test[0], test[1];", "test.lua"), 0, 1));
+    //} // proc TestFunction13
+
+    //[TestMethod]
+    //public void TestFunctions14()
+    //{
+    //  int[] test = new int[] { 1, 2, 3 };
+    //  using (Lua l = new Lua())
+    //  {
+    //    l.PrintExpressionTree = true;
+    //    LuaGlobal g = l.CreateEnvironment();
+    //    g["test"] = test;
+    //    Assert.IsTrue(TestReturn(g.DoChunk("test[0] = 42; return test[0];", "test.lua"), 42));
+    //  }
+    //} // proc TestFunction14
+
+    //[TestMethod]
+    //public void TestFunctions15()
+    //{
+    //  Assert.IsTrue(TestReturn(GetCode("Lua.Function15.lua"), 123));
+    //} // proc TestFunctions15
+
+    //[TestMethod]
+    //public void TestFunctions16()
+    //{
+    //  using (Lua l = new Lua())
+    //  {
+    //    l.PrintExpressionTree = true;
+    //    dynamic g = l.CreateEnvironment();
+    //    g.dochunk("function add(a : int, b : int) : int return a + b; end;", "add.lua");
+    //    Func<int, int, int> a = g.add;
+    //    Assert.IsTrue(a(1, 3) == 4);
+    //    Assert.IsTrue(g.add(1, 2) == 3);
+    //  }
+    //} // proc TestFunctions15
+
+    //[TestMethod]
+    //public void TestFunctions17()
+    //{
+    //  using (Lua l = new Lua())
+    //  {
+    //    l.PrintExpressionTree = true;
+    //    dynamic g = l.CreateEnvironment();
+    //    object a = g.dochunk("function test(a) if a ~= nil then return a; end; end;", "test.lua");
+    //    object b = g.test();
+    //    LuaResult c = g.test(1);
+    //    Assert.IsTrue(a == LuaResult.Empty);
+    //    Assert.IsTrue(b == LuaResult.Empty);
+    //    Assert.IsTrue(c.ToInt32() == 1);
+    //  }
+    //} // proc TestFunctions15
+    
+    //[TestMethod]
+    //public void TestFunctions18()
+    //{
+    //  using (Lua l = new Lua())
+    //  {
+    //    l.PrintExpressionTree = true;
+    //    dynamic g = l.CreateEnvironment();
+    //    var c = l.CompileChunk("print(a)", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)));
+
+    //    g.dochunk(c, 1);
+    //    g.dochunk(c, "a");
+    //  }
+    //}
   } // class Functions
 }
