@@ -442,6 +442,16 @@ namespace Neo.IronLua
       {
         return Convert(runtime, ParseNumberExpression(runtime, expr, fromType), typeof(object), toType, true); // allow dynamic converts
       }
+      else if (toType.BaseType == typeof(MulticastDelegate) && toType.BaseType == fromType.BaseType)
+      {
+        return Expression.Convert(
+          Expression.Call(Lua.ConvertDelegateMethodInfo,
+            Expression.Constant(toType, typeof(Type)),
+            Convert(runtime, expr, fromType, typeof(Delegate), lParse)
+          ),
+          toType
+        );
+      }
       else if (fromType.IsArray && toType.IsArray)
       {
         return Expression.Convert(Expression.Call(Lua.ConvertArrayMethodInfo, Convert(runtime, expr, fromType, toType, lParse), Expression.Constant(toType.GetElementType())), toType);

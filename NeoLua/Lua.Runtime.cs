@@ -101,6 +101,7 @@ namespace Neo.IronLua
     internal readonly static MethodInfo ConvertArrayMethodInfo;
     internal readonly static MethodInfo TableSetObjectsMethod;
     internal readonly static MethodInfo ConcatStringMethodInfo;
+    internal readonly static MethodInfo ConvertDelegateMethodInfo;
     // Object
     internal readonly static MethodInfo ObjectEqualsMethodInfo;
     internal readonly static MethodInfo ObjectReferenceEqualsMethodInfo;
@@ -230,9 +231,11 @@ namespace Neo.IronLua
       ConvertArrayMethodInfo = typeof(Lua).GetMethod("RtConvertArray", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(Array), typeof(Type) }, null);
       TableSetObjectsMethod = typeof(Lua).GetMethod("RtTableSetObjects", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(LuaTable), typeof(object), typeof(int) }, null);
       ConcatStringMethodInfo = typeof(Lua).GetMethod("RtConcatString", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod);
+      ConvertDelegateMethodInfo = typeof(Lua).GetMethod("RtConvertDelegate", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod);
 #if DEBUG
       if (ParseNumberMethodInfo == null || RuntimeLengthMethodInfo == null || ConvertValueMethodInfo == null || GetResultValuesMethodInfo == null || 
-          CombineArrayWithResultMethodInfo == null || ConvertArrayMethodInfo == null || TableSetObjectsMethod == null || ConcatStringMethodInfo == null)
+          CombineArrayWithResultMethodInfo == null || ConvertArrayMethodInfo == null || TableSetObjectsMethod == null || ConcatStringMethodInfo == null ||
+          ConvertDelegateMethodInfo == null)
         throw new ArgumentNullException("@5", "Lua");
 #endif
 
@@ -305,7 +308,7 @@ namespace Neo.IronLua
 
     #endregion
 
-    #region -- RtConvertValue ---------------------------------------------------------
+    #region -- RtConvertValue, RtConvertDelegate --------------------------------------
 
     /// <summary>Converts the value to the type, like NeoLua will do it.</summary>
     /// <param name="value">value, that should be converted.</param>
@@ -336,6 +339,8 @@ namespace Neo.IronLua
 
           return value == null ? String.Empty : Convert.ToString(value, CultureInfo.InvariantCulture);
         }
+        else if (toType.BaseType == typeof(MulticastDelegate) && toType.BaseType == fromType.BaseType)
+          return RtConvertDelegate(toType, (Delegate)value);
         else if (toType.IsArray && fromType.IsArray)
           return RtConvertArray((Array)value, toType.GetElementType());
         else
@@ -434,6 +439,24 @@ namespace Neo.IronLua
         }
       }
     } // func RtConvertValue
+
+    internal static Delegate RtConvertDelegate(Type toType, Delegate dlg)
+    {
+      try
+      {
+        if (dlg.Method.GetType().Name == "RuntimeMethodInfo") // runtime method -> use create delegate
+          return Delegate.CreateDelegate(toType, dlg.Target, dlg.Method);
+        else // dynamic method -> create the delegate from the DynamicMethod.Invoke
+        {
+          MethodInfo mi = dlg.GetType().GetMethod("Invoke");
+          return Delegate.CreateDelegate(toType, dlg, mi);
+        }
+      }
+      catch (Exception e)
+      {
+        throw new LuaRuntimeException(String.Format(Properties.Resources.rsBindConversionNotDefined, dlg.GetType().Name, toType.Name), e);
+      }
+    } // func RtConvertDelegate
 
     #endregion
 

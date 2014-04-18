@@ -36,11 +36,14 @@ namespace LuaDLR.Test
       {
         if (EventTest != null)
           EventTest();
+        if (EventTest2 != null)
+          EventTest2(this, EventArgs.Empty);
       }
 
       public static int Value { get; set; }
 
       public event Action EventTest;
+      public event EventHandler EventTest2;
     }
 
     public static void Test()
@@ -241,6 +244,47 @@ namespace LuaDLR.Test
         "local c : SubClass = SubClass();",
         "c.EventTest:add(function():void print('Fired.'); end);",
         "c:Fire();"));
+    }
+
+    [TestMethod]
+    public void EventTest03()
+    {
+      TestCode(Lines(
+        "const SubClass typeof LuaDLR.Test.LuaTypeTests.SubClass;",
+        "local c : SubClass = SubClass();",
+        "c.EventTest2:add(function(sender : object, e : System.EventArgs):void print('Fired.'); end);",
+        "c:Fire();"));
+    }
+
+    [TestMethod]
+    public void EventTest04()
+    {
+      using (Lua l = new Lua())
+      {
+        var g = l.CreateEnvironment();
+        var c = l.CompileChunk(Lines(
+          "local a : System.EventHandler = function(a, b) : void",
+          "  print('Hallo');",
+          "end;",
+          "a()"), "dummy", true);
+        g.DoChunk(c);
+      }
+    }
+
+    [TestMethod]
+    public void EventTest05()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        var g = l.CreateEnvironment();
+        var c = l.CompileChunk(Lines(
+          "local a : System.EventHandler = function(a, b) : void",
+          "  print('Hallo');",
+          "end;",
+          "a();"), "dummy", false);
+        g.DoChunk(c);
+      }
     }
   } // class LuaTypeTests 
 }
