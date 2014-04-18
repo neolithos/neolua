@@ -654,13 +654,7 @@ namespace Neo.IronLua
             expr = ThrowExpression(e.Message, ReturnType);
           }
 
-        return new DynamicMetaObject(expr, 
-          GetMethodSignatureRestriction(target, indexes).Merge(
-            value.Value == null ?
-              BindingRestrictions.GetInstanceRestriction(value.Expression, value.LimitType) :
-              BindingRestrictions.GetTypeRestriction(value.Expression, value.LimitType)
-          )
-        );
+        return new DynamicMetaObject(expr, GetMethodSignatureRestriction(target, indexes).Merge(Lua.GetSimpleRestriction(value)));
       } // func FallbackSetIndex
 
       public Lua Lua { get { return lua; } }
@@ -856,7 +850,10 @@ namespace Neo.IronLua
         Expression expr;
         try
         {
-          expr = EnsureType(LuaEmit.BinaryOperationExpression(lua, Operation, target.Expression, target.LimitType, arg.Expression, arg.LimitType, false), this.ReturnType);
+          expr = EnsureType(LuaEmit.BinaryOperationExpression(lua, 
+            lInteger && Operation == ExpressionType.Divide ? Lua.IntegerDivide : Operation, 
+            target.Expression, target.LimitType, 
+            arg.Expression, arg.LimitType, false), this.ReturnType);
         }
         catch (LuaEmitException e)
         {
@@ -868,8 +865,8 @@ namespace Neo.IronLua
         // restrictions
         var restrictions = target.Restrictions
           .Merge(arg.Restrictions)
-          .Merge(target.Value == null ? BindingRestrictions.GetInstanceRestriction(target.Expression, null) : BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType))
-          .Merge(arg.Value == null ? BindingRestrictions.GetInstanceRestriction(arg.Expression, null) : BindingRestrictions.GetTypeRestriction(arg.Expression, arg.LimitType));
+          .Merge(Lua.GetSimpleRestriction(target))
+          .Merge(Lua.GetSimpleRestriction(arg));
 
         return new DynamicMetaObject(expr, restrictions);
       } // func FallbackBinaryOperation

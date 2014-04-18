@@ -100,6 +100,7 @@ namespace Neo.IronLua
     internal readonly static MethodInfo CombineArrayWithResultMethodInfo;
     internal readonly static MethodInfo ConvertArrayMethodInfo;
     internal readonly static MethodInfo TableSetObjectsMethod;
+    internal readonly static MethodInfo ConcatStringMethodInfo;
     // Object
     internal readonly static MethodInfo ObjectEqualsMethodInfo;
     internal readonly static MethodInfo ObjectReferenceEqualsMethodInfo;
@@ -228,8 +229,10 @@ namespace Neo.IronLua
       CombineArrayWithResultMethodInfo = typeof(Lua).GetMethod("RtCombineArrayWithResult", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(Array), typeof(LuaResult), typeof(Type) }, null);
       ConvertArrayMethodInfo = typeof(Lua).GetMethod("RtConvertArray", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(Array), typeof(Type) }, null);
       TableSetObjectsMethod = typeof(Lua).GetMethod("RtTableSetObjects", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(LuaTable), typeof(object), typeof(int) }, null);
+      ConcatStringMethodInfo = typeof(Lua).GetMethod("RtConcatString", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod);
 #if DEBUG
-      if (ParseNumberMethodInfo == null || RuntimeLengthMethodInfo == null || ConvertValueMethodInfo == null || GetResultValuesMethodInfo == null || CombineArrayWithResultMethodInfo == null || ConvertArrayMethodInfo == null || TableSetObjectsMethod == null)
+      if (ParseNumberMethodInfo == null || RuntimeLengthMethodInfo == null || ConvertValueMethodInfo == null || GetResultValuesMethodInfo == null || 
+          CombineArrayWithResultMethodInfo == null || ConvertArrayMethodInfo == null || TableSetObjectsMethod == null || ConcatStringMethodInfo == null)
         throw new ArgumentNullException("@5", "Lua");
 #endif
 
@@ -507,7 +510,7 @@ namespace Neo.IronLua
       if (v == null)
         return 0;
       else if (v is LuaTable)
-        return ((LuaTable)v).Length;
+        return ((LuaTable)v).InternLen();
       else if (v is LuaFile)
         return unchecked((int)((LuaFile)v).Length);
       else if (v is String)
@@ -552,12 +555,82 @@ namespace Neo.IronLua
         LuaResult v = (LuaResult)value;
 
         for (int i = 0; i < v.Count; i++)
-          t[iStartIndex++] = v[i];
+          t.SetRawValue(iStartIndex++, v[i]);
       }
       else
-        t[iStartIndex] = value;
+        t.SetRawValue(iStartIndex, value);
       return t;
     } // func RtTableSetObjects
+
+    #endregion
+
+    #region -- RtInvoke ---------------------------------------------------------------
+
+    internal static object RtInvoke(Delegate dlg, params object[] args)
+    {
+      // closures make trouble
+      MethodInfo mi = dlg.GetType().GetMethod("Invoke", BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.InvokeMethod);
+      if (mi == null)
+        mi = dlg.Method;
+
+      // set parameters
+      ParameterInfo[] parameter = mi.GetParameters();
+      object[] argsValidated = new object[parameter.Length];
+      
+      for (int i = 0; i < parameter.Length; i++)
+      {
+        ParameterInfo p = parameter[i];
+        object v;
+
+        if (i == parameter.Length - 1 && p.ParameterType.IsArray)
+        {
+          Type type = p.ParameterType.GetElementType();
+          Array l = Array.CreateInstance(type, args.Length - argsValidated.Length + 1);
+          for (int j = 0; j < l.Length; j++)
+            l.SetValue(RtConvertValue(args[i + j], type), j);
+          v = l;
+        }
+        else if (i < args.Length)
+          v = Lua.RtConvertValue(args[i], p.ParameterType);
+        else if (p.IsOptional)
+          v = p.DefaultValue;
+        else
+          v = Lua.RtConvertValue(null, p.ParameterType);
+
+        argsValidated[i] = v;
+      }
+
+      return dlg.DynamicInvoke(argsValidated);
+    } //func RtInvoke
+
+    #endregion
+
+    #region -- RtConcatString ---------------------------------------------------------
+
+    private static string RtConcatStringTable(object[] args, int iIndex)
+    {
+      if (iIndex >= args.Length - 1)
+        return (string)RtConvertValue(args[iIndex], typeof(string));
+      else if (args[iIndex] is LuaTable)
+        return (string)RtConvertValue(((LuaTable)args[iIndex]).InternConcat(RtConcatStringTable(args, iIndex + 1)), typeof(string));
+      else
+        return (string)RtConvertValue(args[iIndex], typeof(string)) + RtConcatStringTable(args, iIndex + 1);
+    } // func RtConcatStringTable
+
+    internal static string RtConcatString(object[] args)
+    {
+      if (Array.Exists(args, a => a is LuaTable)) // do we have a table, than we use the metatable
+      {
+        return RtConcatStringTable(args, 0);
+      }
+      else
+      {
+        string[] strings = new string[args.Length];
+        for (int i = 0; i < args.Length; i++)
+          strings[i] = (string)RtConvertValue(args[i], typeof(string));
+        return String.Concat(strings);
+      }
+    } // func RtConcatString
 
     #endregion
 

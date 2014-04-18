@@ -112,30 +112,25 @@ namespace Neo.IronLua
     /// <returns></returns>
     protected override DynamicMetaObject GetMemberAccess(DynamicMetaObjectBinder binder, Expression exprTable, object memberName, MemberAccessFlag flags)
     {
-      if ((flags & MemberAccessFlag.ForWrite) == 0 && memberName is string)
+      string sMemberName = (string)memberName;
+
+      // Access to clr can not overload
+      if (String.Compare(sMemberName, "_VERSION", (flags & MemberAccessFlag.IgnoreCase) != 0) == 0)
+        return new DynamicMetaObject(Expression.Constant(VersionString, typeof(string)), BindingRestrictions.GetInstanceRestriction(exprTable, this));
+
+      // Bind the value
+      DynamicMetaObject moGet = base.GetMemberAccess(binder, exprTable, memberName, flags);
+
+      // Check for system members
+      MemberInfo mi = TryGetLuaMember(sMemberName, GetType());
+      if (mi != null)
       {
-        string sMemberName = (string)memberName;
-
-        // Access to clr can not overload
-        if (String.Compare(sMemberName, "_VERSION", (flags & MemberAccessFlag.IgnoreCase) != 0) == 0)
-          return new DynamicMetaObject(Expression.Constant(VersionString, typeof(string)), BindingRestrictions.GetInstanceRestriction(exprTable, this));
-
-        // Bind the value
-        DynamicMetaObject moGet = base.GetMemberAccess(binder, exprTable, memberName, flags);
-
-        // Check for system members
-        MemberInfo mi = TryGetLuaMember(sMemberName, GetType());
-        if (mi != null)
-        {
-          return new DynamicMetaObject(
-            Expression.Coalesce(moGet.Expression, GetMemberExpression(exprTable, mi)),
-            moGet.Restrictions);
-        }
-        else
-          return moGet;
+        return new DynamicMetaObject(
+          Expression.Coalesce(moGet.Expression, GetMemberExpression(exprTable, mi)),
+          moGet.Restrictions);
       }
       else
-        return base.GetMemberAccess(binder, exprTable, memberName, flags);
+        return moGet;
     } // func GetMemberAccess
 
     #endregion
@@ -378,13 +373,16 @@ namespace Neo.IronLua
     /// <param name="obj"></param>
     /// <returns></returns>
     [LuaMember("getmetatable")]
-    private object LuaGetMetaTable(object obj)
+    private LuaTable LuaGetMetaTable(object obj)
     {
       LuaTable t = obj as LuaTable;
       if (t == null)
+      {
+        // todo: generate metatable
         return null;
+      }
       else
-        return t[csMetaTable];
+        return t.MetaTable;
     } // func LuaGetMetaTable
 
     private LuaResult pairsEnum(object s, object current)
@@ -536,7 +534,7 @@ namespace Neo.IronLua
     [LuaMember("rawget")]
     private object LuaRawGet(LuaTable t, object index)
     {
-      return t[index];
+      return t.GetValue(index, true);
     } // func LuaRawGet
 
     /// <summary></summary>
@@ -547,13 +545,10 @@ namespace Neo.IronLua
     {
       if (v == null)
         return 0;
+      else if (v is LuaTable)
+        return ((LuaTable)v).Length;
       else
-      {
-        PropertyInfo pi = v.GetType().GetProperty("Length", BindingFlags.Instance | BindingFlags.GetProperty | BindingFlags.Public);
-        if (pi == null)
-          return 0;
-        return (int)pi.GetValue(v, null);
-      }
+        return Lua.RtLength(v);
     } // func LuaRawLen
 
     /// <summary></summary>
@@ -564,7 +559,7 @@ namespace Neo.IronLua
     [LuaMember("rawset")]
     private LuaTable LuaRawSet(LuaTable t, object index, object value)
     {
-      t[index] = value;
+      t.SetRawValue(index, value);
       return t;
     } // func LuaRawSet
 
@@ -599,7 +594,7 @@ namespace Neo.IronLua
     [LuaMember("setmetatable")]
     private LuaTable LuaSetMetaTable(LuaTable t, LuaTable metaTable)
     {
-      t[csMetaTable] = metaTable;
+      t.MetaTable = metaTable;
       return t;
     } // proc LuaSetMetaTable
 

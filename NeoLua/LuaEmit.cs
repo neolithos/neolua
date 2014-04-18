@@ -1019,6 +1019,8 @@ namespace Neo.IronLua
       {
         // manipulate the cast to the correct parameters
         ParameterInfo[] parameterInfo = miOperation.GetParameters();
+        if (op == Lua.IntegerDivide)
+          op = ExpressionType.Divide;
 
         return Expression.MakeBinary(op,
           Convert(runtime, expr1, type1, parameterInfo[0].ParameterType, lParse),

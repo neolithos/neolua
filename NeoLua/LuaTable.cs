@@ -9,9 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Neo.IronLua
-{
-  // todo: pow, concat, len, index, newindex
-        
+{        
   ///////////////////////////////////////////////////////////////////////////////
   /// <summary></summary>
   public class LuaTable : IDynamicMetaObjectProvider, INotifyPropertyChanged, IEnumerable<KeyValuePair<object, object>>
@@ -27,12 +25,10 @@ namespace Neo.IronLua
     {
       /// <summary>A normal get expression.</summary>
       None = 0,
-      /// <summary>Get the expression for write access.</summary>
-      ForWrite = 1,
       /// <summary>Get the expression for member access.</summary>
-      MemberInvoke = 2,
+      MemberInvoke = 1,
       /// <summary>Member name is not case sensitive.</summary>
-      IgnoreCase = 4
+      IgnoreCase = 2
     } // enum MemberAccessFlag
 
     #endregion
@@ -78,18 +74,19 @@ namespace Neo.IronLua
       {
         return new DynamicMetaObject(
           Lua.EnsureType(Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), mi), binder.ReturnType),
-          BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaTable))
+          GetLuaTableRestriction()
         );
       } // func UnaryOperationCall
 
       private BindingRestrictions GetBinaryRestrictions(DynamicMetaObject arg)
       {
-        return Restrictions.Merge(
-            arg.Value == null ?
-              BindingRestrictions.GetInstanceRestriction(arg.Expression, null) :
-              BindingRestrictions.GetTypeRestriction(arg.Expression, arg.LimitType)
-          );
+        return GetLuaTableRestriction().Merge(Lua.GetSimpleRestriction(arg));
       } // func GetBinaryRestrictions
+
+      private BindingRestrictions GetLuaTableRestriction()
+      {
+        return BindingRestrictions.GetExpressionRestriction(Expression.TypeIs(Expression, typeof(LuaTable)));
+      } // func GetLuaTableRestriction
 
       #endregion
 
@@ -115,6 +112,8 @@ namespace Neo.IronLua
             }
           case ExpressionType.Modulo:
             return BindBinaryCall(binder, Lua.TableModMethodInfo, arg);
+          case ExpressionType.Power:
+            return BindBinaryCall(binder, Lua.TablePowMethodInfo, arg);
           case ExpressionType.And:
             return BindBinaryCall(binder, Lua.TableBAndMethodInfo, arg);
           case ExpressionType.Or:
@@ -134,9 +133,9 @@ namespace Neo.IronLua
           case ExpressionType.LessThanOrEqual:
             return new DynamicMetaObject(Lua.EnsureType(BinaryOperationCall(binder, Lua.TableLessEqualMethodInfo, arg), binder.ReturnType), GetBinaryRestrictions(arg));
           case ExpressionType.GreaterThan:
-            return new DynamicMetaObject(Lua.EnsureType(Expression.Not(BinaryOperationCall(binder, Lua.TableLessThanMethodInfo, arg)), binder.ReturnType), GetBinaryRestrictions(arg));
-          case ExpressionType.GreaterThanOrEqual:
             return new DynamicMetaObject(Lua.EnsureType(Expression.Not(BinaryOperationCall(binder, Lua.TableLessEqualMethodInfo, arg)), binder.ReturnType), GetBinaryRestrictions(arg));
+          case ExpressionType.GreaterThanOrEqual:
+            return new DynamicMetaObject(Lua.EnsureType(Expression.Not(BinaryOperationCall(binder, Lua.TableLessThanMethodInfo, arg)), binder.ReturnType), GetBinaryRestrictions(arg));
         }
         return base.BindBinaryOperation(binder, arg);
       } // func BindBinaryOperation
@@ -173,7 +172,7 @@ namespace Neo.IronLua
             binder.ReturnType,
             true
           ),
-          Lua.GetMethodSignatureRestriction(this, args)
+          GetLuaTableRestriction().Merge(Lua.GetMethodSignatureRestriction(null, args))
         );
       } // func BindInvoke 
 
@@ -275,7 +274,7 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
       {
-        return ((LuaTable)Value).GetMemberAccess(binder, Expression, binder.Name, binder.IgnoreCase ? MemberAccessFlag.ForWrite : MemberAccessFlag.None);
+        return ((LuaTable)Value).GetMemberAccess(binder, Expression, binder.Name, binder.IgnoreCase ? MemberAccessFlag.IgnoreCase : MemberAccessFlag.None);
       } // func BindGetMember
 
       public override DynamicMetaObject BindSetMember(SetMemberBinder binder, DynamicMetaObject value)
@@ -283,20 +282,60 @@ namespace Neo.IronLua
         if (!value.HasValue)
           return binder.Defer(value);
 
-        ParameterExpression tmp = Expression.Variable(typeof(object), "#tmp");
-        DynamicMetaObject moGet = ((LuaTable)Value).GetMemberAccess(binder, Expression, binder.Name, MemberAccessFlag.ForWrite | (binder.IgnoreCase ? MemberAccessFlag.ForWrite : MemberAccessFlag.None));
-        return new DynamicMetaObject(
-          Expression.Block(new ParameterExpression[] { tmp },
-            Expression.Assign(tmp, Expression.Convert(value.Expression, tmp.Type)),
-            Expression.IfThen(Expression.NotEqual(tmp, moGet.Expression),
-              Expression.Block(
-                Expression.Assign(moGet.Expression, tmp),
-                Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableOnPropertyChangedMethodInfo, Expression.Constant(binder.Name, typeof(string)))
-              )
+        LuaTable val = (LuaTable)Value;
+        int iIndex = val.GetValueIndex(binder.Name, binder.IgnoreCase, false);
+        if (iIndex == -2)
+        {
+          return new DynamicMetaObject(
+            Expression.Assign(
+              Expression.Property(
+                Lua.EnsureType(Expression, typeof(LuaTable)),
+                Lua.TableMetaTablePropertyInfo
+              ),
+              LuaEmit.Convert(Lua.GetRuntime(binder), value.Expression, value.LimitType, typeof(LuaTable), false)
             ),
-            tmp
-          ), moGet.Restrictions.Merge(Lua.GetSimpleRestriction(value))
-        );
+            GetLuaTableRestriction().Merge(Lua.GetSimpleRestriction(value))
+          );
+        }
+        else
+        {
+          Expression exprValue = LuaEmit.Convert(Lua.GetRuntime(binder), value.Expression, value.LimitType, typeof(object), false);
+          if (iIndex == -1) // new index
+          {
+            Expression expr = Expression.Condition(
+              val.TableChangedExpression(),
+              Expression.Block(
+                Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableNewIndexMethodInfo,
+                  Expression.Constant(binder.Name, typeof(object)),
+                  Expression.Constant(binder.IgnoreCase),
+                  exprValue,
+                  Expression.Constant(false)
+                ),
+                exprValue
+              ),
+              binder.GetUpdateExpression(typeof(object))
+            );
+            return new DynamicMetaObject(expr,
+              GetLuaTableRestriction().Merge(Lua.GetSimpleRestriction(value))
+            );
+          }
+          else
+          {
+            ParameterExpression tmp = Expression.Variable(typeof(object), "#tmp");
+            return new DynamicMetaObject(
+              Expression.Block(new ParameterExpression[] { tmp },
+                Expression.Assign(tmp, exprValue),
+                Expression.IfThen(Expression.NotEqual(tmp, val.GetIndexAccess(iIndex)),
+                  Expression.Block(
+                    Expression.Assign(val.GetIndexAccess(iIndex), tmp),
+                    Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableOnPropertyChangedMethodInfo, Expression.Constant(binder.Name, typeof(string)))
+                  )
+                ),
+                tmp
+              ), BindingRestrictions.GetInstanceRestriction(Expression, Value).Merge(Lua.GetSimpleRestriction(value))
+            );
+          }
+        }
       } // func BindSetMember
 
       public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
@@ -385,7 +424,12 @@ namespace Neo.IronLua
       if (Object.ReferenceEquals(this, obj))
         return true;
       else if (obj != null)
-        return OnEqual(obj);
+      {
+        bool r;
+        if (TryInvokeMetaTableOperator<bool>("__eq", false, out r, this, obj))
+          return r;
+        return false;
+      }
       else
         return false;
     } // func Equals
@@ -422,7 +466,7 @@ namespace Neo.IronLua
     protected virtual DynamicMetaObject GetMemberAccess(DynamicMetaObjectBinder binder, Expression exprTable, object memberName, MemberAccessFlag flags)
     {
       // Get the index of the name
-      int iIndex = GetValueIndex(memberName, (flags & MemberAccessFlag.IgnoreCase) != 0, (flags & MemberAccessFlag.ForWrite) != 0);
+      int iIndex = GetValueIndex(memberName, (flags & MemberAccessFlag.IgnoreCase) != 0, false);
 
       if (iIndex == -2) // create an access to metatable
       {
@@ -437,9 +481,8 @@ namespace Neo.IronLua
         // if the length of the value-Array changed, then rebind
         Expression expr = Expression.Condition(
           TableChangedExpression(),
-          Expression.Default(typeof(object)),
+          Expression.Call(Lua.EnsureType(exprTable, typeof(LuaTable)), Lua.TableIndexMethodInfo, Expression.Constant(memberName)),
           binder.GetUpdateExpression(typeof(object)));
-
         return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(exprTable, this));
       }
       else if ((flags & MemberAccessFlag.MemberInvoke) != 0)
@@ -555,7 +598,7 @@ namespace Neo.IronLua
           iLength = -1; // no array, length seem's not defined
         else
         {
-          if (iLength == iNameIndex)
+          if (iLength == iNameIndex - 1)
             iLength++;
           else
             iLength = -1; // no sequence
@@ -599,46 +642,76 @@ namespace Neo.IronLua
 
     private object GetValue(object item)
     {
+      return GetValue(item, false);
+    } // func GetValue
+
+    internal object GetValue(object item, bool lRawGet)
+    {
       // Search the name in the hash-table
       int iIndex = GetValueIndex(item, false, false);
-      return iIndex >= 0 ? values[iIndex] : iIndex == -2 ? metaTable : null;
-    } // func GetValue
+      if (iIndex >= 0)
+        return values[iIndex];
+      else if (iIndex == -2)
+        return metaTable;
+      else if (lRawGet)
+        return null;
+      else
+        return OnIndex(item);
+    } // func GetRawValue
 
     private object GetValue(object[] items)
     {
-      return GetValue(items, 0);
+      return GetValue(this, items, 0);
     } // func GetValue
 
-    private object GetValue(object[] items, int iIndex)
+    private object GetValue(LuaTable p, object[] items, int iIndex)
     {
       object o = GetValue(items[iIndex]);
       if (iIndex == items.Length - 1)
-        return o;
+        return o == null ? OnIndex(items[iIndex]) : o;
       else
       {
         LuaTable t = o as LuaTable;
         if (t == null)
-          return null;
+          return p.OnIndex(items[iIndex]);
         else
-          return t.GetValue(items, iIndex++);
+          return t.GetValue(t, items, iIndex++);
       }
     } // func GetValue
 
     private void SetValue(object item, object value, bool lMarkAsMethod)
     {
       // Get the Index for the value, if the value is null then do not create a new value
-      int iIndex = GetValueIndex(item, false, value != null);
+      int iIndex = GetValueIndex(item, false, false);
 
       if (iIndex == -2)
         metaTable = value as LuaTable;
-      else if (iIndex != -1 && SetIndexValue(iIndex, value, lMarkAsMethod)) // Set the value, if there is a index
+      else if (iIndex == -1)
       {
-        // Notify property changed
-        string sPropertyName = item as string;
-        if (sPropertyName != null)
-          OnPropertyChanged(sPropertyName);
+        OnNewIndex(item, false, value, lMarkAsMethod);
+        NotifyValueChanged(item);
+      }
+      else // Set the value, if there is a index
+      {
+        if (SetIndexValue(iIndex, value, lMarkAsMethod))
+          NotifyValueChanged(item);
       }
     } // proc SetValue
+
+    internal void SetRawValue(object item, object value)
+    {
+      int iIndex = GetValueIndex(item, false, true);
+      if (SetIndexValue(iIndex, value, false))
+        NotifyValueChanged(item);
+    } // func SetRawValue
+
+    private void NotifyValueChanged(object item)
+    {
+      // Notify property changed
+      string sPropertyName = item as string;
+      if (sPropertyName != null)
+        OnPropertyChanged(sPropertyName);
+    } // proc NotifyValueChanged
 
     private void SetValue(object[] items, object value)
     {
@@ -723,37 +796,49 @@ namespace Neo.IronLua
 
     #region -- Metatable --------------------------------------------------------------
 
-    private T GetMetaTableOperator<T>(string sKey, string sOpDef)
-      where T : class
+    private bool TryInvokeMetaTableOperator<TRETURN>(string sKey, bool lRaise, out TRETURN r, params object[] args)
     {
       if (metaTable != null)
       {
         object o = metaTable[sKey];
         if (o != null)
         {
-          T f = o as T;
-          if (f != null)
-            return f;
-          else
-            throw new LuaRuntimeException(String.Format(Properties.Resources.rsTableOperatorIncompatible, sKey, sOpDef), 0, true);
+          Delegate dlg = o as Delegate;
+          if (dlg != null)
+          {
+            r = (TRETURN)Lua.RtConvertValue(Lua.RtInvoke(dlg, args), typeof(TRETURN));
+            return true;
+          }
+          if (lRaise)
+            throw new LuaRuntimeException(String.Format(Properties.Resources.rsTableOperatorIncompatible, sKey, "function"), 0, true);
         }
       }
-      throw new LuaRuntimeException(String.Format(Properties.Resources.rsTableOperatorNotFound, sKey), 0, true);
+      if (lRaise)
+        throw new LuaRuntimeException(String.Format(Properties.Resources.rsTableOperatorNotFound, sKey), 0, true);
+
+      r = default(TRETURN);
+      return false;
     } // func GetMetaTableOperator
 
     private object UnaryOperation(string sKey)
     {
-      return GetMetaTableOperator<Func<object>>(sKey, "object f()")();
+      object o;
+      TryInvokeMetaTableOperator<object>(sKey, true, out o, this);
+      return o;
     } // proc UnaryOperation
 
     private object BinaryOperation(string sKey, object arg)
     {
-      return GetMetaTableOperator<Func<object, object>>(sKey, "object f(object)")(arg);
+      object o;
+      TryInvokeMetaTableOperator<object>(sKey, true, out o, this, arg);
+      return o;
     } // proc BinaryOperation
 
     private bool BinaryBoolOperation(string sKey, object arg)
     {
-      return GetMetaTableOperator<Func<object, bool>>(sKey, "bool f(object)")(arg);
+      bool o;
+      TryInvokeMetaTableOperator<bool>(sKey, true, out o, this, arg);
+      return o;
     } // proc BinaryBoolOperation
 
     /// <summary></summary>
@@ -866,6 +951,11 @@ namespace Neo.IronLua
       return BinaryOperation("__shr", arg);
     } // func OnShr
 
+    internal object InternConcat(object arg)
+    {
+      return OnConcat(arg);
+    } // func InternConcat
+
     /// <summary></summary>
     /// <param name="arg"></param>
     /// <returns></returns>
@@ -874,11 +964,19 @@ namespace Neo.IronLua
       return BinaryOperation("__concat", arg);
     } // func OnShr
 
+    internal int InternLen()
+    {
+      return OnLen();
+    } // func InternLen
+
     /// <summary></summary>
     /// <returns></returns>
-    protected virtual object OnLen()
+    protected virtual int OnLen()
     {
-      return UnaryOperation("__len");
+      int iLen;
+      if (TryInvokeMetaTableOperator<int>("__len", false, out iLen, this))
+        return iLen;
+      return Length;
     } // func OnLen
 
     /// <summary></summary>
@@ -886,7 +984,7 @@ namespace Neo.IronLua
     /// <returns></returns>
     protected virtual bool OnEqual(object arg)
     {
-      return BinaryBoolOperation("__eq", arg);
+      return Equals(arg);
     } // func OnEqual
 
     /// <summary></summary>
@@ -910,16 +1008,40 @@ namespace Neo.IronLua
     /// <returns></returns>
     protected virtual object OnIndex(object key)
     {
-      return BinaryOperation("__index", key);
+      if (metaTable == null)
+        return null;
+
+      object index = metaTable["__index"];
+      LuaTable t;
+      Delegate dlg;
+
+      if ((t = index as LuaTable) != null) // default table
+        return t.GetValue(key);
+      else if ((dlg = index as Delegate) != null) // default function
+        return Lua.RtInvoke(dlg, this, key);
+      else
+        return null;
     } // func OnIndex
 
     /// <summary></summary>
     /// <param name="key"></param>
+    /// <param name="lIgnoreCase"></param>
     /// <param name="value"></param>
+    /// <param name="lMarkAsMethod"></param>
     /// <returns></returns>
-    protected virtual object OnNewIndex(object key, object value)
+    protected virtual bool OnNewIndex(object key, bool lIgnoreCase, object value, bool lMarkAsMethod)
     {
-      return GetMetaTableOperator<Func<object, object, object>>("__newindex", "object f(key, object)")(key, value);
+      if (metaTable != null)
+      {
+        Delegate dlg = metaTable["__newindex"] as Delegate;
+        if (dlg != null)
+        {
+          Lua.RtInvoke(dlg, this, key, value);
+          return true;
+        }
+      }
+      SetIndexValue(GetValueIndex(key, lIgnoreCase, true), value, lMarkAsMethod);
+      return false;
     } // func OnIndex
 
     /// <summary></summary>
@@ -927,7 +1049,21 @@ namespace Neo.IronLua
     /// <returns></returns>
     protected virtual object OnCall(object[] args)
     {
-      return GetMetaTableOperator<Func<object[], object>>("__call", "object f(object[])")(args);
+      if (args == null || args.Length == 0)
+      {
+        object o;
+        TryInvokeMetaTableOperator<object>("__call", true, out o, this);
+        return o;
+      }
+      else
+      {
+        object[] argsEnlarged = new object[args.Length + 1];
+        argsEnlarged[0] = this;
+        Array.Copy(args, 0, argsEnlarged, 1, args.Length);
+        object o;
+        TryInvokeMetaTableOperator<object>("__call", false,out o, argsEnlarged);
+        return o;
+      }
     } // func OnCall
 
     #endregion

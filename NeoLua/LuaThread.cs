@@ -217,30 +217,8 @@ namespace Neo.IronLua
       lock (luaThreads)
         luaThreads.Add(this);
 
-      // closures make trouble
-      MethodInfo mi = dlg.GetType().GetMethod("Invoke", BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.InvokeMethod);
-      if (mi == null)
-        mi = dlg.Method;
-
-      // set parameters
-      ParameterInfo[] parameter = mi.GetParameters();
-      object[] argsValidated = new object[parameter.Length];
-      LuaResult args = currentArguments;
-
-      for (int i = 0; i < parameter.Length; i++)
-      {
-        ParameterInfo p = parameter[i];
-        object v = args[i];
-
-        if (v == null && p.IsOptional)
-          v = p.DefaultValue;
-        else
-          v = Lua.RtConvertValue(v, p.ParameterType);
-
-        argsValidated[i] = v;
-      }
-
-      yield(new LuaResult(dlg.DynamicInvoke(argsValidated)));
+     
+      yield(new LuaResult(Lua.RtInvoke(dlg, currentArguments.Values)));
     } // proc ExecuteDelegate
 
     private void EndExecuteDelegate(IAsyncResult ar)

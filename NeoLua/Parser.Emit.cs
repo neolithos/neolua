@@ -94,7 +94,8 @@ namespace Neo.IronLua
 
     private static Expression UnaryOperationExpression(Lua runtime, Token tStart, ExpressionType op, Expression expr)
     {
-      expr = ConvertObjectExpression(runtime, tStart, expr);
+      if (op != ExpressionType.ArrayLength)
+        expr = ConvertObjectExpression(runtime, tStart, expr);
       return SafeExpression(() => LuaEmit.UnaryOperationExpression(runtime, op, expr, expr.Type, true), tStart);
     } // func UnaryOperationExpression
 
@@ -107,8 +108,16 @@ namespace Neo.IronLua
 
     private static Expression ConcatOperationExpression(Lua runtime, Token tStart, Expression[] args)
     {
-      return SafeExpression(() => Expression.Call(Lua.StringConcatMethodInfo, Expression.NewArrayInit(typeof(string),
-        from e in args select LuaEmit.Convert(runtime, e, e.Type, typeof(string), true))), tStart);
+      if (Array.Exists(args, c => LuaEmit.IsDynamicType(c.Type))) // we have a dynamic type in the list -> to the concat on runtime
+      {
+        return SafeExpression(() => Expression.Call(Lua.ConcatStringMethodInfo, Expression.NewArrayInit(typeof(object),
+          from e in args select ConvertObjectExpression(runtime, tStart, e, true))), tStart);
+      }
+      else
+      {
+        return SafeExpression(() => Expression.Call(Lua.StringConcatMethodInfo, Expression.NewArrayInit(typeof(string),
+          from e in args select LuaEmit.Convert(runtime, e, e.Type, typeof(string), true))), tStart);
+      }
     } // func ConcatOperationExpression
 
     private static Expression MemberGetExpression(Lua runtime, Token tStart, Expression instance, string sMember, bool lMethodMember)
