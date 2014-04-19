@@ -16,3 +16,4 @@ PrintResult(a + b, " + ");
 PrintResult(a - b, " - ");
 PrintResult(a * b, " * ");
 PrintResult(a / b, " / ");
+PrintResult(a // b, " // ");

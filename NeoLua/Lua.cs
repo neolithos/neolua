@@ -688,5 +688,15 @@ namespace Neo.IronLua
           return null;
       }
     } // func GetChunk
+
+    /// <summary>Returns the Version of the assembly</summary>
+    public static Version Version
+    {
+      get
+      {
+        AssemblyFileVersionAttribute attr = (AssemblyFileVersionAttribute)Attribute.GetCustomAttribute(typeof(Lua).Assembly, typeof(AssemblyFileVersionAttribute));
+        return attr == null ? new Version() : new Version(attr.Version);
+      }
+    } // prop Version
   } // class Lua
 }

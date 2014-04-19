@@ -376,13 +376,7 @@ namespace Neo.IronLua
     private LuaTable LuaGetMetaTable(object obj)
     {
       LuaTable t = obj as LuaTable;
-      if (t == null)
-      {
-        // todo: generate metatable
-        return null;
-      }
-      else
-        return t.MetaTable;
+      return t == null ? null : t.MetaTable;
     } // func LuaGetMetaTable
 
     private LuaResult pairsEnum(object s, object current)

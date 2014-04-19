@@ -53,9 +53,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\NeoLua\Properties\AssemblyInfoGlobal.cs">
+      <Link>Properties\AssemblyInfoGlobal.cs</Link>
+    </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <None Include="Samples\ForEach.lua" />
+    <None Include="Samples\getPlus.lua" />
     <None Include="Samples\StringBuilder.lua" />
   </ItemGroup>
   <ItemGroup>
@@ -69,17 +73,30 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Samples\DisposeTest.lua" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="Samples\FileRead.lua" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
   -->
+  <Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
+    <CreateItem Include="$(TargetDir)\NeoCmd.exe;$(TargetDir)\Neo.Lua.dll;$(TargetDir)\de\*">
+      <Output ItemName="ZipFile" TaskParameter="Include" />
+    </CreateItem>
+    <Zip Files="@(ZipFile)" WorkingDirectory="$(TargetDir)" ZipFileName="$(TargetDir)\NeoCmd-$(Version).zip" />
+  </Target>
+  <Target Name="BeforeBuild">
+    <ReadLinesFromFile File="..\NeoLua\Properties\AssemblyInfoGlobal.cs">
+      <Output TaskParameter="Lines" ItemName="AssemblyVersionContent" />
+    </ReadLinesFromFile>
+    <PropertyGroup>
+      <Pattern>\[assembly: AssemblyFileVersion\(.(\d+)\.(\d+)\.(\d+)</Pattern>
+      <AssemblyVersionLines>@(AssemblyVersionContent)</AssemblyVersionLines>
+      <AssemblyVersionLine>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyVersionLines), $(Pattern)))</AssemblyVersionLine>
+      <Version>$(AssemblyVersionLine.Remove(0, 32))</Version>
+    </PropertyGroup>
+    <Message Text="Version: $(Version)" />
+  </Target>
+  <Target Name="AfterBuild" DependsOnTargets="ZipLua">
+  </Target>
 </Project>

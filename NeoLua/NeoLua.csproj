@@ -66,6 +66,7 @@
     <Compile Include="LuaThread.cs" />
     <Compile Include="Parser.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\AssemblyInfoGlobal.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -113,7 +114,7 @@
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.-->
   <Target Name="BeforeBuild">
-    <ReadLinesFromFile File="Properties\AssemblyInfo.cs">
+    <ReadLinesFromFile File="Properties\AssemblyInfoGlobal.cs">
       <Output TaskParameter="Lines" ItemName="AssemblyVersionContent" />
     </ReadLinesFromFile>
     <PropertyGroup>

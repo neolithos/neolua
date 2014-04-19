@@ -198,11 +198,11 @@ namespace Neo.IronLua
         if (ci == null)
           throw ParseError(tStart, String.Format(Properties.Resources.rsMemberNotResolved, type.Name, "ctor"));
 
-        return LuaEmit.BindParameter(runtime,
+        return SafeExpression(() => LuaEmit.BindParameter(runtime,
           args => Expression.New(ci, args),
           ci.GetParameters(),
           arguments,
-          e => e, e => e.Type, true);
+          e => e, e => e.Type, true), tStart);
       }
       else if (LuaEmit.IsDynamicType(instance.Type))
       {

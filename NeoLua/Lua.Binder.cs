@@ -14,7 +14,7 @@ namespace Neo.IronLua
 
   ///////////////////////////////////////////////////////////////////////////////
   /// <summary>Dynamic result object for lua functions.</summary>
-  public sealed class LuaResult : IDynamicMetaObjectProvider, IConvertible
+  public sealed class LuaResult : IDynamicMetaObjectProvider, IConvertible, System.Collections.IEnumerable
   {
     #region -- class LuaResultMetaObject ----------------------------------------------
 
@@ -383,6 +383,15 @@ namespace Neo.IronLua
     {
       return Convert.ToUInt64(this[0], provider);
     } // func ToUInt64
+
+    #endregion
+
+    #region -- IEnumerable ------------------------------------------------------------
+
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+    {
+      return Values.GetEnumerator();
+    }
 
     #endregion
 

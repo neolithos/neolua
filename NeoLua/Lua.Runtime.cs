@@ -110,6 +110,7 @@ namespace Neo.IronLua
     // String
     internal readonly static FieldInfo StringEmptyFieldInfo;
     internal readonly static MethodInfo StringConcatMethodInfo;
+    internal readonly static PropertyInfo StringItemPropertyInfo;
     // CultureInvariant
     internal readonly static PropertyInfo CultureInvariantPropertyInfo;
     // Delegate
@@ -257,8 +258,9 @@ namespace Neo.IronLua
       // String
       StringEmptyFieldInfo = typeof(String).GetField("Empty", BindingFlags.Public | BindingFlags.Static | BindingFlags.GetField);
       StringConcatMethodInfo = typeof(String).GetMethod("Concat", BindingFlags.Public | BindingFlags.Static, null, new Type[] { typeof(string[]) }, null);
+      StringItemPropertyInfo = typeof(String).GetProperty("Chars", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty);
 #if DEBUG
-      if (StringEmptyFieldInfo == null || StringConcatMethodInfo == null)
+      if (StringEmptyFieldInfo == null || StringConcatMethodInfo == null || StringItemPropertyInfo == null)
         throw new ArgumentNullException("@8", "String");
 #endif
 

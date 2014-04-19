@@ -1825,7 +1825,7 @@ namespace Neo.IronLua
 
       // get the enumerable expression
       FetchToken(LuaToken.KwIn, code);
-      Expression exprEnum = ConvertExpression(scope.Runtime, tLoopVar, ParseExpression(scope, code, InvokeResult.Object, scope.EmitDebug), typeof(object));
+      Expression exprEnum = Lua.EnsureType(ParseExpression(scope, code, InvokeResult.None, scope.EmitDebug), typeof(object));
 
       // parse the loop body
       FetchToken(LuaToken.KwDo, code);
