@@ -238,6 +238,7 @@ namespace Neo.IronLua
       }
     } // proc RunScript
 
+    [STAThread]
     public static void Main(string[] args)
     {
       WriteText(ConsoleColor.Gray, "NeoLua Interactive Command"); Console.WriteLine();

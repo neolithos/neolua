@@ -551,7 +551,7 @@ namespace Neo.IronLua
           Expression expr;
           try
           {
-            expr = LuaEmit.SetMember(lua, target.Expression, target.LimitType, Name, IgnoreCase, value.Expression, value.LimitType, false);
+            expr = Lua.EnsureType(LuaEmit.SetMember(lua, target.Expression, target.LimitType, Name, IgnoreCase, value.Expression, value.LimitType, false), ReturnType);
           }
           catch (LuaEmitException e)
           {
