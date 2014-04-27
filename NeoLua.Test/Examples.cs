@@ -275,5 +275,65 @@ namespace LuaDLR.Test
         Console.WriteLine("f2({0}) = {1}", 2, f2.DynamicInvoke(-2));
       }
     }
+
+    [TestMethod]
+    public void CodePlexExample8a()
+    {
+      using (Lua l = new Lua())
+      {
+        dynamic g = l.CreateEnvironment();
+        dynamic r = g.dochunk(String.Join(Environment.NewLine,
+          "tm = {};",
+          "tm.__add = function (t, a) return t.n + a; end;",
+          "t = { __metatable = tm, n = 4 };",
+          "return t + 2"));
+
+        LuaTable t = g.t;
+        Console.WriteLine((int)r);
+        Console.WriteLine(t + 2);
+      }
+    }
+
+    [TestMethod]
+    public void CodePlexExample8b()
+    {
+      using (Lua l = new Lua())
+      {
+        dynamic g = l.CreateEnvironment();
+        LuaTable t = new LuaTable();
+        t["n"] = 4;
+        t.MetaTable = new LuaTable();
+        t.MetaTable["__add"] = new Func<LuaTable, int, int>((_t, a) => (int)(_t["n"]) + a);
+        g.t = t;
+        dynamic r = g.dochunk("return t + 2");
+
+        Console.WriteLine((int)r);
+        Console.WriteLine(t + 2);
+      }
+    }
+
+    public class ClrClass
+    {
+      private int n = 4;
+
+      public static int operator +(ClrClass c, int a)
+      {
+        return c.n + a;
+      }
+    }
+
+    [TestMethod]
+    public void CodePlexExample8c()
+    {
+      using (Lua l = new Lua())
+      {
+        dynamic g = l.CreateEnvironment();
+
+        g.c = new ClrClass();
+
+        Console.WriteLine((int)g.dochunk("return c + 2;"));
+      }
+    }
+
   }
 }
