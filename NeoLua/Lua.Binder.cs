@@ -602,7 +602,7 @@ namespace Neo.IronLua
         else
           try
           {
-            expr = LuaEmit.GetIndex(lua, target, indexes, mo => mo.Expression, mo => mo.LimitType, false);
+            expr = Lua.EnsureType(LuaEmit.GetIndex(lua, target, indexes, mo => mo.Expression, mo => mo.LimitType, false), ReturnType);
           }
           catch (LuaEmitException e)
           {
@@ -654,7 +654,7 @@ namespace Neo.IronLua
         else
           try
           {
-            expr = LuaEmit.SetIndex(lua, target, indexes, value, mo => mo.Expression, mo => mo.LimitType, false);
+            expr = Lua.EnsureType(LuaEmit.SetIndex(lua, target, indexes, value, mo => mo.Expression, mo => mo.LimitType, false), ReturnType);
           }
           catch (LuaEmitException e)
           {
