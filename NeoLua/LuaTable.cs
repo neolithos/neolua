@@ -381,6 +381,27 @@ namespace Neo.IronLua
 
       #endregion
 
+      #region -- BindConvert ----------------------------------------------------------
+
+      public override DynamicMetaObject BindConvert(ConvertBinder binder)
+      {
+        if (!binder.Type.IsAssignableFrom(Value.GetType()))
+        {
+          ConstructorInfo ciTypeConstructor = binder.Type.GetConstructor(new Type[0]); // is there a default constructor
+          if (ciTypeConstructor != null)
+          {
+            return new DynamicMetaObject(
+              Lua.EnsureType(
+                Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableSetObjectMember, Expression.New(ciTypeConstructor)),
+                binder.ReturnType),
+              GetLuaTableRestriction());
+          }
+        }
+        return base.BindConvert(binder);
+      } // func BindConvert
+
+      #endregion
+
       /// <summary></summary>
       /// <returns></returns>
       public override IEnumerable<string> GetDynamicMemberNames()
@@ -553,6 +574,42 @@ namespace Neo.IronLua
 
     #endregion
 
+    #region -- SetObjectMember --------------------------------------------------------
+
+    /// <summary>Todo: performs not so well</summary>
+    /// <param name="obj"></param>
+    public object SetObjectMember(object obj)
+    {
+      if (obj == null)
+        return obj;
+
+      Type type = obj.GetType();
+      foreach (var c in names)
+      {
+        string sMemberName = c.Key as string;
+        if (!String.IsNullOrEmpty(sMemberName))
+        {
+          object val = values[c.Value];
+          if (val != null)
+          {
+            FieldInfo fi = type.GetField(sMemberName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.SetField);
+            if (fi != null)
+              fi.SetValue(obj, Lua.RtConvertValue(val, fi.FieldType));
+            else
+            {
+              PropertyInfo pi = type.GetProperty(sMemberName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.SetProperty);
+              if (pi != null)
+                pi.SetValue(obj, Lua.RtConvertValue(val, pi.PropertyType), null);
+            }
+          }
+        }
+      }
+
+      return obj;
+    } // proc SetObjectMember
+
+    #endregion
+
     #region -- GetValue, SetValue -----------------------------------------------------
 
     /// <summary>Notify property changed</summary>
@@ -594,15 +651,9 @@ namespace Neo.IronLua
 
         // Update length
         int iNameIndex = item is int ? (int)item : -1;
-        if (iNameIndex == -1)
-          iLength = -1; // no array, length seem's not defined
-        else
-        {
-          if (iLength == iNameIndex - 1)
-            iLength++;
-          else
-            iLength = -1; // no sequence
-        }
+        // use the highest positive index (https://neolua.codeplex.com/discussions/544242)
+        if (iNameIndex > 0 && iNameIndex > iLength)
+          iLength = iNameIndex;
       }
 
       return iIndex;

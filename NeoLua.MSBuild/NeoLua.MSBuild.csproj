@@ -57,12 +57,9 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="install.ps1" />
+    <None Include="Init.ps1" />
     <None Include="NeoLuaMSBuild.nuspec" />
     <None Include="Sample\Test.bproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="NeoLuaMsBuildReadme.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -77,7 +77,7 @@
   <ItemGroup>
     <ProjectReference Include="..\NeoLua\NeoLua.csproj">
       <Project>{09aebb35-719e-4e32-9836-f57d7d6f1607}</Project>
-      <Name>LuaDLR</Name>
+      <Name>NeoLua</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

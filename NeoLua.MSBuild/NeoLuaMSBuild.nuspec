@@ -14,9 +14,8 @@
     <tags>Lua NeoLua .net MSBuild</tags>
   </metadata>
   <files>
-    <file src="NeoLuaMsBuildReadme.txt" target="content\NeoLuaMsBuildReadme.txt" />
-    <file src="install.ps1" target="tools\install.ps1" />
-    <file src="bin\Release\Neo.Lua.dll" target="tools\Neo.Lua.dll" />
-    <file src="bin\Release\Neo.Lua.MSBuild.dll" target="tools\Neo.Lua.MSBuild.dll" />
+    <file src="Init.ps1" target="tools" />
+    <file src="bin\Release\Neo.Lua.dll" target="tools" />
+    <file src="bin\Release\Neo.Lua.MSBuild.dll" target="tools" />
   </files>
 </package>

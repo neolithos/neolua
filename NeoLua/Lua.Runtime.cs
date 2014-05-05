@@ -50,6 +50,7 @@ namespace Neo.IronLua
     internal readonly static PropertyInfo TableMetaTablePropertyInfo;
     internal readonly static MethodInfo TableOnPropertyChangedMethodInfo;
     internal readonly static MethodInfo TableCheckMethodVersionMethodInfo;
+    internal readonly static MethodInfo TableSetObjectMember;
 
     internal readonly static MethodInfo TableAddMethodInfo;
     internal readonly static MethodInfo TableSubMethodInfo;
@@ -151,6 +152,7 @@ namespace Neo.IronLua
       TableMetaTablePropertyInfo = typeof(LuaTable).GetProperty("MetaTable", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty);
       TableOnPropertyChangedMethodInfo = typeof(LuaTable).GetMethod("OnPropertyChanged", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod);
       TableCheckMethodVersionMethodInfo = typeof(LuaTable).GetMethod("CheckMethodVersion", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod);
+      TableSetObjectMember = typeof(LuaTable).GetMethod("SetObjectMember", BindingFlags.Public | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
 
       TableAddMethodInfo = typeof(LuaTable).GetMethod("OnAdd", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
       TableSubMethodInfo = typeof(LuaTable).GetMethod("OnSub", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
@@ -177,7 +179,7 @@ namespace Neo.IronLua
 
 #if DEBUG
       if (TableSetMethodMethodInfo == null || TableSetValueIdxMethodInfo == null || TableSetValueIdxNMethodInfo == null ||
-          TableOnPropertyChangedMethodInfo == null || TableCheckMethodVersionMethodInfo == null ||
+          TableOnPropertyChangedMethodInfo == null || TableCheckMethodVersionMethodInfo == null || TableSetObjectMember == null ||
           TableAddMethodInfo == null || TableSubMethodInfo == null || TableMulMethodInfo == null || 
           TableDivMethodInfo == null || TableModMethodInfo == null || TablePowMethodInfo == null || 
           TableUnMinusMethodInfo == null || TableIDivMethodInfo == null || TableBAndMethodInfo == null || 

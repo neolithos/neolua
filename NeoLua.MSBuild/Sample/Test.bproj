@@ -3,9 +3,13 @@
   <UsingTask TaskName="HalloLua" TaskFactory="Neo.IronLua.LuaTaskFactory" AssemblyFile="..\bin\Debug\Neo.Lua.MSBuild.dll">
     <ParameterGroup>
       <Text ParameterType="System.String" Required="false" Output="true" />
+      <Lines ParameterType="Microsoft.Build.Framework.ITaskItem[]" />
     </ParameterGroup>
     <Task>
       <![CDATA[
+      foreach c in Lines do
+        log.LogMessage(c.ItemSpec);
+      end;
       log.LogMessage(Text);
       clr.System.Console:Beep();
       Text = 'Hallo from Lua!';
@@ -16,9 +20,14 @@
   <PropertyGroup>
     <Hallo>Hallo from MSBuild!</Hallo>
   </PropertyGroup>
+  <ItemGroup>
+    <Line Include="test1" />
+    <Line Include="test2" />
+    <Line Include="test3" />
+  </ItemGroup>
 
   <Target Name="Test">
-    <HalloLua Text="$(Hallo)">
+    <HalloLua Text="$(Hallo)" Lines="@(Line)">
       <Output TaskParameter="Text" PropertyName="Hallo"/>
     </HalloLua>
     <Message Text="$(Hallo)" />

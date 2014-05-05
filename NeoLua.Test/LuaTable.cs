@@ -232,7 +232,7 @@ namespace LuaDLR.Test
         "tm = {}",
         "tm.__len = function (t) return 4; end;",
         "t = { __metatable = tm };",
-        "return #t, #tm, #'aa';"), 4, -1 , 2);
+        "return #t, #tm, #'aa';"), 4, 0 , 2);
     }
 
     [TestMethod]
@@ -289,6 +289,24 @@ namespace LuaDLR.Test
         "t = { __metatable = tm };",
         "return t(1,2,3);"), 3);
     }
+
+    #endregion
+
+    #region -- TestConvert ------------------------------------------------------------
+
+    [TestMethod]
+    public void TestConvert01()
+    {
+      using (Lua l = new Lua())
+      {
+        l.PrintExpressionTree = true;
+        var g = l.CreateEnvironment();
+        var r = g.DoChunk("return cast(System.Diagnostics.ProcessStartInfo, { FileName = 'Test.exe', Arguments = 'aaa' });", "dummy");
+        ProcessStartInfo psi = (ProcessStartInfo)r[0];
+        Assert.IsTrue(psi.FileName == "Test.exe");
+        Assert.IsTrue(psi.Arguments == "aaa");
+      }
+    } // func TestConvert01
 
     #endregion
 

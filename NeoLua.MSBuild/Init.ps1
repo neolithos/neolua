@@ -1,4 +1,4 @@
-﻿param($installPath, $toolsPath, $package, $project)
+﻿param($installPath, $toolsPath, $package)
 
 Write-Host "Copy libs...";
 
@@ -10,13 +10,6 @@ else
 {
 	throw "No solution.";
 }
-
-Write-Host "Delete readme..."
-
-$project.ProjectItems | Where-Object { $_.Name -eq 'NeoLuaMsBuildReadme.txt' } | Foreach-Object {
-	Remove-Item ( $_.FileNames(0) )
-	$_.Remove() 
-};
 
 Write-Host "Target for msbuild task factory: $target";
 if (!(Test-Path $target))
