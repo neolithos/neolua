@@ -46,6 +46,18 @@ namespace LuaDLR.Test
       public event EventHandler EventTest2;
     }
 
+    public struct SubStruct
+    {
+      private int iValue;
+
+      public SubStruct(int i)
+      {
+        iValue = i;
+      }
+
+      public int Value { get { return iValue; } set { iValue = value; } }
+    }
+
     public static void Test()
     {
       Console.WriteLine("Hallo");
@@ -229,6 +241,12 @@ namespace LuaDLR.Test
     }
 
     [TestMethod]
+    public void MethodTest06()
+    {
+      TestCode("return 'Hallo'.Substring(2);", "llo");
+    } 
+
+    [TestMethod]
     public void EventTest01()
     {
       SubClass c = new SubClass();
@@ -285,6 +303,24 @@ namespace LuaDLR.Test
           "a();"), "dummy", false);
         g.DoChunk(c);
       }
+    }
+
+    [TestMethod]
+    public void CtorTest01()
+    {
+      TestCode("return clr.LuaDLR.Test.LuaTypeTests.SubStruct().Value", 0);
+    }
+
+    [TestMethod]
+    public void CtorTest02()
+    {
+      TestCode("return clr.LuaDLR.Test.LuaTypeTests.SubStruct(2).Value", 2);
+    }
+
+    [TestMethod]
+    public void CtorTest03()
+    {
+      TestCode("return cast(LuaDLR.Test.LuaTypeTests.SubStruct, { Value = 2 }).Value", 2);
     }
   } // class LuaTypeTests 
 }

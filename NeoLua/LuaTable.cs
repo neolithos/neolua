@@ -387,15 +387,11 @@ namespace Neo.IronLua
       {
         if (!binder.Type.IsAssignableFrom(Value.GetType()))
         {
-          ConstructorInfo ciTypeConstructor = binder.Type.GetConstructor(new Type[0]); // is there a default constructor
-          if (ciTypeConstructor != null)
-          {
-            return new DynamicMetaObject(
-              Lua.EnsureType(
-                Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableSetObjectMember, Expression.New(ciTypeConstructor)),
-                binder.ReturnType),
-              GetLuaTableRestriction());
-          }
+          return new DynamicMetaObject(
+            Lua.EnsureType(
+              Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableSetObjectMember, Lua.EnsureType(Expression.New(binder.Type), typeof(object))),
+              binder.ReturnType),
+            GetLuaTableRestriction());
         }
         return base.BindConvert(binder);
       } // func BindConvert

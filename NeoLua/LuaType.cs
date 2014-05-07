@@ -269,11 +269,20 @@ namespace Neo.IronLua
         Expression expr;
         try
         {
-          ConstructorInfo ci = LuaEmit.FindMember(typeNew.GetConstructors(BindingFlags.Public | BindingFlags.CreateInstance | BindingFlags.Instance), args, mo => mo.LimitType);
+          ConstructorInfo ci = 
+            typeNew.IsValueType && args.Length == 0 ?  // value-types with zero arguments always constructable
+              null :
+              LuaEmit.FindMember(typeNew.GetConstructors(BindingFlags.Public | BindingFlags.CreateInstance | BindingFlags.Instance), args, mo => mo.LimitType);
+
+          // ctor not found for a class
+          if(ci == null && !typeNew.IsValueType)
+            expr = Lua.ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, typeNew.Name, "ctor"), returnType);
+
+          // create the object
           expr = Lua.EnsureType(
             LuaEmit.BindParameter(null,
-              a => Expression.New(ci, a),
-              ci.GetParameters(),
+              a => ci == null ? Expression.New(typeNew) : Expression.New(ci, a),
+              ci == null ? new ParameterInfo[0] : ci.GetParameters(),
               args,
               mo => mo.Expression, mo => mo.LimitType, false),
             returnType, true

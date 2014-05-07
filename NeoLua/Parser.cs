@@ -1483,7 +1483,9 @@ namespace Neo.IronLua
         FetchToken(LuaToken.BracketClose, code);
 
         lWrap |= true;
-        return ConvertExpression(scope.Runtime, t, expr, luaType);
+        PrefixMemberInfo prefix = new PrefixMemberInfo(t, ConvertExpression(scope.Runtime, t, expr, luaType), null, null, null);
+        ParseSuffix(scope, code, prefix);
+        return prefix.GenerateGet(scope, result);
       }
       else
         return ParsePrefix(scope, code).GenerateGet(scope, result);

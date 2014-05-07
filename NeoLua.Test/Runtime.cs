@@ -13,6 +13,21 @@ namespace LuaDLR.Test
   [TestClass]
   public class Runtime : TestHelper
   {
+    private class LuaGlobalNew : LuaGlobal
+    {
+      public LuaGlobalNew(Lua l)
+        : base(l)
+      {
+      }
+
+      [LuaMember("LogInfo")]
+      public int LogInfo(string sText)
+      {
+        Console.WriteLine(sText);
+        return 3;
+      }
+    }
+
     public class SubClass
     {
       public SubClass(byte a)
@@ -169,6 +184,16 @@ namespace LuaDLR.Test
         g.DoChunk("debug:Print('Hallo World!');", "test.lua");
       }
     } // proc TestRuntimeLua13
+
+    [TestMethod]
+    public void TestGlobalMember01()
+    {
+      using (Lua l = new Lua())
+      {
+        dynamic g = new LuaGlobalNew(l);
+        TestResult(g.dochunk("return LogInfo('Hello');"), 3);
+      }
+    }
 
     [TestMethod]
     public void TestDateTime01()

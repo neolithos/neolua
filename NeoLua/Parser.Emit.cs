@@ -194,13 +194,17 @@ namespace Neo.IronLua
       if (constInstance != null && (t = constInstance.Value as LuaType) != null && t.Type != null) // we have a type, bind the ctor
       {
         Type type = t.Type;
-        ConstructorInfo ci = LuaEmit.FindMember(type.GetConstructors(BindingFlags.Public | BindingFlags.CreateInstance | BindingFlags.Instance), arguments, e => e.Type);
-        if (ci == null)
+        ConstructorInfo ci = 
+          type.IsValueType && arguments.Length == 0 ?
+            null :
+            LuaEmit.FindMember(type.GetConstructors(BindingFlags.Public | BindingFlags.CreateInstance | BindingFlags.Instance), arguments, e => e.Type);
+
+        if (ci == null && !type.IsValueType)
           throw ParseError(tStart, String.Format(Properties.Resources.rsMemberNotResolved, type.Name, "ctor"));
 
         return SafeExpression(() => LuaEmit.BindParameter(runtime,
-          args => Expression.New(ci, args),
-          ci.GetParameters(),
+          args => ci == null ? Expression.New(type) : Expression.New(ci, args),
+          ci == null ? new ParameterInfo[0] :  ci.GetParameters(),
           arguments,
           e => e, e => e.Type, true), tStart);
       }
