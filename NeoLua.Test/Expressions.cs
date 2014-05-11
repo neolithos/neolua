@@ -915,6 +915,15 @@ namespace LuaDLR.Test
       }
     }
 
+    [TestMethod]
+    public void TestCompare10()
+    {
+      TestCode(String.Join(Environment.NewLine,
+        "local a : string = '2';",
+        "return a == 2;"
+        ), true);
+    }
+
     #endregion
 
     #region -- Concat -----------------------------------------------------------------

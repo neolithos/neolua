@@ -669,7 +669,7 @@ namespace Neo.IronLua
       bool lExact = false;
       Type compareInterface1 = GetComparableInterface(type1, type2, ref lExact);
       Type compareInterface2 = null;
-      if (!lExact && lIsArithmetic1) // arithmetic type compare interface, do not use because they only compare it self
+      if (!lExact && (lIsArithmetic1 || type1 == typeof(string))) // arithmetic type compare interface, do not use because they only compare it self
         compareInterface1 = null;
 
       if (type1 != type2 && !lExact)
@@ -678,7 +678,7 @@ namespace Neo.IronLua
         compareInterface2 = GetComparableInterface(type2, type1, ref lExact);
         if (lExact)
           compareInterface1 = null;
-        else if (compareInterface1 != null || lIsArithmetic2)
+        else if (compareInterface1 != null || lIsArithmetic2 || type2 == typeof(string))
           compareInterface2 = null;
       }
 

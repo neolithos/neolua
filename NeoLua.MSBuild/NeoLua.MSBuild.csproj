@@ -86,8 +86,8 @@
   </Target>
   <Target Name="NuGet" Condition=" '$(Configuration)' == 'Release' ">
     <Exec Command="c:\Projects\Bin\NuGet.exe pack NeoLuaMSBuild.nuspec -OutputDirectory $(TargetDir) -Version $(Version)" />
-    <Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir)NeoLuaMSBuild.$(Version).nupkg" />
+    <!--<Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir)NeoLuaMSBuild.$(Version).nupkg" />-->
   </Target>
-  <Target Name="AfterBuild" DependsOnTargets="ZipLua">
+  <Target Name="AfterBuild" DependsOnTargets="ZipLua;NuGet">
   </Target>
 </Project>
