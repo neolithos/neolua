@@ -222,12 +222,15 @@ namespace Neo.IronLua
     /// <returns></returns>
     public LuaFile popen(string program, string mode = "r")
     {
-      ProcessStartInfo psi = new ProcessStartInfo(null, program);
+			string sFileName;
+			string sArguments;
+			LuaLibraryOS.SplitCommand(program, out sFileName, out sArguments);
+      ProcessStartInfo psi = new ProcessStartInfo(sFileName, sArguments);
       psi.RedirectStandardOutput = mode.IndexOf('r') >= 0;
       psi.RedirectStandardInput = mode.IndexOf('w') >= 0;
       psi.UseShellExecute = false;
       psi.CreateNoWindow = true;
-      return new LuaFile(Process.Start(psi));
+      return new LuaFile(Process.Start(psi), psi.RedirectStandardOutput, psi.RedirectStandardInput);
     } // func popen  
   } // class LuaFilePackage
 
@@ -301,11 +304,11 @@ namespace Neo.IronLua
       this.tw = (access & FileAccess.Write) == 0 ? null : new StreamWriter(src, defaultEncoding);
     } // ctor
 
-    internal LuaFile(Process process)
+    internal LuaFile(Process process, bool lStandardOutputRedirected, bool lStandardInputRedirected)
     {
       this.process = process;
-      this.tr = process.StandardOutput;
-      this.tw =  process.StandardInput;
+			this.tr = lStandardOutputRedirected ? process.StandardOutput : null;
+			this.tw = lStandardInputRedirected ? process.StandardInput : null;
     } // ctor
 
     /// <summary></summary>
@@ -520,8 +523,8 @@ namespace Neo.IronLua
     /// <returns></returns>
     public LuaResult read(object[] args)
     {
-      if (!src.CanRead)
-        return new LuaResult(null, Properties.Resources.rsFileNotReadable);
+			if (tr == null)
+				return new LuaResult(null, Properties.Resources.rsFileNotReadable);
 
       lock (this)
         try
@@ -569,8 +572,8 @@ namespace Neo.IronLua
     /// <returns></returns>
     public LuaResult write(object[] args)
     {
-      if (!src.CanWrite)
-        return new LuaResult(null, Properties.Resources.rsFileNotWriteable);
+			if (tw == null)
+				return new LuaResult(null, Properties.Resources.rsFileNotWriteable);
 
       lock (this)
         try
@@ -597,7 +600,7 @@ namespace Neo.IronLua
     /// <returns></returns>
     public LuaResult seek(string whence, long offset = 0)
     {
-      if (src.CanSeek)
+      if (src == null || !src.CanSeek)
         return new LuaResult(null, Properties.Resources.rsFileNotSeekable);
 
       lock (this)
@@ -635,14 +638,14 @@ namespace Neo.IronLua
     } // proc setvbuf
 
     /// <summary>Is the file closed.</summary>
-    public bool IsClosed { get { return src == null; } }
+    public bool IsClosed { get { return src == null && tw == null && tr == null; } }
 
     /// <summary>Access to the internal TextReader.</summary>
     public StreamReader TextReader { get { return tr; } }
     /// <summary>Access to the internal TextWriter.</summary>
     public StreamWriter TextWriter { get { return tw; } }
     /// <summary>Length of the file.</summary>
-    public long Length { get { return src.Length; } }
+		public long Length { get { return src == null ? -1 : src.Length; } }
   } // class LuaFile
 
   #endregion

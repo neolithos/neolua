@@ -730,13 +730,47 @@ namespace Neo.IronLua
       return time2 - time1;
     } // func difftime
 
-    public static LuaResult execute(string command)
+		internal static void SplitCommand(string command, out string sFileName, out string sArguments)
+		{
+			// check the parameter
+			if (command == null)
+				throw new ArgumentNullException("command");
+			command = command.Trim();
+			if (command.Length == 0)
+				throw new ArgumentNullException("command");
+
+			// split the command
+			if (command[0] == '"')
+			{
+				int iPos = command.IndexOf('"', 1);
+				if (iPos == -1)
+				{
+					sFileName = command;
+					sArguments = null;
+				}
+				else
+				{
+					sFileName = command.Substring(1, iPos - 1).Trim();
+					sArguments = command.Substring(iPos + 1).Trim();
+				}
+			}
+			else
+			{
+				sFileName = Path.Combine(Environment.SystemDirectory, "cmd.exe");
+				sArguments = "/c " + command;
+			}
+		} // proc SplitCommand
+
+		public static LuaResult execute(string command, Func<string, LuaResult> output, Func<string, LuaResult> error)
     {
       if (command == null)
         return new LuaResult(true);
       try
       {
-        using (Process p = Process.Start(null, command))
+				string sFileName;
+				string sArguments;
+				SplitCommand(command, out sFileName, out sArguments);
+        using (Process p = Process.Start(sFileName, sArguments))
         {
           p.WaitForExit();
           return new LuaResult(true, "exit", p.ExitCode);
@@ -747,7 +781,7 @@ namespace Neo.IronLua
         return new LuaResult(null, e.Message);
       }
     } // func execute
-
+		
     public static void exit(int code = 0, bool close = true)
     {
       Environment.Exit(code);

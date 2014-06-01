@@ -1131,7 +1131,7 @@ namespace Neo.IronLua
 
 		private int CalcLength()
 		{
-			int[] indexes = new int[names.Count];
+			int[] indexes = new int[names.Count + 1];
 			
 			// Create a Index with the values
 			foreach (var c in names)
