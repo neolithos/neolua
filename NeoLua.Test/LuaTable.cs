@@ -310,7 +310,24 @@ namespace LuaDLR.Test
 
     #endregion
 
-    [TestMethod]
+		#region -- Length -----------------------------------------------------------------
+
+		[TestMethod]
+		public void TestLength01()
+		{
+			dynamic t = new LuaTable();
+			t[1] = 1;
+			t[2] = 1;
+			t[4] = 1;
+			Assert.IsTrue(((LuaTable)t).Length == 2);
+			t[8] = 1;
+			t[3] = 1;
+			Assert.IsTrue(((LuaTable)t).Length == 4);
+		}
+
+		#endregion
+
+		[TestMethod]
     public void EnvDynamicCall01()
     {
       using (Lua l = new Lua())

@@ -418,7 +418,6 @@ namespace Neo.IronLua
     private List<object> values = null;           // Array with values
     private Dictionary<object, int> names = null; // Names or Indices in the value-Array
     private LuaTable metaTable = null;            // Currently attached metatable
-    private int iLength = 0;
     
     private int iMethodVersion = 0;   // if the methods-array is changed, then this values gets increased
     private Dictionary<CallInfo, CallSiteBinder> invokeBinder = new Dictionary<CallInfo, CallSiteBinder>();
@@ -644,12 +643,6 @@ namespace Neo.IronLua
       {
         names[item] = iIndex = values.Count;
         values.Add(null);
-
-        // Update length
-        int iNameIndex = item is int ? (int)item : -1;
-        // use the highest positive index (https://neolua.codeplex.com/discussions/544242)
-        if (iNameIndex > 0 && iNameIndex > iLength)
-          iLength = iNameIndex;
       }
 
       return iIndex;
@@ -1136,10 +1129,30 @@ namespace Neo.IronLua
 
     #endregion
 
-    /// <summary>Returns or sets an value in the lua-table.</summary>
-    /// <param name="iIndex">Index.</param>
-    /// <returns>Value or <c>null</c></returns>
-    public object this[int iIndex] { get { return GetValue(iIndex); } set { SetValue(iIndex, value, false); } }
+		private int CalcLength()
+		{
+			int[] indexes = new int[names.Count];
+			
+			// Create a Index with the values
+			foreach (var c in names)
+				if (c.Key is int)
+				{
+					int i = (int)c.Key;
+					if (i >= 1 && i < indexes.Length)
+						indexes[i] = values[c.Value] == null ? 0 : 1;
+				}
+
+			// Find the highest
+			int iLength = 1;
+			while (iLength < indexes.Length && indexes[iLength] != 0)
+				iLength++;
+			return iLength - 1;
+		} // proc CalcLength
+
+		/// <summary>Returns or sets an value in the lua-table.</summary>
+		/// <param name="iIndex">Index.</param>
+		/// <returns>Value or <c>null</c></returns>
+		public object this[int iIndex] { get { return GetValue(iIndex); } set { SetValue(iIndex, value, false); } }
     /// <summary>Returns or sets an value in the lua-table.</summary>
     /// <param name="sName">Index.</param>
     /// <returns>Value or <c>null</c></returns>
@@ -1150,7 +1163,7 @@ namespace Neo.IronLua
     public object this[object item] { get { return GetValue(item); } set { SetValue(item, value, false); } }
 
     /// <summary>Length if it is an array.</summary>
-    public int Length { get { return iLength; } }
+    public int Length { get { return CalcLength(); } }
     /// <summary>Access to the __metatable</summary>
     public LuaTable MetaTable { get { return metaTable; } set { metaTable = value; } }
 

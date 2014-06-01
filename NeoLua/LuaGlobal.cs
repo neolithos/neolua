@@ -215,7 +215,7 @@ namespace Neo.IronLua
     /// <returns>Return values of the chunk.</returns>
     public LuaResult DoChunk(LuaChunk chunk, params object[] callArgs)
     {
-      if (!chunk.IsCompiled)
+      if (chunk == null || !chunk.IsCompiled)
         throw new ArgumentException(Properties.Resources.rsChunkNotCompiled, "chunk");
       if (lua != chunk.Lua)
         throw new ArgumentException(Properties.Resources.rsChunkWrongScriptManager, "chunk");
