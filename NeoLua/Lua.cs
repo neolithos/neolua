@@ -211,6 +211,8 @@ namespace Neo.IronLua
     private ModuleBuilder module = null;
     private object lockCompile = new object();
     private Dictionary<string, LuaChunk> chunks = null;
+		private Dictionary<string, string> loadedModuls = null;
+		private string[] standardPackagePaths = null;
 
     private int iNumberType = (int)LuaIntegerType.Int32 | (int)LuaFloatType.Double;
 
@@ -261,6 +263,7 @@ namespace Neo.IronLua
         }
         assembly = null;
         module = null;
+				loadedModuls = null;
         chunks = null;
       }
       ClearBinderCache();
@@ -468,8 +471,26 @@ namespace Neo.IronLua
 
     internal void RemoveChunk(string sName)
     {
-      lock (lockCompile)
-        chunks.Remove(sName);
+			lock (lockCompile)
+			{
+				chunks.Remove(sName);
+
+				if (loadedModuls != null)
+				{
+					// Search for a modul key
+					string sKey = null;
+					foreach (var c in loadedModuls)
+						if (c.Value == sName)
+						{
+							sKey = c.Key;
+							break;
+						}
+
+					// remove the modul
+					if (!String.IsNullOrEmpty(sKey))
+						loadedModuls.Remove(sKey);
+				}
+			}
     } // proc RemoveChunk
 
     private void ClearEmptyChunks()
@@ -484,13 +505,48 @@ namespace Neo.IronLua
 
         // remove the empty chunks
         for (int i = 0; i < s.Count; i++)
-          chunks.Remove(s[i]);
+					RemoveChunk(s[i]);
       }
     } // proc ClearEmptyChunks
 
     #endregion
 
-    /// <summary>Creates an empty environment for the lua functions.</summary>
+		#region -- Require ------------------------------------------------------------------
+
+		internal LuaChunk LuaRequire(LuaGlobal global, object modname)
+		{
+			if (modname is string)
+			{
+				string sModName = (string)modname;
+				string sFileName;
+				DateTime dtStamp;
+				if (global.LuaRequireFindFile(sModName, out sFileName, out dtStamp))
+				{
+					lock (lockCompile)
+					{
+						LuaChunk c;
+						string sCacheId = sFileName + ";" + dtStamp.ToString("o");
+						string sChunkName;
+
+						// is the modul loaded
+						if (loadedModuls == null ||
+							!loadedModuls.TryGetValue(sCacheId, out sChunkName) ||
+							!chunks.TryGetValue(sChunkName, out c))
+						{
+							// compile the modul
+							c = CompileChunk(sFileName, false);
+						}
+
+						return c;
+					}
+				}
+			}
+			return null;
+		} // func LuaRequire
+
+		#endregion
+
+		/// <summary>Creates an empty environment for the lua functions.</summary>
     /// <returns>Initialized environment</returns>
     public virtual LuaGlobal CreateEnvironment()
     {
@@ -617,6 +673,38 @@ namespace Neo.IronLua
     #endregion
 
     internal bool PrintExpressionTree { get { return lPrintExpressionTree; } set { lPrintExpressionTree = value; } }
+
+		/// <summary>Default path for the package loader</summary>
+		public string[] StandardPackagesPaths
+		{
+			get
+			{
+				if (standardPackagePaths == null)
+				{
+					string sExecutingDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+					standardPackagePaths = new string[]
+					{
+						"%currentdirectory%",
+						sExecutingDirectory,
+						Path.Combine(sExecutingDirectory, "lua")
+					};
+				}
+				return standardPackagePaths;
+			}
+		} // prop StandardPackagesPaths
+
+		/// <summary>Default path for the package loader</summary>
+		public string StandardPackagesPath
+		{
+			get { return String.Join(";", StandardPackagesPaths); }
+			set
+			{
+				if (String.IsNullOrEmpty(value))
+					standardPackagePaths = null;
+				else
+					standardPackagePaths = value.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+			}
+		} // prop StandardPackagesPath
 
     // -- Static --------------------------------------------------------------
 

@@ -69,8 +69,65 @@ namespace Neo.IronLua
 
     #endregion
 
+		#region -- class LuaLoadedTable -----------------------------------------------------
+
+		private class LuaLoadedTable : LuaTable
+		{
+			private LuaGlobal global;
+
+			public LuaLoadedTable(LuaGlobal global)
+			{
+				this.global = global;
+			} // ctor
+
+			protected override object OnIndex(object key)
+			{
+				object value;
+				if (global.loaded != null && global.loaded.TryGetValue(key, out value))
+					return value;
+				return base.OnIndex(key);
+			} // func OnIndex
+		} // class LuaLoadedTable
+
+		#endregion
+
+		#region -- class LuaLibraryPackage --------------------------------------------------
+
+		internal sealed class LuaLibraryPackage
+		{
+			private string[] paths;
+
+			public LuaLibraryPackage(LuaGlobal global)
+			{
+				this.loaded = new LuaLoadedTable(global);
+				this.path = ";;";
+			} // ctor
+
+			public LuaTable loaded { get; private set; }
+			public string path
+			{
+				get
+				{
+					return String.Join(";", paths);
+				}
+				set
+				{
+					if (String.IsNullOrEmpty(value))
+						paths = null;
+					else
+						paths = value.Split(';');
+				}
+			} // prop Path
+
+			public string[] Path { get { return paths; } }
+		} // class LuaLibraryPackage
+
+		#endregion
+
     private Lua lua;
     private LuaFilePackage io = null;
+		private LuaLibraryPackage package = null;
+		private Dictionary<object, object> loaded = new Dictionary<object, object>();
 
     #region -- Ctor/Dtor --------------------------------------------------------------
 
@@ -557,6 +614,88 @@ namespace Neo.IronLua
       return t;
     } // func LuaRawSet
 
+		[LuaMember("require")]
+		private LuaResult LuaRequire(object modname)
+		{
+			if (modname == null)
+				throw new ArgumentNullException();
+
+			// check if the modul is loaded in this global
+			if (loaded.ContainsKey(modname))
+				return new LuaResult(loaded[modname]);
+
+			// check if the modul is loaded in a different global
+			LuaChunk chunk = lua.LuaRequire(this, modname);
+			if (chunk != null)
+				return new LuaResult(loaded[modname] = DoChunk(chunk)[0]);
+			else
+				return LuaResult.Empty;
+		} // func LuaRequire
+
+		private bool LuaRequireCheckFile(ref string sFileName, ref DateTime dtStamp)
+		{
+			try
+			{
+				if (!File.Exists(sFileName))
+					return false;
+
+				dtStamp = File.GetLastWriteTime(sFileName);
+				return true;
+			}
+			catch (IOException)
+			{
+				return false;
+			}
+		} // func LuaRequireCheckFile
+
+		internal bool LuaRequireFindFile(string sPath, string sModName, ref string sFileName, ref DateTime dtStamp)
+		{
+			if (sPath == "%currentdirectory%")
+				sPath = Environment.CurrentDirectory;
+
+			sFileName = Path.Combine(sPath, sModName + ".lua");
+			return LuaRequireCheckFile(ref sFileName, ref dtStamp);
+		} // func LuaRequireFindFile
+
+		internal bool LuaRequireFindFile(string sModName, out string sFileName, out DateTime dtStamp)
+		{
+			dtStamp = DateTime.MinValue;
+			sFileName = null;
+
+			bool lStdIncluded = false;
+			string[] paths;
+			if (package == null || package.Path == null)
+			{
+				paths = lua.StandardPackagesPaths;
+				lStdIncluded = true;
+			}
+			else
+				paths = package.Path;
+
+			foreach (string c in paths)
+			{
+				if (String.IsNullOrEmpty(c))
+				{
+					if (lStdIncluded)
+						continue;
+
+					foreach (string c1 in lua.StandardPackagesPaths)
+					{
+						if (LuaRequireFindFile(c1, sModName, ref sFileName, ref dtStamp))
+							return true;
+					}
+					lStdIncluded = true;
+				}
+				else
+				{
+					if (LuaRequireFindFile(c, sModName, ref sFileName, ref dtStamp))
+						return true;
+				}
+			}
+
+			return false;
+		} // func LuaRequireFindFile
+
     /// <summary></summary>
     /// <param name="index"></param>
     /// <param name="values"></param>
@@ -734,6 +873,17 @@ namespace Neo.IronLua
       }
     } // prop LuaLibraryIO
 
+		[LuaMember("package")]
+		private LuaLibraryPackage LuaPackage
+		{
+			get
+			{
+				if (package == null)
+					package = new LuaLibraryPackage(this);
+				return package;
+			}
+		} // prop LuaPackage
+
     [LuaMember("bit32")]
     private LuaType LuaLibraryBit32
     {
@@ -814,7 +964,7 @@ namespace Neo.IronLua
     } // func TryGetLuaFunction
 
     #endregion
-  } // class LuaGlobal
+	} // class LuaGlobal
 
   #endregion
 }

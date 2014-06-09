@@ -63,6 +63,7 @@
     <None Include="Samples\Forms.lua" />
     <None Include="Samples\getPlus.lua" />
     <None Include="Samples\Forms1.lua" />
+    <None Include="Samples\ModTest.lua" />
     <None Include="Samples\StringBuilder.lua" />
   </ItemGroup>
   <ItemGroup>
