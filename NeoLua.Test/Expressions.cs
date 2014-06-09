@@ -1194,5 +1194,31 @@ namespace LuaDLR.Test
     }
 
     #endregion
-  } // class Expressions
+
+		#region -- Assign -----------------------------------------------------------------
+
+		[TestMethod]
+		public void TestAssign01()
+		{
+			TestCode(Lines(
+				"local a = {};",
+				"local i = 3;",
+				"i, a[i] = i + 1, 20;",
+				"return i, a[3];"),
+				4, 20);
+		}
+
+		[TestMethod]
+		public void TestAssign02()
+		{
+			TestCode(Lines(
+				"local x = 1;",
+				"local y = 2;",
+				"x, y = y, x",
+				"return y, x;"),
+				1, 2);
+		}
+
+		#endregion
+	} // class Expressions
 }
