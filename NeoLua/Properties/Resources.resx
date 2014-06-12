@@ -201,6 +201,9 @@
   <data name="rsNullReference" xml:space="preserve">
     <value>Object is nil.</value>
   </data>
+  <data name="rsParseAssignmentExpected" xml:space="preserve">
+    <value>Assignment expected.</value>
+  </data>
   <data name="rsParseConvertNumberError" xml:space="preserve">
     <value>Number expected ('{0}' not converted).</value>
   </data>
