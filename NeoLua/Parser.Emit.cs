@@ -131,10 +131,10 @@ namespace Neo.IronLua
       if (lMethodMember)
       {
         return Expression.Call(
-           ConvertExpression(runtime, null, instance, typeof(LuaTable)),
+					 ConvertExpression(runtime, tStart, instance, typeof(LuaTable)),
            Lua.TableSetMethodMethodInfo,
            Expression.Constant(sMember, typeof(string)),
-           ConvertExpression(runtime, null, set, typeof(Delegate)));
+					 ConvertExpression(runtime, tStart, set, typeof(Delegate)));
       }
       else
         return SafeExpression(() => LuaEmit.SetMember(runtime, instance, instance.Type, sMember, false, set, set.Type, true), tStart);

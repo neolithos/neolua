@@ -334,6 +334,5 @@ namespace LuaDLR.Test
         Console.WriteLine((int)g.dochunk("return c + 2;"));
       }
     }
-
-  }
+	}
 }
