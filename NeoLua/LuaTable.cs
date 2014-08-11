@@ -383,18 +383,19 @@ namespace Neo.IronLua
 
       #region -- BindConvert ----------------------------------------------------------
 
-      public override DynamicMetaObject BindConvert(ConvertBinder binder)
-      {
-        if (!binder.Type.IsAssignableFrom(Value.GetType()))
-        {
-          return new DynamicMetaObject(
-            Lua.EnsureType(
-              Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableSetObjectMember, Lua.EnsureType(Expression.New(binder.Type), typeof(object))),
-              binder.ReturnType),
-            GetLuaTableRestriction());
-        }
-        return base.BindConvert(binder);
-      } // func BindConvert
+			public override DynamicMetaObject BindConvert(ConvertBinder binder)
+			{
+				// Automatic convert to a special type, only for classes and structure
+				if (Type.GetTypeCode(binder.Type) == TypeCode.Object && !binder.Type.IsAssignableFrom(Value.GetType()))
+				{
+					return new DynamicMetaObject(
+						Lua.EnsureType(
+							Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableSetObjectMember, Lua.EnsureType(Expression.New(binder.Type), typeof(object))),
+							binder.ReturnType),
+						GetLuaTableRestriction());
+				}
+				return base.BindConvert(binder);
+			} // func BindConvert
 
       #endregion
 

@@ -826,6 +826,15 @@ namespace LuaDLR.Test
       }
     }
 
+		[TestMethod]
+		public void TestLogic15()
+		{
+			TestCode(Lines(
+				"local t : table = {}",
+				"if t then return 1 else return 0 end"),
+				1);
+		}
+
     #endregion
 
     #region -- Compare ----------------------------------------------------------------
