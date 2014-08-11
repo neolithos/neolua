@@ -1204,10 +1204,10 @@ namespace Neo.IronLua
       if (!(pos is int) && value == null)
       {
         value = pos;
-        if (t.Length < 0)
-          pos = 0;
+        if (t.Length <= 0)
+          pos = 1;
         else
-          pos = t.Length;
+          pos = t.Length + 1;
       }
 
       // insert the value at the position

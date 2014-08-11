@@ -327,6 +327,22 @@ namespace LuaDLR.Test
 
 		#endregion
 
+		#region -- Insert -----------------------------------------------------------------
+
+		[TestMethod]
+		public void Insert01()
+		{
+			TestCode(Lines(
+				"local t = {};",
+				"table.insert(t, 'a');",
+				"table.insert(t, 'c');",
+				"table.insert(t, 2, 'b');",
+				"return t[1], t[2], t[3];"),
+				"a", "b", "c");
+		}
+
+		#endregion
+
 		[TestMethod]
     public void EnvDynamicCall01()
     {
