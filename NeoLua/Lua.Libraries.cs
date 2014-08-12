@@ -404,19 +404,27 @@ namespace Neo.IronLua
 
     public static double max(double[] x)
     {
+			if (x == null || x.Length == 0)
+				throw new LuaRuntimeException(Properties.Resources.rsNumberExpected, 1, true);
+
       double r = Double.MinValue;
       for (int i = 0; i < x.Length; i++)
         if (r < x[i])
           r = x[i];
+
       return r;
     } // func max
 
     public static double min(double[] x)
     {
-      double r = Double.MinValue;
+			if (x == null || x.Length == 0)
+				throw new LuaRuntimeException(Properties.Resources.rsNumberExpected, 1, true);
+
+      double r = Double.MaxValue;
       for (int i = 0; i < x.Length; i++)
         if (r > x[i])
           r = x[i];
+
       return r;
     } // func min
 

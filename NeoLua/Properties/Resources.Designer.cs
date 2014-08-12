@@ -313,6 +313,15 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Number expected. ähnelt.
+        /// </summary>
+        internal static string rsNumberExpected {
+            get {
+                return ResourceManager.GetString("rsNumberExpected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Sucht eine lokalisierte Zeichenfolge, die Assignment expected. ähnelt.
         /// </summary>
         internal static string rsParseAssignmentExpected {
