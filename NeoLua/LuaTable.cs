@@ -681,7 +681,7 @@ namespace Neo.IronLua
         return false;
     } // proc SetIndexValue
 
-    private object GetValue(object item)
+		internal object GetValue(object item)
     {
       return GetValue(item, false);
     } // func GetValue
@@ -700,7 +700,7 @@ namespace Neo.IronLua
         return OnIndex(item);
     } // func GetRawValue
 
-    private object GetValue(object[] items)
+    internal object GetValue(object[] items)
     {
       return GetValue(this, items, 0);
     } // func GetValue
@@ -720,7 +720,7 @@ namespace Neo.IronLua
       }
     } // func GetValue
 
-    private void SetValue(object item, object value, bool lMarkAsMethod)
+    internal void SetValue(object item, object value, bool lMarkAsMethod)
     {
       // Get the Index for the value, if the value is null then do not create a new value
       int iIndex = GetValueIndex(item, false, false);
@@ -754,7 +754,7 @@ namespace Neo.IronLua
         OnPropertyChanged(sPropertyName);
     } // proc NotifyValueChanged
 
-    private void SetValue(object[] items, object value)
+    internal void SetValue(object[] items, object value)
     {
       SetValue(items, 0, value);
     } // func SetValue

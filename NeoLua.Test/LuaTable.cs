@@ -159,6 +159,15 @@ namespace LuaDLR.Test
       TestResult(new LuaResult(t.test), 3);
     }
 
+		[TestMethod]
+		public void TestIndex07()
+		{
+			TestCode(Lines(
+				"local days = {'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'};",
+				"return days[1], days[2], days[3], days[4];"),
+				"Sunday", "Monday", "Tuesday", "Wednesday");
+		}
+
     #endregion
 
     #region -- MetaTable --------------------------------------------------------------
@@ -330,7 +339,7 @@ namespace LuaDLR.Test
 		#region -- Insert -----------------------------------------------------------------
 
 		[TestMethod]
-		public void Insert01()
+		public void TestInsert01()
 		{
 			TestCode(Lines(
 				"local t = {};",
