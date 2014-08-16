@@ -431,7 +431,7 @@ namespace Neo.IronLua
 					}
 
 					// lookup the references
-					if (referencedAssemblies != null)
+					if (referencedAssemblies != null && type == null)
 					{
 						foreach (string sAssemblyName in referencedAssemblies)
 							try
