@@ -405,20 +405,53 @@ namespace Neo.IronLua
         string sTypeName = FullName;
 
         // new assembly loaded?
-        if (assemblies.Length != iAssemblyCount)
-        {
-          for (int i = iAssemblyCount; i < assemblies.Length; i++)
-          {
-            if ((type = assemblies[i].GetType(sTypeName, false)) != null)
-            {
-              lock (knownTypes)
-                knownTypes[type.FullName] = LuaType.GetTypeIndex(this); // update type cache
-              break;
-            }
-          }
-          iAssemblyCount = assemblies.Length;
-        }
-      }
+				if (assemblies.Length != iAssemblyCount)
+				{
+					List<string> referencedAssemblies = LookupReferencedAssemblies ? new List<string>() : null;
+
+					// Lookup the loaded assemblies
+					for (int i = iAssemblyCount; i < assemblies.Length; i++)
+					{
+						if ((type = assemblies[i].GetType(sTypeName, false)) != null)
+						{
+							lock (knownTypes)
+								knownTypes[type.FullName] = LuaType.GetTypeIndex(this); // update type cache
+							break;
+						}
+
+						// collect the references
+						if (referencedAssemblies != null)
+						{
+							foreach (AssemblyName n in assemblies[i].GetReferencedAssemblies())
+							{
+								if (!referencedAssemblies.Exists(c => n.FullName == c) && !Array.Exists(assemblies, a => a.FullName == n.FullName))
+									referencedAssemblies.Add(n.FullName);
+							}
+						}
+					}
+
+					// lookup the references
+					if (referencedAssemblies != null)
+					{
+						foreach (string sAssemblyName in referencedAssemblies)
+							try
+							{
+								Assembly asm = Assembly.ReflectionOnlyLoad(sAssemblyName);
+								Type typeReflected = asm.GetType(sTypeName, false);
+								if (typeReflected != null)
+								{
+									type = Type.GetType(typeReflected.AssemblyQualifiedName);
+									lock (knownTypes)
+										knownTypes[type.FullName] = LuaType.GetTypeIndex(this); // update type cache
+									break;
+								}
+							}
+							catch { }
+					}
+
+					iAssemblyCount = assemblies.Length;
+				}
+			}
     } // func GetItemType
 
     private void GetFullName(StringBuilder sb)
@@ -572,6 +605,7 @@ namespace Neo.IronLua
     private static LuaType clr = new LuaType();                 // root type
     private static List<LuaType> types = new List<LuaType>();   // SubItems of this type
     private static Dictionary<string, int> knownTypes = new Dictionary<string, int>(); // index for well known types
+		private static bool lLookupReferencedAssemblies = true;			// reference search for types
 
     #region -- Operator ---------------------------------------------------------------
 
@@ -753,6 +787,8 @@ namespace Neo.IronLua
 
     /// <summary>Root for all clr-types.</summary>
     public static LuaType Clr { get { return clr; } }
+		/// <summary>Should the type resolve also scan references assemblies.</summary>
+		public static bool LookupReferencedAssemblies { get { return lLookupReferencedAssemblies; } set { lLookupReferencedAssemblies = true; } }
   } // class LuaType
 
   #endregion

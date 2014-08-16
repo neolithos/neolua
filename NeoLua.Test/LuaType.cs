@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -62,6 +63,12 @@ namespace LuaDLR.Test
     {
       Console.WriteLine("Hallo");
     }
+
+		public static bool GreenColor(Color color)
+		{
+			Console.WriteLine("Color: {0}", color);
+			return color == Color.Green;
+		}
 
     [TestMethod]
     public void TypeTest01()
@@ -148,6 +155,12 @@ namespace LuaDLR.Test
       TestCode("clr.LuaDLR.Test.LuaTypeTests.SubClass.Value = 3;");
       Assert.IsTrue(SubClass.Value == 3);
     }
+
+		[TestMethod]
+		public void TypeTest07()
+		{
+			TestCode("return clr.LuaDLR.Test.LuaTypeTests:GreenColor(clr.System.Drawing.Color.Green);", true);
+		}
 
     [TestMethod]
     public void MethodTest01()
