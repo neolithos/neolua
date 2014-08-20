@@ -1046,6 +1046,10 @@ namespace Neo.IronLua
         throw new LuaEmitException(LuaEmitException.OperatorNotDefined, op, type1.Name, type2.Name);
     } // func BinaryOperationArithmeticOrBitExpression
 
+		/// <summary>Compares the to types and returns the "higest".</summary>
+		/// <param name="type1"></param>
+		/// <param name="type2"></param>
+		/// <returns></returns>
 		public static Type LiftType(Type type1, Type type2)
 		{
 			if (type1 == type2)
@@ -1054,26 +1058,57 @@ namespace Neo.IronLua
 			TypeCode tc1 = Type.GetTypeCode(type1);
 			TypeCode tc2 = Type.GetTypeCode(type2);
 
-			if (IsArithmeticType(tc1) && IsArithmeticType(tc2))
+			if (IsArithmeticType(tc1) && IsArithmeticType(tc2)) // process only arithmetic types
 			{
-				if (IsFloatType(tc1) && IsFloatType(tc2)) // test float
-					return tc1 < tc2 ? type2 : type1;
-				else if (IsFloatType(tc1))
-					return type1;
-				else if (IsFloatType(tc2))
-					return type2;
-				else if ((((int)tc1) & 1) == 1 && (((int)tc2) & 1) == 1) // test signed
-					return tc1 < tc2 ? type2 : type1;
-				else if ((((int)tc1) & 1) == 1)
-					return type1;
+				// Achtung: this code depends on the numeric representation of TypeCode
+
+				if (IsFloatType(tc1) && IsFloatType(tc2)) // both are floats
+					return tc1 < tc2 ? type2 : type1; // -> use the higest
+				else if (IsFloatType(tc1)) // the first one is a float, the other one is a integer
+					return type1; // -> use the float
+				else if (IsFloatType(tc2)) // the second one is a float, the other one is a integer
+					return type2; // -> use the float
+
+				else if ((((int)tc1) & 1) == 1 && (((int)tc2) & 1) == 1) // both types are signed integers
+					return tc1 < tc2 ? type2 : type1; // -> use the highest
+				else if ((((int)tc1) & 1) == 1) // the first one is signed integer
+				{
+					if (tc1 > tc2) // the unsigned is lower then the signed
+						return type1; // -> use the signed
+					else // -> we need a higher signed integer
+						return LiftTypeSigned(tc1, tc2);
+				}
 				else if ((((int)tc2) & 1) == 1)
-					return type2;
-				else // both unsigned
-					return tc1 < tc2 ? type2 : type1;
+				{
+					if (tc2 > tc1)
+						return type2;
+					else
+						return LiftTypeSigned(tc2, tc1);
+				}
+
+				else // both are unsigned
+					return tc1 < tc2 ? type2 : type1; // -> use the highest
 			}
 			else
 				return typeof(object);
 		} // func LiftType
+
+		private static Type LiftTypeSigned(TypeCode tc1, TypeCode tc2)
+		{
+			switch (tc2)
+			{
+				case TypeCode.Byte:
+					return typeof(short);
+				case TypeCode.UInt16:
+					return typeof(int);
+				case TypeCode.UInt32:
+					return typeof(long);
+				case TypeCode.UInt64:
+					return typeof(double);
+				default:
+					throw new InvalidOperationException(String.Format("Internal error in lift type ({0} vs. {1})", tc1, tc2));
+			}
+		} // func LiftTypeSigned
 
     #endregion
 
