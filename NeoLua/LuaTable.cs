@@ -1193,23 +1193,23 @@ namespace Neo.IronLua
 
       return sb.ToString();
     } // func concat
+		
+    /// <summary></summary>
+    /// <param name="t"></param>
+    /// <param name="pos"></param>
+    /// <param name="value"></param>
+		public static void insert(LuaTable t, object value)
+		{
+			// the pos is optional
+			insert(t, t.Length <= 0 ? 1 : t.Length + 1, value);
+		} // proc insert
 
     /// <summary></summary>
     /// <param name="t"></param>
     /// <param name="pos"></param>
     /// <param name="value"></param>
-    public static void insert(LuaTable t, object pos, object value = null)
+    public static void insert(LuaTable t, object pos, object value)
     {
-      // the pos is optional
-      if (!(pos is int) && value == null)
-      {
-        value = pos;
-        if (t.Length <= 0)
-          pos = 1;
-        else
-          pos = t.Length + 1;
-      }
-
       // insert the value at the position
       int iPos = Convert.ToInt32(pos);
       object c = value;
