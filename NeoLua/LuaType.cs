@@ -80,7 +80,7 @@ namespace Neo.IronLua
           {
             expr = Lua.ThrowExpression(e.Message, binder.ReturnType);
           }
-          return new DynamicMetaObject(expr, GetTypeResolvedRestriction(type));
+					return new DynamicMetaObject(expr, GetTypeResolvedRestriction(type).Merge(Lua.GetSimpleRestriction(value)));
         }
         else
         {

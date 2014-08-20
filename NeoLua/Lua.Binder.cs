@@ -562,7 +562,7 @@ namespace Neo.IronLua
 
           return new DynamicMetaObject(
             expr,
-            target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType))
+            target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType).Merge(Lua.GetSimpleRestriction(value)))
           );
         }
       } // func FallbackSetMember

@@ -162,6 +162,16 @@ namespace LuaDLR.Test
 			TestCode("return clr.LuaDLR.Test.LuaTypeTests:GreenColor(clr.System.Drawing.Color.Green);", true);
 		}
 
+		[TestMethod]
+		public void PropertyTest01()
+		{
+			TestCode(Lines(
+				"clr.LuaDLR.Test.LuaTypeTests.SubClass.Value = 1;",
+				"clr.LuaDLR.Test.LuaTypeTests.SubClass.Value = 2;",
+				"clr.LuaDLR.Test.LuaTypeTests.SubClass.Value = 1.0;",
+				"return clr.LuaDLR.Test.LuaTypeTests.SubClass.Value;"), 1);
+		}
+
     [TestMethod]
     public void MethodTest01()
     {
