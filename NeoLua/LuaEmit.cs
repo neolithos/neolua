@@ -1046,6 +1046,35 @@ namespace Neo.IronLua
         throw new LuaEmitException(LuaEmitException.OperatorNotDefined, op, type1.Name, type2.Name);
     } // func BinaryOperationArithmeticOrBitExpression
 
+		public static Type LiftType(Type type1, Type type2)
+		{
+			if (type1 == type2)
+				return type1;
+
+			TypeCode tc1 = Type.GetTypeCode(type1);
+			TypeCode tc2 = Type.GetTypeCode(type2);
+
+			if (IsArithmeticType(tc1) && IsArithmeticType(tc2))
+			{
+				if (IsFloatType(tc1) && IsFloatType(tc2)) // test float
+					return tc1 < tc2 ? type2 : type1;
+				else if (IsFloatType(tc1))
+					return type1;
+				else if (IsFloatType(tc2))
+					return type2;
+				else if ((((int)tc1) & 1) == 1 && (((int)tc2) & 1) == 1) // test signed
+					return tc1 < tc2 ? type2 : type1;
+				else if ((((int)tc1) & 1) == 1)
+					return type1;
+				else if ((((int)tc2) & 1) == 1)
+					return type2;
+				else // both unsigned
+					return tc1 < tc2 ? type2 : type1;
+			}
+			else
+				return typeof(object);
+		} // func LiftType
+
     #endregion
 
     #region -- Emit GetMember ---------------------------------------------------------
@@ -1649,7 +1678,7 @@ namespace Neo.IronLua
     } // func CombineType
 
     #endregion
-  } // class LuaEmit
+	} // class LuaEmit
 
   #endregion
 }

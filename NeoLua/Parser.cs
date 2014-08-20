@@ -1795,10 +1795,10 @@ namespace Neo.IronLua
           loopStep = ParseExpression(scope, code, InvokeResult.Object, scope.EmitDebug);
         }
         else
-          loopStep = Expression.Constant(1, typeof(int));
+          loopStep = Expression.Constant(1, loopStart.Type);
 
         LoopScope loopScope = new LoopScope(scope);
-        ParameterExpression loopVarParameter = loopScope.RegisterVariable(typeLoopVar == typeof(object) ? loopStart.Type : typeLoopVar, tLoopVar.Value);
+				ParameterExpression loopVarParameter = loopScope.RegisterVariable(typeLoopVar == typeof(object) ? LuaEmit.LiftType(LuaEmit.LiftType(loopStart.Type, loopEnd.Type), loopStep.Type) : typeLoopVar, tLoopVar.Value);
 
         FetchToken(LuaToken.KwDo, code);
         ParseBlock(loopScope, code);
@@ -1902,7 +1902,7 @@ namespace Neo.IronLua
 
       // Erzeuge den Schleifenblock
       return Expression.Block(new ParameterExpression[] { internLoopVar, endVar, stepVar },
-        Expression.Assign(internLoopVar, loopStart),
+        Expression.Assign(internLoopVar, ConvertExpression(loopScope.Runtime, tStart, loopStart, internLoopVar.Type)),
         Expression.Assign(endVar, loopEnd),
         Expression.Assign(stepVar, loopStep),
 

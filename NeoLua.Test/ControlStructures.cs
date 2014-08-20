@@ -206,5 +206,16 @@ namespace LuaDLR.Test
     {
       TestCode(GetLines("Lua.Control11.lua"), 6);
     }
+
+		[TestMethod]
+		public void Control12()
+		{
+			TestCode(Lines(
+				"local s = 0;",
+				"for i = 1, 100, 0.1 do",
+				"  s = s + i;",
+				"end;",
+				"return s;"), 50045.5);
+		}
   } // class ControlStructures
 }
