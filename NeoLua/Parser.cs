@@ -2149,12 +2149,13 @@ namespace Neo.IronLua
         {
           code.Next();
 
-          ParseTableField(tableVar, scopeTable, code, ref iIndex);
+					// Optional last separator
+					if (code.Current.Typ == LuaToken.BracketCurlyClose)
+						break;
+          
+					// Parse the field
+					ParseTableField(tableVar, scopeTable, code, ref iIndex);
         }
-
-        // Optional last separator
-        if (code.Current.Typ == LuaToken.Comma || code.Current.Typ == LuaToken.Semicolon)
-          code.Next();
 
         scopeTable.AddExpression(tableVar);
         scopeTable.ExpressionBlockType = typeof(LuaTable);
