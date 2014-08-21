@@ -389,10 +389,15 @@ namespace Neo.IronLua
           NewExpression exprNew = (NewExpression)expr;
           if (exprNew.Constructor == Lua.ResultConstructorInfoArg1 || exprNew.Constructor == Lua.ResultConstructorInfoArgN)
           {
-            expr = exprNew.Arguments.First(); // only unpack, repack is not necessary
-            if (expr.NodeType == ExpressionType.Convert && expr.Type == typeof(object))
-              expr = ((UnaryExpression)expr).Operand;
-            fromType = expr.Type;
+            Expression exprTmp = exprNew.Arguments.First(); // only unpack, repack is not necessary
+						if (exprTmp.NodeType != ExpressionType.Dynamic)
+						{
+							if (exprTmp.NodeType == ExpressionType.Convert && exprTmp.Type == typeof(object))
+								exprTmp = ((UnaryExpression)exprTmp).Operand;
+
+							expr = exprTmp;
+							fromType = expr.Type;
+						}
           }
         }
       }

@@ -243,9 +243,7 @@ namespace Neo.IronLua
       {
         return EnsureInvokeResult(runtime, tStart,
           Expression.Dynamic(runtime.GetInvokeMemberBinder(sMember, new CallInfo(arguments.Length)), typeof(object),
-            new Expression[] { ConvertExpression(runtime, tStart, instance, typeof(object)) }.Union(
-              from a in arguments select ConvertExpression(runtime, tStart, a, typeof(object))
-            ).ToArray()
+            new Expression[] { ConvertExpression(runtime, tStart, instance, typeof(object)) }.Union(arguments).ToArray()
           ),
           result
          );

@@ -72,6 +72,22 @@ namespace LuaDLR.Test
         "Text: Hallo Welt!");
     } // proc TestRuntimeClrMethod
 
+		[TestMethod]
+		public void TestRuntimeMethod01()
+		{
+			TestCode(Lines(
+				"function test()",
+				"    local t = {};",
+				"    table.insert(t, 'a');",
+				"    table.insert(t, 'b');",
+				"    table.insert(t, 'c');",
+				"    table.insert(t, 'd');",
+				"    return t;",
+				"end;",
+				"local t = test();",
+				"return #t, #test();"), 4, 4);
+		}
+
     [TestMethod]
     public void TestRuntimeClrClass01()
     {

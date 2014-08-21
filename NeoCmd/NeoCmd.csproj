@@ -68,6 +68,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="Samples\Table.lua" />
     <None Include="Samples\Test.lua" />
   </ItemGroup>
   <ItemGroup>
