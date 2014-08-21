@@ -1196,7 +1196,6 @@ namespace Neo.IronLua
 		
     /// <summary></summary>
     /// <param name="t"></param>
-    /// <param name="pos"></param>
     /// <param name="value"></param>
 		public static void insert(LuaTable t, object value)
 		{
