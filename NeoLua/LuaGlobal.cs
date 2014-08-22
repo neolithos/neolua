@@ -738,55 +738,33 @@ namespace Neo.IronLua
     [LuaMember("tonumber")]
     private object LuaToNumber(object v, int iBase)
     {
-      return ToNumber(v, iBase);
+			if (v == null)
+				return null;
+			else
+			{
+				switch (Type.GetTypeCode(v.GetType()))
+				{
+					case TypeCode.String:
+						return lua.ParseNumber((string)v, iBase == 16);
+					case TypeCode.SByte:
+					case TypeCode.Byte:
+					case TypeCode.Int16:
+					case TypeCode.UInt16:
+					case TypeCode.Int32:
+					case TypeCode.UInt32:
+					case TypeCode.Int64:
+					case TypeCode.UInt64:
+					case TypeCode.Single:
+					case TypeCode.Double:
+					case TypeCode.Decimal:
+						return v;
+					case TypeCode.Boolean:
+						return (bool)v ? 1 : 0;
+					default:
+						return null;
+				}
+			}
     } // func LuaToNumber
-
-    internal static object ToNumber(object v, int iBase)
-    {
-      if (v == null)
-        return null;
-      else if (v is string)
-      {
-        string sValue = (string)v;
-        if (iBase == 0)
-        {
-          if (sValue.StartsWith("0x", StringComparison.Ordinal))
-          {
-            iBase = 16;
-            sValue = sValue.Substring(2);
-          }
-          else
-            iBase = 10;
-        }
-        if (iBase == 10)
-        {
-          int iTmp;
-          if (int.TryParse(sValue, out iTmp))
-            return iTmp;
-          else
-            return Convert.ToDouble(sValue);
-        }
-        else
-          return Convert.ToInt32((string)v, iBase); // todo: Incompatible to lua reference
-      }
-      else if (v is int || v is double)
-        return v;
-      else if (v is byte ||
-        v is sbyte ||
-        v is ushort ||
-        v is short)
-        return Convert.ToInt32(v);
-      else if (v is uint ||
-        v is long ||
-        v is ulong ||
-        v is decimal ||
-        v is float)
-        return Convert.ToDouble(v);
-      else if (v is bool)
-        return (bool)v ? 1 : 0;
-      else
-        return null;
-    } // func ToNumber
 
     /// <summary></summary>
     /// <param name="v"></param>

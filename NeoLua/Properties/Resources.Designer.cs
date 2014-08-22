@@ -223,6 +223,15 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Can not format &apos;{0}&apos; to {1}. ähnelt.
+        /// </summary>
+        internal static string rsFormatError {
+            get {
+                return ResourceManager.GetString("rsFormatError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Sucht eine lokalisierte Zeichenfolge, die Function &apos;{0}&apos; on type &apos;{1}&apos; already exists. ähnelt.
         /// </summary>
         internal static string rsGlobalFunctionNotUnique {

@@ -30,21 +30,35 @@ namespace Neo.IronLua
 
   #endregion
 
-  #region -- enum LuaFloatType --------------------------------------------------------
+	#region -- enum LuaFloatType --------------------------------------------------------
 
-  ///////////////////////////////////////////////////////////////////////////////
-  /// <summary></summary>
-  public enum LuaFloatType : byte
-  {
-    /// <summary></summary>
-    Float = 0x10,
-    /// <summary></summary>
-    Double = 0x20,
-    /// <summary></summary>
-    Mask = 0x70
-  } // enum LuaFloatType
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary></summary>
+	public enum LuaFloatType : byte
+	{
+		/// <summary></summary>
+		Float = 0x10,
+		/// <summary></summary>
+		Double = 0x20,
+		/// <summary></summary>
+		Mask = 0x70
+	} // enum LuaFloatType
 
-  #endregion
+	#endregion
+
+	#region -- enum LuaNumberFlags ------------------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary></summary>
+	public enum LuaNumberFlags : byte
+	{
+		/// <summary></summary>
+		HexNumber = 0x08,
+		/// <summary></summary>
+		NoFormatError = 0x80
+	} // enum LuaNumberFlags
+
+	#endregion
 
   ///////////////////////////////////////////////////////////////////////////////
   /// <summary>Manages the Lua-Script-Environment. At the time it holds the
@@ -591,17 +605,17 @@ namespace Neo.IronLua
         case LuaIntegerType.Int16:
           {
             short t;
-            return Int16.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t) ? (object)t : null;
+						return Int16.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t) ? t : ThrowFormatExpression(integerType, sNumber, "short");
           }
         case LuaIntegerType.Int32:
           {
             int t;
-            return Int32.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t) ? (object)t : null;
+						return Int32.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t) ? t : ThrowFormatExpression(integerType, sNumber, "int");
           }
         case LuaIntegerType.Int64:
           {
             long t;
-            return Int64.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t) ? (object)t : null;
+						return Int64.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t) ? t : ThrowFormatExpression(integerType, sNumber, "long");
           }
         default:
           throw new InvalidOperationException();
@@ -615,17 +629,25 @@ namespace Neo.IronLua
         case LuaFloatType.Float:
           {
             float t;
-            return Single.TryParse(sNumber, NumberStyles.Float, CultureInfo.InvariantCulture, out t) ? (object)t : null;
+						return Single.TryParse(sNumber, NumberStyles.Float, CultureInfo.InvariantCulture, out t) ? t : ThrowFormatExpression(floatType, sNumber, "float");
           }
         case LuaFloatType.Double:
           {
             double t;
-            return Double.TryParse(sNumber, NumberStyles.Float, CultureInfo.InvariantCulture, out t) ? (object)t : null;
+						return Double.TryParse(sNumber, NumberStyles.Float, CultureInfo.InvariantCulture, out t) ? t : ThrowFormatExpression(floatType, sNumber, "double");
           }
         default:
           throw new InvalidOperationException();
       }
     } // func ParseFloat
+
+		private static object ThrowFormatExpression(int numberType, string sNumber, string sType)
+		{
+			if ((numberType & (int)LuaNumberFlags.NoFormatError) != 0)
+				return null;
+			else
+				throw new FormatException(String.Format(Properties.Resources.rsFormatError, sNumber, sType));
+		} // func ThrowFormatExpression
 
     /// <summary>Parses a string to a lua number.</summary>
     /// <param name="sNumber">String representation of the number.</param>
@@ -636,7 +658,7 @@ namespace Neo.IronLua
       int numberType = iNumberType;
       if(lHexNumber)
         numberType |= 8;
-      return Lua.RtParseNumber(sNumber, numberType);
+      return Lua.RtParseNumber(sNumber, numberType | 0x80);
     } // func ParseNumber
 
     internal int NumberType { get { return iNumberType; } }

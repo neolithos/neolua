@@ -467,16 +467,24 @@ namespace Neo.IronLua
       }
     } // proc ReadNumber
 
+		private bool IsFileIndex(object v)
+		{
+			if (v == null)
+				return false;
+			TypeCode tc = Type.GetTypeCode(v.GetType());
+
+			return tc >= TypeCode.SByte && tc <= TypeCode.UInt32;
+		} // func IsFileIndex
+
     private object ReadFormat(object fmt)
     {
-      object v = LuaGlobal.ToNumber(fmt, 10);
-      if (v != null)
+			if (IsFileIndex(fmt))
       {
         if (tr.EndOfStream)
           return null;
         else
         {
-          int iCharCount = v is int ? (int)v : Convert.ToInt32(v);
+          int iCharCount = Convert.ToInt32(fmt);
           if (iCharCount == 0)
             return String.Empty;
           else
@@ -492,7 +500,7 @@ namespace Neo.IronLua
         string sFmt = (string)fmt;
         if (sFmt == "*n")
         {
-          return LuaGlobal.ToNumber(ReadNumber(), 0);
+          return Lua.RtParseNumber(ReadNumber(), (int)LuaIntegerType.Int32 | (int)LuaFloatType.Float | (int)LuaNumberFlags.NoFormatError);
         }
         else if (sFmt == "*a")
         {

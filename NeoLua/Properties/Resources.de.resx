@@ -171,6 +171,9 @@
   <data name="rsFileNotWriteable" xml:space="preserve">
     <value>In die Datei kann nicht geschrieben werden.</value>
   </data>
+  <data name="rsFormatError" xml:space="preserve">
+    <value>'{0}' kann nicht in '{1}' konvertiert werden.</value>
+  </data>
   <data name="rsGlobalFunctionNotUnique" xml:space="preserve">
     <value>Funktion '{0}' wurde bereits in '{1}' definiert.</value>
   </data>

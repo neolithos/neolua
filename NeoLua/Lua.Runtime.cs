@@ -307,7 +307,7 @@ namespace Neo.IronLua
       }
 
       // try to convert the value
-      return ParseInteger(sNumber, numberType) ?? ParseFloat(sNumber, numberType);
+      return ParseInteger(sNumber, numberType | (int)LuaNumberFlags.NoFormatError) ?? ParseFloat(sNumber, numberType);
     } // func RtParseNumber
 
     #endregion
