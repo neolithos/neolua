@@ -215,7 +215,8 @@ namespace Neo.IronLua
           Expression.Dynamic(runtime.GetInvokeBinder(new CallInfo(arguments.Length)),
             typeof(object),
             new Expression[] { ConvertExpression(runtime, tStart, instance, typeof(object)) }.Union(
-            from c in arguments select ConvertExpression(runtime, tStart, c, typeof(object)))
+							from c in arguments select Lua.EnsureType(c, typeof(object))
+						)
           ),
           result
         );
@@ -243,7 +244,9 @@ namespace Neo.IronLua
       {
         return EnsureInvokeResult(runtime, tStart,
           Expression.Dynamic(runtime.GetInvokeMemberBinder(sMember, new CallInfo(arguments.Length)), typeof(object),
-            new Expression[] { ConvertExpression(runtime, tStart, instance, typeof(object)) }.Union(arguments).ToArray()
+            new Expression[] { ConvertExpression(runtime, tStart, instance, typeof(object)) }.Union(
+							from c in arguments select Lua.EnsureType(c, typeof(object))
+						).ToArray()
           ),
           result
          );

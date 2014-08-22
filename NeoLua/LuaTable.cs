@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Dynamic;
@@ -1170,31 +1171,84 @@ namespace Neo.IronLua
 
     #region -- Table Manipulation -----------------------------------------------------
 
-    /// <summary></summary>
+		#region -- concat --
+
+		/// <summary></summary>
+		/// <param name="t"></param>
+		/// <returns></returns>
+		public static string concat(LuaTable t)
+		{
+			return concat(t, String.Empty, 1, t.Length);
+		} // func concat
+
+		/// <summary></summary>
+		/// <param name="t"></param>
+		/// <param name="sep"></param>
+		/// <returns></returns>
+		public static string concat(LuaTable t, string sep)
+		{
+			return concat(t, sep, 1, t.Length);
+		} // func concat
+
+		/// <summary></summary>
+    /// <param name="t"></param>
+    /// <param name="sep"></param>
+    /// <param name="i"></param>
+    /// <returns></returns>
+		public static string concat(LuaTable t, string sep, int i)
+    {
+			return concat(t, sep, i, t.Length);
+		} // func concat
+
+		/// <summary></summary>
     /// <param name="t"></param>
     /// <param name="sep"></param>
     /// <param name="i"></param>
     /// <param name="j"></param>
     /// <returns></returns>
-    public static string concat(LuaTable t, string sep = null, int i = 0, int j = int.MaxValue)
-    {
-      StringBuilder sb = new StringBuilder();
+		public static string concat(LuaTable t, string sep, int i, int j)
+		{
+			if (i > j)
+				return String.Empty;
 
-      foreach (var c in t)
-      {
-        int k = c.Key is int ? (int)c.Key : -1;
-        if (k >= i && k <= j)
-        {
-          if (!String.IsNullOrEmpty(sep) && sb.Length > 0)
-            sb.Append(sep);
-          sb.Append(c.Value);
-        }
-      }
+			sep = sep == null ? String.Empty : sep;
 
-      return sb.ToString();
-    } // func concat
-		
-    /// <summary></summary>
+			if (i >= 1 && j <= t.Length) // within the array
+			{
+				int[] map = mapArray(t, i, j);
+				string[] list = new string[map.Length];
+
+				// convert the values
+				int iLength = list.Length;
+				for (int k = 0; k < iLength; k++)
+					list[k] = (string)Lua.RtConvertValue(t.values[map[k]], typeof(string));
+
+				// call join
+				return String.Join(sep, list);
+			}
+			else
+			{
+				List<string> list = new List<string>(Math.Max(Math.Min(j - i + 1, t.names.Count), 1));
+
+				foreach (var c in t)
+				{
+					if (c.Key is int)
+					{
+						int k = (int)c.Key;
+						if (k >= i && k <= j)
+							list.Add((string)Lua.RtConvertValue(c.Value, typeof(string)));
+					}
+				}
+
+				return String.Join(sep, list);
+			}
+		} // func concat
+
+		#endregion
+
+		#region -- insert --
+
+		/// <summary></summary>
     /// <param name="t"></param>
     /// <param name="value"></param>
 		public static void insert(LuaTable t, object value)
@@ -1229,88 +1283,267 @@ namespace Neo.IronLua
       }
     } // proc insert
 
-    /// <summary></summary>
+		#endregion
+
+		#region -- pack --
+
+		/// <summary>Returns a new table with all parameters stored into keys 1, 2, etc. and with a field &quot;n&quot; 
+		/// with the total number of parameters. Note that the resulting table may not be a sequence.</summary>
     /// <param name="values"></param>
     /// <returns></returns>
     public static LuaTable pack(object[] values)
     {
       LuaTable t = new LuaTable();
-      for (int i = 0; i < values.Length; i++)
-        t[i] = values[i];
+
+			// copy the values in the table
+			t.values.AddRange(values);
+
+			// create the indexes
+			int iLength = values.Length;
+			for (int i = 0; i < iLength; i++)
+				t.names.Add(i + 1, i);
+
+			// set the element count
+			t["n"] = values.Length;
+
       return t;
     } // func pack
 
-    /// <summary></summary>
+		#endregion
+
+		#region -- remove --
+
+		/// <summary>Removes from list the last element.</summary>
+		/// <param name="t"></param>
+		public static object remove(LuaTable t)
+		{
+			return remove(t, t.Length);
+		} // proc remove
+
+		/// <summary>Removes from list the element at position pos, returning the value of the removed element.</summary>
     /// <param name="t"></param>
     /// <param name="pos"></param>
-    public static void remove(LuaTable t, int pos = -1)
+		public static object remove(LuaTable t, int pos)
     {
-      if (pos == -1)
-        pos = t.Length;
-      if (pos == -1)
-        return;
+			object r;
+			int iLength = t.Length;
+			if (pos >= 1 && pos <= iLength) // remove the element and shift the follower
+			{
+				int[] map = mapArray(t, pos, iLength);
 
-      while (true)
-      {
-        if (t[pos] == null)
-          break;
-        t[pos] = t[pos + 1];
-        pos++;
-      }
+				// Copy the values
+				r = t.values[map[0]];
+				for (int i = 0; i < map.Length - 1; i++)
+					t.values[map[i]] = t.values[map[i + 1]];
+
+				t.values[map[map.Length - 1]] = null;
+			}
+			else // just remove the element
+			{
+				r = t[pos];
+				t[pos] = null;
+			}
+			return r;
     } // proc remove
+
+		#endregion
+
+		#region -- sort --
+
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary></summary>
+		private sealed class SortTable : IComparer<object>
+		{
+			private LuaTable t;
+			private Delegate compare;
+			private int[] map;
+			private object[] values;
+
+			public SortTable(LuaTable t, Delegate compare)
+			{
+				this.t = t;
+				this.compare = compare;
+
+				// Create the indexes
+				this.map = mapArray(t, 1, t.Length);
+				this.values = new object[map.Length];
+
+				// Copy the array
+				int iLength = map.Length;
+				for (int i = 0; i < iLength; i++)
+					values[i] = t.values[map[i]];
+			} // ctor
+
+			public int Compare(object x, object y)
+			{
+				if (compare == null)
+					return Comparer.Default.Compare(x, y);
+				else
+				{
+					// Call the comparer
+					object r = Lua.RtInvoke(compare, x, y);
+					if (r is LuaResult)
+						r = ((LuaResult)r)[0];
+
+					// check the value
+					if (r is int)
+						return (int)r;
+					else if ((bool)Lua.RtConvertValue(r, typeof(bool)))
+						return -1;
+					else if (Comparer.Default.Compare(x, y) == 0)
+						return 0;
+					else
+						return 1;
+				}
+			} // func Compare
+
+			public void Sort()
+			{
+				// sort the map
+				Array.Sort(values, this);
+
+				// exchange the values
+				int iLength = map.Length;
+				for (int i = 0; i < iLength; i++)
+					t.values[map[i]] = values[i];
+			} // proc Sort
+		} // class SortTable
+
 
     /// <summary></summary>
     /// <param name="t"></param>
     /// <param name="sort"></param>
     public static void sort(LuaTable t, Delegate sort = null)
     {
-      object[] values = unpack(t); // unpack in a normal array
-
-      // sort the array
-      if (sort == null)
-        Array.Sort(values);
-      else
-        Array.Sort(values, (a, b) => ((Func<object, object, LuaResult>)sort)(a, b).ToInt32());
-
-      // copy the values back
-      for (int i = 0; i < values.Length; i++)
-        t[i] = values[i];
-
-      // remove the overflow
-      List<int> removeValues = new List<int>();
-      foreach (var c in t)
-      {
-        int i = c.Key is int ? (int)c.Key : -1;
-        if (i >= values.Length)
-          removeValues.Add(i);
-      }
-
-      for (int i = 0; i < removeValues.Count; i++)
-        t[removeValues[i]] = null;
+			new SortTable(t, sort).Sort();
     } // proc sort
 
-    /// <summary></summary>
+		#endregion
+
+		#region -- unpack --
+
+		/// <summary>Returns the elements from the given table.</summary>
+		/// <param name="t"></param>
+		/// <returns></returns>
+		public static LuaResult unpack(LuaTable t)
+		{
+			return unpack(t, 1, t.Length);
+		} // func unpack
+
+		/// <summary>Returns the elements from the given table.</summary>
+		/// <param name="t"></param>
+		/// <param name="i"></param>
+		/// <returns></returns>
+		public static LuaResult unpack(LuaTable t, int i)
+		{
+			return unpack(t, i, t.Length);
+		} // func unpack
+
+		/// <summary>Returns the elements from the given table.</summary>
     /// <param name="t"></param>
     /// <param name="i"></param>
     /// <param name="j"></param>
     /// <returns></returns>
-    public static LuaResult unpack(LuaTable t, int i = 0, int j = int.MaxValue)
+    public static LuaResult unpack(LuaTable t, int i, int j)
     {
-      List<object> r = new List<object>();
+			List<object> r = new List<object>(Math.Max(Math.Min(j - i + 1, t.names.Count), 1));
 
-      foreach (var c in t)
-      {
-        int k = c.Key is int ? (int)c.Key : -1;
-        if (k >= i && k <= j)
-          r.Add(c.Value);
-      }
+			foreach (var c in t)
+			{
+				if (c.Key is int)
+				{
+					int k = (int)c.Key;
+					if (k >= i && k <= j)
+						r.Add(c.Value);
+				}
+			}
 
-      return r.ToArray();
+			return new LuaResult(false, r.ToArray());
     } // func unpack
 
-    #endregion
+		#endregion
 
-    // -- Static --------------------------------------------------------------
+		#region -- toArray, mapArray --
+
+		/// <summary>Extracts the array part of a table</summary>
+		/// <param name="t"></param>
+		/// <returns></returns>
+		public static object[] toArray(LuaTable t)
+		{
+			return toArray(t, 1, t.Length);
+		} // func toArray
+
+		/// <summary>Extracts the array part of a table</summary>
+		/// <param name="t"></param>
+		/// <param name="i"></param>
+		/// <returns></returns>
+		public static object[] toArray(LuaTable t, int i)
+		{
+			return toArray(t, i, t.Length);
+		} // func toArray
+
+		/// <summary>Extracts the array part of a table</summary>
+		/// <param name="t"></param>
+		/// <param name="i"></param>
+		/// <param name="j"></param>
+		/// <returns></returns>
+		public static object[] toArray(LuaTable t, int i, int j)
+		{
+			int[] map = mapArray(t, i, t.Length);
+			object[] r = new object[map.Length];
+			
+			// copy the values
+			for (int k = 0; k < map.Length; k++)
+				r[k] = t.values[map[k]];
+
+			return r;
+		} // func toArray
+
+		private static int[] mapArray(LuaTable t, int i, int j)
+		{
+			if (i < 1 || j > t.Length)
+				throw new ArgumentOutOfRangeException();
+
+		  int[]	map = new int[j - i + 1];
+
+			if (map.Length < t.names.Count >> 1)
+			{
+				int l = 0;
+				int tmp;
+				for (int k = i; k <= j; k++)
+					map[l++] = t.names.TryGetValue(k, out tmp) ? tmp : -1;
+			}
+			else
+			{
+#if DEBUG
+				for (int k = 0; k < map.Length; k++)
+					map[k] = -1;
+#endif
+
+				// Collect the direct indexes
+				foreach (var c in t.names)
+				{
+					if (c.Key is int)
+					{
+						int iIndex = (int)c.Key - i;
+						if (iIndex >= 0 && iIndex < map.Length)
+							map[iIndex] = c.Value;
+					}
+				}
+
+#if DEBUG
+				if (Array.Exists(map, c => c == -1))
+					throw new InvalidOperationException("map failed.");
+#endif
+			}
+			return map;
+		} // func mapArray
+
+		#endregion
+
+		#endregion
+
+		// -- Static --------------------------------------------------------------
 
     #region -- c#/vb.net operators ----------------------------------------------------
 

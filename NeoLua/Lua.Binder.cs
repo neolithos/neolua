@@ -156,6 +156,11 @@ namespace Neo.IronLua
       this.result = CopyResult(values);
     } // ctor
 
+		internal LuaResult(bool lCopy, object[] values)
+		{
+			this.result = lCopy ? CopyResult(values) : values;
+		} // ctor
+
     /// <summary></summary>
     /// <returns></returns>
     public override string ToString()

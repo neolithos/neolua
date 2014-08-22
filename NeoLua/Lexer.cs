@@ -13,7 +13,7 @@ namespace Neo.IronLua
 
   ///////////////////////////////////////////////////////////////////////////////
   /// <summary>Tokens</summary>
-  internal enum LuaToken
+  public enum LuaToken
   {
     /// <summary>Not defined token</summary>
     None,
@@ -230,14 +230,14 @@ namespace Neo.IronLua
   ///////////////////////////////////////////////////////////////////////////////
   /// <summary>Position in the source file</summary>
   [TypeConverter(typeof(ExpandableObjectConverter))]
-  internal struct Position
+  public struct Position
   {
     private SymbolDocumentInfo document;
     private int iColumn;
     private int iLine;
     private long iIndex;
 
-    public Position(SymbolDocumentInfo document, int iLine, int iColumn, long iIndex)
+		internal Position(SymbolDocumentInfo document, int iLine, int iColumn, long iIndex)
     {
       this.document = document;
       this.iLine = iLine;
@@ -255,7 +255,7 @@ namespace Neo.IronLua
     /// <summary>Dateiname in der dieser Position sich befindet.</summary>
     public string FileName { get { return document.FileName; } }
     /// <summary>Document where the token was found.</summary>
-    public SymbolDocumentInfo Document { get { return document; } }
+    internal SymbolDocumentInfo Document { get { return document; } }
     /// <summary>Zeile, bei 1 beginnent.</summary>
     public int Line { get { return iLine; } }
     /// <summary>Spalte, bei 1 beginnent.</summary>
@@ -269,9 +269,9 @@ namespace Neo.IronLua
   #region -- class Token --------------------------------------------------------------
 
   ///////////////////////////////////////////////////////////////////////////////
-  /// <summary>Repräsentiert einen Token einer Textdatei.</summary>
+  /// <summary>Represents a token of the lua source file.</summary>
   [TypeConverter(typeof(ExpandableObjectConverter))]
-  internal class Token
+  public class Token
   {
     // -- Position innerhalb der Datei --
     private Position fStart;
@@ -285,7 +285,7 @@ namespace Neo.IronLua
     /// <param name="sValue">Der Wert.</param>
     /// <param name="fStart">Beginn des Tokens</param>
     /// <param name="fEnd">Ende des Tokens</param>
-    public Token(LuaToken iKind, string sValue, Position fStart, Position fEnd)
+    internal Token(LuaToken iKind, string sValue, Position fStart, Position fEnd)
     {
       this.iKind = iKind;
       this.fStart = fStart;
@@ -319,7 +319,7 @@ namespace Neo.IronLua
 
   ///////////////////////////////////////////////////////////////////////////////
   /// <summary>Lexer for the lua syntax.</summary>
-  internal sealed class LuaLexer : IDisposable
+  public sealed class LuaLexer : IDisposable
   {
     private Token lookahead = null;
     private Token current = null;
@@ -342,10 +342,12 @@ namespace Neo.IronLua
     /// <param name="sFileName">Filename</param>
     /// <param name="tr">Input for the scanner, will be disposed on the lexer dispose.</param>
     /// <param name="iCurrentLine"></param>
-    public LuaLexer(string sFileName, TextReader tr, int iCurrentLine = 1)
+		/// <param name="iCurrentColumn"></param>
+    public LuaLexer(string sFileName, TextReader tr, int iCurrentLine = 1, int iCurrentColumn = 1)
     {
       this.document = Expression.SymbolDocument(sFileName);
       this.iCurrentLine = iCurrentLine;
+			this.iCurrentColumn = iCurrentColumn;
       this.tr = tr;
 
       fStart =
@@ -353,6 +355,7 @@ namespace Neo.IronLua
       cCur = Read(); // Lies das erste Zeichen aus dem Buffer
     } // ctor
 
+		/// <summary>Destroy the lexer and the TextReader</summary>
     public void Dispose()
     {
       if (tr != null)
@@ -512,7 +515,7 @@ namespace Neo.IronLua
         return next;
     } // func NextTokenWithSkipRules
 
-    /// <summary>Liest den nächsten Knoten</summary>
+    /// <summary>Reads the next token from the stream</summary>
     public void Next()
     {
       if (lookahead == null) // Erstinitialisierung der Lookaheads notwendig
@@ -527,7 +530,9 @@ namespace Neo.IronLua
       } 
     } // proc Next
 
+		/// <summary>Next token</summary>
     public Token LookAhead { get { return lookahead; } }
+		/// <summary>Current token</summary>
     public Token Current { get { return current; } }
     
     #endregion
@@ -1119,6 +1124,9 @@ namespace Neo.IronLua
 
     #endregion
 
+		/// <summary>Resolves the name of the token.</summary>
+		/// <param name="typ"></param>
+		/// <returns></returns>
     public static string GetTokenName(LuaToken typ)
     {
       Type t = typeof(LuaToken);

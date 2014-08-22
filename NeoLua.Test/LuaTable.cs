@@ -336,7 +336,7 @@ namespace LuaDLR.Test
 
 		#endregion
 
-		#region -- Insert -----------------------------------------------------------------
+		#region -- Insert, Sort, ... ------------------------------------------------------
 
 		[TestMethod]
 		public void TestInsert01()
@@ -348,6 +348,152 @@ namespace LuaDLR.Test
 				"table.insert(t, 2, 'b');",
 				"return t[1], t[2], t[3];"),
 				"a", "b", "c");
+		}
+
+		[TestMethod]
+		public void TestUnpack01()
+		{
+			TestCode(Lines(
+				"local t = {1, 2, 3, [8] = 8};",
+				"return table.unpack(t);"),
+				1, 2, 3);
+		}
+
+		[TestMethod]
+		public void TestUnpack02()
+		{
+			TestCode(Lines(
+				"local t = {1, 2, 3, [8] = 8};",
+				"return table.unpack(t, 1, 100);"),
+				1, 2, 3, 8);
+		}
+
+		[TestMethod]
+		public void TestPack01()
+		{
+			TestCode(Lines(
+				"local t = {1, 2, 3, [8] = 8};",
+				"local r = table.pack(table.unpack(t));",
+				"return r.n, #r, r[1], r[3];"),
+				3, 3, 1, 3);
+		}
+
+		[TestMethod]
+		public void TestPack02()
+		{
+			TestCode(Lines(
+				"local f = function () return 1, 2, 3, nil, 8; end;",
+				"local r = table.pack(f());",
+				"return r.n, #r, r[1], r[3];"),
+				5, 3, 1, 3);
+		}
+
+		[TestMethod]
+		public void TestPack03()
+		{
+			TestCode(Lines(
+				"local f = function (...) return table.pack(...); end;",
+				"local r = f(1, 2, 3, nil, 8);",
+				"return r.n, #r, r[1], r[3];"),
+				5, 3, 1, 3);
+		}
+
+		[TestMethod]
+		public void TestRemove01()
+		{
+			TestCode(Lines(
+				"local t = {1, 2, 3, [8] = 8};",
+				"return table.remove(t, 1), #t;"),
+				1, 2);
+			TestCode(Lines(
+				"local t = {1, 2, 3, 4, 5, 6, 7, 8};",
+				"return table.remove(t, 1), #t;"),
+				1, 7);
+		}
+
+		[TestMethod]
+		public void TestRemove02()
+		{
+			TestCode(Lines(
+				"local t = {1, 2, 3, [8] = 8};",
+				"return table.remove(t, 8), #t;"),
+				8, 3);
+		}
+
+		[TestMethod]
+		public void TestRemove03()
+		{
+			TestCode(Lines(
+				"local t = {1, 2, 3, [8] = 8};",
+				"return table.remove(t, 7), #t;"),
+				null, 3);
+		}
+
+		[TestMethod]
+		public void TestRemove04()
+		{
+			TestCode(Lines(
+				"local t = {1, 2, 3, [8] = 8};",
+				"return table.remove(t), #t;"),
+				3, 2);
+		}
+
+		[TestMethod]
+		public void TestSort01()
+		{
+			TestCode(Lines(
+				"local t = {3, 2, 1};",
+				"table.sort(t);",
+				"return t[1], t[2], t[3];"),
+				1, 2, 3);
+		}
+
+		[TestMethod]
+		public void TestSort02()
+		{
+			TestCode(Lines(
+				"local t = {2, 3, 1};",
+				"table.sort(t, function (x,y) return y - x; end);",
+				"return t[1], t[2], t[3];"),
+				3, 2, 1);
+		}
+
+		[TestMethod]
+		public void TestSort03()
+		{
+			TestCode(Lines(
+				"local t = {2, 1 , 1, 3};",
+				"table.sort(t, function (x,y) return x < y; end);",
+				"return t[1], t[2], t[3], t[4];"),
+				1, 1, 2, 3);
+		}
+
+		[TestMethod]
+		public void TestSort04()
+		{
+			TestCode(Lines(
+				"local t = {2, 1 , 1, 3};",
+				"table.sort(t, function (x,y) return x > y; end);",
+				"return t[1], t[2], t[3], t[4];"),
+				3, 2, 1, 1);
+		}
+
+		[TestMethod]
+		public void TestConcat01()
+		{
+			TestCode(Lines(
+				"local t = {1, 2, 3, [8] = 8};",
+				"return table.concat(t, ' + ');"),
+				"1 + 2 + 3");
+		}
+
+		[TestMethod]
+		public void TestConcat02()
+		{
+			TestCode(Lines(
+				"local t = {1, 2, 3, [8] = 8};",
+				"return table.concat(t, ' + ', 2, 8);"),
+				"2 + 3 + 8");
 		}
 
 		#endregion
