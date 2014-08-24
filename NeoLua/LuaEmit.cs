@@ -409,7 +409,7 @@ namespace Neo.IronLua
       }
       else if (fromType == typeof(LuaResult)) // LuaResult -> convert first value
       {
-        return GetResultExpression(runtime, expr, fromType, 0, toType, lParse);
+        return GetResultExpression(runtime, expr, fromType, 0, toType, null, lParse);
       }
       else if (toType == typeof(LuaResult)) // type to LuaResult
       {
@@ -490,10 +490,12 @@ namespace Neo.IronLua
       );
     } // func GetResultExpression
 
-    public static Expression GetResultExpression(Lua runtime, Expression expr, Type type, int iIndex, Type typeReturn, bool lParse)
+    public static Expression GetResultExpression(Lua runtime, Expression expr, Type type, int iIndex, Type typeReturn, Expression defaultReturn, bool lParse)
     {
       Expression exprGet = GetResultExpression(expr, type, iIndex);
-      return Convert(runtime, exprGet, exprGet.Type, typeReturn, lParse);
+			if (defaultReturn != null)
+				exprGet = Expression.Coalesce(exprGet, defaultReturn);
+      return  Convert(runtime, exprGet, exprGet.Type, typeReturn, lParse);
     } // func GetResultExpression
 
     #endregion
@@ -1295,125 +1297,120 @@ namespace Neo.IronLua
       List<ParameterExpression> variablesToReturn = new List<ParameterExpression>();
       List<Expression> callBlock = new List<Expression>();
 
-      while (iParameterIndex < iParameterCount)
-      {
-        parameter = parameters[iParameterIndex];
+			while (iParameterIndex < iParameterCount)
+			{
+				parameter = parameters[iParameterIndex];
 
-        if (iParameterIndex == iParameterCount - 1 && parameter.ParameterType.IsArray)
-        {
-          #region -- generate vararg for an array --
-          Type typeArray = parameter.ParameterType.GetElementType();
-          if (varLuaResult != null) // create a array of the LuaResult for the last parameter
-          {
-            exprPara[iParameterIndex] = Expression.Convert(Expression.Call(Lua.GetResultValuesMethodInfo, varLuaResult, Expression.Constant(iLastArgumentStretchCount), Expression.Constant(typeArray)), parameter.ParameterType);
-          }
-          else if (iArgumentsIndex == arguments.Length - 1 && getType( arguments[iArgumentsIndex]).IsArray) // last parameter expect a array and we have an array
-          {
-            exprPara[iParameterIndex] = Convert(runtime, getExpr(arguments[iArgumentsIndex]), getType(arguments[iArgumentsIndex]), parameter.ParameterType, lParse);
-            iArgumentsIndex++;
-          }
-          else if (iArgumentsIndex >= arguments.Length) // no arguments left
-          {
-            exprPara[iParameterIndex] = Expression.NewArrayInit(typeArray);
-          }
-          else
-          {
-            List<Expression> exprCollectedArguments = new List<Expression>();
+				if (iParameterIndex == iParameterCount - 1 && parameter.ParameterType.IsArray)
+				{
+					#region -- generate vararg for an array --
+					Type typeArray = parameter.ParameterType.GetElementType();
+					if (varLuaResult != null) // create a array of the LuaResult for the last parameter
+					{
+						exprPara[iParameterIndex] = Expression.Convert(Expression.Call(Lua.GetResultValuesMethodInfo, varLuaResult, Expression.Constant(iLastArgumentStretchCount), Expression.Constant(typeArray)), parameter.ParameterType);
+					}
+					else if (iArgumentsIndex == arguments.Length - 1 && getType(arguments[iArgumentsIndex]).IsArray) // last parameter expect a array and we have an array
+					{
+						exprPara[iParameterIndex] = Convert(runtime, getExpr(arguments[iArgumentsIndex]), getType(arguments[iArgumentsIndex]), parameter.ParameterType, lParse);
+						iArgumentsIndex++;
+					}
+					else if (iArgumentsIndex >= arguments.Length) // no arguments left
+					{
+						exprPara[iParameterIndex] = Expression.NewArrayInit(typeArray);
+					}
+					else
+					{
+						List<Expression> exprCollectedArguments = new List<Expression>();
 
-            // collect all arguments that are left
-            for (; iArgumentsIndex < arguments.Length - 1; iArgumentsIndex++)
-              exprCollectedArguments.Add(Convert(runtime, getExpr(arguments[iArgumentsIndex]), getType(arguments[iArgumentsIndex]), typeArray, lParse));
+						// collect all arguments that are left
+						for (; iArgumentsIndex < arguments.Length - 1; iArgumentsIndex++)
+							exprCollectedArguments.Add(Convert(runtime, getExpr(arguments[iArgumentsIndex]), getType(arguments[iArgumentsIndex]), typeArray, lParse));
 
-            // the last argument is a LuaResult
-            Expression tmpExpr = getExpr( arguments[iArgumentsIndex]);
-            Type tmpType = getType(arguments[iArgumentsIndex]);
-            iArgumentsIndex++;
-            if (tmpType == typeof(LuaResult))
-            {
-              if (exprCollectedArguments.Count == 0) // no arguments collected, convert the array
-              {
-                exprPara[iParameterIndex] = Expression.Convert(Expression.Call(Lua.GetResultValuesMethodInfo, Convert(runtime, tmpExpr, tmpType, tmpType, false), Expression.Constant(0), Expression.Constant(typeArray)), parameter.ParameterType);
-              }
-              else // combine the arguments and the last result to the correct array
-              {
-                exprPara[iParameterIndex] = Expression.Convert(
-                  Expression.Call(null, Lua.CombineArrayWithResultMethodInfo,
-                    Expression.Convert(Expression.NewArrayInit(typeArray, exprCollectedArguments), typeof(Array)),
-                    Convert(runtime, tmpExpr, tmpType, tmpType, lParse),
-                    Expression.Constant(typeArray)
-                  ),
-                  parameter.ParameterType
-                );
-              }
-            }
-            else // normal argument
-            {
-              exprCollectedArguments.Add(Convert(runtime, tmpExpr, tmpType, typeArray, lParse));
+						// the last argument is a LuaResult
+						Expression tmpExpr = getExpr(arguments[iArgumentsIndex]);
+						Type tmpType = getType(arguments[iArgumentsIndex]);
+						iArgumentsIndex++;
+						if (tmpType == typeof(LuaResult))
+						{
+							if (exprCollectedArguments.Count == 0) // no arguments collected, convert the array
+							{
+								exprPara[iParameterIndex] = Expression.Convert(Expression.Call(Lua.GetResultValuesMethodInfo, Convert(runtime, tmpExpr, tmpType, tmpType, false), Expression.Constant(0), Expression.Constant(typeArray)), parameter.ParameterType);
+							}
+							else // combine the arguments and the last result to the correct array
+							{
+								exprPara[iParameterIndex] = Expression.Convert(
+									Expression.Call(null, Lua.CombineArrayWithResultMethodInfo,
+										Expression.Convert(Expression.NewArrayInit(typeArray, exprCollectedArguments), typeof(Array)),
+										Convert(runtime, tmpExpr, tmpType, tmpType, lParse),
+										Expression.Constant(typeArray)
+									),
+									parameter.ParameterType
+								);
+							}
+						}
+						else // normal argument
+						{
+							exprCollectedArguments.Add(Convert(runtime, tmpExpr, tmpType, typeArray, lParse));
 
-              exprPara[iParameterIndex] = Expression.NewArrayInit(typeArray, exprCollectedArguments);
-            }
-          }
-          #endregion
-        }
-        else
-        {
-          #region -- generate set argument --
-          Expression exprGet; // Holds the argument get
+							exprPara[iParameterIndex] = Expression.NewArrayInit(typeArray, exprCollectedArguments);
+						}
+					}
+					#endregion
+				}
+				else
+				{
+					#region -- generate set argument --
+					Expression exprGet; // Holds the argument get
 
-          // get the type for the parameter
-          Type typeParameter = parameter.ParameterType.IsByRef ? parameter.ParameterType.GetElementType() : parameter.ParameterType;
+					// get the type for the parameter
+					Type typeParameter = parameter.ParameterType.IsByRef ? parameter.ParameterType.GetElementType() : parameter.ParameterType;
 
-          if (parameter.IsOut) // out-param no value neede
-          {
-            exprGet = null;
-          }
-          else if (iArgumentsIndex == arguments.Length - 1 && getType( arguments[iArgumentsIndex])== typeof(LuaResult)) // The last argument is a LuaResult (eg. function), start the stretching of the array
-          {
-            varLuaResult = Expression.Variable(typeof(LuaResult), "#result");
-            exprGet = GetResultExpression(runtime,
-              Expression.Assign(varLuaResult, Convert(runtime, getExpr(arguments[iArgumentsIndex]), typeof(LuaResult), typeof(LuaResult), false)),
-              typeof(LuaResult),
-              0,
-              typeParameter,
-              lParse
-            );
-            iLastArgumentStretchCount = 1;
-            iArgumentsIndex++;
-          }
-          else if (iLastArgumentStretchCount > 0) // get the expression of the LuaResult to stretch it
-          {
-            exprGet = GetResultExpression(runtime, varLuaResult, typeof(LuaResult), iLastArgumentStretchCount++, typeParameter, lParse);
-          }
-          else if (iArgumentsIndex < arguments.Length) // assign a normal parameter
-          {
-            exprGet = Convert(runtime, getExpr(arguments[iArgumentsIndex]), getType(arguments[iArgumentsIndex]), typeParameter, lParse);
-            iArgumentsIndex++;
-          }
-          else if (parameter.IsOptional) // No arguments left, if we have a default value, set it
-          {
-            exprGet = Expression.Constant(parameter.DefaultValue, typeParameter);
-          }
-          else // No arguments left, we have no default value --> use default of type
-          {
-            exprGet = Expression.Default(typeParameter);
-          }
+					if (parameter.IsOut) // out-param no value neede
+					{
+						exprGet = null;
+					}
+					else if (iArgumentsIndex == arguments.Length - 1 && getType(arguments[iArgumentsIndex]) == typeof(LuaResult)) // The last argument is a LuaResult (eg. function), start the stretching of the array
+					{
+						varLuaResult = Expression.Variable(typeof(LuaResult), "#result");
+						exprGet = GetResultExpression(runtime,
+							Expression.Assign(varLuaResult, Convert(runtime, getExpr(arguments[iArgumentsIndex]), typeof(LuaResult), typeof(LuaResult), false)),
+							typeof(LuaResult),
+							0,
+							typeParameter,
+							GetDefaultParameterExpression(parameter, typeParameter),
+							lParse
+						);
+						iLastArgumentStretchCount = 1;
+						iArgumentsIndex++;
+					}
+					else if (iLastArgumentStretchCount > 0) // get the expression of the LuaResult to stretch it
+					{
+						exprGet = GetResultExpression(runtime, varLuaResult, typeof(LuaResult), iLastArgumentStretchCount++, typeParameter, GetDefaultParameterExpression(parameter, typeParameter), lParse);
+					}
+					else if (iArgumentsIndex < arguments.Length) // assign a normal parameter
+					{
+						exprGet = Convert(runtime, getExpr(arguments[iArgumentsIndex]), getType(arguments[iArgumentsIndex]), typeParameter, lParse);
+						iArgumentsIndex++;
+					}
+					else // No arguments left, if we have a default value, set it or use the default of the type
+						exprGet = GetDefaultParameterExpression(parameter, typeParameter);
 
-          // Create a variable for the byref parameters
-          if (parameter.ParameterType.IsByRef)
-          {
-            ParameterExpression r = Expression.Variable(typeParameter, "r" + iParameterIndex.ToString());
-            variablesToReturn.Add(r);
-            if (exprGet != null)
-              callBlock.Add(Expression.Assign(r, exprGet));
-            exprPara[iParameterIndex] = exprGet = r;
-          }
+					// Create a variable for the byref parameters
+					if (parameter.ParameterType.IsByRef)
+					{
+						ParameterExpression r = Expression.Variable(typeParameter, "r" + iParameterIndex.ToString());
+						variablesToReturn.Add(r);
+						if (exprGet != null)
+							callBlock.Add(Expression.Assign(r, exprGet));
+						exprPara[iParameterIndex] = exprGet = r;
+					}
 
-          exprPara[iParameterIndex] = exprGet;
-          #endregion
-        }
+					exprPara[iParameterIndex] = exprGet;
+					#endregion
+				}
 
-        iParameterIndex++;
-      }
+				iParameterIndex++;
+			}
 
       bool lArgumentsLeft = iArgumentsIndex < arguments.Length;
       if (variablesToReturn.Count > 0 || varLuaResult != null || (lParse && lArgumentsLeft)) // we have variables or arguments are left out
@@ -1464,6 +1461,14 @@ namespace Neo.IronLua
       else
         return emitCall(exprPara);
     } // func BindParameter
+
+		private static Expression GetDefaultParameterExpression(ParameterInfo parameter, Type typeParameter)
+		{
+			if (parameter.IsOptional)
+				return Expression.Constant(parameter.DefaultValue, typeParameter);
+			else 
+				return Expression.Default(typeParameter);
+		} // func GetDefaultParameterExpression
 
     #endregion
 

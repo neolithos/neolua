@@ -211,6 +211,15 @@ namespace LuaDLR.Test
       }
     }
 
+		[TestMethod]
+		public void TestToNumber01()
+		{
+			TestCode(Lines(
+				"function t() return '8'; end;",
+				"return tonumber(t());"
+				), 8);
+		}
+
     [TestMethod]
     public void TestDateTime01()
     {
