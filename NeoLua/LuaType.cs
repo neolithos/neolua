@@ -99,54 +99,65 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject BindGetIndex(GetIndexBinder binder, DynamicMetaObject[] indexes)
       {
+				ILuaBinder b = binder as ILuaBinder;
         LuaType val = (LuaType)Value;
         Type type = val.Type;
-        if (type != null && indexes.Length == 0)
-        {
-          // create a array of the type
-          return new DynamicMetaObject(
-            Expression.Call(Lua.TypeGetTypeMethodInfoArgIndex,
-              Expression.Constant(val.GetIndex("[]", true, () => type.MakeArrayType()), typeof(int))
-            ),
-            GetTypeResolvedRestriction(type)
-          );
-        }
-        else
-        {
-          if (indexes.Any(c => !c.HasValue))
-            return binder.Defer(indexes);
+				if (type != null && indexes.Length == 0)
+				{
+					// create a array of the type
+					return new DynamicMetaObject(
+						Expression.Call(Lua.TypeGetTypeMethodInfoArgIndex,
+							Expression.Constant(val.GetIndex("[]", true, () => type.MakeArrayType()), typeof(int))
+						),
+						GetTypeResolvedRestriction(type)
+					);
+				}
+				else
+				{
+					if (indexes.Any(c => !c.HasValue))
+						return binder.Defer(indexes);
 
-          // create the generic type name
-          StringBuilder sbTypeName = new StringBuilder();
-          val.GetFullName(sbTypeName);
-          sbTypeName.Append('`').Append(indexes.Length);
+					// is the current type a array
+					if (indexes.All(c => LuaEmit.IsIntegerType(LuaEmit.GetTypeCode(c.LimitType))))
+					{
+						return new DynamicMetaObject(
+							Expression.NewArrayBounds(type, from c in indexes select Lua.EnsureType(c.Expression, typeof(int))),
+							Lua.GetMethodSignatureRestriction(this, indexes));
+					}
+					else
+					{
+						// create the generic type name
+						StringBuilder sbTypeName = new StringBuilder();
+						val.GetFullName(sbTypeName);
+						sbTypeName.Append('`').Append(indexes.Length);
 
-          // find the type
-          Type typeGeneric = Type.GetType(sbTypeName.ToString(), false);
-          if (typeGeneric == null)
-            return new DynamicMetaObject(
-              Lua.ThrowExpression(String.Format(Properties.Resources.rsParseUnknownType, sbTypeName.ToString())),
-              Lua.GetMethodSignatureRestriction(this, indexes)
-              );
+						// find the type
+						Type typeGeneric = Type.GetType(sbTypeName.ToString(), false);
+						if (typeGeneric == null)
+							return new DynamicMetaObject(
+								Lua.ThrowExpression(String.Format(Properties.Resources.rsParseUnknownType, sbTypeName.ToString())),
+								Lua.GetMethodSignatureRestriction(this, indexes)
+								);
 
-          // check, only types are allowed
-          if (indexes.Any(c => c.LimitType != typeof(LuaType) && c.LimitType != typeof(Type)))
-          {
-            return new DynamicMetaObject(
-             Lua.ThrowExpression(Properties.Resources.rsClrGenericTypeExpected),
-             Lua.GetMethodSignatureRestriction(this, indexes));
-          }
+						// check, only types are allowed
+						if (indexes.Any(c => c.LimitType != typeof(LuaType) && c.LimitType != typeof(Type)))
+						{
+							return new DynamicMetaObject(
+							 Lua.ThrowExpression(Properties.Resources.rsClrGenericTypeExpected),
+							 Lua.GetMethodSignatureRestriction(this, indexes));
+						}
 
-          // create the call to the runtime
-          return new DynamicMetaObject(
-            Expression.Call(Expression.Convert(Expression, typeof(LuaType)), Lua.TypeGetGenericItemMethodInfo,
-              Expression.Constant(typeGeneric),
-              Expression.NewArrayInit(typeof(LuaType), (from a in indexes select ConvertToLuaType(a)).AsEnumerable())
-            ),
-            BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaType))
-              .Merge(Lua.GetMethodSignatureRestriction(null, indexes))
-          );
-        }
+						// create the call to the runtime
+						return new DynamicMetaObject(
+							Expression.Call(Expression.Convert(Expression, typeof(LuaType)), Lua.TypeGetGenericItemMethodInfo,
+								Expression.Constant(typeGeneric),
+								Expression.NewArrayInit(typeof(LuaType), (from a in indexes select ConvertToLuaType(a)).AsEnumerable())
+							),
+							BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaType))
+								.Merge(Lua.GetMethodSignatureRestriction(null, indexes))
+						);
+					}
+				}
       } // func BindGetIndex
 
       #endregion
@@ -232,7 +243,7 @@ namespace Neo.IronLua
 
         if (type != null)
         {
-          return BindNewObject(type, args, binder.ReturnType);
+					return BindNewObject(type, args, binder.ReturnType);
         }
         else
         {

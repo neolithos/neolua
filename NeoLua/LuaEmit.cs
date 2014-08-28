@@ -135,7 +135,7 @@ namespace Neo.IronLua
       return IsIntegerType(typeCode) || IsFloatType(typeCode);
     } // func IsArithmeticType
 
-    private static bool IsIntegerType(TypeCode typeCode)
+    public static bool IsIntegerType(TypeCode typeCode)
     {
       switch (typeCode)
       {

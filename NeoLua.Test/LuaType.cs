@@ -362,7 +362,7 @@ namespace LuaDLR.Test
 		public void ArrayTest01()
 		{
 			TestCode(Lines(
-				"local a : string[] = string[2];",
+				"local a : int[] = clr.System.Int32[2];",
 				"a[0] = 1;",
 				"a[1] = 2;",
 				"return a[0], a[1];"), 1, 2);
@@ -372,16 +372,10 @@ namespace LuaDLR.Test
 		public void ArrayTest02()
 		{
 			TestCode(Lines(
-				"local a : string[] = string[](1,2);",
-				"return a[0], a[1];"), 1, 2);
-		}
-
-		[TestMethod]
-		public void ArrayTest03()
-		{
-			TestCode(Lines(
-				"local a : string[] = string[]({1,2});",
-				"return a[0], a[1];"), 1, 2);
+				"local a = clr.System.Int32[2,2];",
+				"a[0, 0] = 1;",
+				"a[1, 1] = 2;",
+				"return a[0, 0], a[1, 1];"), 1, 2);
 		}
 
 		[TestMethod]
