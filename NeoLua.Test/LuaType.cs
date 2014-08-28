@@ -64,6 +64,18 @@ namespace LuaDLR.Test
       Console.WriteLine("Hallo");
     }
 
+		public static float OverloadMethod(float i)
+		{
+			Console.WriteLine("FLOAT");
+			return i;
+		}
+
+		public static int OverloadMethod(int i)
+		{
+			Console.WriteLine("INT");
+			return i;
+		}
+
 		public static bool GreenColor(Color color)
 		{
 			Console.WriteLine("Color: {0}", color);
@@ -344,6 +356,39 @@ namespace LuaDLR.Test
     public void CtorTest03()
     {
       TestCode("return cast(LuaDLR.Test.LuaTypeTests.SubStruct, { Value = 2 }).Value", 2);
-    }
+		}
+
+		[TestMethod]
+		public void ArrayTest01()
+		{
+			TestCode(Lines(
+				"local a : string[] = string[2];",
+				"a[0] = 1;",
+				"a[1] = 2;",
+				"return a[0], a[1];"), 1, 2);
+		}
+
+		[TestMethod]
+		public void ArrayTest02()
+		{
+			TestCode(Lines(
+				"local a : string[] = string[](1,2);",
+				"return a[0], a[1];"), 1, 2);
+		}
+
+		[TestMethod]
+		public void ArrayTest03()
+		{
+			TestCode(Lines(
+				"local a : string[] = string[]({1,2});",
+				"return a[0], a[1];"), 1, 2);
+		}
+
+		[TestMethod]
+		public void OverloadTest01()
+		{
+			TestCode("return clr.LuaDLR.Test.LuaTypeTests:OverloadMethod(1), clr.LuaDLR.Test.LuaTypeTests:OverloadMethod(1.2);", 1, 1.2f);
+			TestCode("return clr.LuaDLR.Test.LuaTypeTests.OverloadMethod(1), clr.LuaDLR.Test.LuaTypeTests.OverloadMethod(1.2);", 1, 1.2f);
+		}
   } // class LuaTypeTests 
 }

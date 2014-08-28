@@ -208,7 +208,7 @@ namespace Neo.IronLua
             restrictions = BindingRestrictions.GetInstanceRestriction(Expression, Value);
             expr = Lua.ThrowExpression(e.Message, binder.ReturnType);
           }
-          return new DynamicMetaObject(expr, GetTypeResolvedRestriction(type));
+					return new DynamicMetaObject(expr, restrictions.Merge(GetTypeResolvedRestriction(type)));
         }
         else
         {

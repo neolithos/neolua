@@ -115,11 +115,11 @@ namespace Neo.IronLua
 
         lExact = false;
 
-        if (tcTo == TypeCode.String)
-          return true;
-        else if (tcTo >= TypeCode.SByte && tcTo <= TypeCode.Double &&
-              tcFrom >= TypeCode.SByte && tcFrom <= tcTo)
-          return true;
+				if (tcTo == TypeCode.String)
+					return true;
+				else if (tcTo >= TypeCode.SByte && tcTo <= TypeCode.Double &&
+							(tcFrom >= TypeCode.SByte && tcFrom <= tcTo || tcTo == TypeCode.Single && tcFrom == TypeCode.Double)) // exception for single -> double
+					return true;
 
         return false;
       }
