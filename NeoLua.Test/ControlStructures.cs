@@ -217,5 +217,13 @@ namespace LuaDLR.Test
 				"end;",
 				"return s;"), 50045.5);
 		}
+		
+		[TestMethod]
+		public void TestVariableAssign01()
+		{
+			TestCode(Lines(
+				"local type = type;",
+				"return type(2);"), "number");
+		}
   } // class ControlStructures
 }

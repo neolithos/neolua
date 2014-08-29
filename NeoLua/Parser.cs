@@ -56,10 +56,17 @@ namespace Neo.IronLua
       /// <returns>The expression that represents the access to the variable.</returns>
       public ParameterExpression RegisterVariable(Type type, string sName)
       {
-        ParameterExpression expr = Expression.Variable(type, sName);
-        RegisterVariableOrConst(sName, expr);
-        return expr;
+        return RegisterVariable(Expression.Variable(type, sName));
       } // proc RegisterParameter
+
+			/// <summary></summary>
+			/// <param name="expr"></param>
+			/// <returns></returns>
+			public ParameterExpression RegisterVariable(ParameterExpression expr)
+			{
+				RegisterVariableOrConst(expr.Name, expr);
+				return expr;
+			} // proc RegisterVariable
 
       public void RegisterConst(string sName, ConstantExpression expr)
       {
@@ -735,13 +742,14 @@ namespace Neo.IronLua
           Token tVar;
           Type typeVar;
           ParseIdentifierAndType(scope, code, out tVar, out typeVar);
-          ParameterExpression exprVar = scope.LookupExpression(tVar.Value, true) as ParameterExpression;
-          if (exprVar == null)
-            exprVar = scope.RegisterVariable(typeVar, tVar.Value);
-          else if (exprVar.Type != typeVar)
-            throw ParseError(tVar, Properties.Resources.rsParseTypeRedef);
+          
+					ParameterExpression exprVar = scope.LookupExpression(tVar.Value, true) as ParameterExpression;
+					if (exprVar == null)
+						exprVar = Expression.Variable(typeVar, tVar.Value);
+					else if (exprVar.Type != typeVar)
+						throw ParseError(tVar, Properties.Resources.rsParseTypeRedef);
 
-          prefixes.Add(new PrefixMemberInfo(tVar, exprVar, null, null, null));
+					prefixes.Add(new PrefixMemberInfo(tVar, exprVar, null, null, null));
         }
         else // parse a assignee
         {
@@ -855,6 +863,10 @@ namespace Neo.IronLua
 					scope.AddExpression(prefixes[i].GenerateGet(scope, InvokeResult.None));
 				}
       }
+
+			// register the variables
+			if (lLocal)
+				prefixes.ForEach(c => scope.RegisterVariable((ParameterExpression)c.Instance));
     } // proc ParseExpressionStatement
 
 		private static ParameterExpression ParseExpressionStatementExchangeToTempVar(List<ParameterExpression> assignTempVars, List<Expression> assignExprs, Expression expr)
