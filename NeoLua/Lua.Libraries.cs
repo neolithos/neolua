@@ -465,9 +465,22 @@ namespace Neo.IronLua
         return rand.Next(Convert.ToInt32(m), Convert.ToInt32(n));
     } // func random
 
-    public static void randomseed(int x)
+    public static void randomseed(object x)
     {
-      rand = new Random(x);
+			int seed ;
+			if (x == null)
+				seed = Environment.TickCount;
+			else
+			{
+				TypeCode tc = Type.GetTypeCode(x.GetType());
+				if (tc >= TypeCode.Byte && tc <= TypeCode.Decimal)
+					seed = Convert.ToInt32(x);
+				else if (tc == TypeCode.DateTime)
+					seed = unchecked((int)((DateTime)x).ToFileTime());
+				else
+					seed = x.GetHashCode();
+			}
+      rand = new Random(seed);
     } // proc randomseed
 
     public static double sin(double x)

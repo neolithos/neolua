@@ -57,7 +57,7 @@ namespace Neo.IronLua
       public ParameterExpression RegisterVariable(Type type, string sName)
       {
         return RegisterVariable(Expression.Variable(type, sName));
-      } // proc RegisterParameter
+      } // proc RegisterVariable
 
 			/// <summary></summary>
 			/// <param name="expr"></param>
