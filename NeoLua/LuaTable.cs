@@ -1057,12 +1057,12 @@ namespace Neo.IronLua
       LuaTable t;
       Delegate dlg;
 
-      if ((t = index as LuaTable) != null) // default table
-        return t.GetValue(key);
-      else if ((dlg = index as Delegate) != null) // default function
-        return Lua.RtInvoke(dlg, this, key);
-      else
-        return null;
+			if ((t = index as LuaTable) != null) // default table
+				return t.GetValue(key);
+			else if ((dlg = index as Delegate) != null) // default function
+				return new LuaResult(Lua.RtInvoke(dlg, this, key))[0];
+			else
+				return null;
     } // func OnIndex
 
     /// <summary></summary>

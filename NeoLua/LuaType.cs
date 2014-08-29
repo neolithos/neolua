@@ -99,7 +99,6 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject BindGetIndex(GetIndexBinder binder, DynamicMetaObject[] indexes)
       {
-				ILuaBinder b = binder as ILuaBinder;
         LuaType val = (LuaType)Value;
         Type type = val.Type;
 				if (type != null && indexes.Length == 0)
