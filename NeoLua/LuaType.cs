@@ -241,20 +241,37 @@ namespace Neo.IronLua
       {
         Type type = ((LuaType)Value).Type;
 
-        if (type != null)
-        {
-					return BindNewObject(type, args, binder.ReturnType);
-        }
-        else
-        {
-          Expression expr =
-            Expression.Condition(
-              GetUpdateCondition(),
-              binder.GetUpdateExpression(binder.ReturnType),
-              Lua.ThrowExpression(Properties.Resources.rsNullReference, binder.ReturnType)
-            );
-          return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(Expression, Value));
-        }
+				if (type != null)
+				{
+					if (type.IsArray) // initialize the array
+					{
+						Expression expr;
+						if (args.Length == 1)
+						{
+							expr = Expression.Call(Lua.InitArray1MethodInfo, Expression.Constant(type.GetElementType()), Lua.EnsureType(args[0].Expression, typeof(object)));
+						}
+						else
+						{
+							expr = Expression.Call(Lua.InitArrayNMethodInfo,
+								 Expression.Constant(type.GetElementType()), Expression.NewArrayInit(typeof(object), from a in args select Lua.EnsureType(a.Expression, typeof(object)))
+							);
+						}
+
+						return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(Expression, Value).Merge(Lua.GetMethodSignatureRestriction(null, args)));
+					}
+					else // call the constructor
+						return BindNewObject(type, args, binder.ReturnType);
+				}
+				else
+				{
+					Expression expr =
+						Expression.Condition(
+							GetUpdateCondition(),
+							binder.GetUpdateExpression(binder.ReturnType),
+							Lua.ThrowExpression(Properties.Resources.rsNullReference, binder.ReturnType)
+						);
+					return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(Expression, Value));
+				}
       } // func BindInvoke
 
       #endregion

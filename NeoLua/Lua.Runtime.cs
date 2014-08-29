@@ -103,6 +103,8 @@ namespace Neo.IronLua
     internal readonly static MethodInfo TableSetObjectsMethod;
     internal readonly static MethodInfo ConcatStringMethodInfo;
     internal readonly static MethodInfo ConvertDelegateMethodInfo;
+		internal readonly static MethodInfo InitArray1MethodInfo;
+		internal readonly static MethodInfo InitArrayNMethodInfo;
     // Object
     internal readonly static MethodInfo ObjectEqualsMethodInfo;
     internal readonly static MethodInfo ObjectReferenceEqualsMethodInfo;
@@ -234,11 +236,13 @@ namespace Neo.IronLua
       ConvertArrayMethodInfo = typeof(Lua).GetMethod("RtConvertArray", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(Array), typeof(Type) }, null);
       TableSetObjectsMethod = typeof(Lua).GetMethod("RtTableSetObjects", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(LuaTable), typeof(object), typeof(int) }, null);
       ConcatStringMethodInfo = typeof(Lua).GetMethod("RtConcatString", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod);
-      ConvertDelegateMethodInfo = typeof(Lua).GetMethod("RtConvertDelegate", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod);
+			ConvertDelegateMethodInfo = typeof(Lua).GetMethod("RtConvertDelegate", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod);
+			InitArray1MethodInfo = typeof(Lua).GetMethod("RtInitArray", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(Type), typeof(object) }, null);
+			InitArrayNMethodInfo = typeof(Lua).GetMethod("RtInitArray", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(Type), typeof(object[]) }, null);
 #if DEBUG
       if (ParseNumberMethodInfo == null || RuntimeLengthMethodInfo == null || ConvertValueMethodInfo == null || GetResultValuesMethodInfo == null || 
           CombineArrayWithResultMethodInfo == null || ConvertArrayMethodInfo == null || TableSetObjectsMethod == null || ConcatStringMethodInfo == null ||
-          ConvertDelegateMethodInfo == null)
+          ConvertDelegateMethodInfo == null || InitArray1MethodInfo == null || InitArrayNMethodInfo == null)
         throw new ArgumentNullException("@5", "Lua");
 #endif
 
@@ -661,9 +665,58 @@ namespace Neo.IronLua
 
     #endregion
 
-    #region -- Enumerator -------------------------------------------------------------
+		#region -- RtInitArray ------------------------------------------------------------
 
-    private readonly static Func<object, object, LuaResult> funcLuaEnumIterator = new Func<object, object, LuaResult>(LuaEnumIteratorImpl);
+		internal static object RtInitArray(Type elementType, object value)
+		{
+			if (value is LuaTable) // only the array part
+			{
+				LuaTable t = (LuaTable)value;
+				int iLength = t.Length;
+
+				// create the array
+			  Array r =	Array.CreateInstance(elementType, iLength);
+
+				// copy the values
+				for (int i = 0; i < iLength; i++)
+					r.SetValue(Lua.RtConvertValue(t[i + 1], elementType), i);
+
+				return r;
+			}
+			else if (value is System.Collections.ICollection) // convert a collection to an array
+			{
+				System.Collections.ICollection c = (System.Collections.ICollection)value;
+
+				// create the array an copy the values
+				Array r = Array.CreateInstance(elementType, c.Count);
+				c.CopyTo(r, 0);
+
+				return r;
+			}
+			else // create a zero-value array
+			{
+				Array r = Array.CreateInstance(elementType, 1);
+				r.SetValue(value, 0);
+				return r;
+			}
+		} // func RtInitArray
+
+		internal static object RtInitArray(Type elementType, object[] values)
+		{
+			Array r = Array.CreateInstance(elementType, values.Length);
+			if (values.Length > 0)
+			{
+				for (int i = 0; i < values.Length; i++)
+					r.SetValue(Lua.RtConvertValue(values[i], elementType), i);
+			}
+			return r;
+		} // func RtInitArray
+
+		#endregion
+
+		#region -- Enumerator -------------------------------------------------------------
+
+		private readonly static Func<object, object, LuaResult> funcLuaEnumIterator = new Func<object, object, LuaResult>(LuaEnumIteratorImpl);
 
     private static LuaResult LuaEnumIteratorImpl(object s, object c)
     {

@@ -6,4 +6,4 @@
 [assembly: AssemblyTrademark("")]
 
 [assembly: AssemblyVersion("5.3.0.0")]
-[assembly: AssemblyFileVersion("0.8.18.0")]
+[assembly: AssemblyFileVersion("0.8.19.0")]

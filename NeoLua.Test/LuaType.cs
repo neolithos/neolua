@@ -16,6 +16,34 @@ namespace LuaDLR.Test
   [TestClass]
   public class LuaTypeTests : TestHelper
   {
+		public class Graph
+		{
+			public struct PointF
+			{
+				public float x, y;
+			}
+			public class Point
+			{
+				public int x, y;
+			}
+			public void DrawLine(string pen, float x1, float y1, float x2, float y2)
+			{
+				Console.WriteLine(string.Format(@"DrawLine '{4}' with float: {0:f1}, {1:f1}, {2:f1}, {3:f1}", x1, y1, x2, y2, pen));
+			}
+			public void DrawLine(string pen, PointF pt1, PointF pt2)
+			{
+				Console.WriteLine(string.Format(@"DrawLine '{4}' with PointF: {0:f1},{1:f1}, {2:f1},{3:f1}", pt1.x, pt1.y, pt2.x, pt2.y, pen));
+			}
+			public void DrawLine(string pen, int x1, int y1, int x2, int y2)
+			{
+				Console.WriteLine(string.Format(@"DrawLine '{4}' with int: {0}, {1}, {2}, {3}", x1, y1, x2, y2, pen));
+			}
+			public void DrawLine(string pen, Point pt1, Point pt2)
+			{
+				Console.WriteLine(string.Format(@"DrawLine '{4}' with Point: {0},{1}, {2},{3}", pt1.x, pt1.y, pt2.x, pt2.y, pen));
+			}
+		}
+
     public class SubClass
     {
       public void Test()
@@ -379,10 +407,65 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
+		public void ArrayTest03()
+		{
+			TestCode(Lines(
+				"local a = clr.System.Int32[](1, 2);",
+				"return a[0], a[1];"), 1, 2);
+		}
+
+		[TestMethod]
+		public void ArrayTest04()
+		{
+			TestCode(Lines(
+				"local a = clr.System.Int32[]{1, 2};",
+				"return a[0], a[1];"), 1, 2);
+		}
+
+		[TestMethod]
+		public void ArrayTest05()
+		{
+			TestCode(Lines(
+				"function t() return 1, 2; end;",
+				"local a = clr.System.Int32[](t());",
+				"return a[0], a[1];"), 1, 2);
+		}
+
+		[TestMethod]
 		public void OverloadTest01()
 		{
 			TestCode("return clr.LuaDLR.Test.LuaTypeTests:OverloadMethod(1), clr.LuaDLR.Test.LuaTypeTests:OverloadMethod(1.2);", 1, 1.2f);
 			TestCode("return clr.LuaDLR.Test.LuaTypeTests.OverloadMethod(1), clr.LuaDLR.Test.LuaTypeTests.OverloadMethod(1.2);", 1, 1.2f);
+		}
+
+		[TestMethod]
+		public void OverloadTest02()
+		{
+			TestCode(Lines(
+				"graph = clr.LuaDLR.Test.LuaTypeTests.Graph();",
+				"graph.DrawLine('a', 1, 1, 1, 1);",
+				"graph.DrawLine('b', 1, 1, 1, 1.0);",
+				"graph.DrawLine('c', 1, 1, 1.0, 1);",
+				"graph.DrawLine('d', 1, 1, 1.0, 1.0);",
+				"graph.DrawLine('e', 1, 1.0, 1, 1);",
+				"graph.DrawLine('f', 1, 1.0, 1, 1.0);",
+				"graph.DrawLine('g', 1, 1.0, 1.0, 1);",
+				"graph.DrawLine('h', 1, 1.0, 1.0, 1.0);",
+				"graph.DrawLine('i', 1.0, 1, 1, 1);",
+				"graph.DrawLine('j', 1.0, 1, 1, 1.0);",
+				"graph.DrawLine('k', 1.0, 1, 1.0, 1);",
+				"graph.DrawLine('l', 1.0, 1, 1.0, 1.0);",
+				"graph.DrawLine('m', 1.0, 1.0, 1, 1);",
+				"graph.DrawLine('n', 1.0, 1.0, 1, 1.0);",
+				"graph.DrawLine('o', 1.0, 1.0, 1.0, 1);",
+				"graph.DrawLine('p', 1.0, 1.0, 1.0, 1.0);",
+				"local i1 = 1;",
+				"local i2 = 2;",
+				"local i3 = 3;",
+				"local i4 = 4;",
+				"graph.DrawLine('aa', i1, i1, i2, i1);",
+				"graph.DrawLine('ab', i1, i2, i3, i4);",
+				"graph.DrawLine('ac', i1, i1, i1, i1);"));
 		}
   } // class LuaTypeTests 
 }
