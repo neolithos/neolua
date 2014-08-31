@@ -115,17 +115,29 @@
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.-->
   <Target Name="BeforeBuild">
-    <ReadLinesFromFile File="Properties\AssemblyInfoGlobal.cs">
-      <Output TaskParameter="Lines" ItemName="AssemblyVersionContent" />
-    </ReadLinesFromFile>
-    <PropertyGroup>
-      <Pattern>\[assembly: AssemblyFileVersion\(.(\d+)\.(\d+)\.(\d+)</Pattern>
-      <AssemblyVersionLines>@(AssemblyVersionContent)</AssemblyVersionLines>
-      <AssemblyVersionLine>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyVersionLines), $(Pattern)))</AssemblyVersionLine>
-      <Version>$(AssemblyVersionLine.Remove(0, 32))</Version>
+		<ReadLinesFromFile File="Properties\AssemblyInfo.cs">
+			<Output TaskParameter="Lines" ItemName="AssemblyInfoContent" />
+		</ReadLinesFromFile>
+		<ReadLinesFromFile File="Properties\AssemblyInfoGlobal.cs">
+			<Output TaskParameter="Lines" ItemName="AssemblyInfoGlobalContent" />
+		</ReadLinesFromFile>
+		<PropertyGroup>
+			<AssemblyInfoLines>@(AssemblyInfoContent)</AssemblyInfoLines>
+			<AssemblyInfoGlobalLines>@(AssemblyInfoGlobalContent)</AssemblyInfoGlobalLines>
+		</PropertyGroup>
+		<PropertyGroup>
+			<Pattern2>\[assembly: AssemblyConfiguration\(.(\w*)</Pattern2>
+			<AssemblyConfig>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyInfoLines), $(Pattern2)))</AssemblyConfig>
+			<VersionAdd>$(AssemblyConfig.Remove(0, 34))</VersionAdd>
+		</PropertyGroup>
+		<PropertyGroup>
+      <Pattern1>\[assembly: AssemblyFileVersion\(.(\d+)\.(\d+)\.(\d+)</Pattern1>
+			<AssemblyVersionLine>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyInfoGlobalLines), $(Pattern1)))</AssemblyVersionLine>
+      <Version Condition="'$(VersionAdd)' != ''">$(AssemblyVersionLine.Remove(0, 32))-$(VersionAdd)</Version>
+			<Version Condition="'$(VersionAdd)' == ''">$(AssemblyVersionLine.Remove(0, 32))</Version>
     </PropertyGroup>
-    <Message Text="Version: $(Version)" />
-  </Target>
+		<Message Text="Version: $(Version)" />
+	</Target>
   <Target Name="AfterBuild" DependsOnTargets="ZipLua;NuGet">
   </Target>
 </Project>

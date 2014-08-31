@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("Neo.Lua")]
 [assembly: AssemblyDescription("Lua Language for DLR")]
-[assembly: AssemblyConfiguration("")]
+[assembly: AssemblyConfiguration("beta")]
 [assembly: AssemblyCulture("")]
 
 [assembly: ComVisible(false)]
