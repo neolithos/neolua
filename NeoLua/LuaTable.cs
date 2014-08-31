@@ -86,7 +86,7 @@ namespace Neo.IronLua
 
       private BindingRestrictions GetLuaTableRestriction()
       {
-        return BindingRestrictions.GetExpressionRestriction(Expression.TypeIs(Expression, typeof(LuaTable)));
+				return LuaTable.GetLuaTableRestriction(Expression);
       } // func GetLuaTableRestriction
 
       #endregion
@@ -188,7 +188,7 @@ namespace Neo.IronLua
         if (!value.HasValue)
           return binder.Defer(value);
 
-        var restrictions = BindingRestrictions.GetExpressionRestriction(Expression.TypeIs(Expression, typeof(LuaTable)));
+				var restrictions = GetLuaTableRestriction();
 
         // create the result
         Expression exprSet;
@@ -253,7 +253,7 @@ namespace Neo.IronLua
               Lua.TableGetValueIdxMethodInfo,
               Lua.EnsureType(Lua.EnsureType(indexes[0].Expression, indexes[0].LimitType), typeof(object))
             ),
-            Lua.GetMethodSignatureRestriction(this, indexes)
+            GetLuaTableRestriction().Merge(Lua.GetMethodSignatureRestriction(null, indexes))
           );
         }
         else
@@ -264,7 +264,7 @@ namespace Neo.IronLua
               Lua.TableGetValueIdxNMethodInfo,
               Expression.NewArrayInit(typeof(object), from i in indexes select Lua.EnsureType(Lua.EnsureType(i.Expression, i.LimitType), typeof(object)))
             ),
-            Lua.GetMethodSignatureRestriction(this, indexes)
+            GetLuaTableRestriction().Merge(Lua.GetMethodSignatureRestriction(null, indexes))
           );
         }
       } // func BindGetIndex
@@ -283,60 +283,60 @@ namespace Neo.IronLua
         if (!value.HasValue)
           return binder.Defer(value);
 
-        LuaTable val = (LuaTable)Value;
-        int iIndex = val.GetValueIndex(binder.Name, binder.IgnoreCase, false);
-        if (iIndex == -2)
-        {
-          return new DynamicMetaObject(
-            Expression.Assign(
-              Expression.Property(
-                Lua.EnsureType(Expression, typeof(LuaTable)),
-                Lua.TableMetaTablePropertyInfo
-              ),
-              LuaEmit.Convert(Lua.GetRuntime(binder), value.Expression, value.LimitType, typeof(LuaTable), false)
-            ),
-            GetLuaTableRestriction().Merge(Lua.GetSimpleRestriction(value))
-          );
-        }
-        else
-        {
-          Expression exprValue = LuaEmit.Convert(Lua.GetRuntime(binder), value.Expression, value.LimitType, typeof(object), false);
-          if (iIndex == -1) // new index
-          {
-            Expression expr = Expression.Condition(
-              val.TableChangedExpression(),
-              Expression.Block(
-                Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableNewIndexMethodInfo,
-                  Expression.Constant(binder.Name, typeof(object)),
-                  Expression.Constant(binder.IgnoreCase),
-                  exprValue,
-                  Expression.Constant(false)
-                ),
-                exprValue
-              ),
-              binder.GetUpdateExpression(typeof(object))
-            );
-            return new DynamicMetaObject(expr,
-              GetLuaTableRestriction().Merge(Lua.GetSimpleRestriction(value))
-            );
-          }
-          else
-          {
-            ParameterExpression tmp = Expression.Variable(typeof(object), "#tmp");
-            return new DynamicMetaObject(
-              Expression.Block(new ParameterExpression[] { tmp },
-                Expression.Assign(tmp, exprValue),
-                Expression.IfThen(Expression.NotEqual(tmp, val.GetIndexAccess(iIndex)),
-                  Expression.Block(
-                    Expression.Assign(val.GetIndexAccess(iIndex), tmp),
-                    Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableOnPropertyChangedMethodInfo, Expression.Constant(binder.Name, typeof(string)))
-                  )
-                ),
-                tmp
-              ), BindingRestrictions.GetInstanceRestriction(Expression, Value).Merge(Lua.GetSimpleRestriction(value))
-            );
-          }
-        }
+				LuaTable val = (LuaTable)Value;
+				int iIndex = val.GetValueIndex(binder.Name, binder.IgnoreCase, false);
+				if (iIndex == -2)
+				{
+					return new DynamicMetaObject(
+						Expression.Assign(
+							Expression.Property(
+								Lua.EnsureType(Expression, typeof(LuaTable)),
+								Lua.TableMetaTablePropertyInfo
+							),
+							LuaEmit.Convert(Lua.GetRuntime(binder), value.Expression, value.LimitType, typeof(LuaTable), false)
+						),
+						GetLuaTableRestriction().Merge(Lua.GetSimpleRestriction(value))
+					);
+				}
+				else
+				{
+					Expression exprValue = LuaEmit.Convert(Lua.GetRuntime(binder), value.Expression, value.LimitType, typeof(object), false);
+					if (iIndex == -1) // new index
+					{
+						Expression expr = Expression.Condition(
+							val.TableChangedExpression(),
+							Expression.Block(
+								Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableNewIndexMethodInfo,
+									Expression.Constant(binder.Name, typeof(object)),
+									Expression.Constant(binder.IgnoreCase),
+									exprValue,
+									Expression.Constant(false)
+								),
+								exprValue
+							),
+							binder.GetUpdateExpression(typeof(object))
+						);
+						return new DynamicMetaObject(expr,
+							BindingRestrictions.GetInstanceRestriction(Expression, Value).Merge(Lua.GetSimpleRestriction(value))
+						);
+					}
+					else
+					{
+						ParameterExpression tmp = Expression.Variable(typeof(object), "#tmp");
+						return new DynamicMetaObject(
+							Expression.Block(new ParameterExpression[] { tmp },
+								Expression.Assign(tmp, exprValue),
+								Expression.IfThen(Expression.NotEqual(tmp, val.GetIndexAccess(iIndex)),
+									Expression.Block(
+										Expression.Assign(val.GetIndexAccess(iIndex), tmp),
+										Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableOnPropertyChangedMethodInfo, Expression.Constant(binder.Name, typeof(string)))
+									)
+								),
+								tmp
+							), BindingRestrictions.GetInstanceRestriction(Expression, Value).Merge(Lua.GetSimpleRestriction(value))
+						);
+					}
+				}
       } // func BindSetMember
 
       public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
@@ -490,7 +490,7 @@ namespace Neo.IronLua
       {
         return new DynamicMetaObject(
           Expression.Property(Lua.EnsureType(exprTable, typeof(LuaTable)), Lua.TableMetaTablePropertyInfo),
-          BindingRestrictions.GetTypeRestriction(exprTable, typeof(LuaTable))
+					GetLuaTableRestriction(exprTable)
         );
       }
       else if (iIndex == -1) // Create an update rule
@@ -531,6 +531,11 @@ namespace Neo.IronLua
         Expression.Property(Expression.Constant(values), Lua.ListCountPropertyInfo),
         Expression.Constant(values.Count, typeof(int)));
     } // func TableChangedExpression
+
+		private static BindingRestrictions GetLuaTableRestriction(Expression exprTable)
+		{
+			return BindingRestrictions.GetExpressionRestriction(Expression.TypeIs(exprTable, typeof(LuaTable)));
+		} // func GetLuaTableRestriction
 
     private Expression CheckMethodVersionExpression(Expression exprTable)
     {

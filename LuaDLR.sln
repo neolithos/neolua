@@ -1,6 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
+# Visual Studio 2013
+VisualStudioVersion = 12.0.30723.0
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoLua", "NeoLua\NeoLua.csproj", "{09AEBB35-719E-4E32-9836-F57D7D6F1607}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoLua.Test", "NeoLua.Test\NeoLua.Test.csproj", "{A25A607C-AEFE-491A-A3D3-0C934DD53B3C}"

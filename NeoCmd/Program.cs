@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Dynamic;
+using System.Globalization;
 using System.IO;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -22,6 +23,7 @@ namespace Neo.IronLua
       Load,
       Debug,
       Environment,
+			Cache,
       Help
     } // enum Commands
 
@@ -163,7 +165,12 @@ namespace Neo.IronLua
             sLine = sCommand.Substring(5).Trim();
             return Commands.List;
           }
-          else if (sCommand.StartsWith(":c", StringComparison.OrdinalIgnoreCase))
+					else if (sCommand.StartsWith(":cache", StringComparison.OrdinalIgnoreCase))
+					{
+						sLine = sCommand.Substring(6).Trim();
+						return Commands.Cache;
+					}
+					else if (sCommand.StartsWith(":c", StringComparison.OrdinalIgnoreCase))
           {
             sbLine.Clear();
             Console.WriteLine("> ");
@@ -183,7 +190,7 @@ namespace Neo.IronLua
             sLine = "true";
             return Commands.Environment;
           }
-          else
+					else
             WriteError("Unkown command.");
         }
         else
@@ -208,13 +215,36 @@ namespace Neo.IronLua
         sw.Start();
 
         // run chunk
-        global.DoChunk(c);
+				LuaResult r =  global.DoChunk(c);
         string sRunTime = String.Format("{0:N0} ms", sw.ElapsedMilliseconds);
 
-        // print summary
-        if (Console.CursorLeft > 0)
-          Console.WriteLine();
+				// start with a new line
+				if (Console.CursorLeft > 0)
+					Console.WriteLine();
 
+        // print result
+				if (r.Count > 0)
+				{
+					for (int i = 0; i < r.Count; i++)
+					{
+						object value = r[i];
+						string sType = "object";
+						string sValue = "null";
+						if (value != null)
+						{
+							sType = value.GetType().Name;
+							sValue = (string) Convert.ChangeType(value, typeof(string), CultureInfo.InvariantCulture);
+							if (sValue.Length > 60)
+								sValue = sValue.Substring(0, 60) + "...";
+							sValue = sValue.Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
+						}
+						WriteText(ConsoleColor.DarkGray, String.Format("[{0}] : {1} = ", i, sType));
+						WriteText(ConsoleColor.DarkCyan, sValue);
+						Console.WriteLine();
+					}
+				}
+				
+				// print summary
         const string csCompile = "==> compile: ";
         const string csRuntime = " run: ";
         Console.CursorLeft = Console.WindowWidth - csCompile.Length - sCompileTime.Length - csRuntime.Length - sRunTime.Length - 1;
@@ -303,6 +333,10 @@ namespace Neo.IronLua
             Console.WriteLine();
             CreateFreshEnvironment();
             break;
+					case Commands.Cache:
+						lua.DumpRuleCaches(sLine);
+				    Console.WriteLine();
+						break;
           case Commands.Help:
             WriteText(ConsoleColor.DarkYellow, "Commands:"); Console.WriteLine();
             WriteCommand(":q", "Exit the application.");
@@ -312,6 +346,7 @@ namespace Neo.IronLua
             WriteCommand(":debugon", "Let the compiler emit debug informations.");
             WriteCommand(":c", "Clears the current script buffer.");
             WriteCommand(":env", "Create a fresh environment.");
+            WriteCommand(":cache", "Shows the content of the binder cache.");
             Console.WriteLine();
             break;
           case Commands.Run:

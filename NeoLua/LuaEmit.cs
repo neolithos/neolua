@@ -1696,16 +1696,19 @@ namespace Neo.IronLua
         Type t = null;
 
         // look for the typ
-        for (int j = 0; j < parameters.Length; j++)
-        {
-          if (parameters[j].ParameterType == genericArguments[i])
-          {
-            t = CombineType(t, getType(arguments[j]));
-            break;
-          }
-        }
+				for (int j = 0; j < parameters.Length; j++)
+				{
+					if (parameters[j].ParameterType == genericArguments[i])
+					{
+						t = CombineType(t, getType(arguments[j]));
+						break;
+					}
+				}
         genericParameter[i] = t;
       }
+
+			if (genericParameter.Any(t => t == null))
+				throw new ArgumentException(String.Format("Can not create method for generic {0}:{1} [{2}].", mi.DeclaringType.GetType().FullName, mi.Name, mi.ToString()));
 
       return mi.MakeGenericMethod(genericParameter);
     } // func MakeNonGenericMethod

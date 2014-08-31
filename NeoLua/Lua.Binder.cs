@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Dynamic;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -982,7 +983,7 @@ namespace Neo.IronLua
 
         if (target.Value == null) // get the default value
         {
-          restrictions = target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, target.Value));
+          restrictions = target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, null));
           if (this.Type == typeof(LuaResult)) // replace null with empty LuaResult 
             expr = Expression.Property(null, Lua.ResultEmptyPropertyInfo);
           else if (this.Type == typeof(string)) // replace null with empty String
@@ -1048,6 +1049,11 @@ namespace Neo.IronLua
         MemberCallInfo mci = obj as MemberCallInfo;
         return mci != null && mci.sMember == sMember && mci.ci.Equals(ci);
       } // func Equals
+
+			public override string ToString()
+			{
+				return sMember + "#" + ci.ArgumentCount.ToString();
+			}
     } // struct MemberCallInfo
 
     #endregion
@@ -1077,9 +1083,99 @@ namespace Neo.IronLua
         setIndexBinder.Clear();
       lock (invokeBinder)
         invokeBinder.Clear();
-      lock (invokeMemberBinder)
-        invokeMemberBinder.Clear();
-    } // proc ClearBinderCache
+			lock (invokeMemberBinder)
+				invokeMemberBinder.Clear();
+			lock (convertBinder)
+				convertBinder.Clear();
+		} // proc ClearBinderCache
+
+		/// <summary>Writes the content of the rule cache to a file. For debug-reasons.</summary>
+		/// <param name="sFileName"></param>
+		public void DumpRuleCaches(string sFileName)
+		{
+			string sSep = new string('=', 66);
+			bool lFileMode = String.IsNullOrEmpty(sFileName);
+			TextWriter tw = lFileMode ? Console.Out : new StreamWriter(sFileName);
+			try
+			{
+				FieldInfo fiCache = typeof(CallSiteBinder).GetField("Cache", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetField | BindingFlags.DeclaredOnly);
+
+				tw.WriteLine(sSep);
+				tw.WriteLine("= Operation Binders");
+				DumpRuleCache<ExpressionType>(tw, operationBinder, fiCache);
+				tw.WriteLine();
+
+				tw.WriteLine(sSep);
+				tw.WriteLine("= GetMember Binders");
+				DumpRuleCache<string>(tw, getMemberBinder, fiCache);
+				tw.WriteLine();
+
+				tw.WriteLine(sSep);
+				tw.WriteLine("= SetMember Binders");
+				DumpRuleCache<string>(tw, setMemberBinder, fiCache);
+				tw.WriteLine();
+
+				tw.WriteLine(sSep);
+				tw.WriteLine("= Get Index Binders");
+				DumpRuleCache<CallInfo>(tw, getIndexBinder, fiCache);
+				tw.WriteLine();
+
+				tw.WriteLine(sSep);
+				tw.WriteLine("= Set Index Binders");
+				DumpRuleCache<CallInfo>(tw, setIndexBinder, fiCache);
+				tw.WriteLine();
+
+				tw.WriteLine(sSep);
+				tw.WriteLine("= Invoke Binders");
+				DumpRuleCache<CallInfo>(tw, invokeBinder, fiCache);
+				tw.WriteLine();
+
+				tw.WriteLine(sSep);
+				tw.WriteLine("= Invoke Member Binders");
+				DumpRuleCache<MemberCallInfo>(tw, invokeMemberBinder, fiCache);
+				tw.WriteLine();
+
+				tw.WriteLine(sSep);
+				tw.WriteLine("= Convert Binders");
+				DumpRuleCache<Type>(tw, convertBinder, fiCache);
+				tw.WriteLine();
+			}
+			finally
+			{
+				if (lFileMode)
+					tw.Close();
+			}
+		} // proc DumpRuleCaches
+
+		private void DumpRuleCache<T>(TextWriter tw,  Dictionary<T, CallSiteBinder> binder, FieldInfo fiCache)
+		{
+			lock (binder)
+			{
+				foreach (var c in binder)
+				{
+					object k = c.Key;
+					string sKey = typeof(CallInfo) == typeof(T) ? "Args" + ((CallInfo)k).ArgumentCount.ToString() : k.ToString();
+
+					// get the cache
+					Dictionary<Type, object> cache = (Dictionary<Type, object>)fiCache.GetValue(c.Value);
+					if (cache == null)
+						continue;
+
+					foreach (var a in cache)
+					{
+						Type t = a.Value.GetType();
+						Array rules = (Array)t.GetField("_rules", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetField | BindingFlags.Instance).GetValue(a.Value);
+						tw.WriteLine(String.Format("{0}: {1}", sKey, rules.Length));
+						//for (int i = 0; i < rules.Length; i++)
+						//{
+						//	object r = rules.GetValue(i);
+						//	if (r != null)
+						//		tw.WriteLine("  {0}", r.GetType());
+						//}
+					}
+				}
+			}
+		} // proc DumpRuleCache
 
     internal CallSiteBinder GetSetMemberBinder(string sName)
     {

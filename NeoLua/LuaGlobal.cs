@@ -173,7 +173,7 @@ namespace Neo.IronLua
 
       // Access to clr can not overload
       if (String.Compare(sMemberName, "_VERSION", (flags & MemberAccessFlag.IgnoreCase) != 0) == 0)
-        return new DynamicMetaObject(Expression.Constant(VersionString, typeof(string)), BindingRestrictions.GetInstanceRestriction(exprTable, this));
+        return new DynamicMetaObject(Expression.Constant(VersionString, typeof(string)), BindingRestrictions.GetExpressionRestriction(Expression.TypeIs(exprTable, typeof(LuaGlobal))));
 
       // Bind the value
       DynamicMetaObject moGet = base.GetMemberAccess(binder, exprTable, memberName, flags);
