@@ -1062,12 +1062,12 @@ namespace Neo.IronLua
       LuaTable t;
       Delegate dlg;
 
-			if ((t = index as LuaTable) != null) // default table
-				return t.GetValue(key);
-			else if ((dlg = index as Delegate) != null) // default function
+      if ((t = index as LuaTable) != null) // default table
+        return t.GetValue(key);
+      else if ((dlg = index as Delegate) != null) // default function
 				return new LuaResult(Lua.RtInvoke(dlg, this, key))[0];
-			else
-				return null;
+      else
+        return null;
     } // func OnIndex
 
     /// <summary></summary>
@@ -1178,8 +1178,8 @@ namespace Neo.IronLua
 
 		#region -- concat --
 
-		/// <summary></summary>
-		/// <param name="t"></param>
+    /// <summary></summary>
+    /// <param name="t"></param>
 		/// <returns></returns>
 		public static string concat(LuaTable t)
 		{
@@ -1188,7 +1188,7 @@ namespace Neo.IronLua
 
 		/// <summary></summary>
 		/// <param name="t"></param>
-		/// <param name="sep"></param>
+    /// <param name="sep"></param>
 		/// <returns></returns>
 		public static string concat(LuaTable t, string sep)
 		{
@@ -1212,7 +1212,7 @@ namespace Neo.IronLua
     /// <param name="j"></param>
     /// <returns></returns>
 		public static string concat(LuaTable t, string sep, int i, int j)
-		{
+    {
 			if (i > j)
 				return String.Empty;
 
@@ -1235,25 +1235,25 @@ namespace Neo.IronLua
 			{
 				List<string> list = new List<string>(Math.Max(Math.Min(j - i + 1, t.names.Count), 1));
 
-				foreach (var c in t)
-				{
+      foreach (var c in t)
+      {
 					if (c.Key is int)
-					{
+        {
 						int k = (int)c.Key;
 						if (k >= i && k <= j)
 							list.Add((string)Lua.RtConvertValue(c.Value, typeof(string)));
-					}
-				}
+        }
+      }
 
 				return String.Join(sep, list);
 			}
-		} // func concat
-
+    } // func concat
+		
 		#endregion
 
 		#region -- insert --
 
-		/// <summary></summary>
+    /// <summary></summary>
     /// <param name="t"></param>
     /// <param name="value"></param>
 		public static void insert(LuaTable t, object value)
@@ -1333,7 +1333,7 @@ namespace Neo.IronLua
 			object r;
 			int iLength = t.Length;
 			if (pos >= 1 && pos <= iLength) // remove the element and shift the follower
-			{
+    {
 				int[] map = mapArray(t, pos, iLength);
 
 				// Copy the values
@@ -1344,10 +1344,10 @@ namespace Neo.IronLua
 				t.values[map[map.Length - 1]] = null;
 			}
 			else // just remove the element
-			{
+      {
 				r = t[pos];
 				t[pos] = null;
-			}
+      }
 			return r;
     } // proc remove
 
@@ -1431,7 +1431,7 @@ namespace Neo.IronLua
 		/// <param name="t"></param>
 		/// <returns></returns>
 		public static LuaResult unpack(LuaTable t)
-		{
+      {
 			return unpack(t, 1, t.Length);
 		} // func unpack
 
@@ -1453,20 +1453,20 @@ namespace Neo.IronLua
     {
 			List<object> r = new List<object>(Math.Max(Math.Min(j - i + 1, t.names.Count), 1));
 
-			foreach (var c in t)
-			{
+      foreach (var c in t)
+      {
 				if (c.Key is int)
 				{
 					int k = (int)c.Key;
-					if (k >= i && k <= j)
-						r.Add(c.Value);
-				}
+        if (k >= i && k <= j)
+          r.Add(c.Value);
+      }
 			}
 
 			return new LuaResult(false, r.ToArray());
     } // func unpack
 
-		#endregion
+    #endregion
 
 		#region -- toArray, mapArray --
 
@@ -1548,7 +1548,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		// -- Static --------------------------------------------------------------
+    // -- Static --------------------------------------------------------------
 
     #region -- c#/vb.net operators ----------------------------------------------------
 

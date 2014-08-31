@@ -78,7 +78,7 @@ namespace Neo.IronLua
       return sb.ToString();
     } // func TranslateRegularExpression
 
-    public static LuaResult @byte(string s, int i = 1, int j = int.MaxValue)
+    public static LuaResult @byte(this string s, int i = 1, int j = int.MaxValue)
     {
       if (String.IsNullOrEmpty(s) || i > j)
         return LuaResult.Empty;
@@ -116,7 +116,7 @@ namespace Neo.IronLua
       throw new NotImplementedException();
     } // func dump
 
-    public static LuaResult find(string s, string pattern, int init = 1, bool plain = false)
+		public static LuaResult find(this string s, string pattern, int init = 1, bool plain = false)
     {
       if (String.IsNullOrEmpty(s))
         return LuaResult.Empty;
@@ -157,12 +157,12 @@ namespace Neo.IronLua
       }
     } // func find
 
-    public static string format(string formatstring, params object[] args)
+		public static string format(this string formatstring, params object[] args)
     {
       return AT.MIN.Tools.sprintf(formatstring, args);
     } // func format
 
-    private static LuaResult matchEnum(object s, object current)
+		private static LuaResult matchEnum(object s, object current)
     {
       System.Collections.IEnumerator e = (System.Collections.IEnumerator)s;
 
@@ -176,7 +176,7 @@ namespace Neo.IronLua
         return LuaResult.Empty;
     } // func matchEnum
 
-    public static LuaResult gmatch(string s, string pattern)
+		public static LuaResult gmatch(this string s, string pattern)
     {
       // f,s,v
       if (String.IsNullOrEmpty(s))
@@ -194,24 +194,24 @@ namespace Neo.IronLua
       return new LuaResult(new Func<object, object, LuaResult>(matchEnum), e, e);
     } // func gmatch
 
-    public static string gsub(string s, string pattern, string repl, int n)
+		public static string gsub(this string s, string pattern, string repl, int n)
     {
       throw new NotImplementedException();
     } // func gsub
 
-    public static int len(string s)
+		public static int len(this string s)
     {
       return s == null ? 0 : s.Length;
     } // func len
 
-    public static string lower(string s)
+		public static string lower(this string s)
     {
       if (String.IsNullOrEmpty(s))
         return s;
       return s.ToLower();
     } // func lower
 
-    public static LuaResult match(string s, string pattern, int init = 1)
+		public static LuaResult match(this string s, string pattern, int init = 1)
     {
       if (String.IsNullOrEmpty(s))
         return LuaResult.Empty;
@@ -246,14 +246,14 @@ namespace Neo.IronLua
         return LuaResult.Empty;
     } // func MatchResult
 
-    public static string rep(string s, int n, string sep = "")
+		public static string rep(this string s, int n, string sep = "")
     {
       if (String.IsNullOrEmpty(s) || n == 0)
         return s;
       return String.Join(sep, Enumerable.Repeat(s, n));
     } // func rep
 
-    public static string reverse(string s)
+		public static string reverse(this string s)
     {
       if (String.IsNullOrEmpty(s) || s.Length == 1)
         return s;
@@ -263,7 +263,7 @@ namespace Neo.IronLua
       return new string(a);
     } // func reverse
 
-    public static string sub(string s, int i, int j = -1)
+		public static string sub(this string s, int i, int j = -1)
     {
       if (String.IsNullOrEmpty(s) || j == 0)
         return String.Empty;
@@ -299,7 +299,7 @@ namespace Neo.IronLua
         return s.Substring(iStart, iLen);
     } // func sub
 
-    public static string upper(string s)
+		public static string upper(this string s)
     {
       if (String.IsNullOrEmpty(s))
         return s;

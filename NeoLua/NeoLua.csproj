@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <Import Project="..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets" />
+  <Import Project="..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets" Condition="Exists('..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -56,6 +56,7 @@
     <Compile Include="Lua.cs" />
     <Compile Include="Lua.Libraries.cs" />
     <Compile Include="Lua.Runtime.cs" />
+    <Compile Include="LuaDebug.cs" />
     <Compile Include="LuaEmit.cs" />
     <Compile Include="LuaType.cs" />
     <Compile Include="LuaFile.cs" />

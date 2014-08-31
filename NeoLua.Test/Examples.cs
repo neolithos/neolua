@@ -212,7 +212,7 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        LuaChunk c = l.CompileChunk("return a;", "test.lua", false);
+        LuaChunk c = l.CompileChunk("return a;", "test.lua", null);
 
         var g1 = l.CreateEnvironment();
         var g2 = l.CreateEnvironment();

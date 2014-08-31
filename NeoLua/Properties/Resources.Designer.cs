@@ -509,5 +509,32 @@ namespace Neo.IronLua.Properties {
                 return ResourceManager.GetString("rsTableOperatorNotFound", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Name for type alias is invalid &apos;{0}&apos;. ähnelt.
+        /// </summary>
+        internal static string rsTypeAliasInvalidName {
+            get {
+                return ResourceManager.GetString("rsTypeAliasInvalidName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Method {0}.{1} must be static, public and needs at least one parameter. ähnelt.
+        /// </summary>
+        internal static string rsTypeExtentionInvalidMethod {
+            get {
+                return ResourceManager.GetString("rsTypeExtentionInvalidMethod", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die {0} is not static. ähnelt.
+        /// </summary>
+        internal static string rsTypeExtentionInvalidType {
+            get {
+                return ResourceManager.GetString("rsTypeExtentionInvalidType", resourceCulture);
+            }
+        }
     }
 }

@@ -95,12 +95,12 @@ namespace LuaDLR.Test
           "test.year = 2001;",
           "return test.year;"
            ), 2001);
-        Assert.Fail();
       }
-      catch(TargetInvocationException e)
+      catch(LuaRuntimeException e)
       {
-        Assert.IsTrue(e.InnerException is LuaRuntimeException);
+				return;
       }
+			Assert.Fail();
     }
 
     #endregion

@@ -1,15 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <Import Project="..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets" Condition="Exists('..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{AFDB9919-9FED-45E9-8843-A731F822B98A}</ProjectGuid>
-    <OutputType>Exe</OutputType>
+    <ProjectGuid>{64E0E32C-0BC4-413E-832E-1574506E4088}</ProjectGuid>
+    <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Neo.IronLua</RootNamespace>
-    <AssemblyName>NeoCmd</AssemblyName>
+    <AssemblyName>Neo.Lua.Dbg</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SccProjectName>SAK</SccProjectName>
@@ -19,7 +18,6 @@
     <TargetFrameworkProfile>Client</TargetFrameworkProfile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>x86</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -29,7 +27,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
@@ -38,13 +35,21 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <SignAssembly>false</SignAssembly>
+    <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>
-    </AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>NeoLua.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.Dynamic">
+      <HintPath>..\packages\DynamicLanguageRuntime.Net40.Unofficial.2.6.1003.1\lib\net40\Microsoft.Dynamic.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Scripting">
+      <HintPath>..\packages\DynamicLanguageRuntime.Net40.Unofficial.2.6.1003.1\lib\net40\Microsoft.Scripting.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Scripting.Debugging">
+      <HintPath>..\packages\DynamicLanguageRuntime.Net40.Unofficial.2.6.1003.1\lib\net40\Microsoft.Scripting.Debugging.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -54,23 +59,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\NeoLua\Properties\AssemblyInfoGlobal.cs">
-      <Link>Properties\AssemblyInfoGlobal.cs</Link>
-    </Compile>
-    <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <None Include="Samples\ForEach.lua" />
-    <None Include="Samples\Forms.lua" />
-    <None Include="Samples\getPlus.lua" />
-    <None Include="Samples\Forms1.lua" />
-    <None Include="Samples\Hallo.lua" />
-    <None Include="Samples\ModTest.lua" />
-    <None Include="Samples\StringBuilder.lua" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
-    <None Include="Samples\Table.lua" />
-    <None Include="Samples\Test.lua" />
+    <None Include="NeoLua.snk" />
+    <None Include="packages.config">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NeoLua\NeoLua.csproj">
@@ -78,31 +73,12 @@
       <Name>NeoLua</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <None Include="Samples\FileRead.lua" />
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
-  -->
-  <Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
-    <CreateItem Include="$(TargetDir)\NeoCmd.exe;$(TargetDir)\Neo.Lua.dll;$(TargetDir)\de\*;Samples\*.lua">
-      <Output ItemName="ZipFile" TaskParameter="Include" />
-    </CreateItem>
-    <Zip Files="@(ZipFile)" WorkingDirectory="$(TargetDir)" ZipFileName="$(TargetDir)\NeoCmd-$(Version).zip" />
-  </Target>
   <Target Name="BeforeBuild">
-    <ReadLinesFromFile File="..\NeoLua\Properties\AssemblyInfoGlobal.cs">
-      <Output TaskParameter="Lines" ItemName="AssemblyVersionContent" />
-    </ReadLinesFromFile>
-    <PropertyGroup>
-      <Pattern>\[assembly: AssemblyFileVersion\(.(\d+)\.(\d+)\.(\d+)</Pattern>
-      <AssemblyVersionLines>@(AssemblyVersionContent)</AssemblyVersionLines>
-      <AssemblyVersionLine>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyVersionLines), $(Pattern)))</AssemblyVersionLine>
-      <Version>$(AssemblyVersionLine.Remove(0, 32))</Version>
-    </PropertyGroup>
-    <Message Text="Version: $(Version)" />
   </Target>
-  <Target Name="AfterBuild" DependsOnTargets="ZipLua">
+  <Target Name="AfterBuild">
   </Target>
+  -->
 </Project>

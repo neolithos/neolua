@@ -10,7 +10,7 @@ namespace NeoSpeed
 {
   class Program
   {
-    private static bool lDebugNeoLua = true;
+    private static Neo.IronLua.ILuaDebug debugNeoLua = Neo.IronLua.Lua.DefaultDebugEngine;
 
     static void Main(string[] args)
     {
@@ -43,7 +43,7 @@ namespace NeoSpeed
       }
       Console.WriteLine();
       Console.WriteLine("Precompiled (no cache clear):");
-      lDebugNeoLua = false;
+      debugNeoLua = null;
       for (int i = 0; i < scripts.Length; i++)
       {
         string sScript1 = File.ReadAllText(String.Format(scripts[i], 1));
@@ -59,7 +59,7 @@ namespace NeoSpeed
       }
       Console.WriteLine();
       Console.WriteLine("Precompiled (no cache clear, debug):");
-      lDebugNeoLua = true;
+			debugNeoLua = Neo.IronLua.Lua.DefaultDebugEngine;
       for (int i = 0; i < scripts.Length; i++)
       {
         string sScript1 = File.ReadAllText(String.Format(scripts[i], 1));
@@ -101,7 +101,7 @@ namespace NeoSpeed
     {
       using (Neo.IronLua.Lua lua = new Neo.IronLua.Lua())
       {
-        Neo.IronLua.LuaChunk chunk = lua.CompileChunk(sScript, "test", lDebugNeoLua);
+        Neo.IronLua.LuaChunk chunk = lua.CompileChunk(sScript, "test", debugNeoLua);
         Neo.IronLua.LuaGlobal g = lua.CreateEnvironment();
         g["test"] = new Action<int>(LuaTest);
         g["echo"] = new Func<object, object>(LuaEcho);

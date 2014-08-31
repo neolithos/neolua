@@ -1,166 +1,100 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Neo.IronLua
 {
-  #region -- class LuaDebugInfo -------------------------------------------------------
-
-  ///////////////////////////////////////////////////////////////////////////////
-  /// <summary></summary>
-  [Serializable]
-  internal class LuaDebugInfo : IComparable<LuaDebugInfo>
-  {
-    private string sChunkName;
-    private string sFileName;
-    private int ilOffset;
-    private int iLine;
-    private int iColumn;
-
-    public LuaDebugInfo(LuaChunk chunk, SymbolDocumentInfo document, int ilOffset, int iLine, int iColumn)
-    {
-      this.sChunkName = chunk.ChunkName;
-      this.sFileName = document.FileName;
-      this.ilOffset = ilOffset;
-      this.iLine = iLine;
-      this.iColumn = iColumn;
-    } // ctor
-
-    public int CompareTo(LuaDebugInfo other)
-    {
-      return ilOffset - other.ilOffset;
-    } // func CompareTo
-
-    public override string ToString()
-    {
-      return IsClear ? String.Format("{0}# Clear", ilOffset) : String.Format("{3}# {0}:{1},{2}", FileName, iLine, iColumn, ilOffset);
-    } // func ToString
-
-    public string ChunkName { get { return sChunkName; } }
-    public string FileName { get { return sFileName; } }
-    public int ILOffset { get { return ilOffset; } }
-    public int Line { get { return iLine; } }
-    public int Column { get { return iColumn; } }
-
-    public bool IsClear {get{return iLine== 16707566;}}
-  } // class LuaDebugInfo
-
-  #endregion
-
   #region -- class LuaChunk -----------------------------------------------------------
 
   ///////////////////////////////////////////////////////////////////////////////
   /// <summary>Represents the compiled chunk.</summary>
-  public class LuaChunk : IDisposable
+  public class LuaChunk
   {
     private Lua lua;
-    private Delegate chunk = null;
     private string sName;
-    private string sChunkName = null;
+		private Delegate chunk = null;
 
-    private List<LuaDebugInfo> debugInfos = null;
-    private List<LuaChunk> assigned = null;
+		/// <summary>Create the chunk</summary>
+		/// <param name="lua">Attached runtime</param>
+		/// <param name="sName">Name of the chunk</param>
+		/// <param name="chunk"></param>
+		protected internal LuaChunk(Lua lua, string sName, Delegate chunk)
+		{
+			this.lua = lua;
+			this.sName = sName;
+			this.chunk = chunk;
+		} // ctor
 
-    internal LuaChunk(Lua lua, string sName, string sChunkName)
-    {
-      this.lua = lua;
-      this.sName = sName;
-      this.sChunkName = sChunkName;
-    } // ctor
+		/// <summary>Assign a methodname with the current chunk.</summary>
+		/// <param name="sName">unique method name</param>
+		protected void RegisterMethod(string sName)
+		{
+			Lua.RegisterMethod(sName, this);
+		} // proc RegisterMethod
 
-    /// <summary>Removes the chunk from the lua-engine.</summary>
-    public void Dispose()
-    {
-      if (assigned != null)
-      {
-        for (int i = 0; i < assigned.Count; i++)
-          assigned[i].Dispose();
-        assigned.Clear();
-        assigned = null;
-      }
-      if (debugInfos != null)
-      {
-        debugInfos.Clear();
-        debugInfos = null;
-      }
-      chunk = null;
-      lua.RemoveChunk(sName);
-    } // proc Dispose
-
-    internal void AssignChunk(LuaChunk assignChunk)
-    {
-      if (assigned == null)
-        assigned = new List<LuaChunk>();
-      if (assigned.IndexOf(assignChunk) == -1)
-        assigned.Add(assignChunk);
-    } // proc AssignChunk
-
-    internal void AddDebugInfo(SymbolDocumentInfo document, int ilOffset, int iLine, int iColumn)
-    {
-      if (debugInfos == null)
-        debugInfos = new List<LuaDebugInfo>();
-
-      LuaDebugInfo di = new LuaDebugInfo(this, document, ilOffset, iLine, iColumn);
-      int iPos = debugInfos.BinarySearch(di);
-      if (iPos < 0)
-        debugInfos.Insert(~iPos, di);
-      else
-        debugInfos[iPos] = di;
-    } // proc AddDebugInfo
-
-    internal LuaDebugInfo GetDebugInfo(int ilOffset)
-    {
-      LuaDebugInfo info = null;
-
-      // find debug info
-      if (debugInfos != null)
-        for (int i = 0; i < debugInfos.Count; i++)
-          if (debugInfos[i].ILOffset <= ilOffset)
-            info = debugInfos[i];
-          else if (debugInfos[i].ILOffset > ilOffset)
-            break;
-
-      // clear debug
-      if (info != null && info.IsClear)
-        info = null;
-
-      return info;
-    } // func GetDebugInfo
+		/// <summary>Gets for the StackFrame the position in the source file.</summary>
+		/// <param name="method"></param>
+		/// <param name="ilOffset"></param>
+		/// <returns></returns>
+		protected internal virtual ILuaDebugInfo GetDebugInfo(MethodBase method, int ilOffset)
+		{
+			return null;
+		} // func GetDebugInfo
 
     /// <summary>Returns the associated LuaEngine</summary>
     public Lua Lua { get { return lua; } }
     /// <summary>Set or get the compiled script.</summary>
-    internal Delegate Chunk { get { return chunk; } set { chunk = value; } }
-    /// <summary>Internal Unique Name for the script</summary>
-    internal string Name { get { return sName; } }
+    protected internal Delegate Chunk { get { return chunk; } set { chunk = value; } }
 
     /// <summary>Name of the compiled chunk.</summary>
-    public string ChunkName { get { return sChunkName ?? sName; } internal set { sChunkName = value; } }
+    public string ChunkName { get { return sName; } }
 
-    /// <summary>Is the chunk compiled and executable.</summary>
-    public bool IsCompiled { get { return chunk != null; } }
-    /// <summary>Is the chunk compiled with debug infos</summary>
-    public bool HasDebugInfo { get { return debugInfos != null; } }
-    /// <summary>Is this an empty chunk</summary>
-    public bool IsEmpty { get { return !IsCompiled && debugInfos == null; } }
+		/// <summary>Is the chunk compiled and executable.</summary>
+		public bool IsCompiled { get { return chunk != null; } }
+		/// <summary>Is the chunk compiled with debug infos</summary>
+		public virtual bool HasDebugInfo { get { return false; } }
 
     /// <summary>Returns the declaration of the compiled chunk.</summary>
     public MethodInfo Method { get { return chunk == null ? null : chunk.Method; } }
+
     /// <summary>Get the IL-Size</summary>
-    public int Size
+    public virtual int Size
     {
-      get
-      {
-        if (chunk == null)
-          return 0;
-        return chunk.Method.GetMethodBody().GetILAsByteArray().Length;
-      }
+			get
+			{
+				if (chunk == null)
+					return 0;
+
+				// Gib den Type zurück
+				Type typeMethod = chunk.Method.GetType();
+				if (typeMethod.FullName == "System.Reflection.RuntimeMethodInfo")
+					return chunk.Method.GetMethodBody().GetILAsByteArray().Length;
+				else if (typeMethod.FullName == "System.Reflection.Emit.DynamicMethod+RTDynamicMethod")
+				{
+					if (fiOwner == null)
+					{
+						fiOwner = typeMethod.GetField("m_owner", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetField);
+						if (fiOwner == null)
+							throw new InvalidOperationException("RTDynamicMethod:m_owner not found");
+					}
+					DynamicMethod dyn = (DynamicMethod)fiOwner.GetValue(chunk.Method);
+					return dyn.GetILGenerator().ILOffset;
+				}
+				else
+					return -1;
+			}
     } // prop Size
+
+		// -- Static --------------------------------------------------------------
+
+		private static FieldInfo fiOwner = null; // m_owner
   } // class LuaChunk
 
   #endregion

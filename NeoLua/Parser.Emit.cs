@@ -15,6 +15,9 @@ namespace Neo.IronLua
   /// <summary></summary>
   internal static partial class Parser
   {
+		private static readonly Func<Expression, Expression> getExpressionFunction = GetExpression;
+		private static readonly Func<Expression, Type> getExpressionTypeFunction = GetExpressionType;
+
     #region -- Debug-Information ------------------------------------------------------
 
     private static Expression WrapDebugInfo(bool lWrap, bool lAfter, Token tStart, Token tEnd, Expression expr)
@@ -158,7 +161,7 @@ namespace Neo.IronLua
         );
       }
       else
-        return SafeExpression(() => LuaEmit.GetIndex(runtime, instance, indexes, e => e, e => e.Type, true), tStart);
+        return SafeExpression(() => LuaEmit.GetIndex(runtime, instance, indexes, getExpressionFunction, getExpressionTypeFunction, true), tStart);
     } // func IndexGetExpression
 
     private static Expression IndexSetExpression(Lua runtime, Token tStart, Expression instance, Expression[] indexes, Expression set, bool lNoResult = true)
@@ -183,7 +186,7 @@ namespace Neo.IronLua
           return Expression.Block(expr, set);
       }
       else
-        return SafeExpression(() => LuaEmit.SetIndex(runtime, instance, indexes, set, e => e, e => e.Type, true), tStart);
+				return SafeExpression(() => LuaEmit.SetIndex(runtime, instance, indexes, set, getExpressionFunction, getExpressionTypeFunction, true), tStart);
     } // func IndexSetExpression
 
     private static Expression InvokeExpression(Lua runtime, Token tStart, Expression instance, InvokeResult result, Expression[] arguments, bool lParse)
@@ -197,7 +200,7 @@ namespace Neo.IronLua
         ConstructorInfo ci = 
           type.IsValueType && arguments.Length == 0 ?
             null :
-            LuaEmit.FindMember(type.GetConstructors(BindingFlags.Public | BindingFlags.CreateInstance | BindingFlags.Instance), arguments, e => e.Type);
+            LuaEmit.FindMember(type.GetConstructors(BindingFlags.Public | BindingFlags.CreateInstance | BindingFlags.Instance), arguments, getExpressionTypeFunction);
 
         if (ci == null && !type.IsValueType)
           throw ParseError(tStart, String.Format(Properties.Resources.rsMemberNotResolved, type.Name, "ctor"));
@@ -206,7 +209,7 @@ namespace Neo.IronLua
           args => ci == null ? Expression.New(type) : Expression.New(ci, args),
           ci == null ? new ParameterInfo[0] :  ci.GetParameters(),
           arguments,
-          e => e, e => e.Type, true), tStart);
+					getExpressionFunction, getExpressionTypeFunction, true), tStart);
       }
       else if (LuaEmit.IsDynamicType(instance.Type))
       {
@@ -230,7 +233,7 @@ namespace Neo.IronLua
             args => Expression.Invoke(instance, args),
             mi.GetParameters(),
             arguments,
-            e => e, e => e.Type, true), tStart),
+						getExpressionFunction, getExpressionTypeFunction, true), tStart),
           result
         );
       }
@@ -255,25 +258,54 @@ namespace Neo.IronLua
       {
         // look up the method
         MethodInfo method = LuaEmit.FindMethod(
-          (MethodInfo[])instance.Type.GetMember(sMember, MemberTypes.Method, BindingFlags.Public | BindingFlags.Instance | BindingFlags.InvokeMethod),
+					LuaType.GetType(instance.Type).GetInstanceMethods(BindingFlags.Public, sMember),
           arguments,
-          e => e.Type);
+          getExpressionTypeFunction,
+					true);
 
         if (method != null)
         {
           return SafeExpression(() => EnsureInvokeResult(runtime, tStart,
-            LuaEmit.BindParameter(runtime,
-              args => Expression.Call(instance, method, args),
-              method.GetParameters(),
-              arguments,
-              e => e, e => e.Type, true),
+						InvokeMemberExpressionBind(method, runtime, instance, arguments),
             result
           ), tStart);
         }
         else
-          throw ParseError(tStart, LuaEmitException.GetMessageText(LuaEmitException.MemberNotFound, sMember));
+					return InvokeMemberExpressionDynamic(runtime, tStart, instance, sMember, result, arguments);
       }
     } // func InvokeMemberExpression
+
+		private static Expression InvokeMemberExpressionBind(MethodInfo method, Lua runtime, Expression instance, Expression[] arguments)
+		{
+			if (method.IsStatic)
+			{
+				return LuaEmit.BindParameter(runtime,
+					args => Expression.Call(null, method, args),
+					method.GetParameters(),
+					new Expression[] { instance }.Concat(
+						from a in arguments select Lua.EnsureType(a, typeof(object))
+					).ToArray(),
+					getExpressionFunction, getExpressionTypeFunction, true);
+			}
+			else
+			{
+				return LuaEmit.BindParameter(runtime,
+					args => Expression.Call(instance, method, args),
+					method.GetParameters(),
+					arguments,
+					getExpressionFunction, getExpressionTypeFunction, true);
+			}
+		} // func InvokeMemberExpressionBind
+
+		private static Expression InvokeMemberExpressionDynamic(Lua runtime, Token tStart, Expression instance, string sMember, InvokeResult result, Expression[] arguments)
+		{
+			return EnsureInvokeResult(runtime, tStart,
+				Expression.Dynamic(runtime.GetInvokeMemberBinder(sMember, new CallInfo(arguments.Length)), typeof(object),
+					new Expression[] { ConvertExpression(runtime, tStart, instance, typeof(object)) }.Concat(from a in arguments select Lua.EnsureType(a, typeof(object))).ToArray()
+				),
+				result
+			 );
+		} // func InvokeMemberExpressionDynamic
 
     private static Expression EnsureInvokeResult(Lua runtime, Token tStart, Expression expr, InvokeResult result)
     {
@@ -312,6 +344,16 @@ namespace Neo.IronLua
       Type typeDelegate = GetDelegateType(mi);
       return Delegate.CreateDelegate(typeDelegate, firstArgument, mi);
     } // func CreateDelegateFromMethodInfo
+
+		private static Type GetExpressionType(Expression e)
+		{
+			return e.Type;
+		} // func GetExpressionType
+
+		private static Expression GetExpression(Expression e)
+		{
+			return e;
+		} // func GetExpression
   } // class Parser
 
   #endregion

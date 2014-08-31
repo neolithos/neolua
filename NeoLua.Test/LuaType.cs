@@ -347,7 +347,7 @@ namespace LuaDLR.Test
           "local a : System.EventHandler = function(a, b) : void",
           "  print('Hallo');",
           "end;",
-          "a()"), "dummy", true);
+					"a()"), "dummy", Lua.DefaultDebugEngine);
         g.DoChunk(c);
       }
     }
@@ -363,7 +363,7 @@ namespace LuaDLR.Test
           "local a : System.EventHandler = function(a, b) : void",
           "  print('Hallo');",
           "end;",
-          "a();"), "dummy", false);
+          "a();"), "dummy", null);
         g.DoChunk(c);
       }
     }
@@ -384,7 +384,7 @@ namespace LuaDLR.Test
     public void CtorTest03()
     {
       TestCode("return cast(LuaDLR.Test.LuaTypeTests.SubStruct, { Value = 2 }).Value", 2);
-		}
+    }
 
 		[TestMethod]
 		public void ArrayTest01()
@@ -467,5 +467,27 @@ namespace LuaDLR.Test
 				"graph.DrawLine('ab', i1, i2, i3, i4);",
 				"graph.DrawLine('ac', i1, i1, i1, i1);"));
 		}
+
+		[TestMethod]
+		public void ExtensionTest01()
+		{
+			LuaType.RegisterTypeExtension(typeof(TypeExt));
+
+			TestCode("return 'Hallo0':LetterCount();", 5);
+			TestCode("t = 'Hallo0'; return t:LetterCount();", 5);
+		}
   } // class LuaTypeTests 
+
+	public static class TypeExt
+	{
+		public static int LetterCount(this string s)
+		{
+			int i = 0;
+			foreach (char c in s)
+				if (char.IsLetter(c))
+					i++;
+
+			return i;
+		}
+	}
 }

@@ -17,6 +17,7 @@ namespace Neo.IronLua
   {
     private enum Commands
     {
+			None,
       Run,
       Exit,
       List,
@@ -29,7 +30,7 @@ namespace Neo.IronLua
 
     private static Lua lua = new Lua(); // create lua script compiler
     private static LuaGlobal global;
-    private static bool lDebugMode = true;
+    private static ILuaDebug debugEngine = Lua.DefaultDebugEngine;
 
     private static void WriteText(ConsoleColor textColor, string sText)
     {
@@ -170,7 +171,7 @@ namespace Neo.IronLua
 						sLine = sCommand.Substring(6).Trim();
 						return Commands.Cache;
 					}
-					else if (sCommand.StartsWith(":c", StringComparison.OrdinalIgnoreCase))
+          else if (sCommand.StartsWith(":c", StringComparison.OrdinalIgnoreCase))
           {
             sbLine.Clear();
             Console.WriteLine("> ");
@@ -190,7 +191,7 @@ namespace Neo.IronLua
             sLine = "true";
             return Commands.Environment;
           }
-					else
+          else
             WriteError("Unkown command.");
         }
         else
@@ -201,76 +202,125 @@ namespace Neo.IronLua
       }
     } // func InputCommand
 
+		private static Commands ParseArgument(string sArg, out string sLine)
+		{
+			if (!String.IsNullOrEmpty(sArg))
+			{
+				if (sArg[0] == '-')
+				{
+					if (sArg == "-debugon")
+					{
+						sLine = Boolean.TrueString;
+						return Commands.Debug;
+					}
+					else if (sArg == "-debugoff")
+					{
+						sLine = Boolean.FalseString;
+						return Commands.Debug;
+					}
+				}
+				else
+				{
+					sLine = sArg;
+					return Commands.Load;
+				}
+			}
+
+			sLine = null;
+			return Commands.None;
+		} // func ParseArgument
+
+		private static void PrintResult(LuaResult r)
+		{
+			for (int i = 0; i < r.Count; i++)
+			{
+				object value = r[i];
+				string sType = "object";
+				string sValue = "null";
+				if (value != null)
+				{
+					sType = value.GetType().Name;
+					sValue = (string)Convert.ChangeType(value, typeof(string), CultureInfo.InvariantCulture);
+					if (sValue.Length > 60)
+						sValue = sValue.Substring(0, 60) + "...";
+					sValue = sValue.Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
+				}
+				WriteText(ConsoleColor.DarkGray, String.Format("[{0}] : {1} = ", i, sType));
+				WriteText(ConsoleColor.DarkCyan, sValue);
+				Console.WriteLine();
+			}
+		} // proc PrintResult
+
     private static void RunScript(Func<string> code, string sName)
     {
-      try
-      {
-        Stopwatch sw = new Stopwatch();
-        sw.Start();
-        
-        // compile chunk
-        LuaChunk c = lua.CompileChunk(code(), sName, lDebugMode);
-        string sCompileTime = String.Format("{0:N0} ms", sw.ElapsedMilliseconds);
-        sw.Reset();
-        sw.Start();
+			try
+			{
+				Stopwatch sw = new Stopwatch();
+				sw.Start();
 
-        // run chunk
-				LuaResult r =  global.DoChunk(c);
-        string sRunTime = String.Format("{0:N0} ms", sw.ElapsedMilliseconds);
+				// compile chunk
+				LuaChunk c = lua.CompileChunk(code(), sName, debugEngine);
+
+				string sCompileTime = String.Format("{0:N0} ms", sw.ElapsedMilliseconds);
+				sw.Reset();
+				sw.Start();
+
+				// run chunk
+				LuaResult r = global.DoChunk(c);
+				string sRunTime = String.Format("{0:N0} ms", sw.ElapsedMilliseconds);
+
+				string sSize;
+				if (c.Size < 0)
+					sSize = "unknown";
+				else if (c.Size == 0)
+					sSize = String.Empty;
+				else
+					sSize = c.Size.ToString("N0") + " byte";
 
 				// start with a new line
 				if (Console.CursorLeft > 0)
 					Console.WriteLine();
 
-        // print result
+				// print result
 				if (r.Count > 0)
-				{
-					for (int i = 0; i < r.Count; i++)
-					{
-						object value = r[i];
-						string sType = "object";
-						string sValue = "null";
-						if (value != null)
-						{
-							sType = value.GetType().Name;
-							sValue = (string) Convert.ChangeType(value, typeof(string), CultureInfo.InvariantCulture);
-							if (sValue.Length > 60)
-								sValue = sValue.Substring(0, 60) + "...";
-							sValue = sValue.Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
-						}
-						WriteText(ConsoleColor.DarkGray, String.Format("[{0}] : {1} = ", i, sType));
-						WriteText(ConsoleColor.DarkCyan, sValue);
-						Console.WriteLine();
-					}
-				}
-				
+					PrintResult(r);
+
 				// print summary
-        const string csCompile = "==> compile: ";
-        const string csRuntime = " run: ";
-        Console.CursorLeft = Console.WindowWidth - csCompile.Length - sCompileTime.Length - csRuntime.Length - sRunTime.Length - 1;
-        WriteText(ConsoleColor.DarkGreen, csCompile);
-        WriteText(ConsoleColor.Green, sCompileTime);
-        WriteText(ConsoleColor.DarkGreen, csRuntime);
-        WriteText(ConsoleColor.Green, sRunTime);
-        Console.WriteLine();
-      }
-      catch (LuaParseException e)
-      {
-        WriteText(ConsoleColor.DarkRed, String.Format("Parse error at line {0:N0} (column: {1:N0}):", e.Line, e.Column));
-        Console.WriteLine();
-        WriteText(ConsoleColor.DarkRed, "  " + e.Message);
-        Console.WriteLine();
-      }
-      catch (Exception e)
-      {
-        Exception ex = e is TargetInvocationException ? e.InnerException : e;
-        WriteException(ex);
-      }
+				const string csCompile = "==> compile: ";
+				const string csRuntime = " run: ";
+
+				Console.CursorLeft = Console.WindowWidth - csCompile.Length - (sSize.Length > 0 ? sSize.Length + 3 : 0) - sCompileTime.Length - csRuntime.Length - sRunTime.Length - 1;
+				WriteText(ConsoleColor.DarkGreen, csCompile);
+				WriteText(ConsoleColor.Green, sCompileTime);
+				if (sSize.Length > 0)
+				{
+					WriteText(ConsoleColor.DarkGreen, " [");
+					WriteText(ConsoleColor.Green, sSize);
+					WriteText(ConsoleColor.DarkGreen, "]");
+				}
+				WriteText(ConsoleColor.DarkGreen, csRuntime);
+				WriteText(ConsoleColor.Green, sRunTime);
+				Console.WriteLine();
+			}
+			catch (LuaParseException e)
+			{
+				WriteText(ConsoleColor.DarkRed, String.Format("Parse error at line {0:N0} (column: {1:N0}):", e.Line, e.Column));
+				Console.WriteLine();
+				WriteText(ConsoleColor.DarkRed, "  " + e.Message);
+				Console.WriteLine();
+			}
+			catch (Exception e)
+			{
+				Exception ex = e is TargetInvocationException ? e.InnerException : e;
+				WriteException(ex);
+			}
     } // proc RunScript
 
     [STAThread]
     public static void Main(string[] args)
     {
+			int iCurrentArg = 0;
+
       WriteText(ConsoleColor.Gray, "NeoLua Interactive Command"); Console.WriteLine();
       WriteText(ConsoleColor.DarkGray, "Version ");
       WriteText(ConsoleColor.White, String.Format("{0} ({1})", LuaGlobal.VersionString, Lua.Version));
@@ -302,7 +352,14 @@ namespace Neo.IronLua
       while (true)
       {
         string sLine;
-        switch (InputCommand(out sLine))
+				Commands cmd;
+
+				if (iCurrentArg < args.Length)
+					cmd = ParseArgument(args[iCurrentArg++], out sLine);
+				else
+					cmd = InputCommand(out sLine);
+
+        switch (cmd)
         {
           case Commands.List:
             // list all variables in global
@@ -319,12 +376,12 @@ namespace Neo.IronLua
             if (sLine == Boolean.TrueString)
             {
               WriteText(ConsoleColor.DarkYellow, "Compile emits stack trace information and runtime functions, now."); Console.WriteLine();
-              lDebugMode = true;
+							debugEngine = Lua.DefaultDebugEngine;
             }
             else
             {
               WriteText(ConsoleColor.DarkYellow, "Compile creates dynamic functions, now."); Console.WriteLine();
-              lDebugMode = false;
+              debugEngine = null;
             }
             Console.WriteLine();
             break;

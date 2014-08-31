@@ -1474,10 +1474,10 @@ namespace Neo.IronLua
 
     #region -- FindMember -------------------------------------------------------------
 
-    public static MethodInfo FindMethod<TARG>(MethodInfo[] members, TARG[] arguments, Func<TARG, Type> getType)
+		public static MethodInfo FindMethod<TARG>(MethodInfo[] members, TARG[] arguments, Func<TARG, Type> getType, bool lExtension)
       where TARG : class
     {
-      MethodInfo mi = (MethodInfo)FindMember(members, arguments, getType);
+      MethodInfo mi = (MethodInfo)FindMember(members, arguments, getType, lExtension);
 
       // create a non generic version
       if (mi != null && mi.ContainsGenericParameters)
@@ -1486,7 +1486,7 @@ namespace Neo.IronLua
       return mi;
     } // func FindMethod
 
-    public static TMEMBERTYPE FindMember<TMEMBERTYPE, TARG>(TMEMBERTYPE[] members, TARG[] arguments, Func<TARG, Type> getType)
+    public static TMEMBERTYPE FindMember<TMEMBERTYPE, TARG>(TMEMBERTYPE[] members, TARG[] arguments, Func<TARG, Type> getType, bool lExtension = false)
       where TMEMBERTYPE : MemberInfo
       where TARG : class
     {
@@ -1516,7 +1516,7 @@ namespace Neo.IronLua
             continue;
 
           // Get the Parameters
-          ParameterInfo[] parameters = GetMemberParameter(miCur);
+          ParameterInfo[] parameters = GetMemberParameter(miCur, lExtension);
 
           // How many parameters we have
           int iParametersLength = parameters.Length;
@@ -1529,7 +1529,7 @@ namespace Neo.IronLua
             if (iParametersLength == iMaxParameterLength && iCurParameterLength == iMaxParameterLength)
             {
               // Get the parameter of the current match
-              ParameterInfo[] curParameters = iCurMatchCount == -1 ? GetMemberParameter(miBind) : null;
+              ParameterInfo[] curParameters = iCurMatchCount == -1 ? GetMemberParameter(miBind, lExtension) : null;
               int iNewMatchCount = 0;
               int iNewMatchExactCount = 0;
               int iCount;
@@ -1601,18 +1601,23 @@ namespace Neo.IronLua
       return miBind;
     } // func FindMember
 
-    private static ParameterInfo[] GetMemberParameter<TMEMBERTYPE>(TMEMBERTYPE mi)
+    private static ParameterInfo[] GetMemberParameter<TMEMBERTYPE>(TMEMBERTYPE mi, bool lExtensions)
       where TMEMBERTYPE : MemberInfo
     {
       MethodBase mb = mi as MethodBase;
       PropertyInfo pi = mi as PropertyInfo;
 
-      if (mb != null)
-        return mb.GetParameters();
-      else if (pi != null)
-        return pi.GetIndexParameters();
-      else
-        throw new ArgumentException();
+			if (mb != null)
+			{
+				if (lExtensions && mb.IsStatic)
+					return mb.GetParameters().Skip(1).ToArray();
+				else
+					return mb.GetParameters();
+			}
+			else if (pi != null)
+				return pi.GetIndexParameters();
+			else
+				throw new ArgumentException();
     } // func GetMemberParameter
 
     private static bool IsMatchParameter<TARG>(int j, ParameterInfo[] parameters, TARG[] arguments, Func<TARG, Type> getType, out bool lExact)

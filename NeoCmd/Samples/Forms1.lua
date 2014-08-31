@@ -10,7 +10,7 @@ local iClicked : int = 0;
 
 Application:EnableVisualStyles();
 
-do (frm, cmd = Form(), Button())
+do (frm : Form, cmd : Button = Form(), Button())
 	frm.Text = 'Hallo Welt!';
 	cmd.Text = 'Click';
 	cmd.Left = 16;

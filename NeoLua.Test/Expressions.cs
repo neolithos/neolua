@@ -268,7 +268,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         dynamic g = l.CreateEnvironment();
-        var c = l.CompileChunk("return cast(bool, a)", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)));
+        var c = l.CompileChunk("return cast(bool, a)", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)));
 
         TestResult(g.dochunk(c, 1), true);
         TestResult(g.dochunk(c, ShortEnum.Eins), true);
@@ -294,7 +294,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         dynamic g = l.CreateEnvironment();
-        var c = l.CompileChunk("return cast(string, a)", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)));
+        var c = l.CompileChunk("return cast(string, a)", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)));
 
         TestResult(g.dochunk(c, 'a'), "a");
         TestResult(g.dochunk(c, 1), "1");
@@ -323,7 +323,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         dynamic g = l.CreateEnvironment();
-        var c = l.CompileChunk("return cast(int, a)", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)));
+        var c = l.CompileChunk("return cast(int, a)", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)));
 
         TestResult(g.dochunk(c, "1"), 1);
         TestResult(g.dochunk(c, ShortEnum.Eins), 1);
@@ -347,7 +347,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         dynamic g = l.CreateEnvironment();
-        var c = l.CompileChunk("return cast(int, a)", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)));
+        var c = l.CompileChunk("return cast(int, a)", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)));
 
         TestResult(g.dochunk(c, new LuaResult(2)), 2);
         TestResult(g.dochunk(c, new LuaResult((short)2)), 2);
@@ -413,7 +413,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         var g = l.CreateEnvironment();
-        var c = l.CompileChunk("return 1 + a;", "test.lua", false, new KeyValuePair<string, Type>("a", typeof(string)));
+        var c = l.CompileChunk("return 1 + a;", "test.lua", null, new KeyValuePair<string, Type>("a", typeof(string)));
 
         TestResult(g.DoChunk(c, "2"), 3);
         TestResult(g.DoChunk(c, "2.0"), 3.0);
@@ -427,7 +427,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         var g = l.CreateEnvironment();
-        var c = l.CompileChunk("return 1 + a;", "test.lua", false, new KeyValuePair<string, Type>("a", typeof(object)));
+        var c = l.CompileChunk("return 1 + a;", "test.lua", null, new KeyValuePair<string, Type>("a", typeof(object)));
 
         TestResult(g.DoChunk(c, 2), 3);
         TestResult(g.DoChunk(c, 2.0), 3.0);
@@ -443,12 +443,13 @@ namespace LuaDLR.Test
       try
       {
         TestExpr("1 + nil", null);
-        Assert.Fail();
       }
-      catch (TargetInvocationException e)
+			catch (LuaRuntimeException e)
       {
-        Assert.IsTrue(e.InnerException is LuaRuntimeException && ((LuaRuntimeException)e.InnerException).Message.IndexOf("Object") >= 0);
+        Assert.IsTrue(e.Message.IndexOf("Object") >= 0);
+				return;
       }
+			Assert.Fail();
     }
 
     [TestMethod]
@@ -457,12 +458,13 @@ namespace LuaDLR.Test
       try
       {
         TestExpr("1 + clr.LuaDLR.Test.Expressions.ReturnVoid()", NullResult);
-        Assert.Fail();
       }
-      catch (TargetInvocationException e)
+			catch (LuaRuntimeException e)
       {
-        Assert.IsTrue(e.InnerException is LuaRuntimeException && ((LuaRuntimeException)e.InnerException).Message.IndexOf("Object") >= 0);
+        Assert.IsTrue(e.Message.IndexOf("Object") >= 0);
+				return;
       }
+			Assert.Fail();
     }
 
     [TestMethod]
@@ -472,8 +474,8 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         var g = l.CreateEnvironment();
-        var c1 = l.CompileChunk("return a + b;", "test.lua", false, new KeyValuePair<string, Type>("a", typeof(int)), new KeyValuePair<string, Type>("b", typeof(TestOperator)));
-        var c2 = l.CompileChunk("return a + b;", "test.lua", false, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(object)));
+        var c1 = l.CompileChunk("return a + b;", "test.lua", null, new KeyValuePair<string, Type>("a", typeof(int)), new KeyValuePair<string, Type>("b", typeof(TestOperator)));
+        var c2 = l.CompileChunk("return a + b;", "test.lua", null, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(object)));
 
         TestResult(g.DoChunk(c1, 1, new TestOperator(2)), new TestOperator(3));
 
@@ -493,7 +495,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         var g = l.CreateEnvironment();
-        var c = l.CompileChunk("return a + b;", "test.lua", false, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(object)));
+        var c = l.CompileChunk("return a + b;", "test.lua", null, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(object)));
 
         TestResult(g.DoChunk(c, ShortEnum.Eins, ShortEnum.Zwei), ShortEnum.Drei);
         TestResult(g.DoChunk(c, IntEnum.Eins, IntEnum.Zwei), IntEnum.Drei);
@@ -509,8 +511,8 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         var g = l.CreateEnvironment();
-        var c1 = l.CompileChunk("return a + b;", "test.lua", false, new KeyValuePair<string, Type>("a", typeof(Nullable<int>)), new KeyValuePair<string, Type>("b", typeof(Nullable<int>)));
-        var c2 = l.CompileChunk("return a + b;", "test.lua", false, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(object)));
+        var c1 = l.CompileChunk("return a + b;", "test.lua", null, new KeyValuePair<string, Type>("a", typeof(Nullable<int>)), new KeyValuePair<string, Type>("b", typeof(Nullable<int>)));
+        var c2 = l.CompileChunk("return a + b;", "test.lua", null, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(object)));
 
         TestResult(g.DoChunk(c1, 1, 2), 3);
         TestResult(g.DoChunk(c1, null, 2), NullResult);
@@ -537,7 +539,7 @@ namespace LuaDLR.Test
         Console.WriteLine();
         TestResult(g.DoChunk("return clr.LuaDLR.Test.Expressions.Return1() + clr.LuaDLR.Test.Expressions.ReturnLua2();", "test.lua"), 3);
         Console.WriteLine();
-        var c2 = l.CompileChunk("return a() + b();", "test.lua", false, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(object)));
+        var c2 = l.CompileChunk("return a() + b();", "test.lua", null, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(object)));
         TestResult(g.DoChunk(c2, new Func<int>(Return1), new Func<int>(Return2)), 3);
         TestResult(g.DoChunk(c2, new Func<LuaResult>(ReturnLua1), new Func<LuaResult>(ReturnLua2)), 3);
         TestResult(g.DoChunk(c2, new Func<int>(Return1), new Func<LuaResult>(ReturnLua2)), 3);
@@ -597,12 +599,12 @@ namespace LuaDLR.Test
         TestResult(g.dochunk("return a << b", "dummy", "a", 1.0, "b", 8), 256);
         TestResult(g.dochunk("return a >> b", "dummy", "a", 256.0, "b", 8), 1);
 
-        LuaChunk c1 = l.CompileChunk("return a ~ b", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(int)));
+        LuaChunk c1 = l.CompileChunk("return a ~ b", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(int)));
         TestResult(g.dochunk(c1, 3.2, 2), 1);
         TestResult(g.dochunk(c1, "3.2", 2), 1);
         TestResult(g.dochunk(c1, ShortEnum.Drei, 2), 1);
         TestResult(g.dochunk(c1, new Nullable<short>(3), 2), 1);
-        LuaChunk c2 = l.CompileChunk("return a() ~ b", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(int)));
+        LuaChunk c2 = l.CompileChunk("return a() ~ b", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(int)));
         TestResult(g.dochunk(c2, new Func<LuaResult>(() => new LuaResult(3.2)), 2), 1);
         TestResult(g.dochunk(c2, new Func<LuaResult>(() => new LuaResult(new TestOperator(3))), 2), new TestOperator(1));
         TestResult(g.dochunk(c2, new Func<LuaResult>(() => new LuaResult(new Nullable<float>(3.2f))), 2), 1);
@@ -669,12 +671,13 @@ namespace LuaDLR.Test
       try
       {
         TestExpr("-clr.LuaDLR.Test.Expressions.ReturnVoid()", null);
-        Assert.Fail();
       }
-      catch (TargetInvocationException e)
+      catch (LuaRuntimeException e)
       {
-        Assert.IsTrue(e.InnerException is LuaRuntimeException && ((LuaRuntimeException)e.InnerException).Message.IndexOf("nil") >= 0);
+        Assert.IsTrue(e.Message.IndexOf("nil") >= 0);
+				return;
       }
+			Assert.Fail();
     }
 
     [TestMethod]
@@ -752,7 +755,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         var g = l.CreateEnvironment();
-        var c = l.CompileChunk("if a then return true else return false end", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)));
+        var c = l.CompileChunk("if a then return true else return false end", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)));
 
         TestResult(g.DoChunk(c, 1), true);
         TestResult(g.DoChunk(c, 0), false);
@@ -769,7 +772,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         var g = l.CreateEnvironment();
-        var c = l.CompileChunk("return a or b", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(object)));
+        var c = l.CompileChunk("return a or b", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(object)));
 
         TestResult(g.DoChunk(c, 10, 20), 10);
         TestResult(g.DoChunk(c, (short)10, (short)20), (short)10);
@@ -788,7 +791,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         var g = l.CreateEnvironment();
-        var c = l.CompileChunk("return a and b", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(object)));
+        var c = l.CompileChunk("return a and b", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(object)));
 
         TestResult(g.DoChunk(c, null, 10), NullResult);
         TestResult(g.DoChunk(c, false, false), false);
@@ -815,7 +818,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         var g = l.CreateEnvironment();
-        var c = l.CompileChunk("return not a", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)));
+        var c = l.CompileChunk("return not a", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)));
 
         TestResult(g.DoChunk(c, 1), false);
         TestResult(g.DoChunk(c, 0), true);
@@ -852,7 +855,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         dynamic g = l.CreateEnvironment();
-        var c = l.CompileChunk("return a < b", "dummy", false,
+        var c = l.CompileChunk("return a < b", "dummy", null,
           new KeyValuePair<string, Type>("a", typeof(object)),
           new KeyValuePair<string, Type>("b", typeof(object))
         );
@@ -884,7 +887,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         dynamic g = l.CreateEnvironment();
-        var c = l.CompileChunk("return a == b", "dummy", false,
+        var c = l.CompileChunk("return a == b", "dummy", null,
           new KeyValuePair<string, Type>("a", typeof(object)),
           new KeyValuePair<string, Type>("b", typeof(object))
         );
@@ -908,7 +911,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         dynamic g = l.CreateEnvironment();
-        var c = l.CompileChunk("return a ~= b", "dummy", false,
+        var c = l.CompileChunk("return a ~= b", "dummy", null,
           new KeyValuePair<string, Type>("a", typeof(object)),
           new KeyValuePair<string, Type>("b", typeof(object))
         );
@@ -969,7 +972,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         dynamic g = l.CreateEnvironment();
-        var c = l.CompileChunk("return #a;", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)));
+        var c = l.CompileChunk("return #a;", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)));
 
         TestResult(g.dochunk(c, "abc"), 3);
         TestResult(g.dochunk(c, new TestOperator(3)), 3);

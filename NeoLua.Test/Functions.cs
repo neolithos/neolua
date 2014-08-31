@@ -327,7 +327,7 @@ namespace LuaDLR.Test
       {
         l.PrintExpressionTree = true;
         dynamic g = l.CreateEnvironment();
-        var c = l.CompileChunk("print(a)", "dummy", false, new KeyValuePair<string, Type>("a", typeof(object)));
+        var c = l.CompileChunk("print(a)", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)));
 
         g.dochunk(c, 1);
         g.dochunk(c, "a");

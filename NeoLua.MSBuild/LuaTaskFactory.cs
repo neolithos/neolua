@@ -25,7 +25,7 @@ namespace Neo.IronLua
       try
       {
         log.LogMessage("Compile script.");
-        task = lua.CompileChunk(taskBody, taskName, true, 
+        task = lua.CompileChunk(taskBody, taskName, Lua.DefaultDebugEngine, 
           new KeyValuePair<string, Type>("engine", typeof(IBuildEngine)), 
           new KeyValuePair<string, Type>("log", typeof(TaskLoggingHelper))
         );

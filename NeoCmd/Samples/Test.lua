@@ -1,12 +1,11 @@
-﻿function e()
+﻿local e = function ()
 	error("hallo");
 end;
 
 --e();
-
 local a, b = tonumber(read("a")), tonumber(read("b"));
 
-function PrintResult(o, op)
+local PrintResult = function (o, op)
 
 	print(o .. ' = ' .. a .. op .. b);
 

@@ -267,4 +267,13 @@
   <data name="rsTableOperatorNotFound" xml:space="preserve">
     <value>Operator '{0}' is not defined for the table.</value>
   </data>
+  <data name="rsTypeAliasInvalidName" xml:space="preserve">
+    <value>Name for type alias is invalid '{0}'.</value>
+  </data>
+  <data name="rsTypeExtentionInvalidMethod" xml:space="preserve">
+    <value>Method {0}.{1} must be static, public and needs at least one parameter.</value>
+  </data>
+  <data name="rsTypeExtentionInvalidType" xml:space="preserve">
+    <value>{0} is not static.</value>
+  </data>
 </root>

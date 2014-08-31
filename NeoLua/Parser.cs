@@ -164,7 +164,9 @@ namespace Neo.IronLua
       /// <summary>Access to the Lua-Binders</summary>
       public virtual Lua Runtime { get { return parent.Runtime; } }
       /// <summary>Emit-Debug-Information</summary>
-      public virtual bool EmitDebug { get { return parent.EmitDebug; } }
+			public virtual LuaDebugLevel EmitDebug { get { return parent.EmitDebug; } }
+			/// <summary>DebugInfo on expression level</summary>
+			public bool EmitExpressionDebug { get { return (EmitDebug & LuaDebugLevel.Expression) != 0; } }
       /// <summary>Return type of the current Lambda-Scope</summary>
       public virtual Type ReturnType { get { return parent.ReturnType; } }
       /// <summary></summary>
@@ -340,24 +342,24 @@ namespace Neo.IronLua
     private class GlobalScope : LambdaScope
     {
       private Lua runtime;
-      private bool lDebug;
+      private LuaDebugLevel debug;
 
       /// <summary>Global parse-scope</summary>
       /// <param name="runtime">Runtime and binder of the global scope.</param>
-      /// <param name="lDebug"></param>
+      /// <param name="debug"></param>
       /// <param name="returnType"></param>
       /// <param name="returnDefaultValue"></param>
-      public GlobalScope(Lua runtime, bool lDebug, Type returnType, Expression returnDefaultValue)
+			public GlobalScope(Lua runtime, LuaDebugLevel debug, Type returnType, Expression returnDefaultValue)
         : base(null, returnType, returnDefaultValue)
       {
         this.runtime = runtime;
-        this.lDebug = lDebug;
+        this.debug = debug;
       } // ctor
 
       /// <summary>Access to the binders</summary>
       public override Lua Runtime { get { return runtime; } }
       /// <summary>Emit-Debug-Information</summary>
-      public override bool EmitDebug { get { return lDebug; } }
+			public override LuaDebugLevel EmitDebug { get { return debug; } }
     } // class GlobalScope
 
     #endregion
@@ -413,7 +415,7 @@ namespace Neo.IronLua
           if (Indices.Length > 0)
           {
             // First the arguments are pushed on the stack, and later comes the call, so we wrap the last parameter
-            Indices[Indices.Length - 1] = WrapDebugInfo(scope.EmitDebug, true, Position, Position, Indices[Indices.Length - 1]); // Let the type as it is
+            Indices[Indices.Length - 1] = WrapDebugInfo(scope.EmitExpressionDebug, true, Position, Position, Indices[Indices.Length - 1]); // Let the type as it is
           }
 
           Instance = IndexGetExpression(scope.Runtime, Position, Instance, Indices);
@@ -422,7 +424,7 @@ namespace Neo.IronLua
         else if (Instance != null && Member != null && Indices == null && Arguments == null)
         {
           // Convert the member to an instance
-          Instance = WrapDebugInfo(scope.EmitDebug, true, Position, Position, Instance);
+					Instance = WrapDebugInfo(scope.EmitExpressionDebug, true, Position, Position, Instance);
           Instance = MemberGetExpression(scope.Runtime, Position, Instance, Member, MethodMember);
           Member = null;
           MethodMember = false;
@@ -436,10 +438,10 @@ namespace Neo.IronLua
           if (Arguments.Length > 0)
           {
             // First the arguments are pushed on the stack, and later comes the call, so we wrap the last parameter
-            Arguments[Arguments.Length - 1] = WrapDebugInfo(scope.EmitDebug, true, Position, Position, Arguments[Arguments.Length - 1]); // Let the type as it is
+						Arguments[Arguments.Length - 1] = WrapDebugInfo(scope.EmitExpressionDebug, true, Position, Position, Arguments[Arguments.Length - 1]); // Let the type as it is
           }
           else
-            Instance = WrapDebugInfo(scope.EmitDebug, true, Position, Position, Instance);
+						Instance = WrapDebugInfo(scope.EmitExpressionDebug, true, Position, Position, Instance);
 
           if (String.IsNullOrEmpty(Member))
             Instance = InvokeExpression(scope.Runtime, Position, Instance, result, Arguments, true);
@@ -477,19 +479,19 @@ namespace Neo.IronLua
 
     /// <summary>Parses the chunk to an function.</summary>
     /// <param name="runtime">Binder</param>
-    /// <param name="lDebug">Compile the script with debug information.</param>
+    /// <param name="debug">Compile the script with debug information.</param>
     /// <param name="lHasEnvironment">Creates the _G parameter.</param>
     /// <param name="code">Lexer for the code.</param>
     /// <param name="typeDelegate">Type for the delegate. <c>null</c>, for an automatic type</param>
     /// <param name="returnType">Defines the return type of the chunk.</param>
     /// <param name="args">Arguments of the function.</param>
     /// <returns>Expression-Tree for the code.</returns>
-    public static LambdaExpression ParseChunk(Lua runtime, bool lDebug, bool lHasEnvironment, LuaLexer code, Type typeDelegate, Type returnType, IEnumerable<KeyValuePair<string, Type>> args)
+    public static LambdaExpression ParseChunk(Lua runtime, LuaDebugLevel debug, bool lHasEnvironment, LuaLexer code, Type typeDelegate, Type returnType, IEnumerable<KeyValuePair<string, Type>> args)
     {
       List<ParameterExpression> parameters = new List<ParameterExpression>();
       if (returnType == null)
         returnType = typeof(LuaResult);
-      var globalScope = new GlobalScope(runtime, lDebug, returnType, returnType == typeof(LuaResult) ? Expression.Property(null, Lua.ResultEmptyPropertyInfo) : null);
+      var globalScope = new GlobalScope(runtime, debug, returnType, returnType == typeof(LuaResult) ? Expression.Property(null, Lua.ResultEmptyPropertyInfo) : null);
 
       // Registers the global LuaTable
       if (lHasEnvironment)
@@ -506,7 +508,9 @@ namespace Neo.IronLua
         code.Next();
 
       // Get the name for the chunk and clean it from all unwanted chars
-      string sChunkName = runtime.CreateEmptyChunk(Path.GetFileNameWithoutExtension(code.Current.Start.FileName)).Name;
+			string sChunkName = CreateNameFromFile(code.Current.Start.FileName);
+			if ((debug & LuaDebugLevel.RegsiterMethods) == LuaDebugLevel.RegsiterMethods)
+				sChunkName = Lua.RegisterUniqueName(sChunkName);
 
       // Create the block
       ParseBlock(globalScope, code);
@@ -520,12 +524,45 @@ namespace Neo.IronLua
         Expression.Lambda(typeDelegate, globalScope.ExpressionBlock, sChunkName, parameters);
     } // func ParseChunk
 
-    private static void ParseBlock(Scope scope, LuaLexer code)
+		private static string CreateNameFromFile(string sFileName)
+		{
+			StringBuilder sbName = new StringBuilder(Path.GetFileNameWithoutExtension(sFileName));
+			int iLength = sbName.Length;
+			for (int i = 0; i < iLength; i++)
+			{
+				switch (sbName[i])
+				{
+					case '.':
+					case ';':
+					case ',':
+					case '+':
+					case ':':
+						sbName[i] = '_';
+						break;
+				}
+			}
+			return sbName.ToString();
+		} // func CreateNameFromFile
+
+		private static void ParseBlock(Scope scope, LuaLexer code)
     {
       // Lese die Statement
-      bool lLoop = true;
+			int iLastDebugInfo = -1;
+			bool lLoop = true;
       while (lLoop)
       {
+				bool lDebugInfoEmitted = false;
+
+				if ((scope.EmitDebug & LuaDebugLevel.Line) != 0) // debug info for line
+				{
+					if (code.Current.Start.Line != iLastDebugInfo)
+					{
+						iLastDebugInfo = code.Current.Start.Line;
+						scope.AddExpression(GetDebugInfo(code.Current, code.Current));
+						lDebugInfoEmitted = true;
+					}
+				}
+
         switch (code.Current.Typ)
         {
           case LuaToken.Eof: // End of file
@@ -546,15 +583,15 @@ namespace Neo.IronLua
             break;
 
           default:
-            if (scope.EmitDebug) // Start every statement with a debug point
-              scope.AddExpression(GetDebugInfo(code.Current, code.Current));
+						if (!lDebugInfoEmitted && (scope.EmitDebug & LuaDebugLevel.Expression) != 0) // Start every statement with a debug point
+							scope.AddExpression(GetDebugInfo(code.Current, code.Current));
 
             if (!ParseStatement(scope, code)) // Parse normal statements
               lLoop = false;
             break;
         }
       }
-      if (scope.EmitDebug)
+      if (scope.EmitDebug != LuaDebugLevel.None)
         scope.AddExpression(Expression.ClearDebugInfo(code.Current.Start.Document)); // Clear debug info
     } // func ParseBlock
 
@@ -881,7 +918,7 @@ namespace Neo.IronLua
     {
       // if expr then block { elseif expr then block } [ else block ] end
       FetchToken(LuaToken.KwIf, code);
-      var expr = ConvertExpression(scope.Runtime, code.Current, ParseExpression(scope, code, InvokeResult.Object, scope.EmitDebug), typeof(bool));
+			var expr = ConvertExpression(scope.Runtime, code.Current, ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug), typeof(bool));
       FetchToken(LuaToken.KwThen, code);
 
       scope.AddExpression(Expression.IfThenElse(expr, ParseIfElseBlock(scope, code), ParseElseStatement(scope, code)));
@@ -892,7 +929,7 @@ namespace Neo.IronLua
       if (code.Current.Typ == LuaToken.KwElseif)
       {
         code.Next();
-        var expr = ConvertExpression(scope.Runtime, code.Current, ParseExpression(scope, code, InvokeResult.Object, scope.EmitDebug), typeof(bool));
+				var expr = ConvertExpression(scope.Runtime, code.Current, ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug), typeof(bool));
         FetchToken(LuaToken.KwThen, code);
 
         return Expression.IfThenElse(expr, ParseIfElseBlock(scope, code), ParseElseStatement(scope, code));
@@ -997,7 +1034,7 @@ namespace Neo.IronLua
       {
         case LuaToken.BracketOpen: // Parse eine Expression
           code.Next();
-          var expr = ConvertObjectExpression(scope.Runtime, tStart, ParseExpression(scope, code, InvokeResult.Object, scope.EmitDebug));
+					var expr = ConvertObjectExpression(scope.Runtime, tStart, ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug));
           FetchToken(LuaToken.BracketClose, code);
 
           info = new PrefixMemberInfo(tStart, expr, null, null, null);
@@ -1068,7 +1105,7 @@ namespace Neo.IronLua
 
         case LuaToken.KwFunction: // Function definition
           code.Next();
-          info = new PrefixMemberInfo(tStart, ParseLamdaDefinition(scope, code, null, false), null, null, null);
+					info = new PrefixMemberInfo(tStart, ParseLamdaDefinition(scope, code, "lambda", false), null, null, null);
           break;
 
         default:
@@ -1218,7 +1255,7 @@ namespace Neo.IronLua
     {
       while (true)
       {
-        yield return ParseExpression(scope, code, InvokeResult.LuaResult, scope.EmitDebug);
+        yield return ParseExpression(scope, code, InvokeResult.LuaResult, scope.EmitExpressionDebug);
 
         // Noch eine Expression
         if (code.Current.Typ == LuaToken.Comma)
@@ -1742,7 +1779,7 @@ namespace Neo.IronLua
       loopScope.AddExpression(Expression.Label(loopScope.ContinueLabel));
       loopScope.AddExpression(
         Expression.IfThenElse(
-          ConvertExpression(scope.Runtime, code.Current, ParseExpression(scope, code, InvokeResult.Object, scope.EmitDebug), typeof(bool)),
+					ConvertExpression(scope.Runtime, code.Current, ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug), typeof(bool)),
           Expression.Empty(),
           Expression.Goto(loopScope.BreakLabel)
         )
@@ -1775,7 +1812,7 @@ namespace Neo.IronLua
       FetchToken(LuaToken.KwUntil, code);
       loopScope.AddExpression(
         Expression.IfThenElse(
-          ConvertExpression(scope.Runtime, code.Current, ParseExpression(scope, code, InvokeResult.Object, scope.EmitDebug), typeof(bool)),
+					ConvertExpression(scope.Runtime, code.Current, ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug), typeof(bool)),
           Expression.Empty(),
           Expression.Goto(loopScope.ContinueLabel)
         )
@@ -1797,14 +1834,14 @@ namespace Neo.IronLua
       {
         // = exp, exp [, exp] do block end
         FetchToken(LuaToken.Assign, code);
-        Expression loopStart = ParseExpression(scope, code, InvokeResult.Object, scope.EmitDebug);
+				Expression loopStart = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
         FetchToken(LuaToken.Comma, code);
-        Expression loopEnd = ParseExpression(scope, code, InvokeResult.Object, scope.EmitDebug);
+				Expression loopEnd = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
         Expression loopStep;
         if (code.Current.Typ == LuaToken.Comma)
         {
           code.Next();
-          loopStep = ParseExpression(scope, code, InvokeResult.Object, scope.EmitDebug);
+					loopStep = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
         }
         else
           loopStep = Expression.Constant(1, loopStart.Type);
@@ -1862,7 +1899,7 @@ namespace Neo.IronLua
 
       // get the enumerable expression
       FetchToken(LuaToken.KwIn, code);
-      Expression exprEnum = Lua.EnsureType(ParseExpression(scope, code, InvokeResult.None, scope.EmitDebug), typeof(object));
+			Expression exprEnum = Lua.EnsureType(ParseExpression(scope, code, InvokeResult.None, scope.EmitExpressionDebug), typeof(object));
 
       // parse the loop body
       FetchToken(LuaToken.KwDo, code);
@@ -2123,7 +2160,7 @@ namespace Neo.IronLua
       ParseBlock(scope, code);
 
       FetchToken(LuaToken.KwEnd, code);
-      return Expression.Lambda(scope.ExpressionBlock, scope.Runtime.CreateEmptyChunk(sName).Name, parameters);
+			return Expression.Lambda(scope.ExpressionBlock, (parent.EmitDebug & LuaDebugLevel.RegsiterMethods) == LuaDebugLevel.RegsiterMethods ? Lua.RegisterUniqueName(sName) : sName, parameters);
     } // proc ParseLamdaDefinition
 
     private static void ParseLamdaDefinitionArgList(LambdaScope scope, List<ParameterExpression> parameters)
@@ -2191,14 +2228,14 @@ namespace Neo.IronLua
       {
         // Parse the index
         code.Next();
-        var index = ParseExpression(scope, code, InvokeResult.Object, scope.EmitDebug);
+				var index = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
         FetchToken(LuaToken.BracketSquareClose, code);
         FetchToken(LuaToken.Assign, code);
 
         // Expression that results in a value
         scope.AddExpression(
           IndexSetExpression(scope.Runtime, code.Current, tableVar, new Expression[] { index },
-            ParseExpression(scope, code, InvokeResult.Object, scope.EmitDebug),
+						ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug),
             true
           )
         );
@@ -2214,15 +2251,15 @@ namespace Neo.IronLua
         // Expression
         scope.AddExpression(
           MemberSetExpression(scope.Runtime, tMember, 
-            tableVar, tMember.Value, false, 
-            ParseExpression(scope, code, InvokeResult.Object, scope.EmitDebug)
+            tableVar, tMember.Value, false,
+						ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug)
           )
         );
       }
       else
       {
         Token tStart = code.Current;
-        Expression expr = ParseExpression(scope, code, InvokeResult.None, scope.EmitDebug);
+				Expression expr = ParseExpression(scope, code, InvokeResult.None, scope.EmitExpressionDebug);
 
         // Last assign, enroll parameter
         if (code.Current.Typ == LuaToken.BracketCurlyClose && LuaEmit.IsDynamicType(expr.Type))
