@@ -1032,18 +1032,19 @@ namespace Neo.IronLua
       PrefixMemberInfo info;
       switch (tStart.Typ)
       {
-        case LuaToken.BracketOpen: // Parse eine Expression
-          code.Next();
-					var expr = ConvertObjectExpression(scope.Runtime, tStart, ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug));
-          FetchToken(LuaToken.BracketClose, code);
+				case LuaToken.BracketOpen: // Parse eine Expression
+					{
+						code.Next();
+						var expr = ConvertObjectExpression(scope.Runtime, tStart, ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug));
+						FetchToken(LuaToken.BracketClose, code);
 
-          info = new PrefixMemberInfo(tStart, expr, null, null, null);
-          break;
+						info = new PrefixMemberInfo(tStart, expr, null, null, null);
+					}
+					break;
 
         case LuaToken.DotDotDot:
         case LuaToken.Identifier:
         case LuaToken.KwForEach:
-        case LuaToken.KwCast:
           var t = code.Current;
           if (t.Value == csClr) // clr is a special package, that always exists
           {
@@ -1071,6 +1072,10 @@ namespace Neo.IronLua
               info = new PrefixMemberInfo(tStart, p, null, null, null);
           }
           break;
+
+				case LuaToken.KwCast:
+					info = new PrefixMemberInfo(tStart, ParsePrefixCast(scope, code), null, null, null);
+					break;
 
         case LuaToken.String: // Literal String
           info = new PrefixMemberInfo(tStart, Expression.Constant(FetchToken(LuaToken.String, code).Value, typeof(string)), null, null, null);
@@ -1541,27 +1546,35 @@ namespace Neo.IronLua
       // cast ::= cast(type, expr)
       if (code.Current.Typ == LuaToken.KwCast)
       {
-        var t = code.Current;
-        code.Next();
-
-        FetchToken(LuaToken.BracketOpen, code);
-
-        // Read the type
-        LuaType luaType = ParseType(scope, code, true);
-        FetchToken(LuaToken.Comma, code);
-
-        Expression expr = ParseExpression(scope, code, InvokeResult.Object, ref lWrap);
-
-        FetchToken(LuaToken.BracketClose, code);
-
+				Token tStart = code.Current;
         lWrap |= true;
-        PrefixMemberInfo prefix = new PrefixMemberInfo(t, ConvertExpression(scope.Runtime, t, expr, luaType), null, null, null);
+				PrefixMemberInfo prefix = new PrefixMemberInfo(tStart, ParsePrefixCast(scope, code), null, null, null);
         ParseSuffix(scope, code, prefix);
         return prefix.GenerateGet(scope, result);
       }
       else
         return ParsePrefix(scope, code).GenerateGet(scope, result);
     } // func ParseExpressionCast
+
+		private static Expression ParsePrefixCast(Scope scope, LuaLexer code)
+		{
+			LuaType luaType;
+			Token t = code.Current;
+			code.Next();
+
+			FetchToken(LuaToken.BracketOpen, code);
+
+			// Read the type
+			luaType = ParseType(scope, code, true);
+			FetchToken(LuaToken.Comma, code);
+
+			bool lWrap = scope.EmitExpressionDebug;
+			Expression expr = ParseExpression(scope, code, InvokeResult.Object, ref lWrap);
+
+			FetchToken(LuaToken.BracketClose, code);
+
+			return ConvertExpression(scope.Runtime, t, expr, luaType);
+		} // func ParsePrefixCast
 
     private static void ParseIdentifierAndType(Scope scope, LuaLexer code, out Token tName, out Type type)
     {
@@ -1629,65 +1642,21 @@ namespace Neo.IronLua
       return currentType;
     } // func ParseType
 
-    private static LuaType ParseFirstType(Scope scope, LuaLexer code)
-    {
-      string sType = FetchToken(LuaToken.Identifier, code).Value;
-      switch (sType)
-      {
-        case "byte":
-          return LuaType.GetType(typeof(byte));
-        case "sbyte":
-          return LuaType.GetType(typeof(sbyte));
-        case "short":
-          return LuaType.GetType(typeof(short));
-        case "ushort":
-          return LuaType.GetType(typeof(ushort));
-        case "int":
-          return LuaType.GetType(typeof(int));
-        case "uint":
-          return LuaType.GetType(typeof(uint));
-        case "long":
-          return LuaType.GetType(typeof(long));
-        case "ulong":
-          return LuaType.GetType(typeof(ulong));
-        case "float":
-          return LuaType.GetType(typeof(float));
-        case "double":
-          return LuaType.GetType(typeof(double));
-        case "decimal":
-          return LuaType.GetType(typeof(decimal));
-        case "datetime":
-          return LuaType.GetType(typeof(DateTime));
-        case "char":
-          return LuaType.GetType(typeof(char));
-        case "string":
-          return LuaType.GetType(typeof(string));
-        case "bool":
-          return LuaType.GetType(typeof(bool));
-        case "object":
-          return LuaType.GetType(typeof(object));
-        case "type":
-          return LuaType.GetType(typeof(Type));
-        case "thread":
-          return LuaType.GetType(typeof(LuaThread));
-        case "luatype":
-          return LuaType.GetType(typeof(LuaType));
-        case "table":
-          return LuaType.GetType(typeof(LuaTable));
-        case "result":
-          return LuaType.GetType(typeof(LuaResult));
-        case "void":
-          return LuaType.GetType(typeof(void));
-        default:
-          {
-            ConstantExpression expr = scope.LookupExpression(sType, false) as ConstantExpression;
-            if (expr != null && expr.Type == typeof(LuaType))
-              return (LuaType)expr.Value;
-            else
-              return LuaType.GetType(LuaType.Clr.GetIndex(sType, false, null));
-          }
-      }
-    } // func ParseFirstType
+		private static LuaType ParseFirstType(Scope scope, LuaLexer code)
+		{
+			string sType = FetchToken(LuaToken.Identifier, code).Value;
+			LuaType luaType = LuaType.GetCachedType(sType);
+			if (luaType == null)
+			{
+				ConstantExpression expr = scope.LookupExpression(sType, false) as ConstantExpression;
+				if (expr != null && expr.Type == typeof(LuaType))
+					return (LuaType)expr.Value;
+				else
+					return LuaType.GetType(LuaType.Clr.GetIndex(sType, false, null));
+			}
+			else
+				return luaType;
+		} // func ParseFirstType
 
     #endregion
 

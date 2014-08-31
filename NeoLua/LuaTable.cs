@@ -471,6 +471,13 @@ namespace Neo.IronLua
       return new LuaTableMetaObject(this, parameter);
     } // func GetMetaObject
 
+		/// <summary></summary>
+		/// <returns></returns>
+		public override string ToString()
+		{
+			return "table";
+		} // func ToString
+
     #endregion
 
     #region -- Dynamic Members --------------------------------------------------------

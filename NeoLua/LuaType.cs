@@ -370,6 +370,7 @@ namespace Neo.IronLua
     private Type type;                // Type that is represented, null if it is not resolved until now
 
     private string sName;             // Name of the unresolved type or namespace
+		private string sAliasName = null; // Current alias name
     private int iAssemblyCount;       // Number of loaded assemblies or -1 if the type is resolved as a namespace
 
     private Dictionary<string, int> index = null; // Index to speed up the search in big namespaces
@@ -690,6 +691,9 @@ namespace Neo.IronLua
       }
     } // func FullName
 
+		/// <summary>Alias name</summary>
+		public string AliasName { get { return sAliasName; } }
+
     /// <summary>Type that is represented by the LuaType</summary>
     public Type Type
     {
@@ -877,15 +881,8 @@ namespace Neo.IronLua
     /// <returns>Wrapped Type, is lLate is <c>false</c> also <c>null</c> is possible.</returns>
     public static LuaType GetType(string sTypeName, bool lIgnoreCase = false, bool lLateAllowed = true)
     {
-      LuaType luaType = null;
-
-      // search the tyle in the cache
-      lock (knownTypes)
-      {
-        int iIndex;
-        if (knownTypes.TryGetValue(sTypeName, out iIndex))
-          luaType = GetType(iIndex);
-      }
+			// search the tyle in the cache
+			LuaType luaType = GetCachedType(sTypeName);
 
       // create the lua type
       if (luaType == null)
@@ -900,6 +897,21 @@ namespace Neo.IronLua
         return null;
     } // func GetType
 
+		/// <summary>Lookup for a well known type.</summary>
+		/// <param name="sTypeName">Name of the type</param>
+		/// <returns></returns>
+		internal static LuaType GetCachedType(string sTypeName)
+		{
+			lock (knownTypes)
+			{
+				int iIndex;
+				if (knownTypes.TryGetValue(sTypeName, out iIndex))
+					return GetType(iIndex);
+				else
+					return null;
+			}
+		} // func GetCachedType
+
 		/// <summary>Register a new type alias.</summary>
 		/// <param name="sAlias">Name of the type alias. It should be a identifier.</param>
 		/// <param name="type">Type of the alias</param>
@@ -907,9 +919,20 @@ namespace Neo.IronLua
 		{
 			if (sAlias.IndexOfAny(new char[] { '.', '+', ' ' }) >= 0)
 				throw new ArgumentException(String.Format(Properties.Resources.rsTypeAliasInvalidName, sAlias));
-			
+
 			lock (knownTypes)
-				knownTypes[sAlias] = LuaType.GetTypeIndex(LuaType.GetType(type));
+			{
+				int iOldAlias;
+				LuaType luaType = LuaType.GetType(type);
+				if (knownTypes.TryGetValue(sAlias, out iOldAlias))
+				{
+					LuaType oldType = LuaType.GetType(iOldAlias);
+					if (oldType != luaType)
+						oldType.sAliasName = null;
+				}
+				luaType.sAliasName = sAlias;
+				knownTypes[sAlias] = LuaType.GetTypeIndex(luaType);
+			}
 		} // proc RegisterTypeAlias
 
 		/// <summary>Registers a type extension.</summary>

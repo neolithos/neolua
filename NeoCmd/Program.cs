@@ -230,6 +230,12 @@ namespace Neo.IronLua
 			return Commands.None;
 		} // func ParseArgument
 
+		private static string GetTypeName(Type type)
+		{
+			LuaType t = LuaType.GetType(type);
+			return t.AliasName ?? t.Name;
+		} // func GetTypeName
+
 		private static void PrintResult(LuaResult r)
 		{
 			for (int i = 0; i < r.Count; i++)
@@ -239,8 +245,14 @@ namespace Neo.IronLua
 				string sValue = "null";
 				if (value != null)
 				{
-					sType = value.GetType().Name;
-					sValue = (string)Convert.ChangeType(value, typeof(string), CultureInfo.InvariantCulture);
+					sType = GetTypeName(value.GetType());
+					
+					IConvertible conv = value as IConvertible;
+					if (conv != null)
+						sValue = conv.ToString(CultureInfo.InvariantCulture);
+					else
+						sValue = value.ToString();
+
 					if (sValue.Length > 60)
 						sValue = sValue.Substring(0, 60) + "...";
 					sValue = sValue.Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
