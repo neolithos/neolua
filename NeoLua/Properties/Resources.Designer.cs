@@ -493,6 +493,42 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die There is already a value with the key &apos;{0}&apos;. ähnelt.
+        /// </summary>
+        internal static string rsTableAddDuplicate {
+            get {
+                return ResourceManager.GetString("rsTableAddDuplicate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Failed to call &apos;{0}&apos;. ähnelt.
+        /// </summary>
+        internal static string rsTableCallMemberFailed {
+            get {
+                return ResourceManager.GetString("rsTableCallMemberFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Nil is not a valid key. ähnelt.
+        /// </summary>
+        internal static string rsTableKeyNotNullable {
+            get {
+                return ResourceManager.GetString("rsTableKeyNotNullable", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Methods must have a LuaTable as first parameter (&apos;{0}&apos;). ähnelt.
+        /// </summary>
+        internal static string rsTableMethodExpected {
+            get {
+                return ResourceManager.GetString("rsTableMethodExpected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Sucht eine lokalisierte Zeichenfolge, die Operator &apos;{0}&apos; is not compatible (expected {1}). ähnelt.
         /// </summary>
         internal static string rsTableOperatorIncompatible {

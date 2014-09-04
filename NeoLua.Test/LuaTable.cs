@@ -12,17 +12,33 @@ namespace LuaDLR.Test
 {
   [TestClass]
   public class LuaTableTests : TestHelper
-  {
-    #region -- TestMember -------------------------------------------------------------
+	{
+		#region -- TestMember -------------------------------------------------------------
 
-    [TestMethod]
-    public void TestMember01()
-    {
-      TestCode(Lines(
-        "local t : table = {};",
-        "t.test = 3;",
-        "return t.test;"), 3);
-    }
+		[TestMethod]
+		public void TestMember01()
+		{
+			LuaTable t = new LuaTable();
+			t["test"] = "t";
+			Assert.AreEqual(t["test"], "t");
+			t.SetMemberValue("Test", "a", true);
+			Assert.AreEqual(t.GetMemberValue("Test", true, true), "a");
+			t.SetMemberValue("Test", "b");
+			Assert.AreEqual(t["Test"], "b");
+			t.SetMemberValue("Test", "n", true);
+			Assert.AreEqual(t["test"], "n");
+
+			IDictionary<string, object> a = (IDictionary<string, object>)t;
+			string[] r = new string[2];
+			a.Keys.CopyTo(r, 0);
+			Assert.IsTrue(r[0] == "Test" && r[1] == "test");
+
+			t.SetMemberValue("Test", null, true, true);
+			t.SetMemberValue("Test", null, true, true);
+
+			Assert.IsTrue(t["Test"] == null);
+			Assert.IsTrue(t["test"] == null);
+		}
 
     [TestMethod]
     public void TestMember02()
@@ -96,7 +112,7 @@ namespace LuaDLR.Test
           "return test.year;"
            ), 2001);
       }
-      catch(LuaRuntimeException e)
+      catch(LuaRuntimeException)
       {
 				return;
       }
@@ -110,13 +126,41 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestIndex01()
     {
-      TestCode(Lines(
-        "local t : table = {};",
-        "t[2] = 3;",
-        "return t[2];"), 3);
-    }
+			LuaTable t = new LuaTable();
+			t[1] = 1;
+			t[(object)2] = 2;
+			for (int i = 4; i <= 16; i++)
+				t[i] = i;
+			Assert.AreEqual(t.Length, 2);
+			Assert.AreEqual(t.Values.Count, 15);
+			Assert.AreEqual(t[1], 1);
+			Assert.AreEqual(t[4], 4);
+			t[3] = 3;
+			Assert.AreEqual(t.Length, 16);
+			Assert.AreEqual(t.Values.Count, 16);
+			Assert.AreEqual(t[4], 4);
 
-    [TestMethod]
+			t[1] = null;
+			Assert.AreEqual(t.Length, 0);
+			Assert.AreEqual(t.Values.Count, 15);
+			Assert.AreEqual(t[4], 4);
+			t[18] = 18;
+			Assert.AreEqual(t[18], 18);
+			Assert.AreEqual(t.Values.Count, 16);
+			t[20] = 20;
+			Assert.AreEqual(t[20], 20);
+			Assert.AreEqual(t.Values.Count, 17);
+			t[17] = 17;
+			Assert.AreEqual(t.Values.Count, 18);
+			t[1] = 1;
+			Assert.AreEqual(t.Values.Count, 19);
+			Assert.AreEqual(t.Length, 18);
+			for (int i = 1; i <= 18; i++)
+				Assert.AreEqual(t[i], i);
+			Assert.AreEqual(t[20], 20);
+		}
+
+		[TestMethod]
     public void TestIndex02()
     {
       TestCode(Lines(
@@ -341,6 +385,20 @@ namespace LuaDLR.Test
 		[TestMethod]
 		public void TestInsert01()
 		{
+			LuaTable t = new LuaTable();
+			LuaTable.insert(t, "a");
+			LuaTable.insert(t, "c");
+			LuaTable.insert(t, 2, "b");
+			Assert.AreEqual(t.ArrayList.Count, 3);
+			Assert.AreEqual(t.ArrayList[0], "a");
+			Assert.AreEqual(t.ArrayList[1], "b");
+			Assert.AreEqual(t.ArrayList[2], "c");
+		}
+
+
+		[TestMethod]
+		public void TestInsert02()
+		{
 			TestCode(Lines(
 				"local t = {};",
 				"table.insert(t, 'a');",
@@ -351,25 +409,87 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
+		public void TestCollect01()
+		{
+			LuaTable t = new LuaTable();
+			t[1] = 1;
+			t[2] = 2;
+			t[3] = 3;
+			t[18] = 18;
+			TestResult(LuaTable.collect(t), 1, 2, 3);
+		}
+
+		[TestMethod]
+		public void TestCollect02()
+		{
+			LuaTable t = new LuaTable();
+			t[1] = 1;
+			t[2] = 2;
+			t[3] = 3;
+			t[18] = 18;
+			TestResult(LuaTable.collect(t, 1, 20), 1, 2, 3, 18);
+		}
+
+		[TestMethod]
 		public void TestUnpack01()
 		{
-			TestCode(Lines(
-				"local t = {1, 2, 3, [8] = 8};",
-				"return table.unpack(t);"),
-				1, 2, 3);
+			LuaTable t = new LuaTable();
+			t[1] = 1;
+			t[2] = 2;
+			t[3] = 3;
+			t[18] = 18;
+			TestResult(LuaTable.unpack(t), 1, 2, 3);
 		}
 
 		[TestMethod]
 		public void TestUnpack02()
 		{
 			TestCode(Lines(
-				"local t = {1, 2, 3, [8] = 8};",
-				"return table.unpack(t, 1, 100);"),
-				1, 2, 3, 8);
+				"local t = {1, 2, 3, [18] = 18};",
+				"return table.unpack(t);"),
+				1, 2, 3);
+		}
+
+		[TestMethod]
+		public void TestUnpack03()
+		{
+			LuaTable t = new LuaTable();
+			t[1] = 1;
+			t[2] = 2;
+			t[3] = 3;
+			t[18] = 18;
+			TestResult(LuaTable.unpack(t, 1, 20), 1, 2, 3, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 18, null, null);
+		}
+
+		[TestMethod]
+		public void TestUnpack04()
+		{
+			TestCode(Lines(
+				"local t = {1, 2, 3, [5] = 5};",
+				"return table.unpack(t, 1, 6);"),
+				1, 2, 3, null, 5, null);
 		}
 
 		[TestMethod]
 		public void TestPack01()
+		{
+			object[] a = new object[20];
+			a[0] = 1;
+			a[1] = 2;
+			a[2] = 3;
+			a[17] = 18;
+			LuaTable t = LuaTable.pack(a);
+
+			Assert.AreEqual(t[1], 1);
+			Assert.AreEqual(t[2], 2);
+			Assert.AreEqual(t[3], 3);
+			Assert.AreEqual(t[18], 18);
+			Assert.AreEqual(t.Length, 3);
+			Assert.AreEqual(t["n"], 20);
+		}
+
+		[TestMethod]
+		public void TestPack02()
 		{
 			TestCode(Lines(
 				"local t = {1, 2, 3, [8] = 8};",
@@ -379,7 +499,7 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
-		public void TestPack02()
+		public void TestPack03()
 		{
 			TestCode(Lines(
 				"local f = function () return 1, 2, 3, nil, 8; end;",
@@ -389,7 +509,7 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
-		public void TestPack03()
+		public void TestPack04()
 		{
 			TestCode(Lines(
 				"local f = function (...) return table.pack(...); end;",
@@ -506,6 +626,9 @@ namespace LuaDLR.Test
         l.PrintExpressionTree = true;
         dynamic g = l.CreateEnvironment();
         g.dochunk(GetLines("Lua.EnvDynamicCall01.lua"), "test.lua");
+
+				TestResult(new LuaResult(g.test(2)), 4);
+				TestResult(((LuaTable)g).CallMember("test", 2), 4);
 
         // test of c# binders
         Debug.Print("C# Binders:");

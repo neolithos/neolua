@@ -14,7 +14,11 @@ namespace Neo.IronLua
   ///////////////////////////////////////////////////////////////////////////////
   /// <summary></summary>
   public static class Program
-  {
+	{
+		#region -- enum Commands ----------------------------------------------------------
+
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary></summary>
     private enum Commands
     {
 			None,
@@ -28,7 +32,44 @@ namespace Neo.IronLua
       Help
     } // enum Commands
 
-    private static Lua lua = new Lua(); // create lua script compiler
+		#endregion
+
+		#region -- class LuaCommandGlobal -------------------------------------------------
+
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary></summary>
+		private sealed class LuaCommandGlobal : LuaGlobal
+		{
+			public LuaCommandGlobal(Lua lua)
+				:base(lua)
+			{
+			} // ctor
+
+			[LuaMember("read")]
+			private string ReadLine()
+			{
+				return ReadLine(String.Empty);
+			} // func ReadLine
+
+			[LuaMember("read")]
+			private string ReadLine(string sLabel)
+			{
+				Console.Write(sLabel);
+				Console.Write("> ");
+				return Console.ReadLine();
+			} // func ReadLine
+
+			/// <summary></summary>
+			[
+			LuaMember("console"),
+			LuaMember("out")
+			]
+			public LuaType LuaConsole { get { return LuaType.GetType(typeof(Console)); } }
+		} // class LuaCommandGlobal
+
+		#endregion
+
+		private static Lua lua = new Lua(); // create lua script compiler
     private static LuaGlobal global;
     private static ILuaDebug debugEngine = Lua.DefaultDebugEngine;
 
@@ -40,6 +81,12 @@ namespace Neo.IronLua
       Console.ForegroundColor = clOld;
     } // proc WriteText
 
+		private static string GetTypeName(Type type)
+		{
+			LuaType t = LuaType.GetType(type);
+			return t.AliasName ?? t.Name;
+		} // func GetTypeName
+
     private static void WriteVariable(object key, object value)
     {
       Console.Write("  ");
@@ -49,25 +96,51 @@ namespace Neo.IronLua
         WriteText(ConsoleColor.White, key.ToString());
       else
       {
-        WriteText(ConsoleColor.DarkGray, String.Format("({0})", key == null ? "object" : key.GetType().Name));
+				WriteText(ConsoleColor.DarkGray, String.Format("({0})", key == null ? "object" : GetTypeName(key.GetType())));
         WriteText(ConsoleColor.White, key == null ? String.Empty : key.ToString());
       }
       WriteText(ConsoleColor.Gray, " = ");
-      WriteText(ConsoleColor.DarkGray, String.Format("({0})", value == null ? "object" : value.GetType().Name));
 
-      string sValue = value == null ? String.Empty : value.ToString();
-      int iLength = Console.WindowWidth - Console.CursorLeft;
-      if (iLength < sValue.Length)
-      {
-        sValue = sValue.Substring(0, iLength - 3) + "...";
-        WriteText(ConsoleColor.Gray, sValue);
-      }
-      else
-      {
-        WriteText(ConsoleColor.Gray, sValue);
-        Console.WriteLine();
-      }
+			WriteVariableValue(value);
     } // proc WriteVariable
+
+		private static void WriteVariableValue(object value)
+		{
+			// Convert value to string
+			string sValue;
+			string sType;
+			if (value == null)
+			{
+				sValue = "nil";
+				sType = GetTypeName(typeof(object));
+			}
+			else
+			{
+				IConvertible conv = value as IConvertible;
+				if (conv != null)
+					sValue = conv.ToString(CultureInfo.InvariantCulture);
+				else
+					sValue = value.ToString();
+				sType = GetTypeName(value.GetType());
+			}
+
+			// Print the type
+			WriteText(ConsoleColor.DarkGray, String.Format("({0})", sType));
+
+			// Print value
+			int iLength = Console.WindowWidth - Console.CursorLeft;
+			sValue = sValue.Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
+			if (iLength < sValue.Length)
+			{
+				sValue = sValue.Substring(0, iLength - 3) + "...";
+				WriteText(ConsoleColor.DarkCyan, sValue);
+			}
+			else
+			{
+				WriteText(ConsoleColor.DarkCyan, sValue);
+				Console.WriteLine();
+			}
+		} // proc WriteVariableValue
 
     public static void WriteCommand(string sCommand, string sDescription)
     {
@@ -98,22 +171,6 @@ namespace Neo.IronLua
         WriteException(e.InnerException);
       }
     } // proc WriteException
-
-    private static void CreateFreshEnvironment()
-    {
-      // create the enviroment
-      global = lua.CreateEnvironment();
-
-      global["console"] = LuaType.GetType(typeof(Console));
-      global["read"] = new Func<string, string>(ReadLine);
-    } // proc CreateFreshEnvironment
-
-    private static string ReadLine(string sLabel)
-    {
-      Console.Write(sLabel);
-      Console.Write(": ");
-      return Console.ReadLine();
-    } // func ReadLine
 
     private static bool IsCommand(string sInput)
     {
@@ -230,39 +287,6 @@ namespace Neo.IronLua
 			return Commands.None;
 		} // func ParseArgument
 
-		private static string GetTypeName(Type type)
-		{
-			LuaType t = LuaType.GetType(type);
-			return t.AliasName ?? t.Name;
-		} // func GetTypeName
-
-		private static void PrintResult(LuaResult r)
-		{
-			for (int i = 0; i < r.Count; i++)
-			{
-				object value = r[i];
-				string sType = "object";
-				string sValue = "null";
-				if (value != null)
-				{
-					sType = GetTypeName(value.GetType());
-					
-					IConvertible conv = value as IConvertible;
-					if (conv != null)
-						sValue = conv.ToString(CultureInfo.InvariantCulture);
-					else
-						sValue = value.ToString();
-
-					if (sValue.Length > 60)
-						sValue = sValue.Substring(0, 60) + "...";
-					sValue = sValue.Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
-				}
-				WriteText(ConsoleColor.DarkGray, String.Format("[{0}] : {1} = ", i, sType));
-				WriteText(ConsoleColor.DarkCyan, sValue);
-				Console.WriteLine();
-			}
-		} // proc PrintResult
-
     private static void RunScript(Func<string> code, string sName)
     {
 			try
@@ -295,7 +319,10 @@ namespace Neo.IronLua
 
 				// print result
 				if (r.Count > 0)
-					PrintResult(r);
+				{
+					for (int i = 0; i < r.Count; i++)
+						WriteVariable(i, r[i]);
+				}
 
 				// print summary
 				const string csCompile = "==> compile: ";
@@ -350,7 +377,7 @@ namespace Neo.IronLua
       Console.WriteLine();
       Console.WriteLine();
 
-      CreateFreshEnvironment();
+      global = lua.CreateEnvironment<LuaCommandGlobal>();
 
       // change to the samples directory
 #if DEBUG
@@ -400,7 +427,7 @@ namespace Neo.IronLua
           case Commands.Environment:
             WriteText(ConsoleColor.DarkYellow, "New environment created."); Console.WriteLine();
             Console.WriteLine();
-            CreateFreshEnvironment();
+            global = lua.CreateEnvironment<LuaCommandGlobal>();
             break;
 					case Commands.Cache:
 						lua.DumpRuleCaches(sLine);

@@ -351,7 +351,7 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject FallbackInvoke(DynamicMetaObject target, DynamicMetaObject[] args, DynamicMetaObject errorSuggestion)
       {
-        LuaInvokeBinder binder = new LuaInvokeBinder(null, CallInfo);
+				LuaInvokeBinder binder = (LuaInvokeBinder)lua.GetInvokeBinder(CallInfo);
         return binder.Defer(target, args);
       } // func FallbackInvoke
 

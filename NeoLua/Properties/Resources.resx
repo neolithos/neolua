@@ -261,6 +261,18 @@
   <data name="rsStackTraceUnknownMethod" xml:space="preserve">
     <value>&lt;unknown method&gt;</value>
   </data>
+  <data name="rsTableAddDuplicate" xml:space="preserve">
+    <value>There is already a value with the key '{0}'.</value>
+  </data>
+  <data name="rsTableCallMemberFailed" xml:space="preserve">
+    <value>Failed to call '{0}'.</value>
+  </data>
+  <data name="rsTableKeyNotNullable" xml:space="preserve">
+    <value>Nil is not a valid key.</value>
+  </data>
+  <data name="rsTableMethodExpected" xml:space="preserve">
+    <value>Methods must have a LuaTable as first parameter ('{0}').</value>
+  </data>
   <data name="rsTableOperatorIncompatible" xml:space="preserve">
     <value>Operator '{0}' is not compatible (expected {1}).</value>
   </data>

@@ -237,7 +237,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Require ------------------------------------------------------------------
+		#region -- Require ----------------------------------------------------------------
 
 		internal LuaChunk LuaRequire(LuaGlobal global, object modname)
 		{
@@ -279,12 +279,25 @@ namespace Neo.IronLua
 
 		#endregion
 
-		/// <summary>Creates an empty environment for the lua functions.</summary>
+		#region -- CreateEnvironment ------------------------------------------------------
+
+		/// <summary>Creates an empty environment.</summary>
 		/// <returns>Initialized environment</returns>
 		public virtual LuaGlobal CreateEnvironment()
 		{
 			return new LuaGlobal(this);
 		} // func CreateEnvironment
+
+		/// <summary>Create an empty environment</summary>
+		/// <typeparam name="T"></typeparam>
+		/// <returns></returns>
+		public LuaGlobal CreateEnvironment<T>()
+			where T : LuaGlobal
+		{
+			return (T)Activator.CreateInstance(typeof(T), this);
+		} // func CreateEnvironment
+
+		#endregion
 
 		#region -- Numbers ----------------------------------------------------------------
 

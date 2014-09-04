@@ -61,7 +61,6 @@
     <Compile Include="LuaResult.cs" />
     <Compile Include="LuaType.cs" />
     <Compile Include="LuaFile.cs" />
-    <Compile Include="LuaFunctionAttribute.cs" />
     <Compile Include="LuaGlobal.cs" />
     <Compile Include="LuaChunk.cs" />
     <Compile Include="LuaTable.cs" />

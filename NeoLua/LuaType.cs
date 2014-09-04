@@ -1042,7 +1042,7 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject BindConvert(ConvertBinder binder)
       {
-        if (typeof(Delegate).IsAssignableFrom(binder.Type)) // do we expect a delegate
+        if (typeof(Delegate).IsAssignableFrom(binder.Type)) // we expect a delegate
         {
           LuaMethod val = (LuaMethod)Value;
           return CreateDelegate(Expression, val, binder.Type, val.method, binder.ReturnType); 
@@ -1088,6 +1088,13 @@ namespace Neo.IronLua
     } // func GetMetaObject
 
     #endregion
+
+		/// <summary></summary>
+		/// <returns></returns>
+		public override string ToString()
+		{
+			return method.ToString();
+		} // func ToString
 
     /// <summary>Creates a delegate from the method</summary>
     /// <param name="typeDelegate"></param>
@@ -1374,6 +1381,13 @@ namespace Neo.IronLua
       return GetEnumerator();
     } // func System.Collections.IEnumerable.GetEnumerator
 
+		/// <summary></summary>
+		/// <returns></returns>
+		public override string ToString()
+		{
+			return methods[0].DeclaringType.Name + "." + methods[0].Name + " overloaded";
+		} // func ToString
+
     /// <summary></summary>
     /// <param name="iIndex"></param>
     /// <returns></returns>
@@ -1391,7 +1405,7 @@ namespace Neo.IronLua
     public object Instance { get { return instance; } }
     /// <summary>Count of overloade members.</summary>
     public int Count { get { return methods.Length; } }
-  } // class LuaOverloadedMethod
+	} // class LuaOverloadedMethod
 
   #endregion
 
@@ -1515,6 +1529,13 @@ namespace Neo.IronLua
     } // func GetMetaObject
 
     #endregion
+
+		/// <summary></summary>
+		/// <returns></returns>
+		public override string ToString()
+		{
+			return "event: " + eventInfo.Name;
+		} // func ToString
 
     /// <summary>Name of the event.</summary>
     public string Name { get { return eventInfo.Name; } }

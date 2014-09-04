@@ -419,7 +419,7 @@ namespace Neo.IronLua
       {
         return Expression.Dynamic(runtime.GetConvertBinder(toType), toType, Convert(null, expr, fromType, typeof(object), false));
       }
-      else if (toType.IsAssignableFrom(fromType)) // Type is assignable
+      else if (toType == typeof(object) || toType.IsAssignableFrom(fromType)) // Type is assignable
       {
         return Expression.Convert(expr, toType);
       }

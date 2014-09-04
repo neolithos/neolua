@@ -12,52 +12,52 @@ using System.Text;
 
 namespace Neo.IronLua
 {
-  #region -- class Parser -------------------------------------------------------------
+	#region -- class Parser -------------------------------------------------------------
 
-  ///////////////////////////////////////////////////////////////////////////////
-  /// <summary></summary>
-  internal static partial class Parser
-  {
-    private const string csReturnLabel = "#return";
-    private const string csBreakLabel = "#break";
-    private const string csContinueLabel = "#continue";
-    private const string csEnv = "_G";
-    private const string csArgListP = "#arglistP";
-    private const string csArgList = "#arglist";
-    private const string csClr = "clr";
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary></summary>
+	internal static partial class Parser
+	{
+		private const string csReturnLabel = "#return";
+		private const string csBreakLabel = "#break";
+		private const string csContinueLabel = "#continue";
+		private const string csEnv = "_G";
+		private const string csArgListP = "#arglistP";
+		private const string csArgList = "#arglist";
+		private const string csClr = "clr";
 
-    #region -- class Scope ------------------------------------------------------------
+		#region -- class Scope ------------------------------------------------------------
 
-    ///////////////////////////////////////////////////////////////////////////////
-    /// <summary>Scope, that builds a block.</summary>
-    private class Scope
-    {
-      private Scope parent;   // Parent-Scope, that is accessable
-      private Dictionary<string, Expression> scopeVariables = null; // local declared variables or const definitions
-      private List<Expression> block = new List<Expression>();  // Instructions in the current block
-      private bool lBlockGenerated = false; // Is the block generated
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary>Scope, that builds a block.</summary>
+		private class Scope
+		{
+			private Scope parent;   // Parent-Scope, that is accessable
+			private Dictionary<string, Expression> scopeVariables = null; // local declared variables or const definitions
+			private List<Expression> block = new List<Expression>();  // Instructions in the current block
+			private bool lBlockGenerated = false; // Is the block generated
 
-      #region -- Ctor -----------------------------------------------------------------
+			#region -- Ctor -----------------------------------------------------------------
 
-      /// <summary>Creates the scope</summary>
-      /// <param name="parent">parent-scope</param>
-      public Scope(Scope parent)
-      {
-        this.parent = parent;
-      } // ctor
+			/// <summary>Creates the scope</summary>
+			/// <param name="parent">parent-scope</param>
+			public Scope(Scope parent)
+			{
+				this.parent = parent;
+			} // ctor
 
-      #endregion
+			#endregion
 
-      #region -- LookupParameter ------------------------------------------------------
+			#region -- LookupParameter ------------------------------------------------------
 
-      /// <summary>Creates a new variable in the current scope.</summary>
-      /// <param name="type">Type of the variable</param>
-      /// <param name="sName">Name of the variable</param>
-      /// <returns>The expression that represents the access to the variable.</returns>
-      public ParameterExpression RegisterVariable(Type type, string sName)
-      {
-        return RegisterVariable(Expression.Variable(type, sName));
-      } // proc RegisterVariable
+			/// <summary>Creates a new variable in the current scope.</summary>
+			/// <param name="type">Type of the variable</param>
+			/// <param name="sName">Name of the variable</param>
+			/// <returns>The expression that represents the access to the variable.</returns>
+			public ParameterExpression RegisterVariable(Type type, string sName)
+			{
+				return RegisterVariable(Expression.Variable(type, sName));
+			} // proc RegisterVariable
 
 			/// <summary></summary>
 			/// <param name="expr"></param>
@@ -68,461 +68,461 @@ namespace Neo.IronLua
 				return expr;
 			} // proc RegisterVariable
 
-      public void RegisterConst(string sName, ConstantExpression expr)
-      {
-        RegisterVariableOrConst(sName, expr);
-      } // proc RegisterConst
+			public void RegisterConst(string sName, ConstantExpression expr)
+			{
+				RegisterVariableOrConst(sName, expr);
+			} // proc RegisterConst
 
-      private void RegisterVariableOrConst(string sName, Expression expr)
-      {
-        if (scopeVariables == null)
-          scopeVariables = new Dictionary<string, Expression>();
-        scopeVariables[sName] = expr;
-      } // proc EnsureVariables
+			private void RegisterVariableOrConst(string sName, Expression expr)
+			{
+				if (scopeVariables == null)
+					scopeVariables = new Dictionary<string, Expression>();
+				scopeVariables[sName] = expr;
+			} // proc EnsureVariables
 
-      /// <summary>Looks up the variable/parameter/const through the scopes.</summary>
-      /// <param name="sName">Name of the variable</param>
-      /// <param name="lLocalOnly"></param>
-      /// <returns>The access-expression for the variable, parameter or <c>null</c>, if it is not registered.</returns>
-      public virtual Expression LookupExpression(string sName, bool lLocalOnly = false)
-      {
-        // Lookup the current scope
-        Expression p;
-        if (scopeVariables != null && scopeVariables.TryGetValue(sName, out p))
-          return p;
+			/// <summary>Looks up the variable/parameter/const through the scopes.</summary>
+			/// <param name="sName">Name of the variable</param>
+			/// <param name="lLocalOnly"></param>
+			/// <returns>The access-expression for the variable, parameter or <c>null</c>, if it is not registered.</returns>
+			public virtual Expression LookupExpression(string sName, bool lLocalOnly = false)
+			{
+				// Lookup the current scope
+				Expression p;
+				if (scopeVariables != null && scopeVariables.TryGetValue(sName, out p))
+					return p;
 
-        if (parent != null && !lLocalOnly) // lookup the parent scope
-          return parent.LookupExpression(sName);
-        else
-          return null;
-      } // func LookupParameter
+				if (parent != null && !lLocalOnly) // lookup the parent scope
+					return parent.LookupExpression(sName);
+				else
+					return null;
+			} // func LookupParameter
 
-      #endregion
+			#endregion
 
-      #region -- LookupLabel ----------------------------------------------------------
+			#region -- LookupLabel ----------------------------------------------------------
 
-      /// <summary>Create a named label or look for an existing</summary>
-      /// <param name="type">Returntype for the label</param>
-      /// <param name="sName">Name for the label</param>
-      /// <returns>Labeltarget</returns>
-      public virtual LabelTarget LookupLabel(Type type, string sName)
-      {
-        return parent.LookupLabel(type, sName);
-      } // func LookupLabel
+			/// <summary>Create a named label or look for an existing</summary>
+			/// <param name="type">Returntype for the label</param>
+			/// <param name="sName">Name for the label</param>
+			/// <returns>Labeltarget</returns>
+			public virtual LabelTarget LookupLabel(Type type, string sName)
+			{
+				return parent.LookupLabel(type, sName);
+			} // func LookupLabel
 
-      #endregion
+			#endregion
 
-      #region -- Expression Block -----------------------------------------------------
+			#region -- Expression Block -----------------------------------------------------
 
-      [Conditional("DEBUG")]
-      private void CheckBlockGenerated()
-      {
-        if (lBlockGenerated)
-          throw new InvalidOperationException();
-      } // proc CheckBlockGenerated
+			[Conditional("DEBUG")]
+			private void CheckBlockGenerated()
+			{
+				if (lBlockGenerated)
+					throw new InvalidOperationException();
+			} // proc CheckBlockGenerated
 
-      public void InsertExpression(int iIndex, Expression expr)
-      {
-        CheckBlockGenerated();
-        block.Insert(iIndex, expr);
-      } // proc AddExpression
+			public void InsertExpression(int iIndex, Expression expr)
+			{
+				CheckBlockGenerated();
+				block.Insert(iIndex, expr);
+			} // proc AddExpression
 
-      public void AddExpression(Expression expr)
-      {
-        CheckBlockGenerated();
-        block.Add(expr);
-      } // proc AddExpression
+			public void AddExpression(Expression expr)
+			{
+				CheckBlockGenerated();
+				block.Add(expr);
+			} // proc AddExpression
 
-      /// <summary>Close the expression block and return it.</summary>
-      public virtual Expression ExpressionBlock
-      {
-        get
-        {
-          CheckBlockGenerated();
-          lBlockGenerated = true;
+			/// <summary>Close the expression block and return it.</summary>
+			public virtual Expression ExpressionBlock
+			{
+				get
+				{
+					CheckBlockGenerated();
+					lBlockGenerated = true;
 
-          if (block.Count == 0)
-            return Expression.Empty();
-          else
-          {
-            ParameterExpression[] variables = Variables;
-            if (variables.Length == 0)
-              return Expression.Block(block);
-            else if (ExpressionBlockType == null)
-              return Expression.Block(variables, block);
-            else
-              return Expression.Block(ExpressionBlockType, variables, block);
-          }
-        }
-      } // func ExpressionBlock
+					if (block.Count == 0)
+						return Expression.Empty();
+					else
+					{
+						ParameterExpression[] variables = Variables;
+						if (variables.Length == 0)
+							return Expression.Block(block);
+						else if (ExpressionBlockType == null)
+							return Expression.Block(variables, block);
+						else
+							return Expression.Block(ExpressionBlockType, variables, block);
+					}
+				}
+			} // func ExpressionBlock
 
-      public Type ExpressionBlockType { get; set; }
-      public bool ExistExpressions { get { return block.Count > 0; } }
+			public Type ExpressionBlockType { get; set; }
+			public bool ExistExpressions { get { return block.Count > 0; } }
 
-      #endregion
+			#endregion
 
-      /// <summary>Access to the Lua-Binders</summary>
-      public virtual Lua Runtime { get { return parent.Runtime; } }
-      /// <summary>Emit-Debug-Information</summary>
+			/// <summary>Access to the Lua-Binders</summary>
+			public virtual Lua Runtime { get { return parent.Runtime; } }
+			/// <summary>Emit-Debug-Information</summary>
 			public virtual LuaDebugLevel EmitDebug { get { return parent.EmitDebug; } }
 			/// <summary>DebugInfo on expression level</summary>
 			public bool EmitExpressionDebug { get { return (EmitDebug & LuaDebugLevel.Expression) != 0; } }
-      /// <summary>Return type of the current Lambda-Scope</summary>
-      public virtual Type ReturnType { get { return parent.ReturnType; } }
-      /// <summary></summary>
-      public ParameterExpression[] Variables { get { return scopeVariables == null ? new ParameterExpression[0] : (from v in scopeVariables.Values where v is ParameterExpression select (ParameterExpression)v).ToArray(); } }
-    } // class Scope
+			/// <summary>Return type of the current Lambda-Scope</summary>
+			public virtual Type ReturnType { get { return parent.ReturnType; } }
+			/// <summary></summary>
+			public ParameterExpression[] Variables { get { return scopeVariables == null ? new ParameterExpression[0] : (from v in scopeVariables.Values where v is ParameterExpression select (ParameterExpression)v).ToArray(); } }
+		} // class Scope
 
-    #endregion
+		#endregion
 
-    #region -- class LoopScope --------------------------------------------------------
+		#region -- class LoopScope --------------------------------------------------------
 
-    ///////////////////////////////////////////////////////////////////////////////
-    /// <summary>Scope that represents the loop content.</summary>
-    private class LoopScope : Scope
-    {
-      private LabelTarget continueLabel = Expression.Label(csContinueLabel);
-      private LabelTarget breakLabel = Expression.Label(csBreakLabel);
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary>Scope that represents the loop content.</summary>
+		private class LoopScope : Scope
+		{
+			private LabelTarget continueLabel = Expression.Label(csContinueLabel);
+			private LabelTarget breakLabel = Expression.Label(csBreakLabel);
 
-      #region -- Ctor -----------------------------------------------------------------
+			#region -- Ctor -----------------------------------------------------------------
 
-      /// <summary>Scope that represents the loop content.</summary>
-      /// <param name="parent"></param>
-      public LoopScope(Scope parent)
-        : base(parent)
-      {
-      } // ctor
+			/// <summary>Scope that represents the loop content.</summary>
+			/// <param name="parent"></param>
+			public LoopScope(Scope parent)
+				: base(parent)
+			{
+			} // ctor
 
-      #endregion
+			#endregion
 
-      #region -- LookupLabel ----------------------------------------------------------
+			#region -- LookupLabel ----------------------------------------------------------
 
-      /// <summary>Creates or lookup the label</summary>
-      /// <param name="type">Type of the label. Is ignored on std. labels.</param>
-      /// <param name="sName">Name of the label.</param>
-      /// <returns>LabelTarget</returns>
-      public override LabelTarget LookupLabel(Type type, string sName)
-      {
-        if (sName == csBreakLabel)
-          return breakLabel;
-        else if (sName == csContinueLabel)
-          return continueLabel;
-        else
-          return base.LookupLabel(type, sName);
-      } // func LookupLabel
+			/// <summary>Creates or lookup the label</summary>
+			/// <param name="type">Type of the label. Is ignored on std. labels.</param>
+			/// <param name="sName">Name of the label.</param>
+			/// <returns>LabelTarget</returns>
+			public override LabelTarget LookupLabel(Type type, string sName)
+			{
+				if (sName == csBreakLabel)
+					return breakLabel;
+				else if (sName == csContinueLabel)
+					return continueLabel;
+				else
+					return base.LookupLabel(type, sName);
+			} // func LookupLabel
 
-      #endregion
+			#endregion
 
-      /// <summary>Default break position.</summary>
-      public LabelTarget BreakLabel { get { return breakLabel; } }
-      /// <summary>Default continue position.</summary>
-      public LabelTarget ContinueLabel { get { return continueLabel; } }
-    } // class LambdaScope
+			/// <summary>Default break position.</summary>
+			public LabelTarget BreakLabel { get { return breakLabel; } }
+			/// <summary>Default continue position.</summary>
+			public LabelTarget ContinueLabel { get { return continueLabel; } }
+		} // class LambdaScope
 
-    #endregion
+		#endregion
 
-    #region -- class LambdaScope ------------------------------------------------------
+		#region -- class LambdaScope ------------------------------------------------------
 
-    ///////////////////////////////////////////////////////////////////////////////
-    /// <summary>Lambda-Scope with labels and parameters.</summary>
-    private class LambdaScope : Scope
-    {
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary>Lambda-Scope with labels and parameters.</summary>
+		private class LambdaScope : Scope
+		{
 #if DEBUG
-      private bool lReturnLabelUsed = false;
+			private bool lReturnLabelUsed = false;
 #endif
-      private LabelTarget returnLabel;
-      private Expression returnDefaultValue;
-      private Dictionary<string, LabelTarget> labels = null;
-      private Dictionary<string, ParameterExpression> parameters = new Dictionary<string, ParameterExpression>();
+			private LabelTarget returnLabel;
+			private Expression returnDefaultValue;
+			private Dictionary<string, LabelTarget> labels = null;
+			private Dictionary<string, ParameterExpression> parameters = new Dictionary<string, ParameterExpression>();
 
-      #region -- Ctor -----------------------------------------------------------------
+			#region -- Ctor -----------------------------------------------------------------
 
-      /// <summary>Creates the lambda-scope, that manages labels and arguments.</summary>
-      /// <param name="parent"></param>
-      /// <param name="returnType"></param>
-      /// <param name="returnDefaultValue"></param>
-      public LambdaScope(Scope parent, Type returnType = null, Expression returnDefaultValue = null)
-        : base(parent)
-      {
-        if (returnType != null)
-          ResetReturnLabel(returnType, returnDefaultValue);
-      } // ctor
+			/// <summary>Creates the lambda-scope, that manages labels and arguments.</summary>
+			/// <param name="parent"></param>
+			/// <param name="returnType"></param>
+			/// <param name="returnDefaultValue"></param>
+			public LambdaScope(Scope parent, Type returnType = null, Expression returnDefaultValue = null)
+				: base(parent)
+			{
+				if (returnType != null)
+					ResetReturnLabel(returnType, returnDefaultValue);
+			} // ctor
 
-      #endregion
+			#endregion
 
-      #region -- RegisterParameter, LookupParameter -----------------------------------
+			#region -- RegisterParameter, LookupParameter -----------------------------------
 
-      /// <summary>Registers arguments for the function.</summary>
-      /// <param name="type">Type of the argument</param>
-      /// <param name="sName">Name of the argument</param>
-      /// <returns>Access to the argument</returns>
-      public ParameterExpression RegisterParameter(Type type, string sName)
-      {
-        return parameters[sName] = Expression.Parameter(type, sName);
-      } // proc RegisterParameter
+			/// <summary>Registers arguments for the function.</summary>
+			/// <param name="type">Type of the argument</param>
+			/// <param name="sName">Name of the argument</param>
+			/// <returns>Access to the argument</returns>
+			public ParameterExpression RegisterParameter(Type type, string sName)
+			{
+				return parameters[sName] = Expression.Parameter(type, sName);
+			} // proc RegisterParameter
 
-      /// <summary>Lookup the variables and arguments.</summary>
-      /// <param name="sName">Name of the parameter/variable.</param>
-      /// <param name="lLocalOnly"></param>
-      /// <returns></returns>
-      public override Expression LookupExpression(string sName, bool lLocalOnly = false)
-      {
-        ParameterExpression p;
-        if (parameters.TryGetValue(sName, out p))
-          return p;
-        return base.LookupExpression(sName, lLocalOnly);
-      } // func LookupParameter
+			/// <summary>Lookup the variables and arguments.</summary>
+			/// <param name="sName">Name of the parameter/variable.</param>
+			/// <param name="lLocalOnly"></param>
+			/// <returns></returns>
+			public override Expression LookupExpression(string sName, bool lLocalOnly = false)
+			{
+				ParameterExpression p;
+				if (parameters.TryGetValue(sName, out p))
+					return p;
+				return base.LookupExpression(sName, lLocalOnly);
+			} // func LookupParameter
 
-      #endregion
+			#endregion
 
-      #region -- LookupLabel ----------------------------------------------------------
+			#region -- LookupLabel ----------------------------------------------------------
 
-      public override LabelTarget LookupLabel(Type type, string sName)
-      {
-        if (sName == csReturnLabel)
-          return returnLabel;
-        if (labels == null)
-          labels = new Dictionary<string, LabelTarget>();
-        if (type == null)
-          type = typeof(void);
+			public override LabelTarget LookupLabel(Type type, string sName)
+			{
+				if (sName == csReturnLabel)
+					return returnLabel;
+				if (labels == null)
+					labels = new Dictionary<string, LabelTarget>();
+				if (type == null)
+					type = typeof(void);
 
-        // Lookup the label
-        LabelTarget l;
-        if (labels.TryGetValue(sName, out l))
-          return l;
+				// Lookup the label
+				LabelTarget l;
+				if (labels.TryGetValue(sName, out l))
+					return l;
 
-        // Create the label, if it is not internal
-        if (sName[0] == '#')
-          throw new ArgumentException("Internal label does not exist.");
+				// Create the label, if it is not internal
+				if (sName[0] == '#')
+					throw new ArgumentException("Internal label does not exist.");
 
-        return labels[sName] = Expression.Label(type, sName);
-      } // func LookupLabel
+				return labels[sName] = Expression.Label(type, sName);
+			} // func LookupLabel
 
-      #endregion
+			#endregion
 
-      public void ResetReturnLabel(Type returnType, Expression returnDefaultValue)
-      {
+			public void ResetReturnLabel(Type returnType, Expression returnDefaultValue)
+			{
 #if DEBUG
-        if (lReturnLabelUsed)
-          throw new InvalidOperationException("Reset is not allowed after expressions added.");
+				if (lReturnLabelUsed)
+					throw new InvalidOperationException("Reset is not allowed after expressions added.");
 #endif
-        this.returnLabel = Expression.Label(returnType, csReturnLabel);
-        this.returnDefaultValue = returnDefaultValue;
-      } // proc ResetReturnLabel
+				this.returnLabel = Expression.Label(returnType, csReturnLabel);
+				this.returnDefaultValue = returnDefaultValue;
+			} // proc ResetReturnLabel
 
-      public override Expression ExpressionBlock
-      {
-        get
-        {
-          AddExpression(Expression.Label(returnLabel, returnDefaultValue == null ? Expression.Default(returnLabel.Type) : returnDefaultValue));
-          return base.ExpressionBlock;
-        }
-      } // prop ExpressionBlock
+			public override Expression ExpressionBlock
+			{
+				get
+				{
+					AddExpression(Expression.Label(returnLabel, returnDefaultValue == null ? Expression.Default(returnLabel.Type) : returnDefaultValue));
+					return base.ExpressionBlock;
+				}
+			} // prop ExpressionBlock
 
-      public LabelTarget ReturnLabel
-      {
-        get
-        {
+			public LabelTarget ReturnLabel
+			{
+				get
+				{
 #if DEBUG
-          lReturnLabelUsed = true;
+					lReturnLabelUsed = true;
 #endif
-          return returnLabel;
-        }
-      } // prop ReturnLabel
+					return returnLabel;
+				}
+			} // prop ReturnLabel
 
-      public override Type ReturnType { get { return returnLabel.Type; } }
-    } // class LambdaScope
+			public override Type ReturnType { get { return returnLabel.Type; } }
+		} // class LambdaScope
 
-    #endregion
+		#endregion
 
-    #region -- class GlobalScope ------------------------------------------------------
+		#region -- class GlobalScope ------------------------------------------------------
 
-    ///////////////////////////////////////////////////////////////////////////////
-    /// <summary>Global parse-scope.</summary>
-    private class GlobalScope : LambdaScope
-    {
-      private Lua runtime;
-      private LuaDebugLevel debug;
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary>Global parse-scope.</summary>
+		private class GlobalScope : LambdaScope
+		{
+			private Lua runtime;
+			private LuaDebugLevel debug;
 
-      /// <summary>Global parse-scope</summary>
-      /// <param name="runtime">Runtime and binder of the global scope.</param>
-      /// <param name="debug"></param>
-      /// <param name="returnType"></param>
-      /// <param name="returnDefaultValue"></param>
+			/// <summary>Global parse-scope</summary>
+			/// <param name="runtime">Runtime and binder of the global scope.</param>
+			/// <param name="debug"></param>
+			/// <param name="returnType"></param>
+			/// <param name="returnDefaultValue"></param>
 			public GlobalScope(Lua runtime, LuaDebugLevel debug, Type returnType, Expression returnDefaultValue)
-        : base(null, returnType, returnDefaultValue)
-      {
-        this.runtime = runtime;
-        this.debug = debug;
-      } // ctor
+				: base(null, returnType, returnDefaultValue)
+			{
+				this.runtime = runtime;
+				this.debug = debug;
+			} // ctor
 
-      /// <summary>Access to the binders</summary>
-      public override Lua Runtime { get { return runtime; } }
-      /// <summary>Emit-Debug-Information</summary>
+			/// <summary>Access to the binders</summary>
+			public override Lua Runtime { get { return runtime; } }
+			/// <summary>Emit-Debug-Information</summary>
 			public override LuaDebugLevel EmitDebug { get { return debug; } }
-    } // class GlobalScope
+		} // class GlobalScope
 
-    #endregion
+		#endregion
 
-    #region -- enum InvokeResult ------------------------------------------------------
+		#region -- enum InvokeResult ------------------------------------------------------
 
-    public enum InvokeResult
-    {
-      None,
-      Object,
-      LuaResult
-    } // enum GenerateResult
+		public enum InvokeResult
+		{
+			None,
+			Object,
+			LuaResult
+		} // enum GenerateResult
 
-    #endregion
+		#endregion
 
-    #region -- class PrefixMemberInfo -------------------------------------------------
+		#region -- class PrefixMemberInfo -------------------------------------------------
 
-    ///////////////////////////////////////////////////////////////////////////////
-    /// <summary>Mini-Parse-Tree for resolve of prefix expressions</summary>
-    private class PrefixMemberInfo
-    {
-      public PrefixMemberInfo(Token position, Expression instance, string sMember, Expression[] indices, Expression[] arguments)
-      {
-        this.Position = position;
-        this.Instance = instance;
-        this.Member = sMember;
-        this.Indices = indices;
-        this.Arguments = arguments;
-      } // ctor
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary>Mini-Parse-Tree for resolve of prefix expressions</summary>
+		private class PrefixMemberInfo
+		{
+			public PrefixMemberInfo(Token position, Expression instance, string sMember, Expression[] indices, Expression[] arguments)
+			{
+				this.Position = position;
+				this.Instance = instance;
+				this.Member = sMember;
+				this.Indices = indices;
+				this.Arguments = arguments;
+			} // ctor
 
-      public Expression GenerateSet(Scope scope, Expression exprToSet)
-      {
-        Expression expr;
-        if (Instance != null && Member == null && Indices != null && Arguments == null)
-          expr = IndexSetExpression(scope.Runtime, Position, Instance, Indices, exprToSet);
-        else if (Instance != null && Member != null && Indices == null && Arguments == null)
-          return MemberSetExpression(scope.Runtime, Position, Instance, Member, MethodMember, exprToSet);
-        else if (Instance != null && Member == null && Indices == null && Arguments == null && Instance is ParameterExpression)
-        {
-          // Assign the value to a variable
-          expr = Expression.Assign(Instance, ConvertExpression(scope.Runtime, Position, exprToSet, Instance.Type));
-        }
-        else
-          throw ParseError(Position, Properties.Resources.rsParseExpressionNotAssignable);
+			public Expression GenerateSet(Scope scope, Expression exprToSet)
+			{
+				Expression expr;
+				if (Instance != null && Member == null && Indices != null && Arguments == null)
+					expr = IndexSetExpression(scope.Runtime, Position, Instance, Indices, exprToSet);
+				else if (Instance != null && Member != null && Indices == null && Arguments == null)
+					return MemberSetExpression(scope.Runtime, Position, Instance, Member, MethodMember, exprToSet);
+				else if (Instance != null && Member == null && Indices == null && Arguments == null && Instance is ParameterExpression)
+				{
+					// Assign the value to a variable
+					expr = Expression.Assign(Instance, ConvertExpression(scope.Runtime, Position, exprToSet, Instance.Type));
+				}
+				else
+					throw ParseError(Position, Properties.Resources.rsParseExpressionNotAssignable);
 
-        return expr;
-      } // func GenerateSet
+				return expr;
+			} // func GenerateSet
 
-      public Expression GenerateGet(Scope scope, InvokeResult result)
-      {
-        if (Instance != null && Member == null && Indices != null && Arguments == null)
-        {
-          if (Indices.Length > 0)
-          {
-            // First the arguments are pushed on the stack, and later comes the call, so we wrap the last parameter
-            Indices[Indices.Length - 1] = WrapDebugInfo(scope.EmitExpressionDebug, true, Position, Position, Indices[Indices.Length - 1]); // Let the type as it is
-          }
+			public Expression GenerateGet(Scope scope, InvokeResult result)
+			{
+				if (Instance != null && Member == null && Indices != null && Arguments == null)
+				{
+					if (Indices.Length > 0)
+					{
+						// First the arguments are pushed on the stack, and later comes the call, so we wrap the last parameter
+						Indices[Indices.Length - 1] = WrapDebugInfo(scope.EmitExpressionDebug, true, Position, Position, Indices[Indices.Length - 1]); // Let the type as it is
+					}
 
-          Instance = IndexGetExpression(scope.Runtime, Position, Instance, Indices);
-          Indices = null;
-        }
-        else if (Instance != null && Member != null && Indices == null && Arguments == null)
-        {
-          // Convert the member to an instance
+					Instance = IndexGetExpression(scope.Runtime, Position, Instance, Indices);
+					Indices = null;
+				}
+				else if (Instance != null && Member != null && Indices == null && Arguments == null)
+				{
+					// Convert the member to an instance
 					Instance = WrapDebugInfo(scope.EmitExpressionDebug, true, Position, Position, Instance);
-          Instance = MemberGetExpression(scope.Runtime, Position, Instance, Member, MethodMember);
-          Member = null;
-          MethodMember = false;
-        }
-        else if (Instance != null && Member == null && Indices == null && Arguments == null)
-        {
-          // Nothing to todo, we have already an instance
-        }
-        else if (Instance != null && Indices == null && Arguments != null)
-        {
-          if (Arguments.Length > 0)
-          {
-            // First the arguments are pushed on the stack, and later comes the call, so we wrap the last parameter
+					Instance = MemberGetExpression(scope.Runtime, Position, Instance, Member, MethodMember);
+					Member = null;
+					MethodMember = false;
+				}
+				else if (Instance != null && Member == null && Indices == null && Arguments == null)
+				{
+					// Nothing to todo, we have already an instance
+				}
+				else if (Instance != null && Indices == null && Arguments != null)
+				{
+					if (Arguments.Length > 0)
+					{
+						// First the arguments are pushed on the stack, and later comes the call, so we wrap the last parameter
 						Arguments[Arguments.Length - 1] = WrapDebugInfo(scope.EmitExpressionDebug, true, Position, Position, Arguments[Arguments.Length - 1]); // Let the type as it is
-          }
-          else
+					}
+					else
 						Instance = WrapDebugInfo(scope.EmitExpressionDebug, true, Position, Position, Instance);
 
-          if (String.IsNullOrEmpty(Member))
-            Instance = InvokeExpression(scope.Runtime, Position, Instance, result, Arguments, true);
-          else
-            Instance = InvokeMemberExpression(scope.Runtime, Position, Instance, Member, result, Arguments);
+					if (String.IsNullOrEmpty(Member))
+						Instance = InvokeExpression(scope.Runtime, Position, Instance, result, Arguments, true);
+					else
+						Instance = InvokeMemberExpression(scope.Runtime, Position, Instance, Member, result, Arguments);
 
-          Member = null;
-          MethodMember = false;
-          Arguments = null;
-        }
-        else
-          throw ParseError(Position, Properties.Resources.rsParseExpressionNoResult);
+					Member = null;
+					MethodMember = false;
+					Arguments = null;
+				}
+				else
+					throw ParseError(Position, Properties.Resources.rsParseExpressionNoResult);
 
-        return Instance;
-      } // func GenerateGet
+				return Instance;
+			} // func GenerateGet
 
-      public void SetMember(Token tMember, bool lMethod)
-      {
-        Position = tMember;
-        MethodMember = lMethod;
-        Member = tMember.Value;
-      } // proc SetMember
+			public void SetMember(Token tMember, bool lMethod)
+			{
+				Position = tMember;
+				MethodMember = lMethod;
+				Member = tMember.Value;
+			} // proc SetMember
 
-      public Token Position { get; set; }
-      public Expression Instance { get; set; }
-      public string Member { get; private set; }
-      public bool MethodMember { get; private set; }
-      public Expression[] Indices { get; set; }
-      public Expression[] Arguments { get; set; }
-    } // class PrefixMemberInfo
+			public Token Position { get; set; }
+			public Expression Instance { get; set; }
+			public string Member { get; private set; }
+			public bool MethodMember { get; private set; }
+			public Expression[] Indices { get; set; }
+			public Expression[] Arguments { get; set; }
+		} // class PrefixMemberInfo
 
-    #endregion
+		#endregion
 
-    #region -- Parse Chunk, Block -----------------------------------------------------
+		#region -- Parse Chunk, Block -----------------------------------------------------
 
-    /// <summary>Parses the chunk to an function.</summary>
-    /// <param name="runtime">Binder</param>
-    /// <param name="debug">Compile the script with debug information.</param>
-    /// <param name="lHasEnvironment">Creates the _G parameter.</param>
-    /// <param name="code">Lexer for the code.</param>
-    /// <param name="typeDelegate">Type for the delegate. <c>null</c>, for an automatic type</param>
-    /// <param name="returnType">Defines the return type of the chunk.</param>
-    /// <param name="args">Arguments of the function.</param>
-    /// <returns>Expression-Tree for the code.</returns>
-    public static LambdaExpression ParseChunk(Lua runtime, LuaDebugLevel debug, bool lHasEnvironment, LuaLexer code, Type typeDelegate, Type returnType, IEnumerable<KeyValuePair<string, Type>> args)
-    {
-      List<ParameterExpression> parameters = new List<ParameterExpression>();
-      if (returnType == null)
-        returnType = typeof(LuaResult);
-      var globalScope = new GlobalScope(runtime, debug, returnType, returnType == typeof(LuaResult) ? Expression.Property(null, Lua.ResultEmptyPropertyInfo) : null);
+		/// <summary>Parses the chunk to an function.</summary>
+		/// <param name="runtime">Binder</param>
+		/// <param name="debug">Compile the script with debug information.</param>
+		/// <param name="lHasEnvironment">Creates the _G parameter.</param>
+		/// <param name="code">Lexer for the code.</param>
+		/// <param name="typeDelegate">Type for the delegate. <c>null</c>, for an automatic type</param>
+		/// <param name="returnType">Defines the return type of the chunk.</param>
+		/// <param name="args">Arguments of the function.</param>
+		/// <returns>Expression-Tree for the code.</returns>
+		public static LambdaExpression ParseChunk(Lua runtime, LuaDebugLevel debug, bool lHasEnvironment, LuaLexer code, Type typeDelegate, Type returnType, IEnumerable<KeyValuePair<string, Type>> args)
+		{
+			List<ParameterExpression> parameters = new List<ParameterExpression>();
+			if (returnType == null)
+				returnType = typeof(LuaResult);
+			var globalScope = new GlobalScope(runtime, debug, returnType, returnType == typeof(LuaResult) ? Expression.Property(null, Lua.ResultEmptyPropertyInfo) : null);
 
-      // Registers the global LuaTable
-      if (lHasEnvironment)
-        parameters.Add(globalScope.RegisterParameter(typeof(LuaGlobal), csEnv));
+			// Registers the global LuaTable
+			if (lHasEnvironment)
+				parameters.Add(globalScope.RegisterParameter(typeof(LuaGlobal), csEnv));
 
-      if (args != null)
-      {
-        foreach (var c in args)
-          parameters.Add(globalScope.RegisterParameter(c.Value, c.Key)); // Add alle arguments
-      }
+			if (args != null)
+			{
+				foreach (var c in args)
+					parameters.Add(globalScope.RegisterParameter(c.Value, c.Key)); // Add alle arguments
+			}
 
-      // Get the first token
-      if (code.Current == null)
-        code.Next();
+			// Get the first token
+			if (code.Current == null)
+				code.Next();
 
-      // Get the name for the chunk and clean it from all unwanted chars
+			// Get the name for the chunk and clean it from all unwanted chars
 			string sChunkName = CreateNameFromFile(code.Current.Start.FileName);
 			if ((debug & LuaDebugLevel.RegsiterMethods) == LuaDebugLevel.RegsiterMethods)
 				sChunkName = Lua.RegisterUniqueName(sChunkName);
 
-      // Create the block
-      ParseBlock(globalScope, code);
+			// Create the block
+			ParseBlock(globalScope, code);
 
-      if (code.Current.Typ != LuaToken.Eof)
-        throw ParseError(code.Current, Properties.Resources.rsParseEof);
+			if (code.Current.Typ != LuaToken.Eof)
+				throw ParseError(code.Current, Properties.Resources.rsParseEof);
 
-      // Create the function
-      return typeDelegate == null ?
-        Expression.Lambda(globalScope.ExpressionBlock, sChunkName, parameters) :
-        Expression.Lambda(typeDelegate, globalScope.ExpressionBlock, sChunkName, parameters);
-    } // func ParseChunk
+			// Create the function
+			return typeDelegate == null ?
+				Expression.Lambda(globalScope.ExpressionBlock, sChunkName, parameters) :
+				Expression.Lambda(typeDelegate, globalScope.ExpressionBlock, sChunkName, parameters);
+		} // func ParseChunk
 
 		private static string CreateNameFromFile(string sFileName)
 		{
@@ -545,12 +545,12 @@ namespace Neo.IronLua
 		} // func CreateNameFromFile
 
 		private static void ParseBlock(Scope scope, LuaLexer code)
-    {
-      // Lese die Statement
+		{
+			// Lese die Statement
 			int iLastDebugInfo = -1;
 			bool lLoop = true;
-      while (lLoop)
-      {
+			while (lLoop)
+			{
 				bool lDebugInfoEmitted = false;
 
 				if ((scope.EmitDebug & LuaDebugLevel.Line) != 0) // debug info for line
@@ -563,223 +563,223 @@ namespace Neo.IronLua
 					}
 				}
 
-        switch (code.Current.Typ)
-        {
-          case LuaToken.Eof: // End of file
-            lLoop = false;
-            break;
+				switch (code.Current.Typ)
+				{
+					case LuaToken.Eof: // End of file
+						lLoop = false;
+						break;
 
-          case LuaToken.KwReturn: //  The return-statement is only allowed on the end of a scope
-            ParseReturn(scope, code);
-            break;
+					case LuaToken.KwReturn: //  The return-statement is only allowed on the end of a scope
+						ParseReturn(scope, code);
+						break;
 
-          case LuaToken.KwBreak: // The break-statement is only allowed on the end of a scope
-            ParseBreak(scope, code);
-            lLoop = false;
-            break;
+					case LuaToken.KwBreak: // The break-statement is only allowed on the end of a scope
+						ParseBreak(scope, code);
+						lLoop = false;
+						break;
 
-          case LuaToken.Semicolon: // End of statement => ignore
-            code.Next();
-            break;
+					case LuaToken.Semicolon: // End of statement => ignore
+						code.Next();
+						break;
 
-          default:
+					default:
 						if (!lDebugInfoEmitted && (scope.EmitDebug & LuaDebugLevel.Expression) != 0) // Start every statement with a debug point
 							scope.AddExpression(GetDebugInfo(code.Current, code.Current));
 
-            if (!ParseStatement(scope, code)) // Parse normal statements
-              lLoop = false;
-            break;
-        }
-      }
-      if (scope.EmitDebug != LuaDebugLevel.None)
-        scope.AddExpression(Expression.ClearDebugInfo(code.Current.Start.Document)); // Clear debug info
-    } // func ParseBlock
+						if (!ParseStatement(scope, code)) // Parse normal statements
+							lLoop = false;
+						break;
+				}
+			}
+			if (scope.EmitDebug != LuaDebugLevel.None)
+				scope.AddExpression(Expression.ClearDebugInfo(code.Current.Start.Document)); // Clear debug info
+		} // func ParseBlock
 
-    private static void ParseReturn(Scope scope, LuaLexer code)
-    {
-      // eat return
-      code.Next();
+		private static void ParseReturn(Scope scope, LuaLexer code)
+		{
+			// eat return
+			code.Next();
 
-      // Build the return expression for all parameters
-      Expression exprReturnValue;
+			// Build the return expression for all parameters
+			Expression exprReturnValue;
 
-      if (IsExpressionStart(code)) // there is a return value
-      {
-        if (scope.ReturnType == typeof(LuaResult))
-        {
-          exprReturnValue = GetLuaResultExpression(scope, code.Current, ParseExpressionList(scope, code).ToArray());
-        }
-        else if (scope.ReturnType.IsArray)
-        {
-          Type typeArray = scope.ReturnType.GetElementType();
-          exprReturnValue = Expression.NewArrayInit(
-            typeArray,
-            from c in ParseExpressionList(scope, code) select ConvertExpression(scope.Runtime, code.Current, c, typeArray));
-        }
-        else
-        {
-          List<Expression> exprList = new List<Expression>(ParseExpressionList(scope, code));
+			if (IsExpressionStart(code)) // there is a return value
+			{
+				if (scope.ReturnType == typeof(LuaResult))
+				{
+					exprReturnValue = GetLuaResultExpression(scope, code.Current, ParseExpressionList(scope, code).ToArray());
+				}
+				else if (scope.ReturnType.IsArray)
+				{
+					Type typeArray = scope.ReturnType.GetElementType();
+					exprReturnValue = Expression.NewArrayInit(
+						typeArray,
+						from c in ParseExpressionList(scope, code) select ConvertExpression(scope.Runtime, code.Current, c, typeArray));
+				}
+				else
+				{
+					List<Expression> exprList = new List<Expression>(ParseExpressionList(scope, code));
 
-          if (exprList.Count == 1)
-            exprReturnValue = ConvertExpression(scope.Runtime, code.Current, exprList[0], scope.ReturnType);
-          else
-          {
-            ParameterExpression tmpVar = Expression.Variable(scope.ReturnType);
-            exprList[0] = Expression.Assign(tmpVar, ConvertExpression(scope.Runtime, code.Current, exprList[0], scope.ReturnType));
-            exprList.Add(tmpVar);
-            exprReturnValue = Expression.Block(scope.ReturnType, new ParameterExpression[] { tmpVar }, exprList);
-          }
-        }
-      }
-      else // use the default-value
-      {
-        if (scope.ReturnType == typeof(LuaResult))
-          exprReturnValue = Expression.Property(null, Lua.ResultEmptyPropertyInfo);
-        else if (scope.ReturnType.IsArray)
-          exprReturnValue = Expression.NewArrayInit(scope.ReturnType.GetElementType());
-        else
-          exprReturnValue = Expression.Default(scope.ReturnType);
-      }
+					if (exprList.Count == 1)
+						exprReturnValue = ConvertExpression(scope.Runtime, code.Current, exprList[0], scope.ReturnType);
+					else
+					{
+						ParameterExpression tmpVar = Expression.Variable(scope.ReturnType);
+						exprList[0] = Expression.Assign(tmpVar, ConvertExpression(scope.Runtime, code.Current, exprList[0], scope.ReturnType));
+						exprList.Add(tmpVar);
+						exprReturnValue = Expression.Block(scope.ReturnType, new ParameterExpression[] { tmpVar }, exprList);
+					}
+				}
+			}
+			else // use the default-value
+			{
+				if (scope.ReturnType == typeof(LuaResult))
+					exprReturnValue = Expression.Property(null, Lua.ResultEmptyPropertyInfo);
+				else if (scope.ReturnType.IsArray)
+					exprReturnValue = Expression.NewArrayInit(scope.ReturnType.GetElementType());
+				else
+					exprReturnValue = Expression.Default(scope.ReturnType);
+			}
 
-      if (code.Current.Typ == LuaToken.Semicolon)
-        code.Next();
+			if (code.Current.Typ == LuaToken.Semicolon)
+				code.Next();
 
-      scope.AddExpression(Expression.Goto(scope.LookupLabel(scope.ReturnType, csReturnLabel), exprReturnValue));
-    } // func ParseReturn
+			scope.AddExpression(Expression.Goto(scope.LookupLabel(scope.ReturnType, csReturnLabel), exprReturnValue));
+		} // func ParseReturn
 
-    private static Expression GetLuaResultExpression(Scope scope, Token tStart, Expression[] exprs)
-    {
-      Expression exprReturnValue;
-      if (exprs.Length == 1)
-        if (exprs[0].Type == typeof(LuaResult))
-          exprReturnValue = exprs[0];
-        else
-          exprReturnValue = Expression.New(Lua.ResultConstructorInfoArg1, ConvertExpression(scope.Runtime, tStart, exprs[0], typeof(object)));
-      else
-        exprReturnValue = Expression.New(Lua.ResultConstructorInfoArgN,
-          Expression.NewArrayInit(typeof(object),
-            from c in exprs select Expression.Convert(c, typeof(object))
-            )
-          );
-      return exprReturnValue;
-    } // func GetLuaResultExpression
+		private static Expression GetLuaResultExpression(Scope scope, Token tStart, Expression[] exprs)
+		{
+			Expression exprReturnValue;
+			if (exprs.Length == 1)
+				if (exprs[0].Type == typeof(LuaResult))
+					exprReturnValue = exprs[0];
+				else
+					exprReturnValue = Expression.New(Lua.ResultConstructorInfoArg1, ConvertExpression(scope.Runtime, tStart, exprs[0], typeof(object)));
+			else
+				exprReturnValue = Expression.New(Lua.ResultConstructorInfoArgN,
+					Expression.NewArrayInit(typeof(object),
+						from c in exprs select Expression.Convert(c, typeof(object))
+						)
+					);
+			return exprReturnValue;
+		} // func GetLuaResultExpression
 
-    private static bool IsExpressionStart(LuaLexer code)
-    {
-      return code.Current.Typ == LuaToken.BracketOpen ||
-        code.Current.Typ == LuaToken.Identifier ||
-        code.Current.Typ == LuaToken.DotDotDot ||
-        code.Current.Typ == LuaToken.String ||
-        code.Current.Typ == LuaToken.Number ||
-        code.Current.Typ == LuaToken.HexNumber ||
-        code.Current.Typ == LuaToken.KwTrue ||
-        code.Current.Typ == LuaToken.KwFalse ||
-        code.Current.Typ == LuaToken.KwNil ||
-        code.Current.Typ == LuaToken.BracketCurlyOpen ||
-        code.Current.Typ == LuaToken.Minus ||
-        code.Current.Typ == LuaToken.Dilde ||
-        code.Current.Typ == LuaToken.Cross ||
-        code.Current.Typ == LuaToken.KwNot ||
-        code.Current.Typ == LuaToken.KwFunction ||
-        code.Current.Typ == LuaToken.KwCast;
-    } // func IsExpressionStart
+		private static bool IsExpressionStart(LuaLexer code)
+		{
+			return code.Current.Typ == LuaToken.BracketOpen ||
+				code.Current.Typ == LuaToken.Identifier ||
+				code.Current.Typ == LuaToken.DotDotDot ||
+				code.Current.Typ == LuaToken.String ||
+				code.Current.Typ == LuaToken.Number ||
+				code.Current.Typ == LuaToken.HexNumber ||
+				code.Current.Typ == LuaToken.KwTrue ||
+				code.Current.Typ == LuaToken.KwFalse ||
+				code.Current.Typ == LuaToken.KwNil ||
+				code.Current.Typ == LuaToken.BracketCurlyOpen ||
+				code.Current.Typ == LuaToken.Minus ||
+				code.Current.Typ == LuaToken.Dilde ||
+				code.Current.Typ == LuaToken.Cross ||
+				code.Current.Typ == LuaToken.KwNot ||
+				code.Current.Typ == LuaToken.KwFunction ||
+				code.Current.Typ == LuaToken.KwCast;
+		} // func IsExpressionStart
 
-    #endregion
+		#endregion
 
-    #region -- Parse Statement --------------------------------------------------------
+		#region -- Parse Statement --------------------------------------------------------
 
-    private static bool ParseStatement(Scope scope, LuaLexer code)
-    {
-      switch (code.Current.Typ)
-      {
-        case LuaToken.Identifier: // Expression
-        case LuaToken.DotDotDot:
-        case LuaToken.BracketOpen:
-        case LuaToken.String:
-        case LuaToken.Number:
-        case LuaToken.HexNumber:
-        case LuaToken.KwFalse:
-        case LuaToken.KwTrue:
-        case LuaToken.KwNil:
-        case LuaToken.BracketCurlyOpen:
-        case LuaToken.Minus:
-        case LuaToken.KwCast:
-          ParseExpressionStatement(scope, code, false);
-          return true;
+		private static bool ParseStatement(Scope scope, LuaLexer code)
+		{
+			switch (code.Current.Typ)
+			{
+				case LuaToken.Identifier: // Expression
+				case LuaToken.DotDotDot:
+				case LuaToken.BracketOpen:
+				case LuaToken.String:
+				case LuaToken.Number:
+				case LuaToken.HexNumber:
+				case LuaToken.KwFalse:
+				case LuaToken.KwTrue:
+				case LuaToken.KwNil:
+				case LuaToken.BracketCurlyOpen:
+				case LuaToken.Minus:
+				case LuaToken.KwCast:
+					ParseExpressionStatement(scope, code, false);
+					return true;
 
-        case LuaToken.ColonColon: // Start of a label
-          ParseLabel(scope, code);
-          return true;
+				case LuaToken.ColonColon: // Start of a label
+					ParseLabel(scope, code);
+					return true;
 
-        case LuaToken.KwGoto:
-          ParseGoto(scope, code);
-          return true;
+				case LuaToken.KwGoto:
+					ParseGoto(scope, code);
+					return true;
 
-        case LuaToken.KwDo:
-          ParseDoLoop(scope, code);
-          return true;
+				case LuaToken.KwDo:
+					ParseDoLoop(scope, code);
+					return true;
 
-        case LuaToken.KwWhile:
-          ParseWhileLoop(scope, code);
-          return true;
+				case LuaToken.KwWhile:
+					ParseWhileLoop(scope, code);
+					return true;
 
-        case LuaToken.KwRepeat:
-          ParseRepeatLoop(scope, code);
-          return true;
+				case LuaToken.KwRepeat:
+					ParseRepeatLoop(scope, code);
+					return true;
 
-        case LuaToken.KwIf:
-          ParseIfStatement(scope, code);
-          return true;
+				case LuaToken.KwIf:
+					ParseIfStatement(scope, code);
+					return true;
 
-        case LuaToken.KwFor:
-          ParseForLoop(scope, code);
-          return true;
+				case LuaToken.KwFor:
+					ParseForLoop(scope, code);
+					return true;
 
-        case LuaToken.KwForEach:
-          ParseForEachLoop(scope, code);
-          return true;
+				case LuaToken.KwForEach:
+					ParseForEachLoop(scope, code);
+					return true;
 
-        case LuaToken.KwFunction:
-          ParseFunction(scope, code, false);
-          return true;
+				case LuaToken.KwFunction:
+					ParseFunction(scope, code, false);
+					return true;
 
-        case LuaToken.KwLocal:
-          code.Next();
-          if (code.Current.Typ == LuaToken.KwFunction)
-            ParseFunction(scope, code, true);
-          else
-            ParseExpressionStatement(scope, code, true);
-          return true;
-        case LuaToken.KwConst:
-          code.Next();
-          ParseConst(scope, code);
-          return true;
+				case LuaToken.KwLocal:
+					code.Next();
+					if (code.Current.Typ == LuaToken.KwFunction)
+						ParseFunction(scope, code, true);
+					else
+						ParseExpressionStatement(scope, code, true);
+					return true;
+				case LuaToken.KwConst:
+					code.Next();
+					ParseConst(scope, code);
+					return true;
 
-        case LuaToken.InvalidString:
-          throw ParseError(code.Current, Properties.Resources.rsParseInvalidString);
-        case LuaToken.InvalidComment:
-          throw ParseError(code.Current, Properties.Resources.rsParseInvalidComment);
-        case LuaToken.InvalidChar:
-          throw ParseError(code.Current, Properties.Resources.rsParseInvalidChar);
+				case LuaToken.InvalidString:
+					throw ParseError(code.Current, Properties.Resources.rsParseInvalidString);
+				case LuaToken.InvalidComment:
+					throw ParseError(code.Current, Properties.Resources.rsParseInvalidComment);
+				case LuaToken.InvalidChar:
+					throw ParseError(code.Current, Properties.Resources.rsParseInvalidChar);
 
-        default:
-          return false;
-      }
-    }  // func ParseStatement
+				default:
+					return false;
+			}
+		}  // func ParseStatement
 
-    private static void ParseExpressionStatement(Scope scope, LuaLexer code, bool lLocal)
-    {
-      List<PrefixMemberInfo> prefixes = new List<PrefixMemberInfo>();
+		private static void ParseExpressionStatement(Scope scope, LuaLexer code, bool lLocal)
+		{
+			List<PrefixMemberInfo> prefixes = new List<PrefixMemberInfo>();
 
-      // parse the assgiee list (var0, var1, var2, ...)
-      while (true)
-      {
-        if (lLocal) // parse local variables
-        {
-          Token tVar;
-          Type typeVar;
-          ParseIdentifierAndType(scope, code, out tVar, out typeVar);
-          
+			// parse the assgiee list (var0, var1, var2, ...)
+			while (true)
+			{
+				if (lLocal) // parse local variables
+				{
+					Token tVar;
+					Type typeVar;
+					ParseIdentifierAndType(scope, code, out tVar, out typeVar);
+
 					ParameterExpression exprVar = scope.LookupExpression(tVar.Value, true) as ParameterExpression;
 					if (exprVar == null)
 						exprVar = Expression.Variable(typeVar, tVar.Value);
@@ -787,35 +787,35 @@ namespace Neo.IronLua
 						throw ParseError(tVar, Properties.Resources.rsParseTypeRedef);
 
 					prefixes.Add(new PrefixMemberInfo(tVar, exprVar, null, null, null));
-        }
-        else // parse a assignee
-        {
-          // parse as a prefix
-          prefixes.Add(ParsePrefix(scope, code));
-        }
+				}
+				else // parse a assignee
+				{
+					// parse as a prefix
+					prefixes.Add(ParsePrefix(scope, code));
+				}
 
-        // is there another prefix
-        if (code.Current.Typ == LuaToken.Comma)
-          code.Next();
-        else
-          break;
-      }
+				// is there another prefix
+				if (code.Current.Typ == LuaToken.Comma)
+					code.Next();
+				else
+					break;
+			}
 
-      // Optional assign
-      if (code.Current.Typ == LuaToken.Assign)
-      {
-        code.Next();
+			// Optional assign
+			if (code.Current.Typ == LuaToken.Assign)
+			{
+				code.Next();
 
-        // parse all expressions
-        IEnumerator<Expression> expr = ParseExpressionList(scope, code).GetEnumerator();
-        expr.MoveNext();
+				// parse all expressions
+				IEnumerator<Expression> expr = ParseExpressionList(scope, code).GetEnumerator();
+				expr.MoveNext();
 
-        if (prefixes.Count == 1) // one expression, one variable?
-        {
-          scope.AddExpression(
-            prefixes[0].GenerateSet(scope, expr.Current != null ? expr.Current : Expression.Constant(null, typeof(object)))
-          );
-        }
+				if (prefixes.Count == 1) // one expression, one variable?
+				{
+					scope.AddExpression(
+						prefixes[0].GenerateSet(scope, expr.Current != null ? expr.Current : Expression.Constant(null, typeof(object)))
+					);
+				}
 				else if (expr.Current == null) // No expression, assign null
 				{
 					for (int i = 0; i < prefixes.Count; i++)
@@ -841,7 +841,7 @@ namespace Neo.IronLua
 								for (int l = 0; l < p.Indices.Length; l++)
 									p.Indices[l] = ParseExpressionStatementExchangeToTempVar(assignTempVars, assignExprs, p.Indices[l]);
 							}
-						} 
+						}
 					}
 
 					// collect the results of the expressions
@@ -886,12 +886,12 @@ namespace Neo.IronLua
 					#endregion
 				}
 
-        // Führe die restlichen Expressions aus
-        while (expr.MoveNext())
-          scope.AddExpression(expr.Current);
-      }
-      else
-      {
+				// Führe die restlichen Expressions aus
+				while (expr.MoveNext())
+					scope.AddExpression(expr.Current);
+			}
+			else
+			{
 				for (int i = 0; i < prefixes.Count; i++)
 				{
 					if (prefixes[i].Arguments == null && !lLocal) // do not execute getMember
@@ -899,12 +899,12 @@ namespace Neo.IronLua
 
 					scope.AddExpression(prefixes[i].GenerateGet(scope, InvokeResult.None));
 				}
-      }
+			}
 
 			// register the variables
 			if (lLocal)
 				prefixes.ForEach(c => scope.RegisterVariable((ParameterExpression)c.Instance));
-    } // proc ParseExpressionStatement
+		} // proc ParseExpressionStatement
 
 		private static ParameterExpression ParseExpressionStatementExchangeToTempVar(List<ParameterExpression> assignTempVars, List<Expression> assignExprs, Expression expr)
 		{
@@ -914,124 +914,124 @@ namespace Neo.IronLua
 			return tmpVar;
 		} // func ParseExpressionStatementExchangeToTempVar
 
-    private static void ParseIfStatement(Scope scope, LuaLexer code)
-    {
-      // if expr then block { elseif expr then block } [ else block ] end
-      FetchToken(LuaToken.KwIf, code);
+		private static void ParseIfStatement(Scope scope, LuaLexer code)
+		{
+			// if expr then block { elseif expr then block } [ else block ] end
+			FetchToken(LuaToken.KwIf, code);
 			var expr = ConvertExpression(scope.Runtime, code.Current, ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug), typeof(bool));
-      FetchToken(LuaToken.KwThen, code);
+			FetchToken(LuaToken.KwThen, code);
 
-      scope.AddExpression(Expression.IfThenElse(expr, ParseIfElseBlock(scope, code), ParseElseStatement(scope, code)));
-    } // proc ParseIfStatement
+			scope.AddExpression(Expression.IfThenElse(expr, ParseIfElseBlock(scope, code), ParseElseStatement(scope, code)));
+		} // proc ParseIfStatement
 
-    private static Expression ParseElseStatement(Scope scope, LuaLexer code)
-    {
-      if (code.Current.Typ == LuaToken.KwElseif)
-      {
-        code.Next();
+		private static Expression ParseElseStatement(Scope scope, LuaLexer code)
+		{
+			if (code.Current.Typ == LuaToken.KwElseif)
+			{
+				code.Next();
 				var expr = ConvertExpression(scope.Runtime, code.Current, ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug), typeof(bool));
-        FetchToken(LuaToken.KwThen, code);
+				FetchToken(LuaToken.KwThen, code);
 
-        return Expression.IfThenElse(expr, ParseIfElseBlock(scope, code), ParseElseStatement(scope, code));
-      }
-      else if (code.Current.Typ == LuaToken.KwElse)
-      {
-        code.Next();
-        var block = ParseIfElseBlock(scope, code);
-        FetchToken(LuaToken.KwEnd, code);
-        return block;
-      }
-      else if (code.Current.Typ == LuaToken.KwEnd)
-      {
-        code.Next();
-        return Expression.Empty();
-      }
-      else
-        throw ParseError(code.Current, Properties.Resources.rsParseUnexpectedTokenElse);
-    } // func ParseElseStatement
+				return Expression.IfThenElse(expr, ParseIfElseBlock(scope, code), ParseElseStatement(scope, code));
+			}
+			else if (code.Current.Typ == LuaToken.KwElse)
+			{
+				code.Next();
+				var block = ParseIfElseBlock(scope, code);
+				FetchToken(LuaToken.KwEnd, code);
+				return block;
+			}
+			else if (code.Current.Typ == LuaToken.KwEnd)
+			{
+				code.Next();
+				return Expression.Empty();
+			}
+			else
+				throw ParseError(code.Current, Properties.Resources.rsParseUnexpectedTokenElse);
+		} // func ParseElseStatement
 
-    private static Expression ParseIfElseBlock(Scope parent, LuaLexer code)
-    {
-      Scope scope = new Scope(parent);
-      ParseBlock(scope, code);
-      return scope.ExpressionBlock;
-    } // func ParseIfElseBlock
+		private static Expression ParseIfElseBlock(Scope parent, LuaLexer code)
+		{
+			Scope scope = new Scope(parent);
+			ParseBlock(scope, code);
+			return scope.ExpressionBlock;
+		} // func ParseIfElseBlock
 
-    private static void ParseConst(Scope scope, LuaLexer code)
-    {
-      // const ::= variable '=' ( expr | clr '.' Type )
+		private static void ParseConst(Scope scope, LuaLexer code)
+		{
+			// const ::= variable '=' ( expr | clr '.' Type )
 
-      Token tVarName;
-      Type typeVar;
-      ParseIdentifierAndType(scope, code, out tVarName, out typeVar);
-      
-      if (code.Current.Typ == LuaToken.Identifier || code.Current.Value == "typeof")
-      {
-        code.Next();
+			Token tVarName;
+			Type typeVar;
+			ParseIdentifierAndType(scope, code, out tVarName, out typeVar);
 
-        // Parse the type
-        scope.RegisterConst(tVarName.Value, Expression.Constant(ParseType(scope, code, false)));
-      }
-      else
-      {
-        FetchToken(LuaToken.Assign, code);
+			if (code.Current.Typ == LuaToken.Identifier || code.Current.Value == "typeof")
+			{
+				code.Next();
 
-        Expression exprConst = ParseExpression(scope, code, InvokeResult.Object, false); // No Debug-Emits
-        if (typeVar != typeof(object))
-          exprConst = ConvertExpression(scope.Runtime, tVarName, exprConst, typeVar);
+				// Parse the type
+				scope.RegisterConst(tVarName.Value, Expression.Constant(ParseType(scope, code, false)));
+			}
+			else
+			{
+				FetchToken(LuaToken.Assign, code);
 
-        // Try to eval the statement
-        if (exprConst.Type == typeof(object) || exprConst.Type == typeof(LuaResult)) // dynamic calls, no constant possible
-          throw ParseError(tVarName, Properties.Resources.rsConstExpressionNeeded);
-        else
-          try
-          {
-            object r = EvaluateExpression(exprConst);
-            if (r == null) // Eval via compile
-            {
-              Type typeFunc = Expression.GetFuncType(exprConst.Type);
-              LambdaExpression exprEval = Expression.Lambda(typeFunc, exprConst);
-              Delegate dlg = exprEval.Compile();
-              r = dlg.DynamicInvoke();
-            }
-            scope.RegisterConst(tVarName.Value, Expression.Constant(r, exprConst.Type));
-          }
-          catch (Exception e)
-          {
-            throw ParseError(tVarName, String.Format(Properties.Resources.rsConstExpressionEvalError, e.Message));
-          }
-      }
-    } // func ParseConst
+				Expression exprConst = ParseExpression(scope, code, InvokeResult.Object, false); // No Debug-Emits
+				if (typeVar != typeof(object))
+					exprConst = ConvertExpression(scope.Runtime, tVarName, exprConst, typeVar);
 
-    #endregion
+				// Try to eval the statement
+				if (exprConst.Type == typeof(object) || exprConst.Type == typeof(LuaResult)) // dynamic calls, no constant possible
+					throw ParseError(tVarName, Properties.Resources.rsConstExpressionNeeded);
+				else
+					try
+					{
+						object r = EvaluateExpression(exprConst);
+						if (r == null) // Eval via compile
+						{
+							Type typeFunc = Expression.GetFuncType(exprConst.Type);
+							LambdaExpression exprEval = Expression.Lambda(typeFunc, exprConst);
+							Delegate dlg = exprEval.Compile();
+							r = dlg.DynamicInvoke();
+						}
+						scope.RegisterConst(tVarName.Value, Expression.Constant(r, exprConst.Type));
+					}
+					catch (Exception e)
+					{
+						throw ParseError(tVarName, String.Format(Properties.Resources.rsConstExpressionEvalError, e.Message));
+					}
+			}
+		} // func ParseConst
 
-    #region -- Evaluate Expression ----------------------------------------------------
+		#endregion
 
-    private static object EvaluateExpression(Expression expr)
-    {
-      if (expr is ConstantExpression)
-        return EvaluateConstantExpression((ConstantExpression)expr);
-      else
-        return null;
-    } // func EvaluateExpresion
+		#region -- Evaluate Expression ----------------------------------------------------
 
-    private static object EvaluateConstantExpression(ConstantExpression expr)
-    {
-      return Lua.RtConvertValue(expr.Value, expr.Type);
-    } // func EvaluateConstantExpression
+		private static object EvaluateExpression(Expression expr)
+		{
+			if (expr is ConstantExpression)
+				return EvaluateConstantExpression((ConstantExpression)expr);
+			else
+				return null;
+		} // func EvaluateExpresion
 
-    #endregion
+		private static object EvaluateConstantExpression(ConstantExpression expr)
+		{
+			return Lua.RtConvertValue(expr.Value, expr.Type);
+		} // func EvaluateConstantExpression
 
-    #region -- Parse Prefix, Suffix ---------------------------------------------------
+		#endregion
 
-    private static PrefixMemberInfo ParsePrefix(Scope scope, LuaLexer code)
-    {
-      // prefix ::= Identifier suffix_opt |  '(' exp ')' suffix | literal | tablector
+		#region -- Parse Prefix, Suffix ---------------------------------------------------
 
-      Token tStart = code.Current;
-      PrefixMemberInfo info;
-      switch (tStart.Typ)
-      {
+		private static PrefixMemberInfo ParsePrefix(Scope scope, LuaLexer code)
+		{
+			// prefix ::= Identifier suffix_opt |  '(' exp ')' suffix | literal | tablector
+
+			Token tStart = code.Current;
+			PrefixMemberInfo info;
+			switch (tStart.Typ)
+			{
 				case LuaToken.BracketOpen: // Parse eine Expression
 					{
 						code.Next();
@@ -1042,519 +1042,519 @@ namespace Neo.IronLua
 					}
 					break;
 
-        case LuaToken.DotDotDot:
-        case LuaToken.Identifier:
-        case LuaToken.KwForEach:
-          var t = code.Current;
-          if (t.Value == csClr) // clr is a special package, that always exists
-          {
-            code.Next();
-            info = new PrefixMemberInfo(tStart, Expression.Property(null, Lua.TypeClrPropertyInfo), null, null, null);
-          }
-          else
-          {
-            string sMemberName;
-            if (t.Typ == LuaToken.DotDotDot)
-              sMemberName = csArgList;
-            else if (t.Typ == LuaToken.KwCast)
-              sMemberName = "cast";
-            else if (t.Typ == LuaToken.KwForEach)
-              sMemberName = "foreach";
-            else
-              sMemberName = t.Value;
-            var p = scope.LookupExpression(sMemberName);
-            if (t.Typ == LuaToken.DotDotDot && p == null)
-              throw ParseError(t, Properties.Resources.rsParseNoArgList);
-            code.Next();
-            if (p == null) // No local variable found
-              info = new PrefixMemberInfo(tStart, scope.LookupExpression(csEnv), t.Value, null, null);
-            else
-              info = new PrefixMemberInfo(tStart, p, null, null, null);
-          }
-          break;
+				case LuaToken.DotDotDot:
+				case LuaToken.Identifier:
+				case LuaToken.KwForEach:
+					var t = code.Current;
+					if (t.Value == csClr) // clr is a special package, that always exists
+					{
+						code.Next();
+						info = new PrefixMemberInfo(tStart, Expression.Property(null, Lua.TypeClrPropertyInfo), null, null, null);
+					}
+					else
+					{
+						string sMemberName;
+						if (t.Typ == LuaToken.DotDotDot)
+							sMemberName = csArgList;
+						else if (t.Typ == LuaToken.KwCast)
+							sMemberName = "cast";
+						else if (t.Typ == LuaToken.KwForEach)
+							sMemberName = "foreach";
+						else
+							sMemberName = t.Value;
+						var p = scope.LookupExpression(sMemberName);
+						if (t.Typ == LuaToken.DotDotDot && p == null)
+							throw ParseError(t, Properties.Resources.rsParseNoArgList);
+						code.Next();
+						if (p == null) // No local variable found
+							info = new PrefixMemberInfo(tStart, scope.LookupExpression(csEnv), t.Value, null, null);
+						else
+							info = new PrefixMemberInfo(tStart, p, null, null, null);
+					}
+					break;
 
 				case LuaToken.KwCast:
 					info = new PrefixMemberInfo(tStart, ParsePrefixCast(scope, code), null, null, null);
 					break;
 
-        case LuaToken.String: // Literal String
-          info = new PrefixMemberInfo(tStart, Expression.Constant(FetchToken(LuaToken.String, code).Value, typeof(string)), null, null, null);
-          break;
+				case LuaToken.String: // Literal String
+					info = new PrefixMemberInfo(tStart, Expression.Constant(FetchToken(LuaToken.String, code).Value, typeof(string)), null, null, null);
+					break;
 
-        case LuaToken.Number: // Literal Zahl
-          info = new PrefixMemberInfo(tStart, ParseNumber(scope.Runtime, FetchToken(LuaToken.Number, code)), null, null, null);
-          break;
+				case LuaToken.Number: // Literal Zahl
+					info = new PrefixMemberInfo(tStart, ParseNumber(scope.Runtime, FetchToken(LuaToken.Number, code)), null, null, null);
+					break;
 
-        case LuaToken.HexNumber: // Literal HexZahl
-          info = new PrefixMemberInfo(tStart, ParseHexNumber(scope.Runtime, FetchToken(LuaToken.HexNumber, code)), null, null, null);
-          break;
+				case LuaToken.HexNumber: // Literal HexZahl
+					info = new PrefixMemberInfo(tStart, ParseHexNumber(scope.Runtime, FetchToken(LuaToken.HexNumber, code)), null, null, null);
+					break;
 
-        case LuaToken.KwTrue: // Literal TRUE
-          code.Next();
-          info = new PrefixMemberInfo(tStart, Expression.Constant(true, typeof(bool)), null, null, null);
-          break;
+				case LuaToken.KwTrue: // Literal TRUE
+					code.Next();
+					info = new PrefixMemberInfo(tStart, Expression.Constant(true, typeof(bool)), null, null, null);
+					break;
 
-        case LuaToken.KwFalse: // Literal FALSE
-          code.Next();
-          info = new PrefixMemberInfo(tStart, Expression.Constant(false, typeof(bool)), null, null, null);
-          break;
+				case LuaToken.KwFalse: // Literal FALSE
+					code.Next();
+					info = new PrefixMemberInfo(tStart, Expression.Constant(false, typeof(bool)), null, null, null);
+					break;
 
-        case LuaToken.KwNil: // Literal NIL
-          code.Next();
-          info = new PrefixMemberInfo(tStart, Expression.Constant(null, typeof(object)), null, null, null);
-          break;
+				case LuaToken.KwNil: // Literal NIL
+					code.Next();
+					info = new PrefixMemberInfo(tStart, Expression.Constant(null, typeof(object)), null, null, null);
+					break;
 
-        case LuaToken.BracketCurlyOpen: // tablector
-          info = new PrefixMemberInfo(tStart, ParseTableConstructor(scope, code), null, null, null);
-          break;
+				case LuaToken.BracketCurlyOpen: // tablector
+					info = new PrefixMemberInfo(tStart, ParseTableConstructor(scope, code), null, null, null);
+					break;
 
-        case LuaToken.KwFunction: // Function definition
-          code.Next();
+				case LuaToken.KwFunction: // Function definition
+					code.Next();
 					info = new PrefixMemberInfo(tStart, ParseLamdaDefinition(scope, code, "lambda", false), null, null, null);
-          break;
-
-        default:
-          throw ParseError(code.Current, Properties.Resources.rsParseUnexpectedTokenPrefix);
-      }
-
-      return ParseSuffix(scope, code, info);
-    } // func ParsePrefix
-
-    private static PrefixMemberInfo ParseSuffix(Scope scope, LuaLexer code, PrefixMemberInfo info)
-    {
-      // suffix_opt ::= [ suffix ]
-      // suffix ::= { '[' exp ']'  | '.' Identifier | args | ':' Identifier args }
-      // args ::= tablector | string | '(' explist ')'
-
-      while (true)
-      {
-        switch (code.Current.Typ)
-        {
-          case LuaToken.BracketSquareOpen: // Index
-            code.Next();
-            info.GenerateGet(scope, InvokeResult.Object);
-            if (code.Current.Typ == LuaToken.BracketSquareClose)
-              info.Indices = new Expression[0];
-            else
-              info.Indices = ParseExpressionList(scope, code).ToArray();
-            FetchToken(LuaToken.BracketSquareClose, code);
-            break;
-
-          case LuaToken.Dot: // Property of an class
-            code.Next();
-            info.GenerateGet(scope, InvokeResult.Object);
-            info.SetMember(FetchToken(LuaToken.Identifier, code), false);
-            break;
-
-          case LuaToken.BracketOpen: // List of arguments
-            info.GenerateGet(scope, InvokeResult.Object);
-            info.Arguments = ParseArgumentList(scope, code);
-            break;
-
-          case LuaToken.BracketCurlyOpen: // LuaTable as an argument
-            info.GenerateGet(scope, InvokeResult.Object);
-            info.Arguments = new Expression[] { ParseTableConstructor(scope, code) };
-            break;
-
-          case LuaToken.String: // String as an argument
-            info.GenerateGet(scope, InvokeResult.Object);
-            info.Arguments = new Expression[] { Expression.Constant(FetchToken(LuaToken.String, code).Value, typeof(object)) };
-            break;
-
-          case LuaToken.Colon: // Methodenaufruf
-            code.Next();
-
-            // Lese den Namen um den Member zu belegen
-            info.GenerateGet(scope, InvokeResult.Object);
-            info.SetMember(FetchToken(LuaToken.Identifier, code), true);
-
-            // Parse die Parameter
-            switch (code.Current.Typ)
-            {
-              case LuaToken.BracketOpen: // Argumentenliste
-                info.Arguments = ParseArgumentList(scope, code);
-                break;
-
-              case LuaToken.BracketCurlyOpen: // LuaTable als Argument
-                info.Arguments = new Expression[] { ParseTableConstructor(scope, code) }; ;
-                break;
-
-              case LuaToken.String: // String als Argument
-                info.Arguments = new Expression[] { Expression.Constant(FetchToken(LuaToken.String, code).Value, typeof(string)) }; ;
-                break;
-            }
-            break;
-
-          default:
-            return info;
-        }
-      }
-    } // func ParsePrefix
-
-    private static Expression[] ParseArgumentList(Scope scope, LuaLexer code)
-    {
-      FetchToken(LuaToken.BracketOpen, code);
-
-      // Es handelt sich um ein Delegate
-      if (code.Current.Typ == LuaToken.BracketClose)
-      {
-        code.Next();
-        return new Expression[0];
-      }
-      else
-      {
-        var args = ParseExpressionList(scope, code).ToArray();
-        FetchToken(LuaToken.BracketClose, code);
-        return args;
-      }
-    } // func ParseArgumentList
-
-    #endregion
-
-    #region -- Parse Numer, HexNumber -------------------------------------------------
-
-    private static Expression ParseNumber(Lua runtime, Token t)
-    {
-      string sNumber = t.Value;
-      if (String.IsNullOrEmpty(sNumber))
-        return Expression.Constant(0, Lua.GetIntegerType(runtime.NumberType));
-      else
-      {
-        object v = runtime.ParseNumber(sNumber);
-        if (v != null)
-          return Expression.Constant(v);
-        else
-          throw ParseError(t, String.Format(Properties.Resources.rsParseConvertNumberError, sNumber));
-      }
-    } // func ParseNumber
-
-    internal static Expression ParseHexNumber(Lua runtime, Token t)
-    {
-      string sNumber = t.Value;
-
-      if (String.IsNullOrEmpty(sNumber))
-        return Expression.Constant(0, Lua.GetIntegerType(runtime.NumberType));
-      else
-      {
-        // remove the '0x'
-        if (sNumber.Length > 2 && sNumber[0] == '0' && (sNumber[1] == 'x' || sNumber[1] == 'X'))
-          sNumber = sNumber.Substring(2);
-
-        // Convert the number as an integer
-        object v = runtime.ParseNumber(sNumber, true);
-        if (v != null)
-          return Expression.Constant(v);
-        // Todo: Binary Exponents?
-        //else if (Double.TryParse(sNumber, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out d))
-        //  return Expression.Constant(d, typeof(Double));
-        else
-          throw ParseError(t, String.Format(Properties.Resources.rsParseConvertNumberError, sNumber));
-      }
-    } // func ParseHexNumber
-
-    #endregion
-
-    #region -- Parse Expressions ------------------------------------------------------
-
-    private static IEnumerable<Expression> ParseExpressionList(Scope scope, LuaLexer code)
-    {
-      while (true)
-      {
-        yield return ParseExpression(scope, code, InvokeResult.LuaResult, scope.EmitExpressionDebug);
-
-        // Noch eine Expression
-        if (code.Current.Typ == LuaToken.Comma)
-          code.Next();
-        else
-          break;
-      }
-    } // func ParseExpressionList
-
-    private static Expression ParseExpression(Scope scope, LuaLexer code, InvokeResult result, bool lDebug)
-    {
-      Token tStart = code.Current;
-      bool lWrap = false;
-      Expression expr = ParseExpression(scope, code, result, ref lWrap);
-      if (lWrap && lDebug)
-        return WrapDebugInfo(true, false, tStart, code.Current, expr);
-      else
-        return expr;
-    } // func ParseExpression
-
-    private static Expression ParseExpression(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
-    {
-      // expr ::= exprOr
-      return ParseExpressionOr(scope, code, result, ref lWrap);
-    } // func ParseExpression
-
-    private static Expression ParseExpressionOr(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
-    {
-      // exprOr ::= exprAnd { or exprAnd }
-      var expr = ParseExpressionAnd(scope, code, result, ref lWrap);
-
-      while (code.Current.Typ == LuaToken.KwOr)
-      {
-        code.Next();
-        expr = BinaryOperationExpression(scope.Runtime, code.Current, ExpressionType.OrElse, expr, ParseExpressionAnd(scope, code, InvokeResult.Object, ref lWrap));
-        lWrap |= true;
-      }
-
-      return expr;
-    } // func ParseExpressionOr
-
-    private static Expression ParseExpressionAnd(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
-    {
-      // exprAnd ::= exprBitOr { and exprBitOr }
-      var expr = ParseExpressionBitOr(scope, code, result, ref lWrap);
-
-      while (code.Current.Typ == LuaToken.KwAnd)
-      {
-        code.Next();
-        expr = BinaryOperationExpression(scope.Runtime, code.Current, ExpressionType.AndAlso, expr, ParseExpressionBitOr(scope, code, InvokeResult.Object, ref lWrap));
-        lWrap |= true;
-      }
-
-      return expr;
-    } // func ParseExpressionAnd
-
-    private static Expression ParseExpressionBitOr(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
-    {
-      // exprBitOr ::= exprBitXOr { | exprBitXOr }
-      var expr = ParseExpressionBitXOr(scope, code, result, ref lWrap);
-
-      while (code.Current.Typ == LuaToken.BitOr)
-      {
-        code.Next();
-        expr = BinaryOperationExpression(scope.Runtime, code.Current, ExpressionType.Or,
-          expr,
-          ParseExpressionBitXOr(scope, code, InvokeResult.Object, ref lWrap)
-        );
-        lWrap |= true;
-      }
-
-      return expr;
-    } // func ParseExpressionBitOr
-
-    private static Expression ParseExpressionBitXOr(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
-    {
-      // exprBitXOr ::= exprBitAnd { ~ exprBitAnd }
-      var expr = ParseExpressionBitAnd(scope, code, result, ref lWrap);
-
-      while (code.Current.Typ == LuaToken.Dilde)
-      {
-        code.Next();
-        expr = BinaryOperationExpression(scope.Runtime, code.Current, ExpressionType.ExclusiveOr,
-          expr,
-          ParseExpressionBitAnd(scope, code, InvokeResult.Object, ref lWrap)
-        );
-        lWrap |= true;
-      }
-
-      return expr;
-    } // func ParseExpressionBitXOr
-
-    private static Expression ParseExpressionBitAnd(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
-    {
-      // exprBitAnd ::= exprCmp { & exprCmp }
-      var expr = ParseExpressionCmp(scope, code, result, ref lWrap);
-
-      while (code.Current.Typ == LuaToken.BitAnd)
-      {
-        code.Next();
-        expr = BinaryOperationExpression(scope.Runtime, code.Current, ExpressionType.And,
-          expr,
-          ParseExpressionCmp(scope, code, InvokeResult.Object, ref lWrap)
-        );
-        lWrap |= true;
-      }
-
-      return expr;
-    } // func ParseExpressionBitAnd
-
-    private static Expression ParseExpressionCmp(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
-    {
-      // expCmd ::= expCon { ( < | > | <= | >= | ~= | == ) expCon }
-      Token tStart = code.Current;
-      var expr = ParseExpressionCon(scope, code, result, ref lWrap);
-
-      while (true)
-      {
-        LuaToken tokenTyp = code.Current.Typ;
-        ExpressionType exprTyp;
-        if (tokenTyp == LuaToken.Lower)
-          exprTyp = ExpressionType.LessThan;
-        else if (tokenTyp == LuaToken.Greater)
-          exprTyp = ExpressionType.GreaterThan;
-        else if (tokenTyp == LuaToken.LowerEqual)
-          exprTyp = ExpressionType.LessThanOrEqual;
-        else if (tokenTyp == LuaToken.GreaterEqual)
-          exprTyp = ExpressionType.GreaterThanOrEqual;
-        else if (tokenTyp == LuaToken.NotEqual)
-          exprTyp = ExpressionType.NotEqual;
-        else if (tokenTyp == LuaToken.Equal)
-          exprTyp = ExpressionType.Equal;
-        else
-          return expr;
-        code.Next();
-
-        expr = BinaryOperationExpression(scope.Runtime, code.Current, exprTyp, expr, ParseExpressionCon(scope, code, InvokeResult.Object, ref lWrap));
-        lWrap |= true;
-      }
-    } // func ParseExpressionCmp
-
-    private static Expression ParseExpressionCon(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
-    {
-      // exprCon::= exprShift { '..' exprShift }
-      List<Expression> exprs = new List<Expression>();
-      exprs.Add(ParseExpressionShift(scope, code, result, ref lWrap));
-
-      while (code.Current.Typ == LuaToken.DotDot)
-      {
-        code.Next();
-        exprs.Add(ParseExpressionShift(scope, code, InvokeResult.Object, ref lWrap));
-      }
-
-      // Erzeuge Concat
-      if (exprs.Count > 1)
-      {
-        lWrap |= true;
-        return ConcatOperationExpression(scope.Runtime, code.Current, exprs.ToArray());
-      }
-      else
-        return exprs[0];
-    } // func ParseExpressionCon
-
-    private static Expression ParseExpressionShift(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
-    {
-      // exprBitAnd ::= exprCmp { ( << | >> ) exprCmp }
-      var expr = ParseExpressionPlus(scope, code, result, ref lWrap);
-
-      while (true)
-      {
-        LuaToken tokenTyp = code.Current.Typ;
-        ExpressionType exprTyp;
-
-        if (tokenTyp == LuaToken.ShiftLeft)
-          exprTyp = ExpressionType.LeftShift;
-        else if (tokenTyp == LuaToken.ShiftRight)
-          exprTyp = ExpressionType.RightShift;
-        else
-          return expr;
-
-        code.Next();
-        expr = BinaryOperationExpression(scope.Runtime, code.Current, exprTyp, expr, ParseExpressionPlus(scope, code, InvokeResult.Object, ref lWrap));
-        lWrap |= true;
-      }
-    } // func ParseExpressionShift
-
-    private static Expression ParseExpressionPlus(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
-    {
-      // expPlus ::= expMul { ( + | - ) expMul}
-      var expr = ParseExpressionMultiply(scope, code, result, ref lWrap);
-
-      while (true)
-      {
-        LuaToken tokenTyp = code.Current.Typ;
-        ExpressionType exprTyp;
-        if (tokenTyp == LuaToken.Plus)
-          exprTyp = ExpressionType.Add;
-        else if (tokenTyp == LuaToken.Minus)
-          exprTyp = ExpressionType.Subtract;
-        else
-          return expr;
-
-        code.Next();
-        expr = BinaryOperationExpression(scope.Runtime, code.Current, exprTyp, expr, ParseExpressionMultiply(scope, code, InvokeResult.Object, ref lWrap));
-        lWrap |= true;
-      }
-    } // func ParseExpressionPlus
-
-    private static Expression ParseExpressionMultiply(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
-    {
-      // expMul ::= expUn { ( * | / | // | % ) expUn }
-      var expr = ParseExpressionUnary(scope, code, result, ref lWrap);
-
-      while (true)
-      {
-        LuaToken tokenTyp = code.Current.Typ;
-        ExpressionType exprTyp;
-        if (tokenTyp == LuaToken.Star)
-          exprTyp = ExpressionType.Multiply;
-        else if (tokenTyp == LuaToken.Slash)
-          exprTyp = ExpressionType.Divide;
-        else if (tokenTyp == LuaToken.SlashShlash)
-          exprTyp = Lua.IntegerDivide;
-        else if (tokenTyp == LuaToken.Percent)
-          exprTyp = ExpressionType.Modulo;
-        else
-          return expr;
-
-        code.Next();
-
-        expr = BinaryOperationExpression(scope.Runtime, code.Current, exprTyp, expr, ParseExpressionUnary(scope, code, InvokeResult.Object, ref lWrap));
-        lWrap |= true;
-      }
-    } // func ParseExpressionMultiply
-
-    private static Expression ParseExpressionUnary(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
-    {
-      // expUn ::= { 'not' | - | # | ~ } expPow
-      LuaToken typ = code.Current.Typ;
-      if (typ == LuaToken.KwNot ||
-          typ == LuaToken.Minus ||
-          typ == LuaToken.Dilde ||
-          typ == LuaToken.Cross)
-      {
-        code.Next();
-        Expression expr = ParseExpressionUnary(scope, code, InvokeResult.Object, ref lWrap);
-        lWrap |= true;
-
-        ExpressionType exprType;
-        if (typ == LuaToken.KwNot)
-          exprType = ExpressionType.Not;
-        else if (typ == LuaToken.Minus)
-          exprType = ExpressionType.Negate;
-        else if (typ == LuaToken.Dilde)
-          exprType = ExpressionType.OnesComplement;
-        else
-          exprType = ExpressionType.ArrayLength;
-
-        lWrap |= true;
-        return UnaryOperationExpression(scope.Runtime, code.Current, exprType, expr);
-      }
-      else
-        return ParseExpressionPower(scope, code, result, ref lWrap);
-    } // func ParseExpressionUnary
-
-    private static Expression ParseExpressionPower(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
-    {
-      // expPow ::= cast [ ^ expPow ]
-      Expression expr = ParseExpressionCast(scope, code, result, ref lWrap);
-
-      if (code.Current.Typ == LuaToken.Caret)
-      {
-        code.Next();
-        lWrap |= true;
-        return BinaryOperationExpression(scope.Runtime, code.Current, ExpressionType.Power, expr, ParseExpressionPower(scope, code, InvokeResult.Object, ref lWrap));
-      }
-      else
-        return expr;
-    } // func ParseExpressionPower
-
-    private static Expression ParseExpressionCast(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
-    {
-      // cast ::= cast(type, expr)
-      if (code.Current.Typ == LuaToken.KwCast)
-      {
+					break;
+
+				default:
+					throw ParseError(code.Current, Properties.Resources.rsParseUnexpectedTokenPrefix);
+			}
+
+			return ParseSuffix(scope, code, info);
+		} // func ParsePrefix
+
+		private static PrefixMemberInfo ParseSuffix(Scope scope, LuaLexer code, PrefixMemberInfo info)
+		{
+			// suffix_opt ::= [ suffix ]
+			// suffix ::= { '[' exp ']'  | '.' Identifier | args | ':' Identifier args }
+			// args ::= tablector | string | '(' explist ')'
+
+			while (true)
+			{
+				switch (code.Current.Typ)
+				{
+					case LuaToken.BracketSquareOpen: // Index
+						code.Next();
+						info.GenerateGet(scope, InvokeResult.Object);
+						if (code.Current.Typ == LuaToken.BracketSquareClose)
+							info.Indices = new Expression[0];
+						else
+							info.Indices = ParseExpressionList(scope, code).ToArray();
+						FetchToken(LuaToken.BracketSquareClose, code);
+						break;
+
+					case LuaToken.Dot: // Property of an class
+						code.Next();
+						info.GenerateGet(scope, InvokeResult.Object);
+						info.SetMember(FetchToken(LuaToken.Identifier, code), false);
+						break;
+
+					case LuaToken.BracketOpen: // List of arguments
+						info.GenerateGet(scope, InvokeResult.Object);
+						info.Arguments = ParseArgumentList(scope, code);
+						break;
+
+					case LuaToken.BracketCurlyOpen: // LuaTable as an argument
+						info.GenerateGet(scope, InvokeResult.Object);
+						info.Arguments = new Expression[] { ParseTableConstructor(scope, code) };
+						break;
+
+					case LuaToken.String: // String as an argument
+						info.GenerateGet(scope, InvokeResult.Object);
+						info.Arguments = new Expression[] { Expression.Constant(FetchToken(LuaToken.String, code).Value, typeof(object)) };
+						break;
+
+					case LuaToken.Colon: // Methodenaufruf
+						code.Next();
+
+						// Lese den Namen um den Member zu belegen
+						info.GenerateGet(scope, InvokeResult.Object);
+						info.SetMember(FetchToken(LuaToken.Identifier, code), true);
+
+						// Parse die Parameter
+						switch (code.Current.Typ)
+						{
+							case LuaToken.BracketOpen: // Argumentenliste
+								info.Arguments = ParseArgumentList(scope, code);
+								break;
+
+							case LuaToken.BracketCurlyOpen: // LuaTable als Argument
+								info.Arguments = new Expression[] { ParseTableConstructor(scope, code) }; ;
+								break;
+
+							case LuaToken.String: // String als Argument
+								info.Arguments = new Expression[] { Expression.Constant(FetchToken(LuaToken.String, code).Value, typeof(string)) }; ;
+								break;
+						}
+						break;
+
+					default:
+						return info;
+				}
+			}
+		} // func ParsePrefix
+
+		private static Expression[] ParseArgumentList(Scope scope, LuaLexer code)
+		{
+			FetchToken(LuaToken.BracketOpen, code);
+
+			// Es handelt sich um ein Delegate
+			if (code.Current.Typ == LuaToken.BracketClose)
+			{
+				code.Next();
+				return new Expression[0];
+			}
+			else
+			{
+				var args = ParseExpressionList(scope, code).ToArray();
+				FetchToken(LuaToken.BracketClose, code);
+				return args;
+			}
+		} // func ParseArgumentList
+
+		#endregion
+
+		#region -- Parse Numer, HexNumber -------------------------------------------------
+
+		private static Expression ParseNumber(Lua runtime, Token t)
+		{
+			string sNumber = t.Value;
+			if (String.IsNullOrEmpty(sNumber))
+				return Expression.Constant(0, Lua.GetIntegerType(runtime.NumberType));
+			else
+			{
+				object v = runtime.ParseNumber(sNumber);
+				if (v != null)
+					return Expression.Constant(v);
+				else
+					throw ParseError(t, String.Format(Properties.Resources.rsParseConvertNumberError, sNumber));
+			}
+		} // func ParseNumber
+
+		internal static Expression ParseHexNumber(Lua runtime, Token t)
+		{
+			string sNumber = t.Value;
+
+			if (String.IsNullOrEmpty(sNumber))
+				return Expression.Constant(0, Lua.GetIntegerType(runtime.NumberType));
+			else
+			{
+				// remove the '0x'
+				if (sNumber.Length > 2 && sNumber[0] == '0' && (sNumber[1] == 'x' || sNumber[1] == 'X'))
+					sNumber = sNumber.Substring(2);
+
+				// Convert the number as an integer
+				object v = runtime.ParseNumber(sNumber, true);
+				if (v != null)
+					return Expression.Constant(v);
+				// Todo: Binary Exponents?
+				//else if (Double.TryParse(sNumber, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out d))
+				//  return Expression.Constant(d, typeof(Double));
+				else
+					throw ParseError(t, String.Format(Properties.Resources.rsParseConvertNumberError, sNumber));
+			}
+		} // func ParseHexNumber
+
+		#endregion
+
+		#region -- Parse Expressions ------------------------------------------------------
+
+		private static IEnumerable<Expression> ParseExpressionList(Scope scope, LuaLexer code)
+		{
+			while (true)
+			{
+				yield return ParseExpression(scope, code, InvokeResult.LuaResult, scope.EmitExpressionDebug);
+
+				// Noch eine Expression
+				if (code.Current.Typ == LuaToken.Comma)
+					code.Next();
+				else
+					break;
+			}
+		} // func ParseExpressionList
+
+		private static Expression ParseExpression(Scope scope, LuaLexer code, InvokeResult result, bool lDebug)
+		{
+			Token tStart = code.Current;
+			bool lWrap = false;
+			Expression expr = ParseExpression(scope, code, result, ref lWrap);
+			if (lWrap && lDebug)
+				return WrapDebugInfo(true, false, tStart, code.Current, expr);
+			else
+				return expr;
+		} // func ParseExpression
+
+		private static Expression ParseExpression(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
+		{
+			// expr ::= exprOr
+			return ParseExpressionOr(scope, code, result, ref lWrap);
+		} // func ParseExpression
+
+		private static Expression ParseExpressionOr(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
+		{
+			// exprOr ::= exprAnd { or exprAnd }
+			var expr = ParseExpressionAnd(scope, code, result, ref lWrap);
+
+			while (code.Current.Typ == LuaToken.KwOr)
+			{
+				code.Next();
+				expr = BinaryOperationExpression(scope.Runtime, code.Current, ExpressionType.OrElse, expr, ParseExpressionAnd(scope, code, InvokeResult.Object, ref lWrap));
+				lWrap |= true;
+			}
+
+			return expr;
+		} // func ParseExpressionOr
+
+		private static Expression ParseExpressionAnd(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
+		{
+			// exprAnd ::= exprBitOr { and exprBitOr }
+			var expr = ParseExpressionBitOr(scope, code, result, ref lWrap);
+
+			while (code.Current.Typ == LuaToken.KwAnd)
+			{
+				code.Next();
+				expr = BinaryOperationExpression(scope.Runtime, code.Current, ExpressionType.AndAlso, expr, ParseExpressionBitOr(scope, code, InvokeResult.Object, ref lWrap));
+				lWrap |= true;
+			}
+
+			return expr;
+		} // func ParseExpressionAnd
+
+		private static Expression ParseExpressionBitOr(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
+		{
+			// exprBitOr ::= exprBitXOr { | exprBitXOr }
+			var expr = ParseExpressionBitXOr(scope, code, result, ref lWrap);
+
+			while (code.Current.Typ == LuaToken.BitOr)
+			{
+				code.Next();
+				expr = BinaryOperationExpression(scope.Runtime, code.Current, ExpressionType.Or,
+					expr,
+					ParseExpressionBitXOr(scope, code, InvokeResult.Object, ref lWrap)
+				);
+				lWrap |= true;
+			}
+
+			return expr;
+		} // func ParseExpressionBitOr
+
+		private static Expression ParseExpressionBitXOr(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
+		{
+			// exprBitXOr ::= exprBitAnd { ~ exprBitAnd }
+			var expr = ParseExpressionBitAnd(scope, code, result, ref lWrap);
+
+			while (code.Current.Typ == LuaToken.Dilde)
+			{
+				code.Next();
+				expr = BinaryOperationExpression(scope.Runtime, code.Current, ExpressionType.ExclusiveOr,
+					expr,
+					ParseExpressionBitAnd(scope, code, InvokeResult.Object, ref lWrap)
+				);
+				lWrap |= true;
+			}
+
+			return expr;
+		} // func ParseExpressionBitXOr
+
+		private static Expression ParseExpressionBitAnd(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
+		{
+			// exprBitAnd ::= exprCmp { & exprCmp }
+			var expr = ParseExpressionCmp(scope, code, result, ref lWrap);
+
+			while (code.Current.Typ == LuaToken.BitAnd)
+			{
+				code.Next();
+				expr = BinaryOperationExpression(scope.Runtime, code.Current, ExpressionType.And,
+					expr,
+					ParseExpressionCmp(scope, code, InvokeResult.Object, ref lWrap)
+				);
+				lWrap |= true;
+			}
+
+			return expr;
+		} // func ParseExpressionBitAnd
+
+		private static Expression ParseExpressionCmp(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
+		{
+			// expCmd ::= expCon { ( < | > | <= | >= | ~= | == ) expCon }
+			Token tStart = code.Current;
+			var expr = ParseExpressionCon(scope, code, result, ref lWrap);
+
+			while (true)
+			{
+				LuaToken tokenTyp = code.Current.Typ;
+				ExpressionType exprTyp;
+				if (tokenTyp == LuaToken.Lower)
+					exprTyp = ExpressionType.LessThan;
+				else if (tokenTyp == LuaToken.Greater)
+					exprTyp = ExpressionType.GreaterThan;
+				else if (tokenTyp == LuaToken.LowerEqual)
+					exprTyp = ExpressionType.LessThanOrEqual;
+				else if (tokenTyp == LuaToken.GreaterEqual)
+					exprTyp = ExpressionType.GreaterThanOrEqual;
+				else if (tokenTyp == LuaToken.NotEqual)
+					exprTyp = ExpressionType.NotEqual;
+				else if (tokenTyp == LuaToken.Equal)
+					exprTyp = ExpressionType.Equal;
+				else
+					return expr;
+				code.Next();
+
+				expr = BinaryOperationExpression(scope.Runtime, code.Current, exprTyp, expr, ParseExpressionCon(scope, code, InvokeResult.Object, ref lWrap));
+				lWrap |= true;
+			}
+		} // func ParseExpressionCmp
+
+		private static Expression ParseExpressionCon(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
+		{
+			// exprCon::= exprShift { '..' exprShift }
+			List<Expression> exprs = new List<Expression>();
+			exprs.Add(ParseExpressionShift(scope, code, result, ref lWrap));
+
+			while (code.Current.Typ == LuaToken.DotDot)
+			{
+				code.Next();
+				exprs.Add(ParseExpressionShift(scope, code, InvokeResult.Object, ref lWrap));
+			}
+
+			// Erzeuge Concat
+			if (exprs.Count > 1)
+			{
+				lWrap |= true;
+				return ConcatOperationExpression(scope.Runtime, code.Current, exprs.ToArray());
+			}
+			else
+				return exprs[0];
+		} // func ParseExpressionCon
+
+		private static Expression ParseExpressionShift(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
+		{
+			// exprBitAnd ::= exprCmp { ( << | >> ) exprCmp }
+			var expr = ParseExpressionPlus(scope, code, result, ref lWrap);
+
+			while (true)
+			{
+				LuaToken tokenTyp = code.Current.Typ;
+				ExpressionType exprTyp;
+
+				if (tokenTyp == LuaToken.ShiftLeft)
+					exprTyp = ExpressionType.LeftShift;
+				else if (tokenTyp == LuaToken.ShiftRight)
+					exprTyp = ExpressionType.RightShift;
+				else
+					return expr;
+
+				code.Next();
+				expr = BinaryOperationExpression(scope.Runtime, code.Current, exprTyp, expr, ParseExpressionPlus(scope, code, InvokeResult.Object, ref lWrap));
+				lWrap |= true;
+			}
+		} // func ParseExpressionShift
+
+		private static Expression ParseExpressionPlus(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
+		{
+			// expPlus ::= expMul { ( + | - ) expMul}
+			var expr = ParseExpressionMultiply(scope, code, result, ref lWrap);
+
+			while (true)
+			{
+				LuaToken tokenTyp = code.Current.Typ;
+				ExpressionType exprTyp;
+				if (tokenTyp == LuaToken.Plus)
+					exprTyp = ExpressionType.Add;
+				else if (tokenTyp == LuaToken.Minus)
+					exprTyp = ExpressionType.Subtract;
+				else
+					return expr;
+
+				code.Next();
+				expr = BinaryOperationExpression(scope.Runtime, code.Current, exprTyp, expr, ParseExpressionMultiply(scope, code, InvokeResult.Object, ref lWrap));
+				lWrap |= true;
+			}
+		} // func ParseExpressionPlus
+
+		private static Expression ParseExpressionMultiply(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
+		{
+			// expMul ::= expUn { ( * | / | // | % ) expUn }
+			var expr = ParseExpressionUnary(scope, code, result, ref lWrap);
+
+			while (true)
+			{
+				LuaToken tokenTyp = code.Current.Typ;
+				ExpressionType exprTyp;
+				if (tokenTyp == LuaToken.Star)
+					exprTyp = ExpressionType.Multiply;
+				else if (tokenTyp == LuaToken.Slash)
+					exprTyp = ExpressionType.Divide;
+				else if (tokenTyp == LuaToken.SlashShlash)
+					exprTyp = Lua.IntegerDivide;
+				else if (tokenTyp == LuaToken.Percent)
+					exprTyp = ExpressionType.Modulo;
+				else
+					return expr;
+
+				code.Next();
+
+				expr = BinaryOperationExpression(scope.Runtime, code.Current, exprTyp, expr, ParseExpressionUnary(scope, code, InvokeResult.Object, ref lWrap));
+				lWrap |= true;
+			}
+		} // func ParseExpressionMultiply
+
+		private static Expression ParseExpressionUnary(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
+		{
+			// expUn ::= { 'not' | - | # | ~ } expPow
+			LuaToken typ = code.Current.Typ;
+			if (typ == LuaToken.KwNot ||
+					typ == LuaToken.Minus ||
+					typ == LuaToken.Dilde ||
+					typ == LuaToken.Cross)
+			{
+				code.Next();
+				Expression expr = ParseExpressionUnary(scope, code, InvokeResult.Object, ref lWrap);
+				lWrap |= true;
+
+				ExpressionType exprType;
+				if (typ == LuaToken.KwNot)
+					exprType = ExpressionType.Not;
+				else if (typ == LuaToken.Minus)
+					exprType = ExpressionType.Negate;
+				else if (typ == LuaToken.Dilde)
+					exprType = ExpressionType.OnesComplement;
+				else
+					exprType = ExpressionType.ArrayLength;
+
+				lWrap |= true;
+				return UnaryOperationExpression(scope.Runtime, code.Current, exprType, expr);
+			}
+			else
+				return ParseExpressionPower(scope, code, result, ref lWrap);
+		} // func ParseExpressionUnary
+
+		private static Expression ParseExpressionPower(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
+		{
+			// expPow ::= cast [ ^ expPow ]
+			Expression expr = ParseExpressionCast(scope, code, result, ref lWrap);
+
+			if (code.Current.Typ == LuaToken.Caret)
+			{
+				code.Next();
+				lWrap |= true;
+				return BinaryOperationExpression(scope.Runtime, code.Current, ExpressionType.Power, expr, ParseExpressionPower(scope, code, InvokeResult.Object, ref lWrap));
+			}
+			else
+				return expr;
+		} // func ParseExpressionPower
+
+		private static Expression ParseExpressionCast(Scope scope, LuaLexer code, InvokeResult result, ref bool lWrap)
+		{
+			// cast ::= cast(type, expr)
+			if (code.Current.Typ == LuaToken.KwCast)
+			{
 				Token tStart = code.Current;
-        lWrap |= true;
+				lWrap |= true;
 				PrefixMemberInfo prefix = new PrefixMemberInfo(tStart, ParsePrefixCast(scope, code), null, null, null);
-        ParseSuffix(scope, code, prefix);
-        return prefix.GenerateGet(scope, result);
-      }
-      else
-        return ParsePrefix(scope, code).GenerateGet(scope, result);
-    } // func ParseExpressionCast
+				ParseSuffix(scope, code, prefix);
+				return prefix.GenerateGet(scope, result);
+			}
+			else
+				return ParsePrefix(scope, code).GenerateGet(scope, result);
+		} // func ParseExpressionCast
 
 		private static Expression ParsePrefixCast(Scope scope, LuaLexer code)
 		{
@@ -1576,71 +1576,71 @@ namespace Neo.IronLua
 			return ConvertExpression(scope.Runtime, t, expr, luaType);
 		} // func ParsePrefixCast
 
-    private static void ParseIdentifierAndType(Scope scope, LuaLexer code, out Token tName, out Type type)
-    {
-      // var ::= name ':' type
-      tName = FetchToken(LuaToken.Identifier, code);
-      if (code.Current.Typ == LuaToken.Colon)
-      {
-        code.Next();
-        type = ParseType(scope, code, true);
-      }
-      else
-        type = typeof(object);
-    } // func ParseIdentifierAndType
+		private static void ParseIdentifierAndType(Scope scope, LuaLexer code, out Token tName, out Type type)
+		{
+			// var ::= name ':' type
+			tName = FetchToken(LuaToken.Identifier, code);
+			if (code.Current.Typ == LuaToken.Colon)
+			{
+				code.Next();
+				type = ParseType(scope, code, true);
+			}
+			else
+				type = typeof(object);
+		} // func ParseIdentifierAndType
 
-    private static LuaType ParseType(Scope scope, LuaLexer code, bool lNeedType)
-    {
-      // is the first token an alias
-      LuaType currentType = ParseFirstType(scope, code);
+		private static LuaType ParseType(Scope scope, LuaLexer code, bool lNeedType)
+		{
+			// is the first token an alias
+			LuaType currentType = ParseFirstType(scope, code);
 
-      while (code.Current.Typ == LuaToken.Dot ||
-            code.Current.Typ == LuaToken.Plus ||
-            code.Current.Typ == LuaToken.BracketSquareOpen)
-      {
-        if (code.Current.Typ == LuaToken.BracketSquareOpen)
-        {
-          List<LuaType> genericeTypes = new List<LuaType>();
-          code.Next();
-          if (code.Current.Typ != LuaToken.BracketSquareClose)
-          {
-            genericeTypes.Add(ParseType(scope, code, lNeedType));
-            while (code.Current.Typ == LuaToken.Comma)
-            {
-              code.Next();
-              genericeTypes.Add(ParseType(scope, code, lNeedType));
-            }
-          }
-          FetchToken(LuaToken.BracketSquareClose, code);
+			while (code.Current.Typ == LuaToken.Dot ||
+						code.Current.Typ == LuaToken.Plus ||
+						code.Current.Typ == LuaToken.BracketSquareOpen)
+			{
+				if (code.Current.Typ == LuaToken.BracketSquareOpen)
+				{
+					List<LuaType> genericeTypes = new List<LuaType>();
+					code.Next();
+					if (code.Current.Typ != LuaToken.BracketSquareClose)
+					{
+						genericeTypes.Add(ParseType(scope, code, lNeedType));
+						while (code.Current.Typ == LuaToken.Comma)
+						{
+							code.Next();
+							genericeTypes.Add(ParseType(scope, code, lNeedType));
+						}
+					}
+					FetchToken(LuaToken.BracketSquareClose, code);
 
-          if (genericeTypes.Count == 0) // create a array at the end
-          {
-            if (currentType.Type == null)
-              throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
+					if (genericeTypes.Count == 0) // create a array at the end
+					{
+						if (currentType.Type == null)
+							throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
 
-            currentType = LuaType.GetType(currentType.GetIndex("[]", false, () => currentType.Type.MakeArrayType()));
-          }
-          else // build a generic type
-          {
-            Type typeGeneric = Type.GetType(currentType.FullName + "`" + genericeTypes.Count.ToString());
-            if (typeGeneric == null)
-              throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
+						currentType = LuaType.GetType(currentType.GetIndex("[]", false, () => currentType.Type.MakeArrayType()));
+					}
+					else // build a generic type
+					{
+						Type typeGeneric = Type.GetType(currentType.FullName + "`" + genericeTypes.Count.ToString());
+						if (typeGeneric == null)
+							throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
 
-            currentType = LuaType.GetType(currentType.GetGenericItem(typeGeneric, genericeTypes.ToArray()));
-          }
-        }
-        else
-        {
-          code.Next();
-          currentType = LuaType.GetType(currentType.GetIndex(FetchToken(LuaToken.Identifier, code).Value, false, null));
-        }
-      }
+						currentType = LuaType.GetType(currentType.GetGenericItem(typeGeneric, genericeTypes.ToArray()));
+					}
+				}
+				else
+				{
+					code.Next();
+					currentType = LuaType.GetType(currentType.GetIndex(FetchToken(LuaToken.Identifier, code).Value, false, null));
+				}
+			}
 
-      if (lNeedType && currentType.Type == null)
-        throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
+			if (lNeedType && currentType.Type == null)
+				throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
 
-      return currentType;
-    } // func ParseType
+			return currentType;
+		} // func ParseType
 
 		private static LuaType ParseFirstType(Scope scope, LuaLexer code)
 		{
@@ -1658,642 +1658,640 @@ namespace Neo.IronLua
 				return luaType;
 		} // func ParseFirstType
 
-    #endregion
+		#endregion
 
-    #region -- Parse Goto, Label ------------------------------------------------------
+		#region -- Parse Goto, Label ------------------------------------------------------
 
-    private static void ParseGoto(Scope scope, LuaLexer code)
-    {
-      // goto Identifier
-      FetchToken(LuaToken.KwGoto, code);
+		private static void ParseGoto(Scope scope, LuaLexer code)
+		{
+			// goto Identifier
+			FetchToken(LuaToken.KwGoto, code);
 
-      var t = FetchToken(LuaToken.Identifier, code);
-      scope.AddExpression(Expression.Goto(scope.LookupLabel(null, t.Value)));
-    } // proc ParseGoto
+			var t = FetchToken(LuaToken.Identifier, code);
+			scope.AddExpression(Expression.Goto(scope.LookupLabel(null, t.Value)));
+		} // proc ParseGoto
 
-    private static void ParseLabel(Scope scope, LuaLexer code)
-    {
-      // ::identifier::
-      FetchToken(LuaToken.ColonColon, code);
+		private static void ParseLabel(Scope scope, LuaLexer code)
+		{
+			// ::identifier::
+			FetchToken(LuaToken.ColonColon, code);
 
-      // Erzeuge das Label
-      scope.AddExpression(Expression.Label(scope.LookupLabel(null, FetchToken(LuaToken.Identifier, code).Value)));
+			// Erzeuge das Label
+			scope.AddExpression(Expression.Label(scope.LookupLabel(null, FetchToken(LuaToken.Identifier, code).Value)));
 
-      FetchToken(LuaToken.ColonColon, code);
-    } // proc ParseLabel
+			FetchToken(LuaToken.ColonColon, code);
+		} // proc ParseLabel
 
-    #endregion
+		#endregion
 
-    #region -- Parse Loops ------------------------------------------------------------
+		#region -- Parse Loops ------------------------------------------------------------
 
-    private static void ParseDoLoop(Scope scope, LuaLexer code)
-    {
-      // doloop ::= do '(' name { ',' name } = expr { ',' expr }  ')' block end
+		private static void ParseDoLoop(Scope scope, LuaLexer code)
+		{
+			// doloop ::= do '(' name { ',' name } = expr { ',' expr }  ')' block end
 
-      // create empty block, that can used as an loop
-      Scope outerScope = new Scope(scope);
-      Expression[] exprFinally = null;
+			// create empty block, that can used as an loop
+			Scope outerScope = new Scope(scope);
+			Expression[] exprFinally = null;
 
-      // fetch do
-      FetchToken(LuaToken.KwDo, code);
-      if (code.Current.Typ == LuaToken.BracketOpen) // look for disposable variables
-      {
-        code.Next();
-        ParseExpressionStatement(outerScope, code, true);
+			// fetch do
+			FetchToken(LuaToken.KwDo, code);
+			if (code.Current.Typ == LuaToken.BracketOpen) // look for disposable variables
+			{
+				code.Next();
+				ParseExpressionStatement(outerScope, code, true);
 
-        // Build finally-Block for the declared variables
-        exprFinally = (
-          from c in outerScope.Variables
-          select Expression.IfThen(
-            Expression.TypeIs(c, typeof(IDisposable)),
-            Expression.Call(Expression.Convert(c, typeof(IDisposable)), typeof(IDisposable).GetMethod("Dispose"))
-          )).ToArray();
+				// Build finally-Block for the declared variables
+				exprFinally = (
+					from c in outerScope.Variables
+					select Expression.IfThen(
+						Expression.TypeIs(c, typeof(IDisposable)),
+						Expression.Call(Expression.Convert(c, typeof(IDisposable)), typeof(IDisposable).GetMethod("Dispose"))
+					)).ToArray();
 
-        FetchToken(LuaToken.BracketClose, code);
-      }
+				FetchToken(LuaToken.BracketClose, code);
+			}
 
-      LoopScope loopScope = new LoopScope(outerScope);
+			LoopScope loopScope = new LoopScope(outerScope);
 
-      // Add the Contine label after the declaration
-      loopScope.AddExpression(Expression.Label(loopScope.ContinueLabel));
-      // parse the block
-      ParseBlock(loopScope, code);
-      // create the break label
-      loopScope.AddExpression(Expression.Label(loopScope.BreakLabel));
+			// Add the Contine label after the declaration
+			loopScope.AddExpression(Expression.Label(loopScope.ContinueLabel));
+			// parse the block
+			ParseBlock(loopScope, code);
+			// create the break label
+			loopScope.AddExpression(Expression.Label(loopScope.BreakLabel));
 
-      FetchToken(LuaToken.KwEnd, code);
+			FetchToken(LuaToken.KwEnd, code);
 
-      if (exprFinally != null || exprFinally.Length > 0)
-      {
-        outerScope.AddExpression(
-          Expression.TryFinally(
-            loopScope.ExpressionBlock,
-            Expression.Block(exprFinally)
-          )
-        );
-        scope.AddExpression(outerScope.ExpressionBlock);
-      }
-      else
-        scope.AddExpression(loopScope.ExpressionBlock);
-    } // ParseDoLoop
+			if (exprFinally != null || exprFinally.Length > 0)
+			{
+				outerScope.AddExpression(
+					Expression.TryFinally(
+						loopScope.ExpressionBlock,
+						Expression.Block(exprFinally)
+					)
+				);
+				scope.AddExpression(outerScope.ExpressionBlock);
+			}
+			else
+				scope.AddExpression(loopScope.ExpressionBlock);
+		} // ParseDoLoop
 
-    private static void ParseWhileLoop(Scope scope, LuaLexer code)
-    {
-      // while expr do block end;
-      LoopScope loopScope = new LoopScope(scope);
+		private static void ParseWhileLoop(Scope scope, LuaLexer code)
+		{
+			// while expr do block end;
+			LoopScope loopScope = new LoopScope(scope);
 
-      // get the expression
-      FetchToken(LuaToken.KwWhile, code);
+			// get the expression
+			FetchToken(LuaToken.KwWhile, code);
 
-      loopScope.AddExpression(Expression.Label(loopScope.ContinueLabel));
-      loopScope.AddExpression(
-        Expression.IfThenElse(
+			loopScope.AddExpression(Expression.Label(loopScope.ContinueLabel));
+			loopScope.AddExpression(
+				Expression.IfThenElse(
 					ConvertExpression(scope.Runtime, code.Current, ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug), typeof(bool)),
-          Expression.Empty(),
-          Expression.Goto(loopScope.BreakLabel)
-        )
-      );
+					Expression.Empty(),
+					Expression.Goto(loopScope.BreakLabel)
+				)
+			);
 
-      // append the block
-      FetchToken(LuaToken.KwDo, code);
-      ParseBlock(loopScope, code);
-      FetchToken(LuaToken.KwEnd, code);
+			// append the block
+			FetchToken(LuaToken.KwDo, code);
+			ParseBlock(loopScope, code);
+			FetchToken(LuaToken.KwEnd, code);
 
-      // goto continue
-      loopScope.AddExpression(Expression.Goto(loopScope.ContinueLabel));
-      loopScope.AddExpression(Expression.Label(loopScope.BreakLabel));
+			// goto continue
+			loopScope.AddExpression(Expression.Goto(loopScope.ContinueLabel));
+			loopScope.AddExpression(Expression.Label(loopScope.BreakLabel));
 
-      scope.AddExpression(loopScope.ExpressionBlock);
-    } // func ParseWhileLoop
+			scope.AddExpression(loopScope.ExpressionBlock);
+		} // func ParseWhileLoop
 
-    private static void ParseRepeatLoop(Scope scope, LuaLexer code)
-    {
-      LoopScope loopScope = new LoopScope(scope);
+		private static void ParseRepeatLoop(Scope scope, LuaLexer code)
+		{
+			LoopScope loopScope = new LoopScope(scope);
 
-      // continue label
-      loopScope.AddExpression(Expression.Label(loopScope.ContinueLabel));
+			// continue label
+			loopScope.AddExpression(Expression.Label(loopScope.ContinueLabel));
 
-      // loop content
-      FetchToken(LuaToken.KwRepeat, code);
-      ParseBlock(loopScope, code);
+			// loop content
+			FetchToken(LuaToken.KwRepeat, code);
+			ParseBlock(loopScope, code);
 
-      // get the loop expression
-      FetchToken(LuaToken.KwUntil, code);
-      loopScope.AddExpression(
-        Expression.IfThenElse(
+			// get the loop expression
+			FetchToken(LuaToken.KwUntil, code);
+			loopScope.AddExpression(
+				Expression.IfThenElse(
 					ConvertExpression(scope.Runtime, code.Current, ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug), typeof(bool)),
-          Expression.Empty(),
-          Expression.Goto(loopScope.ContinueLabel)
-        )
-      );
+					Expression.Empty(),
+					Expression.Goto(loopScope.ContinueLabel)
+				)
+			);
 
-      loopScope.AddExpression(Expression.Label(loopScope.BreakLabel));
+			loopScope.AddExpression(Expression.Label(loopScope.BreakLabel));
 
-      scope.AddExpression(loopScope.ExpressionBlock);
-    } // func ParseRepeatLoop
+			scope.AddExpression(loopScope.ExpressionBlock);
+		} // func ParseRepeatLoop
 
-    private static void ParseForLoop(Scope scope, LuaLexer code)
-    {
-      // for name
-      FetchToken(LuaToken.KwFor, code);
-      Token tLoopVar;
-      Type typeLoopVar;
-      ParseIdentifierAndType(scope, code, out tLoopVar, out typeLoopVar);
-      if (code.Current.Typ == LuaToken.Assign)
-      {
-        // = exp, exp [, exp] do block end
-        FetchToken(LuaToken.Assign, code);
+		private static void ParseForLoop(Scope scope, LuaLexer code)
+		{
+			// for name
+			FetchToken(LuaToken.KwFor, code);
+			Token tLoopVar;
+			Type typeLoopVar;
+			ParseIdentifierAndType(scope, code, out tLoopVar, out typeLoopVar);
+			if (code.Current.Typ == LuaToken.Assign)
+			{
+				// = exp, exp [, exp] do block end
+				FetchToken(LuaToken.Assign, code);
 				Expression loopStart = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
-        FetchToken(LuaToken.Comma, code);
+				FetchToken(LuaToken.Comma, code);
 				Expression loopEnd = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
-        Expression loopStep;
-        if (code.Current.Typ == LuaToken.Comma)
-        {
-          code.Next();
+				Expression loopStep;
+				if (code.Current.Typ == LuaToken.Comma)
+				{
+					code.Next();
 					loopStep = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
-        }
-        else
-          loopStep = Expression.Constant(1, loopStart.Type);
+				}
+				else
+					loopStep = Expression.Constant(1, loopStart.Type);
 
-        LoopScope loopScope = new LoopScope(scope);
+				LoopScope loopScope = new LoopScope(scope);
 				ParameterExpression loopVarParameter = loopScope.RegisterVariable(typeLoopVar == typeof(object) ? LuaEmit.LiftType(LuaEmit.LiftType(loopStart.Type, loopEnd.Type), loopStep.Type) : typeLoopVar, tLoopVar.Value);
 
-        FetchToken(LuaToken.KwDo, code);
-        ParseBlock(loopScope, code);
-        FetchToken(LuaToken.KwEnd, code);
-        scope.AddExpression(GenerateForLoop(loopScope, tLoopVar, loopVarParameter, loopStart, loopEnd, loopStep));
-      }
-      else
-      {
-        // {, name} in explist do block end
+				FetchToken(LuaToken.KwDo, code);
+				ParseBlock(loopScope, code);
+				FetchToken(LuaToken.KwEnd, code);
+				scope.AddExpression(GenerateForLoop(loopScope, tLoopVar, loopVarParameter, loopStart, loopEnd, loopStep));
+			}
+			else
+			{
+				// {, name} in explist do block end
 
-        // fetch all loop variables
-        LoopScope loopScope = new LoopScope(scope);
-        List<ParameterExpression> loopVars = new List<ParameterExpression>();
-        loopVars.Add(loopScope.RegisterVariable(typeLoopVar, tLoopVar.Value));
-        while (code.Current.Typ == LuaToken.Comma)
-        {
-          code.Next();
-          ParseIdentifierAndType(scope, code, out tLoopVar, out typeLoopVar);
-          loopVars.Add(loopScope.RegisterVariable(typeLoopVar, tLoopVar.Value));
-        }
+				// fetch all loop variables
+				LoopScope loopScope = new LoopScope(scope);
+				List<ParameterExpression> loopVars = new List<ParameterExpression>();
+				loopVars.Add(loopScope.RegisterVariable(typeLoopVar, tLoopVar.Value));
+				while (code.Current.Typ == LuaToken.Comma)
+				{
+					code.Next();
+					ParseIdentifierAndType(scope, code, out tLoopVar, out typeLoopVar);
+					loopVars.Add(loopScope.RegisterVariable(typeLoopVar, tLoopVar.Value));
+				}
 
-        // get the loop expressions
-        FetchToken(LuaToken.KwIn, code);
-        Expression[] explist = ParseExpressionList(scope, code).ToArray();
+				// get the loop expressions
+				FetchToken(LuaToken.KwIn, code);
+				Expression[] explist = ParseExpressionList(scope, code).ToArray();
 
-        // parse the loop body
-        FetchToken(LuaToken.KwDo, code);
-        ParseBlock(loopScope, code);
-        FetchToken(LuaToken.KwEnd, code);
+				// parse the loop body
+				FetchToken(LuaToken.KwDo, code);
+				ParseBlock(loopScope, code);
+				FetchToken(LuaToken.KwEnd, code);
 
-        scope.AddExpression(GenerateForLoop(loopScope, tLoopVar, loopVars, explist));
-      }
-    } // func ParseForLoop
+				scope.AddExpression(GenerateForLoop(loopScope, tLoopVar, loopVars, explist));
+			}
+		} // func ParseForLoop
 
-    private static void ParseForEachLoop(Scope scope, LuaLexer code)
-    {
-      ParameterExpression varEnumerable = Expression.Variable(typeof(System.Collections.IEnumerable), "#enumerable");
-      ParameterExpression varEnumerator = Expression.Variable(typeof(System.Collections.IEnumerator), "#enumerator");
+		private static void ParseForEachLoop(Scope scope, LuaLexer code)
+		{
+			ParameterExpression varEnumerable = Expression.Variable(typeof(System.Collections.IEnumerable), "#enumerable");
+			ParameterExpression varEnumerator = Expression.Variable(typeof(System.Collections.IEnumerator), "#enumerator");
 
-      // foreach name in exp do block end;
-      code.Next(); // foreach
+			// foreach name in exp do block end;
+			code.Next(); // foreach
 
-      // fetch the loop variable
-      LoopScope loopScope = new LoopScope(scope);
-      Token tLoopVar;
-      Type typeLoopVar;
-      ParseIdentifierAndType(scope, code, out tLoopVar, out typeLoopVar);
-      ParameterExpression loopVar = loopScope.RegisterVariable(typeLoopVar, tLoopVar.Value);
+			// fetch the loop variable
+			LoopScope loopScope = new LoopScope(scope);
+			Token tLoopVar;
+			Type typeLoopVar;
+			ParseIdentifierAndType(scope, code, out tLoopVar, out typeLoopVar);
+			ParameterExpression loopVar = loopScope.RegisterVariable(typeLoopVar, tLoopVar.Value);
 
-      // get the enumerable expression
-      FetchToken(LuaToken.KwIn, code);
+			// get the enumerable expression
+			FetchToken(LuaToken.KwIn, code);
 			Expression exprEnum = Lua.EnsureType(ParseExpression(scope, code, InvokeResult.None, scope.EmitExpressionDebug), typeof(object));
 
-      // parse the loop body
-      FetchToken(LuaToken.KwDo, code);
-      ParseBlock(loopScope, code);
-      FetchToken(LuaToken.KwEnd, code);
+			// parse the loop body
+			FetchToken(LuaToken.KwDo, code);
+			ParseBlock(loopScope, code);
+			FetchToken(LuaToken.KwEnd, code);
 
-      Type typeEnumerator = typeof(System.Collections.IEnumerator);
-      var miGetEnumerator = typeof(System.Collections.IEnumerable).GetMethod("GetEnumerator");
-      var miMoveNext = typeEnumerator.GetMethod("MoveNext");
-      var piCurrent = typeEnumerator.GetProperty("Current", BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance);
+			Type typeEnumerator = typeof(System.Collections.IEnumerator);
+			var miGetEnumerator = typeof(System.Collections.IEnumerable).GetMethod("GetEnumerator");
+			var miMoveNext = typeEnumerator.GetMethod("MoveNext");
+			var piCurrent = typeEnumerator.GetProperty("Current", BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance);
 
-      loopScope.InsertExpression(0, Expression.Assign(loopVar, ConvertExpression(scope.Runtime, tLoopVar, Expression.Property(varEnumerator, piCurrent), loopVar.Type)));
-      scope.AddExpression(
-        Expression.Block(new ParameterExpression[] { varEnumerable, varEnumerator, loopVar },
-        // local enumerable = exprEnum as IEnumerator
-        Expression.Assign(varEnumerable, Expression.TypeAs(exprEnum, typeof(System.Collections.IEnumerable))),
+			loopScope.InsertExpression(0, Expression.Assign(loopVar, ConvertExpression(scope.Runtime, tLoopVar, Expression.Property(varEnumerator, piCurrent), loopVar.Type)));
+			scope.AddExpression(
+				Expression.Block(new ParameterExpression[] { varEnumerable, varEnumerator, loopVar },
+				// local enumerable = exprEnum as IEnumerator
+				Expression.Assign(varEnumerable, Expression.TypeAs(exprEnum, typeof(System.Collections.IEnumerable))),
 
-        // if enumerable == nil then error
-        Expression.IfThen(Expression.Equal(varEnumerable, Expression.Constant(null, typeof(object))), Lua.ThrowExpression(Properties.Resources.rsExpressionNotEnumerable)),
+				// if enumerable == nil then error
+				Expression.IfThen(Expression.Equal(varEnumerable, Expression.Constant(null, typeof(object))), Lua.ThrowExpression(Properties.Resources.rsExpressionNotEnumerable)),
 
-        // local enum = exprEnum.GetEnumerator()
-        Expression.Assign(varEnumerator, Expression.Call(varEnumerable, miGetEnumerator)),
+				// local enum = exprEnum.GetEnumerator()
+				Expression.Assign(varEnumerator, Expression.Call(varEnumerable, miGetEnumerator)),
 
-        // while enum.MoveNext() do
-        Expression.Label(loopScope.ContinueLabel),
-        Expression.IfThenElse(Expression.Call(varEnumerator, miMoveNext), Expression.Empty(), Expression.Goto(loopScope.BreakLabel)),
+				// while enum.MoveNext() do
+				Expression.Label(loopScope.ContinueLabel),
+				Expression.IfThenElse(Expression.Call(varEnumerator, miMoveNext), Expression.Empty(), Expression.Goto(loopScope.BreakLabel)),
 
-        //   loopVar = enum.Current
-        loopScope.ExpressionBlock,
+				//   loopVar = enum.Current
+				loopScope.ExpressionBlock,
 
-        // end;
-        Expression.Goto(loopScope.ContinueLabel),
-        Expression.Label(loopScope.BreakLabel)
-        ));
-    } // proc ParseForEachLoop
+				// end;
+				Expression.Goto(loopScope.ContinueLabel),
+				Expression.Label(loopScope.BreakLabel)
+				));
+		} // proc ParseForEachLoop
 
-    private static Expression GenerateForLoop(LoopScope loopScope, Token tStart, ParameterExpression loopVar, Expression loopStart, Expression loopEnd, Expression loopStep)
-    {
-      const string csVar = "#var";
-      const string csEnd = "#end";
-      const string csStep = "#step";
-      ParameterExpression internLoopVar = Expression.Variable(loopVar.Type, csVar);
-      ParameterExpression endVar = Expression.Variable(loopEnd.Type, csEnd);
-      ParameterExpression stepVar = Expression.Variable(loopStep.Type, csStep);
-      LabelTarget labelLoop = Expression.Label("#loop");
+		private static Expression GenerateForLoop(LoopScope loopScope, Token tStart, ParameterExpression loopVar, Expression loopStart, Expression loopEnd, Expression loopStep)
+		{
+			const string csVar = "#var";
+			const string csEnd = "#end";
+			const string csStep = "#step";
+			ParameterExpression internLoopVar = Expression.Variable(loopVar.Type, csVar);
+			ParameterExpression endVar = Expression.Variable(loopEnd.Type, csEnd);
+			ParameterExpression stepVar = Expression.Variable(loopStep.Type, csStep);
+			LabelTarget labelLoop = Expression.Label("#loop");
 
-      // Erzeuge CodeBlock
-      loopScope.InsertExpression(0, Expression.Assign(loopVar, internLoopVar));
+			// Erzeuge CodeBlock
+			loopScope.InsertExpression(0, Expression.Assign(loopVar, internLoopVar));
 
-      // Erzeuge den Schleifenblock
-      return Expression.Block(new ParameterExpression[] { internLoopVar, endVar, stepVar },
-        Expression.Assign(internLoopVar, ConvertExpression(loopScope.Runtime, tStart, loopStart, internLoopVar.Type)),
-        Expression.Assign(endVar, loopEnd),
-        Expression.Assign(stepVar, loopStep),
+			// Erzeuge den Schleifenblock
+			return Expression.Block(new ParameterExpression[] { internLoopVar, endVar, stepVar },
+				Expression.Assign(internLoopVar, ConvertExpression(loopScope.Runtime, tStart, loopStart, internLoopVar.Type)),
+				Expression.Assign(endVar, loopEnd),
+				Expression.Assign(stepVar, loopStep),
 
-        Expression.Label(labelLoop),
+				Expression.Label(labelLoop),
 
-        Expression.IfThenElse(
-          BinaryOperationExpression(loopScope.Runtime, tStart, ExpressionType.OrElse,
-            BinaryOperationExpression(loopScope.Runtime, tStart, ExpressionType.AndAlso,
-              ConvertExpression(loopScope.Runtime, tStart, BinaryOperationExpression(loopScope.Runtime, tStart, ExpressionType.GreaterThan, stepVar, Expression.Constant(0, typeof(int))), typeof(bool)),
-              ConvertExpression(loopScope.Runtime, tStart, BinaryOperationExpression(loopScope.Runtime, tStart, ExpressionType.LessThanOrEqual, internLoopVar, endVar), typeof(bool))
-            ),
-            BinaryOperationExpression(loopScope.Runtime, tStart, ExpressionType.AndAlso,
-              ConvertExpression(loopScope.Runtime, tStart, BinaryOperationExpression(loopScope.Runtime, tStart, ExpressionType.LessThanOrEqual, stepVar, Expression.Constant(0, typeof(int))), typeof(bool)),
-              ConvertExpression(loopScope.Runtime, tStart, BinaryOperationExpression(loopScope.Runtime, tStart, ExpressionType.GreaterThanOrEqual, internLoopVar, endVar), typeof(bool))
-            )
-          ),
-          loopScope.ExpressionBlock,
-          Expression.Goto(loopScope.BreakLabel)
-        ),
-        Expression.Label(loopScope.ContinueLabel),
+				Expression.IfThenElse(
+					BinaryOperationExpression(loopScope.Runtime, tStart, ExpressionType.OrElse,
+						BinaryOperationExpression(loopScope.Runtime, tStart, ExpressionType.AndAlso,
+							ConvertExpression(loopScope.Runtime, tStart, BinaryOperationExpression(loopScope.Runtime, tStart, ExpressionType.GreaterThan, stepVar, Expression.Constant(0, typeof(int))), typeof(bool)),
+							ConvertExpression(loopScope.Runtime, tStart, BinaryOperationExpression(loopScope.Runtime, tStart, ExpressionType.LessThanOrEqual, internLoopVar, endVar), typeof(bool))
+						),
+						BinaryOperationExpression(loopScope.Runtime, tStart, ExpressionType.AndAlso,
+							ConvertExpression(loopScope.Runtime, tStart, BinaryOperationExpression(loopScope.Runtime, tStart, ExpressionType.LessThanOrEqual, stepVar, Expression.Constant(0, typeof(int))), typeof(bool)),
+							ConvertExpression(loopScope.Runtime, tStart, BinaryOperationExpression(loopScope.Runtime, tStart, ExpressionType.GreaterThanOrEqual, internLoopVar, endVar), typeof(bool))
+						)
+					),
+					loopScope.ExpressionBlock,
+					Expression.Goto(loopScope.BreakLabel)
+				),
+				Expression.Label(loopScope.ContinueLabel),
 
-        Expression.Assign(internLoopVar, ConvertExpression(loopScope.Runtime, tStart, BinaryOperationExpression(loopScope.Runtime, tStart, ExpressionType.Add, internLoopVar, stepVar), internLoopVar.Type)),
+				Expression.Assign(internLoopVar, ConvertExpression(loopScope.Runtime, tStart, BinaryOperationExpression(loopScope.Runtime, tStart, ExpressionType.Add, internLoopVar, stepVar), internLoopVar.Type)),
 
-        Expression.Goto(labelLoop),
-        Expression.Label(loopScope.BreakLabel)
-      );
-    } // func GenerateForLoop
+				Expression.Goto(labelLoop),
+				Expression.Label(loopScope.BreakLabel)
+			);
+		} // func GenerateForLoop
 
-    private static Expression GenerateForLoop(LoopScope loopScope, Token tStart, List<ParameterExpression> loopVars, Expression[] explist)
-    {
-      const string csFunc = "#f";
-      const string csState = "#s";
-      const string csVar = "#var";
+		private static Expression GenerateForLoop(LoopScope loopScope, Token tStart, List<ParameterExpression> loopVars, Expression[] explist)
+		{
+			const string csFunc = "#f";
+			const string csState = "#s";
+			const string csVar = "#var";
 
-      ParameterExpression varTmp = Expression.Variable(typeof(LuaResult), "#tmp");
-      ParameterExpression varFunc = Expression.Variable(typeof(Func<object, object, LuaResult>), csFunc);
-      ParameterExpression varState = Expression.Variable(typeof(object), csState);
-      ParameterExpression varVar = Expression.Variable(typeof(object), csVar);
+			ParameterExpression varTmp = Expression.Variable(typeof(LuaResult), "#tmp");
+			ParameterExpression varFunc = Expression.Variable(typeof(Func<object, object, LuaResult>), csFunc);
+			ParameterExpression varState = Expression.Variable(typeof(object), csState);
+			ParameterExpression varVar = Expression.Variable(typeof(object), csVar);
 
-      // local var1, ..., varn = tmp;
-      for (int i = 0; i < loopVars.Count; i++)
-        loopScope.InsertExpression(i, Expression.Assign(loopVars[i], ConvertExpression(loopScope.Runtime, tStart, GetResultExpression(loopScope.Runtime, tStart, varTmp, i), loopVars[i].Type)));
-      return Expression.Block(new ParameterExpression[] { varTmp, varFunc, varState, varVar },
-        // fill the local loop variables initial
-        // local #f, #s, #var = explist
-        Expression.Assign(varTmp, GetLuaResultExpression(loopScope, tStart, explist)),
-        Expression.Assign(varFunc, ConvertExpression(loopScope.Runtime, tStart, GetResultExpression(loopScope.Runtime, tStart, varTmp, 0), varFunc.Type)),
-        Expression.Assign(varState, GetResultExpression(loopScope.Runtime, tStart, varTmp, 1)),
-        Expression.Assign(varVar, GetResultExpression(loopScope.Runtime, tStart, varTmp, 2)),
+			// local var1, ..., varn = tmp;
+			for (int i = 0; i < loopVars.Count; i++)
+				loopScope.InsertExpression(i, Expression.Assign(loopVars[i], ConvertExpression(loopScope.Runtime, tStart, GetResultExpression(loopScope.Runtime, tStart, varTmp, i), loopVars[i].Type)));
+			return Expression.Block(new ParameterExpression[] { varTmp, varFunc, varState, varVar },
+				// fill the local loop variables initial
+				// local #f, #s, #var = explist
+				Expression.Assign(varTmp, GetLuaResultExpression(loopScope, tStart, explist)),
+				Expression.Assign(varFunc, ConvertExpression(loopScope.Runtime, tStart, GetResultExpression(loopScope.Runtime, tStart, varTmp, 0), varFunc.Type)),
+				Expression.Assign(varState, GetResultExpression(loopScope.Runtime, tStart, varTmp, 1)),
+				Expression.Assign(varVar, GetResultExpression(loopScope.Runtime, tStart, varTmp, 2)),
 
-        Expression.Label(loopScope.ContinueLabel),
+				Expression.Label(loopScope.ContinueLabel),
 
-        // local tmp = f(s, var)
-        Expression.Assign(varTmp, InvokeExpression(loopScope.Runtime, tStart, varFunc, InvokeResult.LuaResult,
-          new Expression[] { varState, varVar }, true)
-        ),
+				// local tmp = f(s, var)
+				Expression.Assign(varTmp, InvokeExpression(loopScope.Runtime, tStart, varFunc, InvokeResult.LuaResult,
+					new Expression[] { varState, varVar }, true)
+				),
 
-        // var = tmp[0]
-        Expression.Assign(varVar, GetResultExpression(loopScope.Runtime, tStart, varTmp, 0)),
+				// var = tmp[0]
+				Expression.Assign(varVar, GetResultExpression(loopScope.Runtime, tStart, varTmp, 0)),
 
-        // if var == nil then goto break;
-        Expression.IfThenElse(Expression.Equal(varVar, Expression.Constant(null, typeof(object))),
-          Expression.Goto(loopScope.BreakLabel),
-          loopScope.ExpressionBlock), // LoopBody
+				// if var == nil then goto break;
+				Expression.IfThenElse(Expression.Equal(varVar, Expression.Constant(null, typeof(object))),
+					Expression.Goto(loopScope.BreakLabel),
+					loopScope.ExpressionBlock), // LoopBody
 
-        Expression.Goto(loopScope.ContinueLabel),
-        Expression.Label(loopScope.BreakLabel)
-      );
-    } // func GenerateForLoop
+				Expression.Goto(loopScope.ContinueLabel),
+				Expression.Label(loopScope.BreakLabel)
+			);
+		} // func GenerateForLoop
 
-    private static void ParseBreak(Scope scope, LuaLexer code)
-    {
-      FetchToken(LuaToken.KwBreak, code);
+		private static void ParseBreak(Scope scope, LuaLexer code)
+		{
+			FetchToken(LuaToken.KwBreak, code);
 
-      // Erzeuge die Expression
-      scope.AddExpression(Expression.Goto(scope.LookupLabel(null, csBreakLabel)));
+			// Erzeuge die Expression
+			scope.AddExpression(Expression.Goto(scope.LookupLabel(null, csBreakLabel)));
 
-      // Optionales Semicolon
-      FetchToken(LuaToken.Semicolon, code, true);
-    } // func ParseBreak
+			// Optionales Semicolon
+			FetchToken(LuaToken.Semicolon, code, true);
+		} // func ParseBreak
 
-    #endregion
+		#endregion
 
-    #region -- Parse Function, Lambda -------------------------------------------------
+		#region -- Parse Function, Lambda -------------------------------------------------
 
-    private static void ParseFunction(Scope scope, LuaLexer code, bool lLocal)
-    {
-      FetchToken(LuaToken.KwFunction, code);
+		private static void ParseFunction(Scope scope, LuaLexer code, bool lLocal)
+		{
+			FetchToken(LuaToken.KwFunction, code);
 
-      if (lLocal) // Local function, only one identifier is allowed
-      {
-        var t = FetchToken(LuaToken.Identifier, code);
-        Expression exprFunction = ParseLamdaDefinition(scope, code, t.Value, false);
-        ParameterExpression funcVar = scope.RegisterVariable(exprFunction.Type, t.Value);
-        scope.AddExpression(Expression.Assign(funcVar, exprFunction));
-      }
-      else // Function that is assigned to a table. A chain of identifiers is allowed.
-      {
-        Expression assignee = null;
-        Token tCurrent = FetchToken(LuaToken.Identifier, code);
-        string sMember = tCurrent.Value;
+			if (lLocal) // Local function, only one identifier is allowed
+			{
+				var t = FetchToken(LuaToken.Identifier, code);
+				Expression exprFunction = ParseLamdaDefinition(scope, code, t.Value, false);
+				ParameterExpression funcVar = scope.RegisterVariable(exprFunction.Type, t.Value);
+				scope.AddExpression(Expression.Assign(funcVar, exprFunction));
+			}
+			else // Function that is assigned to a table. A chain of identifiers is allowed.
+			{
+				Expression assignee = null;
+				Token tCurrent = FetchToken(LuaToken.Identifier, code);
+				string sMember = tCurrent.Value;
 
-        // Collect the chain of members
-        while (code.Current.Typ == LuaToken.Dot)
-        {
-          code.Next();
+				// Collect the chain of members
+				while (code.Current.Typ == LuaToken.Dot)
+				{
+					code.Next();
 
-          // Create the get-member for the current assignee
-          assignee = ParseFunctionAddChain(scope, tCurrent, assignee, sMember);
-          sMember = FetchToken(LuaToken.Identifier, code).Value;
-        }
-        // add a method to the table. methods get a hidden parameter and will bo marked
-        bool lMethodMember;
-        if (code.Current.Typ == LuaToken.Colon)
-        {
-          code.Next();
+					// Create the get-member for the current assignee
+					assignee = ParseFunctionAddChain(scope, tCurrent, assignee, sMember);
+					sMember = FetchToken(LuaToken.Identifier, code).Value;
+				}
+				// add a method to the table. methods get a hidden parameter and will bo marked
+				bool lMethodMember;
+				if (code.Current.Typ == LuaToken.Colon)
+				{
+					code.Next();
 
-          // add the last member to the assignee chain
-          assignee = ParseFunctionAddChain(scope, tCurrent, assignee, sMember);
-          // fetch the method name
-          sMember = FetchToken(LuaToken.Identifier, code).Value;
-          lMethodMember = true;
-        }
-        else
-        {
-          if (assignee == null)
-            assignee = scope.LookupExpression(csEnv); // create a global function
-          lMethodMember = false;
-        }
+					// add the last member to the assignee chain
+					assignee = ParseFunctionAddChain(scope, tCurrent, assignee, sMember);
+					// fetch the method name
+					sMember = FetchToken(LuaToken.Identifier, code).Value;
+					lMethodMember = true;
+				}
+				else
+				{
+					if (assignee == null)
+						assignee = scope.LookupExpression(csEnv); // create a global function
+					lMethodMember = false;
+				}
 
-        // generate lambda
-        scope.AddExpression(MemberSetExpression(scope.Runtime, tCurrent, assignee, sMember, lMethodMember, ParseLamdaDefinition(scope, code, sMember, lMethodMember)));
-      }
-    } // proc ParseLamdaDefinition
+				// generate lambda
+				scope.AddExpression(MemberSetExpression(scope.Runtime, tCurrent, assignee, sMember, lMethodMember, ParseLamdaDefinition(scope, code, sMember, lMethodMember)));
+			}
+		} // proc ParseLamdaDefinition
 
-    private static Expression ParseFunctionAddChain(Scope scope, Token tStart, Expression assignee, string sMember)
-    {
-      if (assignee == null)
-      {
-        Expression expr = scope.LookupExpression(sMember);
-        if (expr == null)
-          assignee = ParseFunctionAddChain(scope, tStart, scope.LookupExpression(csEnv), sMember);
-        else
-          assignee = expr;
-      }
-      else
-        assignee = MemberGetExpression(scope.Runtime, tStart, assignee, sMember, false);
-      return assignee;
-    } // proc ParseFunctionAddChain
+		private static Expression ParseFunctionAddChain(Scope scope, Token tStart, Expression assignee, string sMember)
+		{
+			if (assignee == null)
+			{
+				Expression expr = scope.LookupExpression(sMember);
+				if (expr == null)
+					assignee = ParseFunctionAddChain(scope, tStart, scope.LookupExpression(csEnv), sMember);
+				else
+					assignee = expr;
+			}
+			else
+				assignee = MemberGetExpression(scope.Runtime, tStart, assignee, sMember, false);
+			return assignee;
+		} // proc ParseFunctionAddChain
 
-    private static Expression ParseLamdaDefinition(Scope parent, LuaLexer code, string sName, bool lSelfParameter)
-    {
-      List<ParameterExpression> parameters = new List<ParameterExpression>();
-      LambdaScope scope = new LambdaScope(parent);
+		private static Expression ParseLamdaDefinition(Scope parent, LuaLexer code, string sName, bool lSelfParameter)
+		{
+			List<ParameterExpression> parameters = new List<ParameterExpression>();
+			LambdaScope scope = new LambdaScope(parent);
 
-      // Lese die Parameterliste ein
-      FetchToken(LuaToken.BracketOpen, code);
-      if (lSelfParameter)
-        parameters.Add(scope.RegisterParameter(typeof(object), "self"));
+			// Lese die Parameterliste ein
+			FetchToken(LuaToken.BracketOpen, code);
+			if (lSelfParameter)
+				parameters.Add(scope.RegisterParameter(typeof(object), "self"));
 
-      if (code.Current.Typ == LuaToken.Identifier || code.Current.Typ == LuaToken.DotDotDot)
-      {
-        if (code.Current.Typ == LuaToken.DotDotDot)
-        {
-          code.Next();
-          ParseLamdaDefinitionArgList(scope, parameters);
-        }
-        else
-        {
-          Token tName;
-          Type typeArgument;
-          ParseIdentifierAndType(scope, code, out tName, out typeArgument);
-          parameters.Add(scope.RegisterParameter(typeArgument, tName.Value));
+			if (code.Current.Typ == LuaToken.Identifier || code.Current.Typ == LuaToken.DotDotDot)
+			{
+				if (code.Current.Typ == LuaToken.DotDotDot)
+				{
+					code.Next();
+					ParseLamdaDefinitionArgList(scope, parameters);
+				}
+				else
+				{
+					Token tName;
+					Type typeArgument;
+					ParseIdentifierAndType(scope, code, out tName, out typeArgument);
+					parameters.Add(scope.RegisterParameter(typeArgument, tName.Value));
 
-          while (code.Current.Typ == LuaToken.Comma)
-          {
-            code.Next();
-            if (code.Current.Typ == LuaToken.DotDotDot)
-            {
-              code.Next();
-              ParseLamdaDefinitionArgList(scope, parameters); // last argument
-              break;
-            }
-            else
-            {
-              ParseIdentifierAndType(scope, code, out tName, out typeArgument);
-              parameters.Add(scope.RegisterParameter(typeArgument, tName.Value));
-            }
-          }
-        }
-      }
-      FetchToken(LuaToken.BracketClose, code);
+					while (code.Current.Typ == LuaToken.Comma)
+					{
+						code.Next();
+						if (code.Current.Typ == LuaToken.DotDotDot)
+						{
+							code.Next();
+							ParseLamdaDefinitionArgList(scope, parameters); // last argument
+							break;
+						}
+						else
+						{
+							ParseIdentifierAndType(scope, code, out tName, out typeArgument);
+							parameters.Add(scope.RegisterParameter(typeArgument, tName.Value));
+						}
+					}
+				}
+			}
+			FetchToken(LuaToken.BracketClose, code);
 
-      // Is there a specific result 
-      if (code.Current.Typ == LuaToken.Colon)
-      {
-        var t = code.Current;
-        code.Next();
-        Type typeResult = ParseType(scope, code, true);
-        scope.ResetReturnLabel(typeResult, null);
-      }
-      else
-        scope.ResetReturnLabel(typeof(LuaResult), Expression.Property(null, Lua.ResultEmptyPropertyInfo));
+			// Is there a specific result 
+			if (code.Current.Typ == LuaToken.Colon)
+			{
+				var t = code.Current;
+				code.Next();
+				Type typeResult = ParseType(scope, code, true);
+				scope.ResetReturnLabel(typeResult, null);
+			}
+			else
+				scope.ResetReturnLabel(typeof(LuaResult), Expression.Property(null, Lua.ResultEmptyPropertyInfo));
 
-      // Lese den Code-Block
-      ParseBlock(scope, code);
+			// Lese den Code-Block
+			ParseBlock(scope, code);
 
-      FetchToken(LuaToken.KwEnd, code);
+			FetchToken(LuaToken.KwEnd, code);
 			return Expression.Lambda(scope.ExpressionBlock, (parent.EmitDebug & LuaDebugLevel.RegsiterMethods) == LuaDebugLevel.RegsiterMethods ? Lua.RegisterUniqueName(sName) : sName, parameters);
-    } // proc ParseLamdaDefinition
+		} // proc ParseLamdaDefinition
 
-    private static void ParseLamdaDefinitionArgList(LambdaScope scope, List<ParameterExpression> parameters)
-    {
-      ParameterExpression paramArgList = scope.RegisterParameter(typeof(object[]), csArgListP);
-      ParameterExpression varArgList = scope.RegisterVariable(typeof(LuaResult), csArgList);
-      parameters.Add(paramArgList);
-      scope.AddExpression(Expression.Assign(varArgList, Expression.New(Lua.ResultConstructorInfoArgN, paramArgList)));
-    } // proc ParseLamdaDefinitionArgList
+		private static void ParseLamdaDefinitionArgList(LambdaScope scope, List<ParameterExpression> parameters)
+		{
+			ParameterExpression paramArgList = scope.RegisterParameter(typeof(object[]), csArgListP);
+			ParameterExpression varArgList = scope.RegisterVariable(typeof(LuaResult), csArgList);
+			parameters.Add(paramArgList);
+			scope.AddExpression(Expression.Assign(varArgList, Expression.New(Lua.ResultConstructorInfoArgN, paramArgList)));
+		} // proc ParseLamdaDefinitionArgList
 
-    #endregion
+		#endregion
 
-    #region -- Parse TableConstructor -------------------------------------------------
+		#region -- Parse TableConstructor -------------------------------------------------
 
-    private static Expression ParseTableConstructor(Scope scope, LuaLexer code)
-    {
-      // table ::= '{' [field] { fieldsep field } [fieldsep] '}'
-      // fieldsep ::= ',' | ';'
-      FetchToken(LuaToken.BracketCurlyOpen, code);
+		private static Expression ParseTableConstructor(Scope scope, LuaLexer code)
+		{
+			// table ::= '{' [field] { fieldsep field } [fieldsep] '}'
+			// fieldsep ::= ',' | ';'
+			FetchToken(LuaToken.BracketCurlyOpen, code);
 
-      if (code.Current.Typ != LuaToken.BracketCurlyClose)
-      {
-        int iIndex = 1;
-        Scope scopeTable = new Scope(scope);
+			if (code.Current.Typ != LuaToken.BracketCurlyClose)
+			{
+				int iIndex = 1;
+				Scope scopeTable = new Scope(scope);
 
-        // Create the variable for the table
-        ParameterExpression tableVar = scopeTable.RegisterVariable(typeof(LuaTable), "#table");
-        scopeTable.AddExpression(Expression.Assign(tableVar, CreateEmptyTableExpression()));
+				// Create the variable for the table
+				ParameterExpression tableVar = scopeTable.RegisterVariable(typeof(LuaTable), "#table");
+				scopeTable.AddExpression(Expression.Assign(tableVar, CreateEmptyTableExpression()));
 
-        // fiest field
-        ParseTableField(tableVar, scopeTable, code, ref iIndex);
+				// fiest field
+				ParseTableField(tableVar, scopeTable, code, ref iIndex);
 
-        // collect more table fields
-        while (code.Current.Typ == LuaToken.Comma || code.Current.Typ == LuaToken.Semicolon)
-        {
-          code.Next();
+				// collect more table fields
+				while (code.Current.Typ == LuaToken.Comma || code.Current.Typ == LuaToken.Semicolon)
+				{
+					code.Next();
 
 					// Optional last separator
 					if (code.Current.Typ == LuaToken.BracketCurlyClose)
 						break;
-          
+
 					// Parse the field
 					ParseTableField(tableVar, scopeTable, code, ref iIndex);
-        }
+				}
 
-        scopeTable.AddExpression(tableVar);
-        scopeTable.ExpressionBlockType = typeof(LuaTable);
+				scopeTable.AddExpression(tableVar);
+				scopeTable.ExpressionBlockType = typeof(LuaTable);
 
-        // Closing bracket
-        FetchToken(LuaToken.BracketCurlyClose, code);
+				// Closing bracket
+				FetchToken(LuaToken.BracketCurlyClose, code);
 
-        return scopeTable.ExpressionBlock;
-      }
-      else
-      {
-        FetchToken(LuaToken.BracketCurlyClose, code);
-        return CreateEmptyTableExpression();
-      }
-    } // func ParseTableConstructor
+				return scopeTable.ExpressionBlock;
+			}
+			else
+			{
+				FetchToken(LuaToken.BracketCurlyClose, code);
+				return CreateEmptyTableExpression();
+			}
+		} // func ParseTableConstructor
 
-    private static void ParseTableField(ParameterExpression tableVar, Scope scope, LuaLexer code, ref int iIndex)
-    {
-      // field ::= '[' exp ']' '=' exp | Name '=' exp | exp
-      if (code.Current.Typ == LuaToken.BracketSquareOpen)
-      {
-        // Parse the index
-        code.Next();
+		private static void ParseTableField(ParameterExpression tableVar, Scope scope, LuaLexer code, ref int iIndex)
+		{
+			// field ::= '[' exp ']' '=' exp | Name '=' exp | exp
+			if (code.Current.Typ == LuaToken.BracketSquareOpen)
+			{
+				// Parse the index
+				code.Next();
 				var index = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
-        FetchToken(LuaToken.BracketSquareClose, code);
-        FetchToken(LuaToken.Assign, code);
+				FetchToken(LuaToken.BracketSquareClose, code);
+				FetchToken(LuaToken.Assign, code);
 
-        // Expression that results in a value
-        scope.AddExpression(
-          IndexSetExpression(scope.Runtime, code.Current, tableVar, new Expression[] { index },
-						ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug),
-            true
-          )
-        );
-          
-      }
-      else if (code.Current.Typ == LuaToken.Identifier && code.LookAhead.Typ == LuaToken.Assign)
-      {
-        // Read the identifier
-        Token tMember = code.Current;
-        code.Next();
-        FetchToken(LuaToken.Assign, code);
-
-        // Expression
-        scope.AddExpression(
-          MemberSetExpression(scope.Runtime, tMember, 
-            tableVar, tMember.Value, false,
+				// Expression that results in a value
+				scope.AddExpression(
+					IndexSetExpression(scope.Runtime, code.Current, tableVar, new Expression[] { index },
 						ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug)
-          )
-        );
-      }
-      else
-      {
-        Token tStart = code.Current;
+					)
+				);
+
+			}
+			else if (code.Current.Typ == LuaToken.Identifier && code.LookAhead.Typ == LuaToken.Assign)
+			{
+				// Read the identifier
+				Token tMember = code.Current;
+				code.Next();
+				FetchToken(LuaToken.Assign, code);
+
+				// Expression
+				scope.AddExpression(
+					IndexSetExpression(scope.Runtime, code.Current, tableVar, new Expression[] { Expression.Constant(tMember.Value) },
+						ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug)
+					)
+				);
+			}
+			else
+			{
+				Token tStart = code.Current;
 				Expression expr = ParseExpression(scope, code, InvokeResult.None, scope.EmitExpressionDebug);
 
-        // Last assign, enroll parameter
-        if (code.Current.Typ == LuaToken.BracketCurlyClose && LuaEmit.IsDynamicType(expr.Type))
-        {
-          scope.AddExpression(
-            Expression.Call(Lua.TableSetObjectsMethod,
-              tableVar,
-              Expression.Convert(expr, typeof(object)),
-              Expression.Constant(iIndex, typeof(int))
-            )
-          );
-        }
-        else // Normal index set
-        {
-          scope.AddExpression(
-            IndexSetExpression(scope.Runtime, code.Current, tableVar, new Expression[] { Expression.Constant(iIndex++, typeof(object)) }, expr, true)
-          );
-        }
-      }
-    } // proc ParseTableField
+				// Last assign, enroll parameter
+				if (code.Current.Typ == LuaToken.BracketCurlyClose && LuaEmit.IsDynamicType(expr.Type))
+				{
+					scope.AddExpression(
+						Expression.Call(Lua.TableSetObjectsMethod,
+							tableVar,
+							Expression.Convert(expr, typeof(object)),
+							Expression.Constant(iIndex, typeof(int))
+						)
+					);
+				}
+				else // Normal index set
+				{
+					scope.AddExpression(
+						IndexSetExpression(scope.Runtime, code.Current, tableVar, new Expression[] { Expression.Constant(iIndex++, typeof(object)) }, expr)
+					);
+				}
+			}
+		} // proc ParseTableField
 
-    private static Expression CreateEmptyTableExpression()
-    {
-      return Expression.New(typeof(LuaTable));
-    } // func CreateEmptyTableExpression
+		private static Expression CreateEmptyTableExpression()
+		{
+			return Expression.New(typeof(LuaTable));
+		} // func CreateEmptyTableExpression
 
-    #endregion
+		#endregion
 
-    #region -- FetchToken, ParseError -------------------------------------------------
+		#region -- FetchToken, ParseError -------------------------------------------------
 
-    private static Token FetchToken(LuaToken typ, LuaLexer code, bool lOptional = false)
-    {
-      if (code.Current.Typ == typ)
-      {
-        var t = code.Current;
-        code.Next();
-        return t;
-      }
-      else if (lOptional)
-        return null;
-      else
-        throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, LuaLexer.GetTokenName(code.Current.Typ), LuaLexer.GetTokenName(typ)));
-    } // proc FetchToken
+		private static Token FetchToken(LuaToken typ, LuaLexer code, bool lOptional = false)
+		{
+			if (code.Current.Typ == typ)
+			{
+				var t = code.Current;
+				code.Next();
+				return t;
+			}
+			else if (lOptional)
+				return null;
+			else
+				throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, LuaLexer.GetTokenName(code.Current.Typ), LuaLexer.GetTokenName(typ)));
+		} // proc FetchToken
 
-    private static LuaParseException ParseError(Token start, string sMessage)
-    {
-      return new LuaParseException(start.Start, sMessage, null);
-    } // func ParseError
+		private static LuaParseException ParseError(Token start, string sMessage)
+		{
+			return new LuaParseException(start.Start, sMessage, null);
+		} // func ParseError
 
-    #endregion
+		#endregion
 
-    #region -- ExpressionToString -----------------------------------------------------
+		#region -- ExpressionToString -----------------------------------------------------
 
-    private static PropertyInfo propertyDebugView = null;
+		private static PropertyInfo propertyDebugView = null;
 
-    public static string ExpressionToString(Expression expr)
-    {
-      if (propertyDebugView == null)
-        propertyDebugView = typeof(Expression).GetProperty("DebugView", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetProperty, null, typeof(string), new Type[0], null);
+		public static string ExpressionToString(Expression expr)
+		{
+			if (propertyDebugView == null)
+				propertyDebugView = typeof(Expression).GetProperty("DebugView", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetProperty, null, typeof(string), new Type[0], null);
 
-      return (string)propertyDebugView.GetValue(expr, null);
-    } // func ExpressionToString
+			return (string)propertyDebugView.GetValue(expr, null);
+		} // func ExpressionToString
 
-    #endregion
-  } // class Parser
+		#endregion
+	} // class Parser
 
-  #endregion
+	#endregion
 }
