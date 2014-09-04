@@ -65,6 +65,8 @@
     <None Include="Scripts\String.lua" />
     <None Include="Scripts\StringBuilder1.lua" />
     <None Include="Scripts\Sum.lua" />
+    <None Include="Scripts\TableInt.lua" />
+    <None Include="Scripts\TableString.lua" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="lua.dll">

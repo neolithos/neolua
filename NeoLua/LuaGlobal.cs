@@ -740,10 +740,6 @@ namespace Neo.IronLua
 		} // func LuaToString
 
 		/// <summary></summary>
-		[LuaMember("_VERSION")]
-		public virtual string Version { get { return "NeoLua 5.3"; } }
-
-		/// <summary></summary>
 		/// <param name="v"></param>
 		/// <param name="lClr"></param>
 		/// <returns></returns>
@@ -789,6 +785,10 @@ namespace Neo.IronLua
 			}
 		} // func LuaPCall
 
+		/// <summary></summary>
+		[LuaMember("_VERSION")]
+		public virtual string Version { get { return VersionString; } }
+
 		#endregion
 
 		#region -- Basic Libraries --------------------------------------------------------
@@ -805,7 +805,7 @@ namespace Neo.IronLua
 			get { return LuaType.GetType(typeof(LuaThread)); }
 		} // prop LuaLibraryTable
 
-		[LuaMember("io")]
+		[LuaMember("io", PropertyLateBind = true)]
 		private LuaFilePackage LuaLibraryIO
 		{
 			get
@@ -816,7 +816,7 @@ namespace Neo.IronLua
 			}
 		} // prop LuaLibraryIO
 
-		[LuaMember("package")]
+		[LuaMember("package", PropertyLateBind = true)]
 		private LuaLibraryPackage LuaPackage
 		{
 			get
@@ -1049,7 +1049,11 @@ namespace Neo.IronLua
 					{
 						MemberInfo mi = members[iStart].Member;
 						if (mi.MemberType == MemberTypes.Property)
-							g.SetMemberValue(sCurrentName, ((PropertyInfo)mi).GetValue(g, null), false, true);
+							g.SetMemberValue(sCurrentName,
+								members[iStart].Info.PropertyLateBind ?
+									(object)new LuaMemberDynamicProperty(g, (PropertyInfo)mi) :
+									((PropertyInfo)mi).GetValue(g, null),
+								false, true);
 						else
 							g.SetMemberValue(sCurrentName, new LuaMethod(g, (MethodInfo)mi), false, true);
 					}
@@ -1112,6 +1116,7 @@ namespace Neo.IronLua
 	public sealed class LuaMemberAttribute : Attribute
 	{
 		private string sName;
+		private bool lDynamicBind;
 
 		/// <summary>Marks global Members, they act normally as library</summary>
 		/// <param name="sName"></param>
@@ -1122,7 +1127,152 @@ namespace Neo.IronLua
 
 		/// <summary>Global name of the function.</summary>
 		public string Name { get { return sName; } }
+		/// <summary>Do not initialize property direct. Do create a dynamic proxy.</summary>
+		public bool PropertyLateBind { get { return lDynamicBind; } set { lDynamicBind = value; } }
 	} // class LuaLibraryAttribute
+
+	#endregion
+
+	#region -- class LuaMemberDynamicProperty -------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary></summary>
+	public sealed class LuaMemberDynamicProperty : IDynamicMetaObjectProvider
+	{
+		#region -- class LuaMemberPropertyMetaObject --------------------------------------
+
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary></summary>
+		private class LuaMemberPropertyMetaObject : DynamicMetaObject
+		{
+			#region -- Ctor/Dtor ------------------------------------------------------------
+
+			public LuaMemberPropertyMetaObject(LuaMemberDynamicProperty value, Expression parameter)
+				: base(parameter, BindingRestrictions.Empty, value)
+			{
+			} // ctor
+
+			#endregion
+
+			#region -- GetTargetMetaObject --------------------------------------------------
+
+			private DynamicMetaObject GetTargetMetaObject()
+			{
+				LuaMemberDynamicProperty p = (LuaMemberDynamicProperty)Value;
+				return new DynamicMetaObject(
+
+					Expression.Property(
+						Expression.Convert(
+							Expression.Property(Expression.Convert(Expression, typeof(LuaMemberDynamicProperty)), Lua.LuaMemberPropertyInstancePropertyInfo),
+							p.property.DeclaringType
+						), p.property),
+					BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaMemberDynamicProperty))
+					.Merge(BindingRestrictions.GetExpressionRestriction(Expression.Equal(Expression.Property(Expression.Convert(Expression, typeof(LuaMemberDynamicProperty)), Lua.LuaMemberPropertyPropertyPropertyInfo), Expression.Constant(p.property))))
+				);
+			} // func GetTargetMetaObject
+
+			#endregion
+
+			#region -- Binder ---------------------------------------------------------------
+
+			public override DynamicMetaObject BindUnaryOperation(UnaryOperationBinder binder)
+			{
+				return binder.FallbackUnaryOperation(GetTargetMetaObject());
+			} // func BindUnaryOperation
+
+			public override DynamicMetaObject BindBinaryOperation(BinaryOperationBinder binder, DynamicMetaObject arg)
+			{
+				return binder.FallbackBinaryOperation(GetTargetMetaObject(), arg);
+			} // func BindBinaryOperation
+
+			public override DynamicMetaObject BindCreateInstance(CreateInstanceBinder binder, DynamicMetaObject[] args)
+			{
+				return binder.FallbackCreateInstance(GetTargetMetaObject(), args);
+			} // func BindCreateInstance
+
+			public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
+			{
+				return binder.FallbackGetMember(GetTargetMetaObject());
+			} // func BindGetMember
+
+			public override DynamicMetaObject BindSetMember(SetMemberBinder binder, DynamicMetaObject value)
+			{
+				return binder.FallbackSetMember(GetTargetMetaObject(), value);
+			} // func BindSetMember
+
+			public override DynamicMetaObject BindDeleteMember(DeleteMemberBinder binder)
+			{
+				return binder.FallbackDeleteMember(GetTargetMetaObject());
+			} // func BindDeleteMember
+
+			public override DynamicMetaObject BindGetIndex(GetIndexBinder binder, DynamicMetaObject[] indexes)
+			{
+				return binder.FallbackGetIndex(GetTargetMetaObject(), indexes);
+			} // func BindGetIndex
+
+			public override DynamicMetaObject BindSetIndex(SetIndexBinder binder, DynamicMetaObject[] indexes, DynamicMetaObject value)
+			{
+				return binder.FallbackSetIndex(GetTargetMetaObject(), indexes, value);
+			} // func BindSetIndex
+
+			public override DynamicMetaObject BindDeleteIndex(DeleteIndexBinder binder, DynamicMetaObject[] indexes)
+			{
+				return binder.FallbackDeleteIndex(GetTargetMetaObject(), indexes);
+			} // func BindDeleteIndex
+
+			public override DynamicMetaObject BindInvoke(InvokeBinder binder, DynamicMetaObject[] args)
+			{
+				return binder.FallbackInvoke(GetTargetMetaObject(), args);
+			} // func BindInvoke
+
+			public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
+			{
+				return binder.FallbackInvokeMember(GetTargetMetaObject(), args);
+			} // func BindInvokeMember
+
+			public override DynamicMetaObject BindConvert(ConvertBinder binder)
+			{
+				return binder.FallbackConvert(GetTargetMetaObject());
+			} // func BindConvert
+
+			#endregion
+		} // class LuaMemberPropertyMetaObject
+
+		#endregion
+
+		private object instance;
+		private PropertyInfo property;
+
+		#region -- Ctor/Dtor --------------------------------------------------------------
+
+		internal LuaMemberDynamicProperty(object instance, PropertyInfo property)
+		{
+			this.instance = instance;
+			this.property = property;
+		} // ctor
+
+		/// <summary></summary>
+		/// <param name="parameter"></param>
+		/// <returns></returns>
+		public DynamicMetaObject GetMetaObject(Expression parameter)
+		{
+			return new LuaMemberPropertyMetaObject(this, parameter);
+		} // func GetMetaObject
+	
+		/// <summary></summary>
+		/// <returns></returns>
+		public override string ToString()
+		{
+			return "dynamic property [ " + property.ToString() + "]";
+		} // func ToString
+
+		#endregion
+
+		/// <summary></summary>
+		public object Instance { get { return instance; } }
+		/// <summary></summary>
+		public PropertyInfo Property { get { return property; } }
+	} // class LuaMemberProperty
 
 	#endregion
 }

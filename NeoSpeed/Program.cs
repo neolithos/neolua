@@ -16,14 +16,16 @@ namespace NeoSpeed
     {
       string[] scripts = new string[]
       {
-        Path.GetFullPath(@"..\..\Scripts\Empty.lua"),
-        Path.GetFullPath(@"..\..\Scripts\Sum.lua"),
-        Path.GetFullPath(@"..\..\Scripts\Sum_strict{0}.lua"),
-        Path.GetFullPath(@"..\..\Scripts\Sum_echo.lua"),
-        Path.GetFullPath(@"..\..\Scripts\String.lua"),
-        Path.GetFullPath(@"..\..\Scripts\String_echo.lua"),
-        Path.GetFullPath(@"..\..\Scripts\Delegate.lua"),
-        Path.GetFullPath(@"..\..\Scripts\StringBuilder{0}.lua")
+				Path.GetFullPath(@"..\..\Scripts\Empty.lua"),
+				Path.GetFullPath(@"..\..\Scripts\Sum.lua"),
+				Path.GetFullPath(@"..\..\Scripts\Sum_strict{0}.lua"),
+				Path.GetFullPath(@"..\..\Scripts\Sum_echo.lua"),
+				Path.GetFullPath(@"..\..\Scripts\String.lua"),
+				Path.GetFullPath(@"..\..\Scripts\String_echo.lua"),
+				Path.GetFullPath(@"..\..\Scripts\Delegate.lua"),
+				Path.GetFullPath(@"..\..\Scripts\StringBuilder{0}.lua"),
+				Path.GetFullPath(@"..\..\Scripts\TableInt.lua"),
+				Path.GetFullPath(@"..\..\Scripts\TableString.lua")
       };
 
       Console.WriteLine();

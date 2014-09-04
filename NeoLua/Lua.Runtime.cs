@@ -97,6 +97,9 @@ namespace Neo.IronLua
 		internal readonly static PropertyInfo AddMethodInfoPropertyInfo;
 		internal readonly static PropertyInfo RemoveMethodInfoPropertyInfo;
 		internal readonly static PropertyInfo RaiseMethodInfoPropertyInfo;
+		// LuaMemberProperty
+		internal readonly static PropertyInfo LuaMemberPropertyInstancePropertyInfo;
+		internal readonly static PropertyInfo LuaMemberPropertyPropertyPropertyInfo;
 		// Lua
 		internal readonly static MethodInfo ParseNumberMethodInfo;
 		internal readonly static MethodInfo RuntimeLengthMethodInfo;
@@ -239,6 +242,13 @@ namespace Neo.IronLua
 #if DEBUG
 			if (EventConstructorInfo == null || AddMethodInfoPropertyInfo == null || RemoveMethodInfoPropertyInfo == null || RaiseMethodInfoPropertyInfo == null)
 				throw new ArgumentNullException("@4.2", "LuaEvent");
+#endif
+
+			LuaMemberPropertyInstancePropertyInfo = typeof(LuaMemberDynamicProperty).GetProperty("Instance", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty | BindingFlags.DeclaredOnly);
+			LuaMemberPropertyPropertyPropertyInfo = typeof(LuaMemberDynamicProperty).GetProperty("Property", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty | BindingFlags.DeclaredOnly);
+#if DEBUG
+			if (LuaMemberPropertyInstancePropertyInfo == null || LuaMemberPropertyPropertyPropertyInfo == null)
+				throw new ArgumentNullException("@4.3", "LuaMemberProperty");
 #endif
 
 			// Lua

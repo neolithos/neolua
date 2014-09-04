@@ -625,7 +625,7 @@ namespace Neo.IronLua
 			if (iCurrentLength == Int32.MaxValue)
 				throw new OverflowException();
 			if (iCurrentLength == 0)
-				iCurrentLength = 4;
+				iCurrentLength = 16;
 
 		Resize:
 			iCurrentLength = unchecked(iCurrentLength << 1);
@@ -1047,21 +1047,25 @@ namespace Neo.IronLua
 			int iArrayIndex = iIndex - 1;
 			if (iArrayIndex >= 0 && iArrayIndex < arrayList.Length) // with in the current allocated array
 			{
+				object oldValue = arrayList[iArrayIndex];
 				if (value == null) // remove the value
 				{
-					arrayList[iArrayIndex] = null;
-					if (iIndex <= iArrayLength)
+					if (oldValue != null)
 					{
-						iArrayLength = iArrayIndex; // iArrayLength = iIndex - 1
-						iCount--;
+						arrayList[iArrayIndex] = null;
+						if (iIndex <= iArrayLength)
+						{
+							iArrayLength = iArrayIndex; // iArrayLength = iIndex - 1
+							iCount--;
+						}
+						iVersion++;
 					}
-					iVersion++;
 				}
 				else if (lRawSet || // always set a value
-					arrayList[iArrayIndex] != null || // reset the value
+					oldValue != null || // reset the value
 					!OnNewIndex(iIndex, value)) // no value, notify __newindex to set the array element
 				{
-					if (arrayList[iArrayIndex] == null)
+					if (oldValue == null)
 						iCount++;
 
 					arrayList[iArrayIndex] = value;

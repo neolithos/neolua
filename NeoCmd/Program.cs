@@ -116,11 +116,7 @@ namespace Neo.IronLua
 			}
 			else
 			{
-				IConvertible conv = value as IConvertible;
-				if (conv != null)
-					sValue = conv.ToString(CultureInfo.InvariantCulture);
-				else
-					sValue = value.ToString();
+				sValue = (string)Lua.RtConvertValue(value, typeof(string));
 				sType = GetTypeName(value.GetType());
 			}
 
