@@ -29,7 +29,7 @@ namespace LuaDLR.Test
 			Assert.AreEqual(t["test"], "n");
 
 			IDictionary<string, object> a = (IDictionary<string, object>)t;
-			string[] r = new string[2];
+			string[] r = new string[3];
 			a.Keys.CopyTo(r, 0);
 			Assert.IsTrue(r[0] == "Test" && r[1] == "test");
 
@@ -132,28 +132,28 @@ namespace LuaDLR.Test
 			for (int i = 4; i <= 16; i++)
 				t[i] = i;
 			Assert.AreEqual(t.Length, 2);
-			Assert.AreEqual(t.Values.Count, 15);
+			Assert.AreEqual(t.Values.Count, 16);
 			Assert.AreEqual(t[1], 1);
 			Assert.AreEqual(t[4], 4);
 			t[3] = 3;
 			Assert.AreEqual(t.Length, 16);
-			Assert.AreEqual(t.Values.Count, 16);
+			Assert.AreEqual(t.Values.Count, 17);
 			Assert.AreEqual(t[4], 4);
 
 			t[1] = null;
 			Assert.AreEqual(t.Length, 0);
-			Assert.AreEqual(t.Values.Count, 15);
+			Assert.AreEqual(t.Values.Count, 16);
 			Assert.AreEqual(t[4], 4);
 			t[18] = 18;
 			Assert.AreEqual(t[18], 18);
-			Assert.AreEqual(t.Values.Count, 16);
+			Assert.AreEqual(t.Values.Count, 17);
 			t[20] = 20;
 			Assert.AreEqual(t[20], 20);
-			Assert.AreEqual(t.Values.Count, 17);
-			t[17] = 17;
 			Assert.AreEqual(t.Values.Count, 18);
-			t[1] = 1;
+			t[17] = 17;
 			Assert.AreEqual(t.Values.Count, 19);
+			t[1] = 1;
+			Assert.AreEqual(t.Values.Count, 20);
 			Assert.AreEqual(t.Length, 18);
 			for (int i = 1; i <= 18; i++)
 				Assert.AreEqual(t[i], i);

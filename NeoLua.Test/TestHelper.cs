@@ -114,6 +114,9 @@ namespace LuaDLR.Test
 
       foreach (var tv in table)
       {
+				if (String.Compare(tv.Key as string, LuaTable.csMetaTable) == 0)
+					continue;
+
         int iIndex = Array.FindIndex(tvs, c => Object.Equals(tv.Key, c.Key));
         if (iIndex == -1)
         {

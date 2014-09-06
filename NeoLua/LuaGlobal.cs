@@ -139,9 +139,6 @@ namespace Neo.IronLua
 				throw new ArgumentNullException("lua");
 
 			this.lua = lua;
-
-			// Initialize LuaMember
-			InitLuaMemberMap(this);
 		} // ctor
 
 		#endregion
@@ -251,7 +248,7 @@ namespace Neo.IronLua
 
 		#region -- Basic Functions --------------------------------------------------------
 
-		private bool IsTrue(object value)
+		private static bool IsTrue(object value)
 		{
 			if (value == null)
 				return false;
@@ -273,7 +270,7 @@ namespace Neo.IronLua
 		/// <param name="sMessage"></param>
 		/// <returns></returns>
 		[LuaMember("assert")]
-		private object LuaAssert(object value, string sMessage)
+		private static object LuaAssert(object value, string sMessage)
 		{
 			Debug.Assert(IsTrue(value), sMessage);
 			return value;
@@ -284,7 +281,7 @@ namespace Neo.IronLua
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		[LuaMember("collectgarbage")]
-		private LuaResult LuaCollectgarbage(string opt, object arg = null)
+		private static LuaResult LuaCollectgarbage(string opt, object arg = null)
 		{
 			switch (opt)
 			{
@@ -378,7 +375,7 @@ namespace Neo.IronLua
 		/// <param name="sMessage"></param>
 		/// <param name="level"></param>
 		[LuaMember("error")]
-		private void LuaError(string sMessage, int level)
+		private static void LuaError(string sMessage, int level)
 		{
 			if (level == 0)
 				level = 1;
@@ -391,13 +388,13 @@ namespace Neo.IronLua
 		/// <param name="obj"></param>
 		/// <returns></returns>
 		[LuaMember("getmetatable")]
-		private LuaTable LuaGetMetaTable(object obj)
+		private static LuaTable LuaGetMetaTable(object obj)
 		{
 			LuaTable t = obj as LuaTable;
 			return t == null ? null : t.MetaTable;
 		} // func LuaGetMetaTable
 
-		private LuaResult pairsEnum(object s, object current)
+		private static LuaResult pairsEnum(object s, object current)
 		{
 			System.Collections.IEnumerator e = (System.Collections.IEnumerator)s;
 
@@ -415,7 +412,7 @@ namespace Neo.IronLua
 		/// <param name="t"></param>
 		/// <returns></returns>
 		[LuaMember("ipairs")]
-		private LuaResult LuaIPairs(LuaTable t)
+		private static LuaResult LuaIPairs(LuaTable t)
 		{
 			var e = new LuaIndexPairEnumerator(t);
 			return new LuaResult(new Func<object, object, LuaResult>(pairsEnum), e, e);
@@ -425,7 +422,7 @@ namespace Neo.IronLua
 		/// <param name="t"></param>
 		/// <returns></returns>
 		[LuaMember("pairs")]
-		private LuaResult LuaPairs(LuaTable t)
+		private static LuaResult LuaPairs(LuaTable t)
 		{
 			var e = ((System.Collections.IEnumerable)t).GetEnumerator();
 			return new LuaResult(new Func<object, object, LuaResult>(pairsEnum), e, e);
@@ -478,9 +475,12 @@ namespace Neo.IronLua
 		/// <param name="next"></param>
 		/// <returns></returns>
 		[LuaMember("next")]
-		private object LuaNext(LuaTable t, object next = null)
+		private static object LuaNext(LuaTable t, object next)
 		{
-			throw new NotImplementedException();
+			if (t == null)
+				return null;
+			else
+				return t.NextKey(next);
 		} // func LuaNext
 
 		/// <summary></summary>
@@ -488,7 +488,7 @@ namespace Neo.IronLua
 		/// <param name="args"></param>
 		/// <returns></returns>
 		[LuaMember("pcall")]
-		private LuaResult LuaPCall(Delegate dlg, params object[] args)
+		private static LuaResult LuaPCall(Delegate dlg, params object[] args)
 		{
 			return LuaXPCall(dlg, null, args);
 		} // func LuaPCall
@@ -519,7 +519,7 @@ namespace Neo.IronLua
 		/// <param name="b"></param>
 		/// <returns></returns>
 		[LuaMember("rawequal")]
-		private bool LuaRawEqual(object a, object b)
+		private static bool LuaRawEqual(object a, object b)
 		{
 			if (a == null && b == null)
 				return true;
@@ -544,7 +544,7 @@ namespace Neo.IronLua
 		/// <param name="index"></param>
 		/// <returns></returns>
 		[LuaMember("rawget")]
-		private object LuaRawGet(LuaTable t, object index)
+		private static object LuaRawGet(LuaTable t, object index)
 		{
 			return t.GetValue(index, true);
 		} // func LuaRawGet
@@ -553,7 +553,7 @@ namespace Neo.IronLua
 		/// <param name="v"></param>
 		/// <returns></returns>
 		[LuaMember("rawlen")]
-		private int LuaRawLen(object v)
+		private static int LuaRawLen(object v)
 		{
 			if (v == null)
 				return 0;
@@ -662,7 +662,7 @@ namespace Neo.IronLua
 		/// <param name="values"></param>
 		/// <returns></returns>
 		[LuaMember("select")]
-		private LuaResult LuaSelect(int index, params object[] values)
+		private static LuaResult LuaSelect(int index, params object[] values)
 		{
 			if (index < 0)
 			{
@@ -686,7 +686,7 @@ namespace Neo.IronLua
 		/// <param name="metaTable"></param>
 		/// <returns></returns>
 		[LuaMember("setmetatable")]
-		private LuaTable LuaSetMetaTable(LuaTable t, LuaTable metaTable)
+		private static LuaTable LuaSetMetaTable(LuaTable t, LuaTable metaTable)
 		{
 			t.MetaTable = metaTable;
 			return t;
@@ -731,7 +731,7 @@ namespace Neo.IronLua
 		/// <param name="v"></param>
 		/// <returns></returns>
 		[LuaMember("tostring")]
-		private string LuaToString(object v)
+		private static string LuaToString(object v)
 		{
 			if (v == null)
 				return null;
@@ -772,7 +772,7 @@ namespace Neo.IronLua
 		/// <param name="args"></param>
 		/// <returns></returns>
 		[LuaMember("xpcall")]
-		private LuaResult LuaXPCall(Delegate dlg, Delegate msgh, params object[] args)
+		private static LuaResult LuaXPCall(Delegate dlg, Delegate msgh, params object[] args)
 		{
 			// call the function save
 			try
@@ -794,19 +794,20 @@ namespace Neo.IronLua
 		#region -- Basic Libraries --------------------------------------------------------
 
 		[LuaMember("table")]
-		private LuaType LuaLibraryTable
+		private static LuaType LuaLibraryTable
 		{
 			get { return LuaType.GetType(typeof(LuaTable)); }
 		} // prop LuaLibraryTable
 
 		[LuaMember("coroutine")]
-		private LuaType LuaLibraryCoroutine
+		private static LuaType LuaLibraryCoroutine
 		{
 			get { return LuaType.GetType(typeof(LuaThread)); }
 		} // prop LuaLibraryTable
 
-		[LuaMember("io", PropertyLateBind = true)]
-		private LuaFilePackage LuaLibraryIO
+		/// <summary></summary>
+		[LuaMember("io")]
+		public dynamic LuaLibraryIO
 		{
 			get
 			{
@@ -816,8 +817,9 @@ namespace Neo.IronLua
 			}
 		} // prop LuaLibraryIO
 
-		[LuaMember("package", PropertyLateBind = true)]
-		private LuaLibraryPackage LuaPackage
+		/// <summary></summary>
+		[LuaMember("package")]
+		public dynamic LuaPackage
 		{
 			get
 			{
@@ -828,282 +830,30 @@ namespace Neo.IronLua
 		} // prop LuaPackage
 
 		[LuaMember("bit32")]
-		private LuaType LuaLibraryBit32
+		private static LuaType LuaLibraryBit32
 		{
 			get { return LuaType.GetType(typeof(LuaLibraryBit32)); }
 		} // prop LuaLibraryTable
 
 		[LuaMember("math")]
-		private LuaType LuaLibraryMath
+		private static LuaType LuaLibraryMath
 		{
 			get { return LuaType.GetType(typeof(LuaLibraryMath)); }
 		} // prop LuaLibraryTable
 
 		[LuaMember("os")]
-		private LuaType LuaLibraryOS
+		private static LuaType LuaLibraryOS
 		{
 			get { return LuaType.GetType(typeof(LuaLibraryOS)); }
 		} // prop LuaLibraryTable
 
 		[LuaMember("string")]
-		private LuaType LuaLibraryString
+		private static LuaType LuaLibraryString
 		{
 			get { return LuaType.GetType(typeof(LuaLibraryString)); }
 		} // prop LuaLibraryTable
 
 		#endregion
-
-		// -- Static --------------------------------------------------------------
-
-		#region -- struct LuaMember -------------------------------------------------------
-
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
-		private struct LuaMember
-		{
-			public override string ToString()
-			{
-				return Info.Name + " => " + Member.ToString();
-			}
-			public LuaMemberAttribute Info;
-			public MemberInfo Member;
-		} // struct LuaMember
-
-		#endregion
-
-		#region -- class LuaGlobalType ----------------------------------------------------
-
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
-		private sealed class LuaGlobalType
-		{
-			private readonly Type type;
-			private readonly LuaMember[] members;
-
-			#region -- Ctor/Dtor ------------------------------------------------------------
-
-			public LuaGlobalType(Type type)
-			{
-				this.type = type;
-
-				// collect the type information
-				List<LuaMember> collected = new List<LuaMember>();
-				Collect(type, collected);
-				this.members = collected.ToArray();
-			} // ctor
-
-			#endregion
-
-			#region -- Collect --------------------------------------------------------------
-
-			private void Collect(Type type, List<LuaMember> collected)
-			{
-				// is the type collected
-				LuaGlobalType current = Array.Find(memberMap, c => c != null && c.Type == type);
-
-				if (current != null) // dump map
-					collected.AddRange(current.members);
-				else if (type != typeof(LuaGlobal)) // collect recursive
-					Collect(type.BaseType, collected);
-
-				// collect current level
-				foreach (MemberInfo mi in type.GetMembers(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.GetProperty | BindingFlags.DeclaredOnly))
-				{
-					LuaMemberAttribute[] info = (LuaMemberAttribute[])Attribute.GetCustomAttributes(mi, typeof(LuaMemberAttribute));
-
-					for (int i = 0; i < info.Length; i++)
-					{
-						if (info[i].Name == null) // remove all member
-						{
-							for (int j = 0; j < collected.Count - 1; j++)
-								if (IsOverrideOf(mi, collected[j].Member))
-								{
-									collected.RemoveAt(j);
-									break;
-								}
-						}
-						else
-						{
-							int iStartIndex = FindMember(collected, info[i].Name);
-							if (iStartIndex == -1)
-							{
-								collected.Add(new LuaMember { Info = info[i], Member = mi });
-							}
-							else
-							{
-								// count the overloaded elements
-								int iNextIndex = iStartIndex;
-								while (iNextIndex < collected.Count && collected[iNextIndex].Info.Name == info[i].Name)
-									iNextIndex++;
-
-								// properties it can only exists one property
-								if (mi.MemberType == MemberTypes.Property)
-								{
-									collected.RemoveRange(iStartIndex, iNextIndex - iStartIndex);
-									collected.Add(new LuaMember { Info = info[i], Member = mi });
-								}
-								else // generate overload list
-								{
-									RemoveUseLessOverloads(collected, (MethodInfo)mi, iStartIndex, ref iNextIndex);
-									collected.Insert(iNextIndex, new LuaMember { Info = info[i], Member = mi });
-								}
-							}
-						}
-					} // for info
-				} // for member
-			} // proc Collect
-
-			private void RemoveUseLessOverloads(List<LuaMember> collected, MethodInfo mi, int iStartIndex, ref int iNextIndex)
-			{
-				while (iStartIndex < iNextIndex)
-				{
-					MethodInfo miTest = collected[iStartIndex].Member as MethodInfo;
-
-					if (miTest == null || IsOverrideOf(mi, miTest) || SameArguments(mi, miTest))
-					{
-						collected.RemoveAt(iStartIndex);
-						iNextIndex--;
-						continue;
-					}
-
-					iStartIndex++;
-				}
-			} // proc RemoveUseLessOverloads
-
-			private bool IsOverrideOf(MemberInfo mi, MemberInfo miTest)
-			{
-				if (mi.GetType() == miTest.GetType() && mi.Name == miTest.Name)
-				{
-					if (mi.MemberType == MemberTypes.Property)
-						return IsOverridePropertyOf((PropertyInfo)mi, (PropertyInfo)miTest);
-					else if (mi.MemberType == MemberTypes.Method)
-						return IsOverrideMethodOf((MethodInfo)mi, (MethodInfo)miTest);
-					else
-						return false;
-				}
-				else
-					return false;
-			} // func IsOverrideOf
-
-			private bool IsOverridePropertyOf(PropertyInfo pi, PropertyInfo piTest)
-			{
-				return IsOverrideMethodOf(pi.GetGetMethod(true), piTest.GetGetMethod(true));
-			} // func IsOverridePropertyOf
-
-			private bool IsOverrideMethodOf(MethodInfo mi, MethodInfo miTest)
-			{
-				MethodInfo miCur = mi;
-				while (true)
-				{
-					if (miCur == miTest)
-						return true;
-					else if (miCur == miCur.GetBaseDefinition())
-						return false;
-					miCur = miCur.GetBaseDefinition();
-				}
-			} // func IsOverrideMethodOf
-
-			private bool SameArguments(MethodInfo mi1, MethodInfo mi2)
-			{
-				ParameterInfo[] parameterInfo1 = mi1.GetParameters();
-				ParameterInfo[] parameterInfo2 = mi2.GetParameters();
-				if (parameterInfo1.Length == parameterInfo2.Length)
-				{
-					for (int i = 0; i < parameterInfo1.Length; i++)
-						if (parameterInfo1[i].ParameterType != parameterInfo2[i].ParameterType ||
-								parameterInfo1[i].Attributes != parameterInfo2[i].Attributes)
-							return false;
-
-					return true;
-				}
-				else
-					return false;
-			} // func SameArguments
-
-			private int FindMember(List<LuaMember> collected, string sName)
-			{
-				for (int i = 0; i < collected.Count; i++)
-					if (collected[i].Info.Name == sName)
-						return i;
-				return -1;
-			} // func FindMember
-
-			#endregion
-
-			#region -- Init -----------------------------------------------------------------
-
-			public void Init(LuaGlobal g)
-			{
-				int i = 0;
-				while (i < members.Length)
-				{
-					int iStart = i;
-					int iCount = 1;
-					string sCurrentName = members[i].Info.Name;
-
-					// count same elements
-					while (++i < members.Length && sCurrentName == members[i].Info.Name)
-						iCount++;
-
-					if (iCount == 1) // create single member
-					{
-						MemberInfo mi = members[iStart].Member;
-						if (mi.MemberType == MemberTypes.Property)
-							g.SetMemberValue(sCurrentName,
-								members[iStart].Info.PropertyLateBind ?
-									(object)new LuaMemberDynamicProperty(g, (PropertyInfo)mi) :
-									((PropertyInfo)mi).GetValue(g, null),
-								false, true);
-						else
-							g.SetMemberValue(sCurrentName, new LuaMethod(g, (MethodInfo)mi), false, true);
-					}
-					else //create overloaded member
-					{
-						MethodInfo[] methods = new MethodInfo[iCount];
-						for (int j = 0; j < iCount; j++)
-							methods[j] = (MethodInfo)members[iStart + j].Member;
-						g.SetMemberValue(sCurrentName, new LuaOverloadedMethod(g, methods), false, true);
-					}
-				}
-			} // proc Init
-
-			#endregion
-
-			public Type Type { get { return type; } }
-		} // struct LuaGlobalType
-
-		#endregion
-
-		private static int iMemberMapCount = 0;
-		private static LuaGlobalType[] memberMap = new LuaGlobalType[0];
-		private static object lockMember = new object();
-
-		private static void InitLuaMemberMap(LuaGlobal g)
-		{
-			LuaGlobalType map;
-			lock (lockMember)
-			{
-				// is the type collected
-				Type typeGlobal = g.GetType();
-				map = Array.Find(memberMap, c => c != null && c.Type == typeGlobal);
-				if (map == null) // collect the infomration
-				{
-					map = new LuaGlobalType(typeGlobal);
-
-					if (iMemberMapCount == memberMap.Length)
-					{
-						LuaGlobalType[] newMemberMap = new LuaGlobalType[memberMap.Length + 4];
-						Array.Copy(memberMap, 0, newMemberMap, 0, memberMap.Length);
-						memberMap = newMemberMap;
-					}
-
-					memberMap[iMemberMapCount++] = map;
-				}
-			}
-
-			// initialize global
-			map.Init(g);
-		} // func GetLuaMemberMap
 	} // class LuaGlobal
 
 	#endregion
@@ -1116,7 +866,6 @@ namespace Neo.IronLua
 	public sealed class LuaMemberAttribute : Attribute
 	{
 		private string sName;
-		private bool lDynamicBind;
 
 		/// <summary>Marks global Members, they act normally as library</summary>
 		/// <param name="sName"></param>
@@ -1127,152 +876,7 @@ namespace Neo.IronLua
 
 		/// <summary>Global name of the function.</summary>
 		public string Name { get { return sName; } }
-		/// <summary>Do not initialize property direct. Do create a dynamic proxy.</summary>
-		public bool PropertyLateBind { get { return lDynamicBind; } set { lDynamicBind = value; } }
 	} // class LuaLibraryAttribute
-
-	#endregion
-
-	#region -- class LuaMemberDynamicProperty -------------------------------------------
-
-	///////////////////////////////////////////////////////////////////////////////
-	/// <summary></summary>
-	public sealed class LuaMemberDynamicProperty : IDynamicMetaObjectProvider
-	{
-		#region -- class LuaMemberPropertyMetaObject --------------------------------------
-
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
-		private class LuaMemberPropertyMetaObject : DynamicMetaObject
-		{
-			#region -- Ctor/Dtor ------------------------------------------------------------
-
-			public LuaMemberPropertyMetaObject(LuaMemberDynamicProperty value, Expression parameter)
-				: base(parameter, BindingRestrictions.Empty, value)
-			{
-			} // ctor
-
-			#endregion
-
-			#region -- GetTargetMetaObject --------------------------------------------------
-
-			private DynamicMetaObject GetTargetMetaObject()
-			{
-				LuaMemberDynamicProperty p = (LuaMemberDynamicProperty)Value;
-				return new DynamicMetaObject(
-
-					Expression.Property(
-						Expression.Convert(
-							Expression.Property(Expression.Convert(Expression, typeof(LuaMemberDynamicProperty)), Lua.LuaMemberPropertyInstancePropertyInfo),
-							p.property.DeclaringType
-						), p.property),
-					BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaMemberDynamicProperty))
-					.Merge(BindingRestrictions.GetExpressionRestriction(Expression.Equal(Expression.Property(Expression.Convert(Expression, typeof(LuaMemberDynamicProperty)), Lua.LuaMemberPropertyPropertyPropertyInfo), Expression.Constant(p.property))))
-				);
-			} // func GetTargetMetaObject
-
-			#endregion
-
-			#region -- Binder ---------------------------------------------------------------
-
-			public override DynamicMetaObject BindUnaryOperation(UnaryOperationBinder binder)
-			{
-				return binder.FallbackUnaryOperation(GetTargetMetaObject());
-			} // func BindUnaryOperation
-
-			public override DynamicMetaObject BindBinaryOperation(BinaryOperationBinder binder, DynamicMetaObject arg)
-			{
-				return binder.FallbackBinaryOperation(GetTargetMetaObject(), arg);
-			} // func BindBinaryOperation
-
-			public override DynamicMetaObject BindCreateInstance(CreateInstanceBinder binder, DynamicMetaObject[] args)
-			{
-				return binder.FallbackCreateInstance(GetTargetMetaObject(), args);
-			} // func BindCreateInstance
-
-			public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
-			{
-				return binder.FallbackGetMember(GetTargetMetaObject());
-			} // func BindGetMember
-
-			public override DynamicMetaObject BindSetMember(SetMemberBinder binder, DynamicMetaObject value)
-			{
-				return binder.FallbackSetMember(GetTargetMetaObject(), value);
-			} // func BindSetMember
-
-			public override DynamicMetaObject BindDeleteMember(DeleteMemberBinder binder)
-			{
-				return binder.FallbackDeleteMember(GetTargetMetaObject());
-			} // func BindDeleteMember
-
-			public override DynamicMetaObject BindGetIndex(GetIndexBinder binder, DynamicMetaObject[] indexes)
-			{
-				return binder.FallbackGetIndex(GetTargetMetaObject(), indexes);
-			} // func BindGetIndex
-
-			public override DynamicMetaObject BindSetIndex(SetIndexBinder binder, DynamicMetaObject[] indexes, DynamicMetaObject value)
-			{
-				return binder.FallbackSetIndex(GetTargetMetaObject(), indexes, value);
-			} // func BindSetIndex
-
-			public override DynamicMetaObject BindDeleteIndex(DeleteIndexBinder binder, DynamicMetaObject[] indexes)
-			{
-				return binder.FallbackDeleteIndex(GetTargetMetaObject(), indexes);
-			} // func BindDeleteIndex
-
-			public override DynamicMetaObject BindInvoke(InvokeBinder binder, DynamicMetaObject[] args)
-			{
-				return binder.FallbackInvoke(GetTargetMetaObject(), args);
-			} // func BindInvoke
-
-			public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
-			{
-				return binder.FallbackInvokeMember(GetTargetMetaObject(), args);
-			} // func BindInvokeMember
-
-			public override DynamicMetaObject BindConvert(ConvertBinder binder)
-			{
-				return binder.FallbackConvert(GetTargetMetaObject());
-			} // func BindConvert
-
-			#endregion
-		} // class LuaMemberPropertyMetaObject
-
-		#endregion
-
-		private object instance;
-		private PropertyInfo property;
-
-		#region -- Ctor/Dtor --------------------------------------------------------------
-
-		internal LuaMemberDynamicProperty(object instance, PropertyInfo property)
-		{
-			this.instance = instance;
-			this.property = property;
-		} // ctor
-
-		/// <summary></summary>
-		/// <param name="parameter"></param>
-		/// <returns></returns>
-		public DynamicMetaObject GetMetaObject(Expression parameter)
-		{
-			return new LuaMemberPropertyMetaObject(this, parameter);
-		} // func GetMetaObject
-	
-		/// <summary></summary>
-		/// <returns></returns>
-		public override string ToString()
-		{
-			return "dynamic property [ " + property.ToString() + "]";
-		} // func ToString
-
-		#endregion
-
-		/// <summary></summary>
-		public object Instance { get { return instance; } }
-		/// <summary></summary>
-		public PropertyInfo Property { get { return property; } }
-	} // class LuaMemberProperty
 
 	#endregion
 }

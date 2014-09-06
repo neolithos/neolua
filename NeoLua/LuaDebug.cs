@@ -216,6 +216,8 @@ namespace Neo.IronLua
 					Type type = node.Value.GetType();
 					if (Type.GetTypeCode(type) < TypeCode.Boolean && !typeof(Type).IsAssignableFrom(type))
 						return Visit(CreateField(node.Value, type, null));
+					else if (node.Type == typeof(object))
+						return Visit(Expression.Convert(Expression.Constant(node.Value), typeof(object)));
 				}
 				return base.VisitConstant(node);
 			} // func VisitConstant

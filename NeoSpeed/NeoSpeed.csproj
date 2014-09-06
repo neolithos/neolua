@@ -21,9 +21,9 @@
     <PlatformTarget>x86</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
+    <Optimize>true</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>DEBUG</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -55,6 +55,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="Scripts\CallStd.lua" />
     <None Include="Scripts\Delegate.lua" />
     <None Include="Scripts\Empty.lua" />
     <None Include="Scripts\Sum_strict1.lua" />
@@ -65,7 +66,10 @@
     <None Include="Scripts\String.lua" />
     <None Include="Scripts\StringBuilder1.lua" />
     <None Include="Scripts\Sum.lua" />
-    <None Include="Scripts\TableInt.lua" />
+    <None Include="Scripts\TableIntSet.lua" />
+    <None Include="Scripts\TableVsList2.lua" />
+    <None Include="Scripts\TableVsList1.lua" />
+    <None Include="Scripts\TableIntGet.lua" />
     <None Include="Scripts\TableString.lua" />
   </ItemGroup>
   <ItemGroup>

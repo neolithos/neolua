@@ -64,7 +64,7 @@ namespace Neo.IronLua
 			LuaMember("console"),
 			LuaMember("out")
 			]
-			public LuaType LuaConsole { get { return LuaType.GetType(typeof(Console)); } }
+			private static LuaType LuaConsole { get { return LuaType.GetType(typeof(Console)); } }
 		} // class LuaCommandGlobal
 
 		#endregion

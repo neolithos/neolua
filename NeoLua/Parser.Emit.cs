@@ -125,10 +125,7 @@ namespace Neo.IronLua
 
 		private static Expression MemberGetExpression(Lua runtime, Token tStart, Expression instance, string sMember, bool lMethodMember)
 		{
-			if (instance.Type == typeof(LuaTable))
-				return IndexGetExpression(runtime, tStart, instance, new Expression[] { Expression.Constant(sMember) });
-			else
-				return SafeExpression(() => LuaEmit.GetMember(runtime, instance, instance.Type, sMember, false, true), tStart);
+  		return SafeExpression(() => LuaEmit.GetMember(runtime, instance, instance.Type, sMember, false, true), tStart);
 		} // func MemberGetExpression
 
 		private static Expression MemberSetExpression(Lua runtime, Token tStart, Expression instance, string sMember, bool lMethodMember, Expression set)
@@ -143,8 +140,6 @@ namespace Neo.IronLua
 					 ConvertExpression(runtime, tStart, set, typeof(Delegate))
 				);
 			}
-			else if (instance.Type == typeof(LuaTable))
-				return IndexSetExpression(runtime, tStart, instance, new Expression[] { Expression.Constant(sMember) }, set);
 			else
 				return SafeExpression(() => LuaEmit.SetMember(runtime, instance, instance.Type, sMember, false, set, set.Type, true), tStart);
 		} // func MemberSetExpression

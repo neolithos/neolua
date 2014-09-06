@@ -24,8 +24,11 @@ namespace NeoSpeed
 				Path.GetFullPath(@"..\..\Scripts\String_echo.lua"),
 				Path.GetFullPath(@"..\..\Scripts\Delegate.lua"),
 				Path.GetFullPath(@"..\..\Scripts\StringBuilder{0}.lua"),
-				Path.GetFullPath(@"..\..\Scripts\TableInt.lua"),
-				Path.GetFullPath(@"..\..\Scripts\TableString.lua")
+				Path.GetFullPath(@"..\..\Scripts\CallStd.lua"),
+				Path.GetFullPath(@"..\..\Scripts\TableIntSet.lua"),
+				Path.GetFullPath(@"..\..\Scripts\TableIntGet.lua"),
+				Path.GetFullPath(@"..\..\Scripts\TableVsList{0}.lua"),
+				Path.GetFullPath(@"..\..\Scripts\TableString.lua"),
       };
 
       Console.WriteLine();
@@ -78,7 +81,7 @@ namespace NeoSpeed
       Console.WriteLine();
       Console.WriteLine(v == 1801800 ? "All called." : String.Format("{0} != {1}", v, 1201200));
 
-      Console.ReadLine();
+			Console.ReadLine();
     }
 
     private static double ExecuteLuaIntfCompiled(string sScript, int iLoops)
