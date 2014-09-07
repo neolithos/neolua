@@ -29,9 +29,9 @@ namespace LuaDLR.Test
 			Assert.AreEqual(t["test"], "n");
 
 			IDictionary<string, object> a = (IDictionary<string, object>)t;
-			string[] r = new string[3];
+			string[] r = new string[2];
 			a.Keys.CopyTo(r, 0);
-			Assert.IsTrue(r[0] == "Test" && r[1] == "test");
+			Assert.IsTrue(r[0] == "test" && r[1] == "Test");
 
 			t.SetMemberValue("Test", null, true, true);
 			t.SetMemberValue("Test", null, true, true);
@@ -132,28 +132,28 @@ namespace LuaDLR.Test
 			for (int i = 4; i <= 16; i++)
 				t[i] = i;
 			Assert.AreEqual(t.Length, 2);
-			Assert.AreEqual(t.Values.Count, 16);
+			Assert.AreEqual(t.Values.Count, 15);
 			Assert.AreEqual(t[1], 1);
 			Assert.AreEqual(t[4], 4);
 			t[3] = 3;
 			Assert.AreEqual(t.Length, 16);
-			Assert.AreEqual(t.Values.Count, 17);
+			Assert.AreEqual(t.Values.Count, 16);
 			Assert.AreEqual(t[4], 4);
 
 			t[1] = null;
 			Assert.AreEqual(t.Length, 0);
-			Assert.AreEqual(t.Values.Count, 16);
+			Assert.AreEqual(t.Values.Count, 15);
 			Assert.AreEqual(t[4], 4);
 			t[18] = 18;
 			Assert.AreEqual(t[18], 18);
-			Assert.AreEqual(t.Values.Count, 17);
+			Assert.AreEqual(t.Values.Count, 16);
 			t[20] = 20;
 			Assert.AreEqual(t[20], 20);
-			Assert.AreEqual(t.Values.Count, 18);
+			Assert.AreEqual(t.Values.Count, 17);
 			t[17] = 17;
-			Assert.AreEqual(t.Values.Count, 19);
+			Assert.AreEqual(t.Values.Count, 18);
 			t[1] = 1;
-			Assert.AreEqual(t.Values.Count, 20);
+			Assert.AreEqual(t.Values.Count, 19);
 			Assert.AreEqual(t.Length, 18);
 			for (int i = 1; i <= 18; i++)
 				Assert.AreEqual(t[i], i);
@@ -647,5 +647,44 @@ namespace LuaDLR.Test
         TestResult(g.dochunk("return test(5)", "test.lua"), 10);
       }
     } // prop EnvDynamicCall01
+
+		[TestMethod]
+		public void TestTableInterface01()
+		{
+			LuaTable t = new LuaTable();
+			t[1] = 1;
+			t[2] = 2;
+			t[100] = 100;
+
+			t["Test"] = "test";
+			t["o"] = "o";
+
+			Assert.AreEqual(t.Length, 2);
+			Assert.AreEqual(t.ArrayList.Count, 2);
+			Assert.AreEqual(t.Members.Count, 2);
+			Assert.AreEqual(t.Values.Count, 5);
+
+			t[2] = null;
+
+			Assert.AreEqual(t.Length, 1);
+			Assert.AreEqual(t.ArrayList.Count, 1);
+			Assert.AreEqual(t.Members.Count, 2);
+			Assert.AreEqual(t.Values.Count, 4);
+
+			t["o"] = null;
+
+			Assert.AreEqual(t.Length, 1);
+			Assert.AreEqual(t.ArrayList.Count, 1);
+			Assert.AreEqual(t.Members.Count, 1);
+			Assert.AreEqual(t.Values.Count, 3);
+
+			int i = 0;
+			foreach (var c in t.ArrayList)
+				Console.WriteLine("Index [{0}] = {1}", i++, c);
+			foreach (var c in t.Members)
+				Console.WriteLine("Member [{0}] = {1}", c.Key, c.Value);
+			foreach (var c in t.Values)
+				Console.WriteLine("Key [{0}] = {1}", c.Key, c.Value);
+		}
   } // class LuaTableTests
 }

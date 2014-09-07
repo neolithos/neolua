@@ -51,10 +51,13 @@ namespace Neo.IronLua
 		internal readonly static MethodInfo TableSetValueKeyListMethodInfo;
 		internal readonly static MethodInfo TableGetValueKeyListMethodInfo;
 
-		internal readonly static PropertyInfo TableMetaTablePropertyInfo;
 		internal readonly static MethodInfo TableGetCallMemberMethodInfo;
 		internal readonly static MethodInfo TableSetObjectMemberMethodInfo;
 		internal readonly static MethodInfo TableDefineMethodLightMethodInfo;
+
+		internal readonly static FieldInfo TableEntriesFieldInfo;
+		internal readonly static MethodInfo TablePropertyChangedMethodInfo;
+		internal readonly static FieldInfo TableEntryValueFieldInfo;
 
 		internal readonly static MethodInfo TableAddMethodInfo;
 		internal readonly static MethodInfo TableSubMethodInfo;
@@ -160,9 +163,12 @@ namespace Neo.IronLua
 			TableGetValueKeyListMethodInfo = typeof(LuaTable).GetMethod("GetValue", BindingFlags.Public | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly, null, new Type[] { typeof(object[]), typeof(bool) }, null);
 
 			TableDefineMethodLightMethodInfo = typeof(LuaTable).GetMethod("DefineMethodLight", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly, null, new Type[] { typeof(string), typeof(Delegate) }, null);
-			TableMetaTablePropertyInfo = typeof(LuaTable).GetProperty("MetaTable", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty | BindingFlags.DeclaredOnly);
 			TableGetCallMemberMethodInfo = typeof(LuaTable).GetMethod("GetCallMember", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
 			TableSetObjectMemberMethodInfo = typeof(LuaTable).GetMethod("SetObjectMember", BindingFlags.Public | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly, null, new Type[] { typeof(object) }, null);
+
+			TableEntriesFieldInfo=typeof(LuaTable).GetField("entries", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetField);
+			TablePropertyChangedMethodInfo = typeof(LuaTable).GetMethod("OnPropertyChanged", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly, null, new Type[] { typeof(string) }, null);
+			TableEntryValueFieldInfo = typeof(LuaTable).GetNestedType("LuaTableEntry", BindingFlags.NonPublic).GetField("value", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetField);
 
 			TableAddMethodInfo = typeof(LuaTable).GetMethod("OnAdd", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
 			TableSubMethodInfo = typeof(LuaTable).GetMethod("OnSub", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
@@ -193,8 +199,9 @@ namespace Neo.IronLua
 					TableSetValueKeyObjectMethodInfo == null || TableGetValueKeyObjectMethodInfo == null ||
 					TableSetValueKeyListMethodInfo == null || TableGetValueKeyListMethodInfo == null ||
 
-					TableDefineMethodLightMethodInfo == null || TableMetaTablePropertyInfo == null ||
-					TableGetCallMemberMethodInfo == null || TableSetObjectMemberMethodInfo == null ||
+					TableDefineMethodLightMethodInfo == null || TableGetCallMemberMethodInfo == null || TableSetObjectMemberMethodInfo == null ||
+
+					TableEntriesFieldInfo == null || TablePropertyChangedMethodInfo == null || TableEntryValueFieldInfo == null ||
 
 					TableAddMethodInfo == null || TableSubMethodInfo == null || TableMulMethodInfo == null ||
 					TableDivMethodInfo == null || TableModMethodInfo == null || TablePowMethodInfo == null ||
