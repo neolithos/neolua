@@ -495,7 +495,7 @@ namespace Neo.IronLua
 
 			// Registers the global LuaTable
 			if (lHasEnvironment)
-				parameters.Add(globalScope.RegisterParameter(typeof(LuaGlobal), csEnv));
+				parameters.Add(globalScope.RegisterParameter(typeof(LuaGlobal), csEnv)); // todo: LuaTable instead of LuaGlobal
 
 			if (args != null)
 			{
@@ -1110,7 +1110,7 @@ namespace Neo.IronLua
 
 				case LuaToken.KwFunction: // Function definition
 					code.Next();
-					info = new PrefixMemberInfo(tStart, ParseLamdaDefinition(scope, code, "lambda", false), null, null, null);
+					info = new PrefixMemberInfo(tStart, ParseLamdaDefinition(scope, code, "lambda", false, null), null, null, null);
 					break;
 
 				default:
@@ -1723,7 +1723,7 @@ namespace Neo.IronLua
 
 			FetchToken(LuaToken.KwEnd, code);
 
-			if (exprFinally != null || exprFinally.Length > 0)
+			if (exprFinally != null && exprFinally.Length > 0)
 			{
 				outerScope.AddExpression(
 					Expression.TryFinally(
@@ -2013,8 +2013,10 @@ namespace Neo.IronLua
 			if (lLocal) // Local function, only one identifier is allowed
 			{
 				var t = FetchToken(LuaToken.Identifier, code);
-				Expression exprFunction = ParseLamdaDefinition(scope, code, t.Value, false);
-				ParameterExpression funcVar = scope.RegisterVariable(exprFunction.Type, t.Value);
+				ParameterExpression funcVar = null;
+				Expression exprFunction = ParseLamdaDefinition(scope, code, t.Value, false,
+					typeDelegate => funcVar = scope.RegisterVariable(typeDelegate, t.Value)
+				);
 				scope.AddExpression(Expression.Assign(funcVar, exprFunction));
 			}
 			else // Function that is assigned to a table. A chain of identifiers is allowed.
@@ -2052,7 +2054,7 @@ namespace Neo.IronLua
 				}
 
 				// generate lambda
-				scope.AddExpression(MemberSetExpression(scope.Runtime, tCurrent, assignee, sMember, lMethodMember, ParseLamdaDefinition(scope, code, sMember, lMethodMember)));
+				scope.AddExpression(MemberSetExpression(scope.Runtime, tCurrent, assignee, sMember, lMethodMember, ParseLamdaDefinition(scope, code, sMember, lMethodMember, null)));
 			}
 		} // proc ParseLamdaDefinition
 
@@ -2071,7 +2073,7 @@ namespace Neo.IronLua
 			return assignee;
 		} // proc ParseFunctionAddChain
 
-		private static Expression ParseLamdaDefinition(Scope parent, LuaLexer code, string sName, bool lSelfParameter)
+		private static Expression ParseLamdaDefinition(Scope parent, LuaLexer code, string sName, bool lSelfParameter, Action<Type> functionTypeCollected)
 		{
 			List<ParameterExpression> parameters = new List<ParameterExpression>();
 			LambdaScope scope = new LambdaScope(parent);
@@ -2125,11 +2127,24 @@ namespace Neo.IronLua
 			else
 				scope.ResetReturnLabel(typeof(LuaResult), Expression.Property(null, Lua.ResultEmptyPropertyInfo));
 
+			// register the delegate
+			if (functionTypeCollected != null)
+			{
+				functionTypeCollected(
+					Expression.GetFuncType(
+						(from p in parameters select p.Type).Concat(new Type[] { scope.ReturnType }).ToArray()
+					)
+				);
+			}
+
 			// Lese den Code-Block
 			ParseBlock(scope, code);
 
 			FetchToken(LuaToken.KwEnd, code);
-			return Expression.Lambda(scope.ExpressionBlock, (parent.EmitDebug & LuaDebugLevel.RegsiterMethods) == LuaDebugLevel.RegsiterMethods ? Lua.RegisterUniqueName(sName) : sName, parameters);
+			return Expression.Lambda(
+				scope.ExpressionBlock, 
+				(parent.EmitDebug & LuaDebugLevel.RegsiterMethods) == LuaDebugLevel.RegsiterMethods ? Lua.RegisterUniqueName(sName) : sName, 
+				parameters);
 		} // proc ParseLamdaDefinition
 
 		private static void ParseLamdaDefinitionArgList(LambdaScope scope, List<ParameterExpression> parameters)

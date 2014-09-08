@@ -12,6 +12,8 @@ namespace LuaDLR.Test
 {
   public class TestHelper
   {
+		public static bool PrintExpressionTree = true;
+
     public string Lines(params string[] lines)
     {
       return String.Join(Environment.NewLine, lines);
@@ -28,7 +30,7 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        l.PrintExpressionTree = true;
+        l.PrintExpressionTree = PrintExpressionTree;
         var g = l.CreateEnvironment();
         Console.WriteLine("Test: {0}", sCode);
         Console.WriteLine(new string('=', 66));

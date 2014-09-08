@@ -403,77 +403,77 @@ namespace Neo.IronLua
       }
 
       // check if we nead another conversion
-      if (fromType == toType)
-      {
-        return expr;
-      }
-      else if (fromType == typeof(LuaResult)) // LuaResult -> convert first value
-      {
-        return GetResultExpression(runtime, expr, fromType, 0, toType, null, lParse);
-      }
-      else if (toType == typeof(LuaResult)) // type to LuaResult
-      {
-        return Expression.New(Lua.ResultConstructorInfoArg1, Convert(runtime, expr, fromType, typeof(object), false));
-      }
-      else if (runtime != null && lParse && IsDynamicType(fromType)) // dynamic type -> dynamic convert
-      {
-        return Expression.Dynamic(runtime.GetConvertBinder(toType), toType, Convert(null, expr, fromType, typeof(object), false));
-      }
-      else if (toType == typeof(object) || toType.IsAssignableFrom(fromType)) // Type is assignable
-      {
-        return Expression.Convert(expr, toType);
-      }
-      else if (toType == typeof(bool)) // we need a true or false
-      {
-        return BinaryOperationExpression(runtime, ExpressionType.NotEqual, expr, fromType, Expression.Default(fromType), fromType, lParse);
-      }
-      else if (toType == typeof(string)) // convert to a string
-      {
-        // try find a conversion
-        foreach (MethodInfo mi in fromType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod))
-        {
-          if ((mi.Name == csExplicit || mi.Name == csImplicit) &&
-            mi.ReturnType == typeof(string))
-            return Expression.Convert(expr, toType, mi);
-        }
+			if (fromType == toType)
+			{
+				return expr;
+			}
+			else if (fromType == typeof(LuaResult)) // LuaResult -> convert first value
+			{
+				return GetResultExpression(runtime, expr, fromType, 0, toType, null, lParse);
+			}
+			else if (toType == typeof(LuaResult)) // type to LuaResult
+			{
+				return Expression.New(Lua.ResultConstructorInfoArg1, Convert(runtime, expr, fromType, typeof(object), false));
+			}
+			else if (runtime != null && lParse && IsDynamicType(fromType)) // dynamic type -> dynamic convert
+			{
+				return Expression.Dynamic(runtime.GetConvertBinder(toType), toType, Convert(null, expr, fromType, typeof(object), false));
+			}
+			else if (toType == typeof(object) || toType.IsAssignableFrom(fromType)) // Type is assignable
+			{
+				return Expression.Convert(expr, toType);
+			}
+			else if (toType == typeof(bool)) // we need a true or false
+			{
+				return BinaryOperationExpression(runtime, ExpressionType.NotEqual, expr, fromType, Expression.Default(fromType), fromType, lParse);
+			}
+			else if (toType == typeof(string)) // convert to a string
+			{
+				// try find a conversion
+				foreach (MethodInfo mi in fromType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod))
+				{
+					if ((mi.Name == csExplicit || mi.Name == csImplicit) &&
+						mi.ReturnType == typeof(string))
+						return Expression.Convert(expr, toType, mi);
+				}
 
-        // call convert to string
-        return Expression.Call(Lua.ConvertToStringMethodInfo,
-          Convert(runtime, expr, fromType, typeof(object), false),
-          Expression.Property(null, Lua.CultureInvariantPropertyInfo)
-        );
-      }
-      else if (fromType == typeof(string) && IsArithmeticType(toType)) // we expect a string and have a number
-      {
-        return Convert(runtime, ParseNumberExpression(runtime, expr, fromType), typeof(object), toType, true); // allow dynamic converts
-      }
-      else if (fromType == typeof(string) && toType == typeof(char))
-      {
-        return Expression.Property(Convert(runtime, expr, fromType, fromType, false), Lua.StringItemPropertyInfo, Expression.Constant(0));
-      }
-      else if (toType.BaseType == typeof(MulticastDelegate) && toType.BaseType == fromType.BaseType)
-      {
-        return Expression.Convert(
-          Expression.Call(Lua.ConvertDelegateMethodInfo,
-            Expression.Constant(toType, typeof(Type)),
-            Convert(runtime, expr, fromType, typeof(Delegate), lParse)
-          ),
-          toType
-        );
-      }
-      else if (fromType.IsArray && toType.IsArray)
-      {
-        return Expression.Convert(Expression.Call(Lua.ConvertArrayMethodInfo, Convert(runtime, expr, fromType, toType, lParse), Expression.Constant(toType.GetElementType())), toType);
-      }
-      else
-        try
-        {
-          return Expression.Convert(expr, toType);
-        }
-        catch
-        {
-          throw new LuaEmitException(LuaEmitException.ConversationNotDefined, toType.Name, fromType.Name);
-        }
+				// call convert to string
+				return Expression.Call(Lua.ConvertToStringMethodInfo,
+					Convert(runtime, expr, fromType, typeof(object), false),
+					Expression.Property(null, Lua.CultureInvariantPropertyInfo)
+				);
+			}
+			else if (fromType == typeof(string) && IsArithmeticType(toType)) // we expect a string and have a number
+			{
+				return Convert(runtime, ParseNumberExpression(runtime, expr, fromType), typeof(object), toType, true); // allow dynamic converts
+			}
+			else if (fromType == typeof(string) && toType == typeof(char))
+			{
+				return Expression.Property(Convert(runtime, expr, fromType, fromType, false), Lua.StringItemPropertyInfo, Expression.Constant(0));
+			}
+			else if (toType.BaseType == typeof(MulticastDelegate) && toType.BaseType == fromType.BaseType)
+			{
+				return Expression.Convert(
+					Expression.Call(Lua.ConvertDelegateMethodInfo,
+						Expression.Constant(toType, typeof(Type)),
+						Convert(runtime, expr, fromType, typeof(Delegate), lParse)
+					),
+					toType
+				);
+			}
+			else if (fromType.IsArray && toType.IsArray)
+			{
+				return Expression.Convert(Expression.Call(Lua.ConvertArrayMethodInfo, Convert(runtime, expr, fromType, toType, lParse), Expression.Constant(toType.GetElementType())), toType);
+			}
+			else
+				try
+				{
+					return Expression.Convert(expr, toType);
+				}
+				catch
+				{
+					throw new LuaEmitException(LuaEmitException.ConversationNotDefined, fromType.Name, toType.Name);
+				}
     } // func Convert
 
     private static Expression ParseNumberExpression(Lua runtime, Expression expr1, Type type1)

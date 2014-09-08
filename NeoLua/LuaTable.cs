@@ -1211,7 +1211,7 @@ namespace Neo.IronLua
 		private CallSiteBinder GetInvokeBinder(CallInfo callInfo)
 		{
 			CallSiteBinder b;
-			lock (invokeBinder)
+			lock (invokeBinder) // todo: Lua Global has already binders?
 				if (!invokeBinder.TryGetValue(callInfo, out b))
 					b = invokeBinder[callInfo] = new Lua.LuaInvokeBinder(null, callInfo);
 			return b;
@@ -3469,7 +3469,6 @@ namespace Neo.IronLua
 		{
 			var r = collect<string>(t, i, j, null);
 			return r == null ? String.Empty : String.Join(sep == null ? String.Empty : sep, r);
-
 		} // func concat
 
 		#endregion
@@ -3701,7 +3700,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static T[] collect<T>(LuaTable t, int i, int j, T[] empty)
 		{
-			if (j < i || i == j)
+			if (j < i)
 				return empty;
 
 			if (i >= 1 && i <= t.iArrayLength && j >= 1 && j <= t.iArrayLength) // within the array

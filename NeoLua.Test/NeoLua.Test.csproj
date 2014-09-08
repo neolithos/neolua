@@ -73,6 +73,7 @@
     <Compile Include="LuaType.cs" />
     <Compile Include="Parser.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RunLuaTests.cs" />
     <Compile Include="Runtime.cs" />
     <Compile Include="TestHelper.cs" />
   </ItemGroup>
@@ -123,6 +124,10 @@
     <EmbeddedResource Include="Lua\EnvDynamicCall01.lua" />
     <EmbeddedResource Include="Lua\Coroutines01.lua" />
     <EmbeddedResource Include="Lua\Function08a.lua" />
+    <EmbeddedResource Include="CompTests\calls.lua" />
+    <EmbeddedResource Include="CompTests\strings.lua" />
+    <EmbeddedResource Include="CompTests\bitwise.lua" />
+    <EmbeddedResource Include="CompTests\literals.lua" />
     <None Include="Lua\Echo.bat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

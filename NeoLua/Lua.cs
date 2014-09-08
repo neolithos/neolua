@@ -331,23 +331,42 @@ namespace Neo.IronLua
 
 		private static object ParseInteger(string sNumber, int integerType)
 		{
+			bool lNeg = sNumber[0] == '-';
 			NumberStyles style = ((byte)integerType & 8) != 0 ? NumberStyles.HexNumber : NumberStyles.Integer;
 			switch ((LuaIntegerType)(integerType & (byte)LuaIntegerType.Mask))
 			{
 				case LuaIntegerType.Int16:
 					{
 						short t;
-						return Int16.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t) ? t : ThrowFormatExpression(integerType, sNumber, "short");
+						ushort t2;
+						if (Int16.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t) && (lNeg || t >= 0))
+							return t;
+						else if (UInt16.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t2))
+							return t2;
+						else
+							goto case LuaIntegerType.Int32;
 					}
 				case LuaIntegerType.Int32:
 					{
 						int t;
-						return Int32.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t) ? t : ThrowFormatExpression(integerType, sNumber, "int");
+						uint t2;
+						if (Int32.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t) && (lNeg || t >= 0))
+							return t;
+						else if (UInt32.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t2))
+							return t2;
+						else
+							goto case LuaIntegerType.Int64;
 					}
 				case LuaIntegerType.Int64:
 					{
 						long t;
-						return Int64.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t) ? t : ThrowFormatExpression(integerType, sNumber, "long");
+						ulong t2;
+						if (Int64.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t) && (lNeg || t >= 0))
+							return t;
+						else if (UInt64.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t2))
+							return t2;
+						else
+							return ThrowFormatExpression(integerType, sNumber, "integer");
 					}
 				default:
 					throw new InvalidOperationException();

@@ -445,14 +445,32 @@ namespace Neo.IronLua
 		[LuaMember("load")]
 		private object LuaLoad(object ld, string source, string mode, LuaGlobal env)
 		{
-			if (source == null)
+			if (String.IsNullOrEmpty(source))
 				source = "=(load)";
 
-			if (mode == "b" || !(ld is string)) // binary chunks are not implementeted
+			if (mode == "b" || !(ld is string || ld is LuaMethod || ld is Delegate)) // binary chunks are not implementeted
 				throw new NotImplementedException();
 
-			// create the chunk
-			return LuaLoadReturn(lua.CompileChunk((string)ld, source, null), env); // is only disposed, when Lua-Script-Engine disposed.
+			try
+			{
+				// collect the chunks
+				if (ld is LuaMethod)
+					ld = ((LuaMethod)ld).CreateDelegate(typeof(Func<object>)); // todo: invoke!
+				if (ld is Delegate)
+				{
+					StringBuilder sbCode = new StringBuilder();
+					string sPart;
+					while (!String.IsNullOrEmpty(sPart = (string)new LuaResult(Lua.RtInvoke((Delegate)ld))[0]))
+						sbCode.Append(sPart);
+					ld = sbCode.ToString();
+				}
+				// create the chunk
+				return LuaLoadReturn(lua.CompileChunk((string)ld, source, null), env); // is only disposed, when Lua-Script-Engine disposed.
+			}
+			catch (Exception e)
+			{
+				return new LuaResult(null, e.Message);
+			}
 		} // func LuaLoad
 
 		/// <summary></summary>
@@ -734,9 +752,9 @@ namespace Neo.IronLua
 		private static string LuaToString(object v)
 		{
 			if (v == null)
-				return null;
+				return "nil";
 			else
-				return v.ToString();
+				return (string)Lua.RtConvertValue(v, typeof(string));
 		} // func LuaToString
 
 		/// <summary></summary>
@@ -756,14 +774,14 @@ namespace Neo.IronLua
 				return "boolean";
 			else if (v is LuaTable)
 				return "table";
-			else if (v is Delegate)
+			else if (v is Delegate || v is ILuaMethod)
 				return "function";
 			else if (v is LuaThread)
 				return "thread";
 			else if (v is LuaFile)
 				return ((LuaFile)v).IsClosed ? "closed file" : "file";
 			else
-				return lClr ? "userdata" : v.GetType().FullName;
+				return lClr ? v.GetType().FullName : "userdata";
 		} // func LuaType
 
 		/// <summary></summary>
@@ -777,7 +795,7 @@ namespace Neo.IronLua
 			// call the function save
 			try
 			{
-				return new LuaResult(true, dlg.DynamicInvoke(args));
+				return new LuaResult(true, Lua.RtInvoke(dlg, args));
 			}
 			catch (Exception e)
 			{

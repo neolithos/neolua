@@ -361,14 +361,19 @@ namespace Neo.IronLua
 					return value;
 				else if (toType == typeof(string))
 				{
-					foreach (MethodInfo mi in fromType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod))
+					if (fromType == typeof(bool))
+						return (bool)value ? "true" : "false";
+					else
 					{
-						if ((mi.Name == LuaEmit.csExplicit || mi.Name == LuaEmit.csImplicit) &&
-							mi.ReturnType == typeof(string))
-							return mi.Invoke(null, new object[] { value });
-					}
+						foreach (MethodInfo mi in fromType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod))
+						{
+							if ((mi.Name == LuaEmit.csExplicit || mi.Name == LuaEmit.csImplicit) &&
+								mi.ReturnType == typeof(string))
+								return mi.Invoke(null, new object[] { value });
+						}
 
-					return value == null ? String.Empty : Convert.ToString(value, CultureInfo.InvariantCulture);
+						return value == null ? String.Empty : Convert.ToString(value, CultureInfo.InvariantCulture);
+					}
 				}
 				else if (toType.BaseType == typeof(MulticastDelegate) && toType.BaseType == fromType.BaseType)
 					return RtConvertDelegate(toType, (Delegate)value);

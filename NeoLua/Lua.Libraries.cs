@@ -16,7 +16,32 @@ namespace Neo.IronLua
   ///////////////////////////////////////////////////////////////////////////////
   /// <summary></summary>
   internal static class LuaLibraryString
-  {
+	{
+		private static void NormalizeStringArguments(string s, int i, int j, out int iStart, out int iLen)
+		{
+			if (i == 0)
+				i = 1;
+			
+			if (i < 0) // Suffix mode
+			{
+				iStart = s.Length + i;
+				if (iStart < 0)
+					iStart = 0;
+				iLen = (j < 0 ? s.Length + j + 1 : j) - iStart;
+			}
+			else // Prefix mode
+			{
+				iStart = i - 1;
+				if (j < 0)
+					j = s.Length + j + 1;
+				iLen = j - iStart;
+			}
+
+			// correct the length
+			if (iStart + iLen > s.Length)
+				iLen = s.Length - iStart;
+		} // proc NormalizeStringArguments
+
     private static string TranslateRegularExpression(string sRegEx)
     {
       StringBuilder sb = new StringBuilder();
@@ -80,21 +105,18 @@ namespace Neo.IronLua
 
     public static LuaResult @byte(this string s, int i = 1, int j = int.MaxValue)
     {
-      if (String.IsNullOrEmpty(s) || i > j)
+      if (String.IsNullOrEmpty(s) || i == 0)
         return LuaResult.Empty;
 
-      if (i < 1)
-        i = 1; // default for i is 1
-      if (j == int.MaxValue)
-        j = i; // default for j is i
-      else if (j > s.Length)
-        j = s.Length; // correct the length
-
-      int iLen = j - i + 1; // how many chars to we need
+			int iStart;
+			int iLen;
+			NormalizeStringArguments(s, i, j, out iStart, out iLen);
+			if (iLen <= 0)
+				return LuaResult.Empty;
 
       object[] r = new object[iLen];
       for (int a = 0; a < iLen; a++)
-        r[a] = (int)s[i + a - 1];
+        r[a] = (int)s[iStart + a];
 
       return r;
     } // func byte
@@ -118,8 +140,13 @@ namespace Neo.IronLua
 
 		public static LuaResult find(this string s, string pattern, int init = 1, bool plain = false)
     {
-      if (String.IsNullOrEmpty(s))
-        return LuaResult.Empty;
+			if (String.IsNullOrEmpty(s))
+			{
+				if (String.IsNullOrEmpty(pattern) && init == 1)
+					return new LuaResult(1);
+				else
+					return LuaResult.Empty;
+			}
       if (String.IsNullOrEmpty(pattern))
         return LuaResult.Empty;
 
@@ -140,7 +167,7 @@ namespace Neo.IronLua
         pattern = TranslateRegularExpression(pattern);
 
         Regex r = new Regex(pattern);
-        Match m = r.Match(s, init);
+        Match m = r.Match(s, init - 1);
         if (m.Success)
         {
           object[] result = new object[m.Captures.Count + 2];
@@ -153,7 +180,7 @@ namespace Neo.IronLua
           return result;
         }
         else
-          return new LuaResult(0);
+          return LuaResult.Empty;
       }
     } // func find
 
@@ -248,8 +275,8 @@ namespace Neo.IronLua
 
 		public static string rep(this string s, int n, string sep = "")
     {
-      if (String.IsNullOrEmpty(s) || n == 0)
-        return s;
+      if (n == 0)
+        return String.Empty;
       return String.Join(sep, Enumerable.Repeat(s, n));
     } // func rep
 
@@ -267,30 +294,10 @@ namespace Neo.IronLua
     {
       if (String.IsNullOrEmpty(s) || j == 0)
         return String.Empty;
-
-      if (i == 0)
-        i = 1;
-
-      int iStart;
-      int iLen;
-      if (i < 0) // Suffix mode
-      {
-        iStart = s.Length + i;
-        if (iStart < 0)
-          iStart = 0;
-        iLen = (j < 0 ? s.Length + j + 1 : j) - iStart;
-      }
-      else // Prefix mode
-      {
-        iStart = i - 1;
-        if (j < 0)
-          j = s.Length + j + 1;
-        iLen = j - iStart;
-      }
-
-      // correct the length
-      if (iStart + iLen > s.Length)
-        iLen = s.Length - iStart;
+		
+			int iStart;
+			int iLen;
+			NormalizeStringArguments(s, i, j, out iStart, out iLen);
 
       // return the string
       if (iLen <= 0)
@@ -532,14 +539,13 @@ namespace Neo.IronLua
         return x;
     } // func arshift
 
-    public static uint band(params uint[] ands)
-    {
-      uint r = 0;
-      if (ands != null)
-        for (int i = 0; i < ands.Length; i++)
-          r &= ands[i];
-      return r;
-    } // func band
+		public static uint band(params uint[] ands)
+		{
+			uint r = 0xFFFFFFFF;
+			for (int i = 0; i < ands.Length; i++)
+				r &= ands[i];
+			return r;
+		} // func band
 
     public static uint bnot(uint x)
     {
@@ -602,12 +608,12 @@ namespace Neo.IronLua
 
     public static uint lshift(uint x, int disp)
     {
-      if (disp < 0)
-        return rshift(x, -disp);
-      else if (disp > 0)
-        return x << disp;
-      else
-        return x;
+			if (disp < 0)
+				return rshift(x, -disp);
+			else if (disp > 0)
+				return disp > 31 ? 0 : x << disp;
+			else
+				throw new LuaRuntimeException("Number for arg #2 (disp) expected.", null);
     } // func lshift
 
     public static uint rrotate(uint x, int disp)
@@ -617,13 +623,13 @@ namespace Neo.IronLua
 
     public static uint rshift(uint x, int disp)
     {
-      if (disp < 0)
-        return lshift(x, -disp);
-      else if (disp > 0)
-        return x >> disp;
-      else
-        return x;
-    } // func rshift
+			if (disp < 0)
+				return lshift(x, -disp);
+			else if (disp > 0)
+				return disp > 31 ? 0 : x >> disp;
+			else
+				throw new LuaRuntimeException("Number for arg #2 (disp) expected.", null);
+		} // func rshift
   } // class LuaLibraryBit32
 
   #endregion
