@@ -137,27 +137,27 @@ namespace LuaDLR.Test
       Assert.IsTrue(TokenTest("a = 'alo\\n123\"'",
         T(LuaToken.Identifier, "a"),
         T(LuaToken.Assign, String.Empty),
-        T(LuaToken.String, "alo\r\n123\"")
+        T(LuaToken.String, "alo\n123\"")
         ));
       Assert.IsTrue(TokenTest("a = \"alo\\n123\\\"\"",
         T(LuaToken.Identifier, "a"),
         T(LuaToken.Assign, String.Empty),
-        T(LuaToken.String, "alo\r\n123\"")
+        T(LuaToken.String, "alo\n123\"")
         ));
       Assert.IsTrue(TokenTest("a = '\\97lo\\10\\04923\\\"'",
         T(LuaToken.Identifier, "a"),
         T(LuaToken.Assign, String.Empty),
-        T(LuaToken.String, "alo\r\n123\"")
+        T(LuaToken.String, "alo\n123\"")
         ));
       Assert.IsTrue(TokenTest("a = [[alo\n123\"]]",
         T(LuaToken.Identifier, "a"),
         T(LuaToken.Assign, String.Empty),
-        T(LuaToken.String, "alo\r\n123\"")
+        T(LuaToken.String, "alo\n123\"")
         ));
       Assert.IsTrue(TokenTest("a = [==[\nalo\n123\"]==]",
         T(LuaToken.Identifier, "a"),
         T(LuaToken.Assign, String.Empty),
-        T(LuaToken.String, "alo\r\n123\"")
+        T(LuaToken.String, "alo\n123\"")
         ));
       Assert.IsTrue(TokenTest("a = [===[]==]]===]",
         T(LuaToken.Identifier, "a"),

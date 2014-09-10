@@ -38,7 +38,7 @@ namespace Neo.IronLua
 
     private static List<LuaThread> luaThreads = new List<LuaThread>();
 
-    private Delegate dlg;
+    private object target;
     private LuaResult currentArguments = null;
     private LuaResult currentYield = null;
     private ManualResetEventSlim evYield = null;
@@ -52,10 +52,10 @@ namespace Neo.IronLua
     #region -- Ctor/Dtor --------------------------------------------------------------
 
     /// <summary>Creates a new lua thread.</summary>
-    /// <param name="dlg">Delegate that should run as a thread.</param>
-    public LuaThread(Delegate dlg)
+		/// <param name="target">Delegate that should run as a thread.</param>
+		public LuaThread(object target)
     {
-      this.dlg = dlg;
+			this.target = target;
       this.procExecute = ExecuteDelegate;
     } // ctor
 
@@ -78,11 +78,11 @@ namespace Neo.IronLua
     } // proc Dispose
     
     /// <summary>Creates a coroutine from an delegate.</summary>
-    /// <param name="dlg"></param>
+		/// <param name="target"></param>
     /// <returns></returns>
-    public static LuaThread create(Delegate dlg)
+    public static LuaThread create(object target)
     {
-      return new LuaThread(dlg);
+			return new LuaThread(target);
     } // func create
 
     #endregion
@@ -218,7 +218,7 @@ namespace Neo.IronLua
         luaThreads.Add(this);
 
      
-      yield(new LuaResult(Lua.RtInvoke(dlg, currentArguments.Values)));
+      yield(new LuaResult(Lua.RtInvokeSite(target, currentArguments.Values)));
     } // proc ExecuteDelegate
 
     private void EndExecuteDelegate(IAsyncResult ar)

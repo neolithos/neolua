@@ -430,15 +430,12 @@ namespace Neo.IronLua
 
 		/// <summary>Fügt einen Wert an.</summary>
 		/// <param name="cCur"></param>
-		/// <param name="lCorrectNewLine"></param>
-		private void AppendValue(char cCur, bool lCorrectNewLine = true)
+		private void AppendValue(char cCur)
 		{
 			if (sbCur == null)
 				sbCur = new StringBuilder();
-			if (cCur == '\n')
-				sbCur.Append(lCorrectNewLine ? Environment.NewLine : "\n");
-			else if (cCur != '\0')
-				sbCur.Append(cCur);
+
+			sbCur.Append(cCur);
 		} // proc AppendValue
 
 		/// <summary>Kopiert das Zeichen in den Wert-Buffer</summary>
@@ -752,7 +749,7 @@ namespace Neo.IronLua
 						if (c == 'a') { AppendValue('\a'); NextChar(40); }
 						else if (c == 'b') { AppendValue('\b'); NextChar(40); }
 						else if (c == 'f') { AppendValue('\f'); NextChar(40); }
-						else if (c == 'n') { AppendValue('\n', false); NextChar(40); }
+						else if (c == 'n') { AppendValue('\n'); NextChar(40); }
 						else if (c == 'r') { AppendValue('\r'); NextChar(40); }
 						else if (c == 't') { AppendValue('\t'); NextChar(40); }
 						else if (c == 'v') { AppendValue('\v'); NextChar(40); }

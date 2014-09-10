@@ -1109,8 +1109,8 @@ namespace Neo.IronLua
 		private int iCount = 0;																		// Number of element in the Key/Value part
 
 		private int iVersion = 0;																	// version for the data
-		private Dictionary<CallInfo, CallSiteBinder> invokeBinder = new Dictionary<CallInfo, CallSiteBinder>();
-		private Dictionary<int, CallSite> callSites = new Dictionary<int, CallSite>();
+
+		private Dictionary<int, CallSite> callSites = new Dictionary<int, CallSite>(); // call site for calls
 
 		#region -- Ctor/Dtor --------------------------------------------------------------
 
@@ -1187,7 +1187,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- IDynamicMetaObjectProvider members -------------------------------------
+		#region -- Dynamic Members --------------------------------------------------------
 
 		/// <summary>Returns the Meta-Object</summary>
 		/// <param name="parameter"></param>
@@ -1197,25 +1197,23 @@ namespace Neo.IronLua
 			return new LuaTableMetaObject(this, parameter);
 		} // func GetMetaObject
 
+		/// <summary>Get the invoke binder.</summary>
+		/// <param name="callInfo">CallInfo</param>
+		/// <returns>Binder</returns>
+		protected virtual CallSiteBinder GetInvokeBinder(CallInfo callInfo)
+		{
+			return new Lua.LuaInvokeBinder(null, callInfo);
+		} // func GetInvokeBinder
+
 		/// <summary></summary>
 		/// <returns></returns>
 		public override string ToString()
 		{
+			string r;
+			if (TryInvokeMetaTableOperator<string>("__tostring", false, out r, this))
+				return r;
 			return "table";
 		} // func ToString
-
-		#endregion
-
-		#region -- Dynamic Members --------------------------------------------------------
-
-		private CallSiteBinder GetInvokeBinder(CallInfo callInfo)
-		{
-			CallSiteBinder b;
-			lock (invokeBinder) // todo: Lua Global has already binders?
-				if (!invokeBinder.TryGetValue(callInfo, out b))
-					b = invokeBinder[callInfo] = new Lua.LuaInvokeBinder(null, callInfo);
-			return b;
-		} // func GetInvokeBinder
 
 		#endregion
 
@@ -2159,6 +2157,10 @@ namespace Neo.IronLua
 			return method;
 		} // func DefineMethodLight
 
+		#endregion
+
+		#region -- CallMember -------------------------------------------------------------
+
 		/// <summary>Call a member</summary>
 		/// <param name="sMemberName">Name of the member</param>
 		/// <returns>Result of the function call.</returns>
@@ -2206,6 +2208,21 @@ namespace Neo.IronLua
 			return CallMemberDirect(sMemberName, args);
 		} // func CallMember
 
+		internal object GetCallMember(string sMemberName, bool lIgnoreCase, bool lRawGet, out bool lIsMethod)
+		{
+			int iEntryIndex = FindKey(sMemberName, GetMemberHashCode(sMemberName), lIgnoreCase ? compareStringIgnoreCase : compareString);
+			if (iEntryIndex < 0)
+			{
+				lIsMethod = false;
+				return lRawGet ? null : OnIndex(sMemberName);
+			}
+			else
+			{
+				lIsMethod = entries[iEntryIndex].isMethod;
+				return entries[iEntryIndex].value;
+			}
+		} // func GetCallMember
+
 		/// <summary>Call a member (function or method) of the lua-table</summary>
 		/// <param name="sMemberName">Name of the member</param>
 		/// <param name="args">Arguments</param>
@@ -2252,25 +2269,7 @@ namespace Neo.IronLua
 			// call the method
 			try
 			{
-				CallSite site;
-				if (!callSites.TryGetValue(args.Length, out site))
-				{
-					// create the delegate
-					Type[] signature = new Type[args.Length + 1];
-					signature[0] = typeof(CallSite); // CallSite
-					for (int i = 1; i < args.Length; i++) // target + arguments
-						signature[i] = typeof(object);
-					signature[signature.Length - 1] = typeof(object); // return type
-
-					// create a call site
-					callSites[args.Length] = site = CallSite.Create(Expression.GetFuncType(signature), GetInvokeBinder(new CallInfo(args.Length - 1)));
-				}
-
-				// call the target
-				args[0] = site;
-				FieldInfo fi = site.GetType().GetField("Target", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetField);
-				Delegate dlg = fi.GetValue(args[0]) as Delegate;
-				return new LuaResult(dlg.DynamicInvoke(args));
+				return RtInvokeSiteCached(args);
 			}
 			catch (TargetInvocationException e)
 			{
@@ -2286,20 +2285,25 @@ namespace Neo.IronLua
 			}
 		} // func CallMemberDirect
 
-		internal object GetCallMember(string sMemberName, bool lIgnoreCase, bool lRawGet, out bool lIsMethod)
+		internal object RtInvokeSite(object target, params object[] args)
 		{
-			int iEntryIndex = FindKey(sMemberName, GetMemberHashCode(sMemberName), lIgnoreCase ? compareStringIgnoreCase : compareString);
-			if (iEntryIndex < 0)
-			{
-				lIsMethod = false;
-				return lRawGet ? null : OnIndex(sMemberName);
-			}
-			else
-			{
-				lIsMethod = entries[iEntryIndex].isMethod;
-				return entries[iEntryIndex].value;
-			}
-		} // func GetCallMember
+			// create the argument array
+			object[] newArgs = new object[args.Length + 2];
+			newArgs[1] = target;
+			Array.Copy(args, 0, newArgs, 2, args.Length);
+
+			return RtInvokeSiteCached(newArgs);
+		} // func RtInvokeSite
+
+		private LuaResult RtInvokeSiteCached(object[] args)
+		{
+			// get cached call site
+			CallSite site;
+			if (!callSites.TryGetValue(args.Length, out site))
+				args[0] = site;
+			// call site
+			return new LuaResult(Lua.RtInvokeSite(GetInvokeBinder, (callInfo, callSite) => callSites[callInfo.ArgumentCount + 1] = callSite, args));
+		} // func RtInvokeSiteCached
 
 		#endregion
 
@@ -2344,10 +2348,9 @@ namespace Neo.IronLua
 				object o = metaTable[sKey];
 				if (o != null)
 				{
-					Delegate dlg = o as Delegate;
-					if (dlg != null)
+					if (Lua.IsCallable(o))
 					{
-						r = (TRETURN)Lua.RtConvertValue(Lua.RtInvoke(dlg, args), typeof(TRETURN));
+						r = (TRETURN)Lua.RtConvertValue(RtInvokeSite(o, args), typeof(TRETURN));
 						return true;
 					}
 					if (lRaise)
@@ -2554,12 +2557,11 @@ namespace Neo.IronLua
 
 			object index = metaTable["__index"];
 			LuaTable t;
-			Delegate dlg;
 
 			if ((t = index as LuaTable) != null) // default table
 				return t.GetValue(key, false);
-			else if ((dlg = index as Delegate) != null) // default function
-				return new LuaResult(Lua.RtInvoke(dlg, this, key))[0];
+			else if (Lua.IsCallable(index)) // default function
+				return new LuaResult(RtInvokeSite(index, this, key))[0];
 			else
 				return null;
 		} // func OnIndex
@@ -2573,10 +2575,10 @@ namespace Neo.IronLua
 			if (Object.ReferenceEquals(metaTable, null))
 				return false;
 
-			Delegate dlg = metaTable["__newindex"] as Delegate;
-			if (dlg != null)
+			object o = metaTable["__newindex"];
+			if (Lua.IsCallable(o))
 			{
-				Lua.RtInvoke(dlg, this, key, value);
+				RtInvokeSite(o, this, key, value);
 				return true;
 			}
 			return false;
@@ -3434,40 +3436,18 @@ namespace Neo.IronLua
 
 		/// <summary></summary>
 		/// <param name="t"></param>
-		/// <returns></returns>
-		public static string concat(LuaTable t)
-		{
-			return concat(t, String.Empty, 1, t.iArrayLength);
-		} // func concat
-
-		/// <summary></summary>
-		/// <param name="t"></param>
-		/// <param name="sep"></param>
-		/// <returns></returns>
-		public static string concat(LuaTable t, string sep)
-		{
-			return concat(t, sep, 1, t.iArrayLength);
-		} // func concat
-
-		/// <summary></summary>
-		/// <param name="t"></param>
-		/// <param name="sep"></param>
-		/// <param name="i"></param>
-		/// <returns></returns>
-		public static string concat(LuaTable t, string sep, int i)
-		{
-			return concat(t, sep, i, t.iArrayLength);
-		} // func concat
-
-		/// <summary></summary>
-		/// <param name="t"></param>
 		/// <param name="sep"></param>
 		/// <param name="i"></param>
 		/// <param name="j"></param>
 		/// <returns></returns>
-		public static string concat(LuaTable t, string sep, int i, int j)
+		public static string concat(LuaTable t, string sep = null, Nullable<int> i = null, Nullable<int> j = null)
 		{
-			var r = collect<string>(t, i, j, null);
+			if (!i.HasValue)
+				i = 1;
+			if (!j.HasValue)
+				j = t.iArrayLength;
+
+			var r = collect<string>(t, i.Value, j.Value, null);
 			return r == null ? String.Empty : String.Join(sep == null ? String.Empty : sep, r);
 		} // func concat
 
@@ -3572,10 +3552,12 @@ namespace Neo.IronLua
 		/// <summary></summary>
 		private sealed class SortComparer : IComparer<object>
 		{
-			private Delegate compare;
+			private LuaTable t;
+			private object compare;
 
-			public SortComparer(Delegate compare)
+			public SortComparer(LuaTable t, object compare)
 			{
+				this.t = t;
 				this.compare = compare;
 			} // ctor
 
@@ -3586,7 +3568,7 @@ namespace Neo.IronLua
 				else
 				{
 					// Call the comparer
-					object r = Lua.RtInvoke(compare, x, y);
+					object r = t.RtInvokeSite(compare, x, y);
 					if (r is LuaResult)
 						r = ((LuaResult)r)[0];
 
@@ -3606,9 +3588,9 @@ namespace Neo.IronLua
 		/// <summary></summary>
 		/// <param name="t"></param>
 		/// <param name="sort"></param>
-		public static void sort(LuaTable t, Delegate sort = null)
+		public static void sort(LuaTable t, object sort = null)
 		{
-			Array.Sort(t.arrayList, 0, t.iArrayLength, new SortComparer(sort));
+			Array.Sort(t.arrayList, 0, t.iArrayLength, new SortComparer(t, sort));
 		} // proc sort
 
 		#endregion

@@ -1124,7 +1124,7 @@ namespace Neo.IronLua
         a => Expression.Call(GetInstance(methodExpression, methodValue, methodValue.Type), mi, a),
         mi.GetParameters(),
         args,
-        mo => mo.Expression, mo => mo.LimitType, false), typeReturn, true);
+        mo => mo.Expression, mo => mo.LimitType, true), typeReturn, true);
 
       return new DynamicMetaObject(expr, BindInvokeRestrictions(methodExpression, methodValue).Merge(Lua.GetMethodSignatureRestriction(null, args)));
     } // func BindInvoke

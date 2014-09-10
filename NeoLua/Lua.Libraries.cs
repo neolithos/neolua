@@ -103,14 +103,19 @@ namespace Neo.IronLua
       return sb.ToString();
     } // func TranslateRegularExpression
 
-    public static LuaResult @byte(this string s, int i = 1, int j = int.MaxValue)
+    public static LuaResult @byte(this string s, Nullable<int> i = null, Nullable<int> j  = null)
     {
+			if (!i.HasValue)
+				i = 1;
+			if (!j.HasValue)
+				j = i;
+
       if (String.IsNullOrEmpty(s) || i == 0)
         return LuaResult.Empty;
 
 			int iStart;
 			int iLen;
-			NormalizeStringArguments(s, i, j, out iStart, out iLen);
+			NormalizeStringArguments(s, i.Value, j.Value, out iStart, out iLen);
 			if (iLen <= 0)
 				return LuaResult.Empty;
 
@@ -528,13 +533,15 @@ namespace Neo.IronLua
   ///////////////////////////////////////////////////////////////////////////////
   /// <summary></summary>
   internal static class LuaLibraryBit32
-  {
-    public static int arshift(int x, int disp)
+	{
+    public static int arshift(int x, Nullable<int> disp = null)
     {
-      if (disp < 0)
-        return unchecked(x << -disp);
+			if(!disp.HasValue)
+				throw new LuaRuntimeException("Number for arg #2 (disp) expected.", null);
+      else if (disp < 0)
+        return unchecked(x << -disp.Value);
       else if (disp > 0)
-        return unchecked(x >> disp);
+        return unchecked(x >> disp.Value);
       else
         return x;
     } // func arshift
@@ -575,60 +582,63 @@ namespace Neo.IronLua
       return r;
     } // func bxor
 
-    public static int extract(uint n, int field, int width = 1)
+		private static uint CreateBitMask(int field, int width)
+		{
+			if (field < 0 || width <= 0 || field + width > 32)
+				throw new ArgumentException();
+
+			return width == 32 ? (uint)0xFFFFFFFF : unchecked(((uint)1 << width) - 1);
+		} // func CreateBitMask
+
+		public static uint extract(uint n, int field, int width = 1)
+		{
+			return (n >> field) & CreateBitMask(field, width);
+		} // func extract
+
+    public static uint replace(uint n, uint v, int field, int width = 1)
     {
-      uint m = unchecked(((uint)1 << width) - 1);
-      uint neg = (uint)1 << (width - 1);
-      n = n >> field;
-      uint v = n & m;
-
-      if ((v & neg) != 0)
-        return (int)-(~v & m) - 1;
-      else
-        return (int)v;
-    } // func extract
-
-    public static uint replace(uint n, int v, int field, int width = 1)
-    {
-      uint m = unchecked(((uint)1 << width - 1) - 1);
-      uint r;
-      if (v < 0)
-        r = unchecked((((uint)(~(-v) + 1) & m) | ((uint)1 << (width - 1))) << field);
-      else
-        r = unchecked(((uint)v & m) << field);
-
-      m = unchecked((((uint)1 << width) - 1) << field);
-      return (n & ~m) | r;
+			uint m = CreateBitMask(field, width) << field;
+      return (n & ~m) | ((v << field) & m);
     } // func replace
 
-    public static uint lrotate(uint x, int disp)
+		public static uint lrotate(uint x, Nullable<int> disp = null)
     {
-      return unchecked(x << disp | x >> (32 - disp));
+			if(!disp.HasValue)
+				throw new LuaRuntimeException("Number for arg #2 (disp) expected.", null);
+			
+			return unchecked(x << disp.Value | x >> (32 - disp.Value));
     } // func lrotate
 
-    public static uint lshift(uint x, int disp)
+		public static uint lshift(uint x, Nullable<int> disp = null)
     {
-			if (disp < 0)
-				return rshift(x, -disp);
-			else if (disp > 0)
-				return disp > 31 ? 0 : x << disp;
-			else
+			if(!disp.HasValue)
 				throw new LuaRuntimeException("Number for arg #2 (disp) expected.", null);
+      else if (disp.Value < 0)
+				return rshift(x, -disp.Value);
+			else if (disp > 0)
+				return disp.Value > 31 ? 0 : x << disp.Value;
+			else
+				return x;
     } // func lshift
 
-    public static uint rrotate(uint x, int disp)
+		public static uint rrotate(uint x, Nullable<int> disp = null)
     {
-      return unchecked(x >> disp | x << (32 - disp));
+			if (!disp.HasValue)
+				throw new LuaRuntimeException("Number for arg #2 (disp) expected.", null);
+			
+			return unchecked(x >> disp.Value | x << (32 - disp.Value));
     } // func rrotate
 
-    public static uint rshift(uint x, int disp)
+    public static uint rshift(uint x, Nullable<int> disp = null)
     {
-			if (disp < 0)
-				return lshift(x, -disp);
-			else if (disp > 0)
-				return disp > 31 ? 0 : x >> disp;
-			else
+			if(!disp.HasValue)
 				throw new LuaRuntimeException("Number for arg #2 (disp) expected.", null);
+      else if (disp.Value < 0)
+				return lshift(x, -disp.Value);
+			else if (disp.Value > 0)
+				return disp.Value > 31 ? 0 : x >> disp.Value;
+			else
+				return x;
 		} // func rshift
   } // class LuaLibraryBit32
 

@@ -1,4 +1,5 @@
-﻿local sb = clr.System.Text.StringBuilder:ctor();
+﻿const StringBuilder typeof System.Text.StringBuilder;
+local sb : StringBuilder = StringBuilder();
 
 for i = 0,1000,1 do
 	sb:Append(".");

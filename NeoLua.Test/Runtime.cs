@@ -161,7 +161,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestRuntimeLua09()
     {
-      TestCode("return bit32.extract(0xFF00, 8, 8);", -1);
+			TestCode("return bit32.extract(0xFF00, 8, 8);", (uint)0xFF);
       TestCode("return bit32.replace(0x0FFF, -1, 8, 8);", (uint)0xFFFF);
     } // proc TestRuntimeLua09
 

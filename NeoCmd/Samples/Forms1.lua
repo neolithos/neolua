@@ -5,6 +5,7 @@ const MessageBox typeof System.Windows.Forms.MessageBox;
 const MessageBoxButtons typeof System.Windows.Forms.MessageBoxButtons;
 const MessageBoxIcon typeof System.Windows.Forms.MessageBoxIcon;
 const String typeof System.String;
+const Brushes typeof System.Drawing.Brushes;
 
 local iClicked : int = 0;
 
@@ -19,6 +20,10 @@ do (frm : Form, cmd : Button = Form(), Button())
 		function (sender, e) : void
 		  iClicked = iClicked + 1;
 		  MessageBox:Show(frm, String:Format('Clicked {0:N0} times!', iClicked), 'Lua', MessageBoxButtons.OK, MessageBoxIcon.Information);
+		end);
+	frm.Paint:add(
+	    function (sender, e) : void
+		  e.Graphics:FillRectangle(Brushes.Lime, 10, 10, 100, 100);
 		end);
 	frm.Controls:Add(cmd);
 	Application:Run(frm);

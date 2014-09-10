@@ -7,6 +7,7 @@ using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Neo.IronLua
@@ -625,42 +626,53 @@ namespace Neo.IronLua
 
 		#region -- RtInvoke ---------------------------------------------------------------
 
-		internal static object RtInvoke(Delegate dlg, params object[] args)
+		internal static bool IsCallable(object ld)
 		{
-			// closures make trouble
-			MethodInfo mi = dlg.GetType().GetMethod("Invoke", BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.InvokeMethod);
-			if (mi == null)
-				mi = dlg.Method;
+			return ld is Delegate || ld is ILuaMethod || ld is IDynamicMetaObjectProvider;
+		} // func IsCallable
 
-			// set parameters
-			ParameterInfo[] parameter = mi.GetParameters();
-			object[] argsValidated = new object[parameter.Length];
-
-			for (int i = 0; i < parameter.Length; i++)
+		internal static object RtInvokeSite(Func<CallInfo, CallSiteBinder> createInvokeBinder, Action<CallInfo, CallSite> updateCache, object[] args)
+		{
+			if (args[0] == null)
 			{
-				ParameterInfo p = parameter[i];
-				object v;
+				// create the delegate
+				Type[] signature = new Type[args.Length + 1];
+				signature[0] = typeof(CallSite); // CallSite
+				for (int i = 1; i < args.Length; i++) // target + arguments
+					signature[i] = typeof(object);
+				signature[signature.Length - 1] = typeof(object); // return type
 
-				if (i == parameter.Length - 1 && p.ParameterType.IsArray)
-				{
-					Type type = p.ParameterType.GetElementType();
-					Array l = Array.CreateInstance(type, args.Length - argsValidated.Length + 1);
-					for (int j = 0; j < l.Length; j++)
-						l.SetValue(RtConvertValue(args[i + j], type), j);
-					v = l;
-				}
-				else if (i < args.Length)
-					v = Lua.RtConvertValue(args[i], p.ParameterType);
-				else if (p.IsOptional)
-					v = p.DefaultValue;
-				else
-					v = Lua.RtConvertValue(null, p.ParameterType);
-
-				argsValidated[i] = v;
+				// create a call site
+				CallInfo callInfo = new CallInfo(args.Length - 1);
+				CallSite site;
+				args[0] = site = CallSite.Create(Expression.GetFuncType(signature), createInvokeBinder(callInfo));
+				if (updateCache != null)
+					updateCache(callInfo, site);
 			}
 
-			return dlg.DynamicInvoke(argsValidated);
-		} //func RtInvoke
+			// call the site
+			object o = args[0];
+			FieldInfo fi = o.GetType().GetField("Target", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetField);
+			Delegate dlg = (Delegate)fi.GetValue(o);
+			return new LuaResult(dlg.DynamicInvoke(args));
+		} // func RtInvokeSite
+
+		internal static object RtInvokeSite(object target, params object[] args)
+		{
+			return RtInvokeSite(null, callInfo => new Lua.LuaInvokeBinder(null, callInfo), null, target, args);
+		} // func RtInvokeSite
+
+		internal static object RtInvokeSite(CallSite site, Func<CallInfo, CallSiteBinder> createInvokeBinder, Action<CallInfo, CallSite> updateCache, object target, params object[] args)
+		{
+			// expand args for callsite and target
+			object[] newArgs = new object[args.Length + 2];
+			newArgs[0] = site;
+			newArgs[1] = target;
+			Array.Copy(args, 0, newArgs, 2, args.Length);
+
+		  // call site
+			return RtInvokeSite(callInfo => new Lua.LuaInvokeBinder(null, callInfo), null, newArgs);
+		} // func RtInvokeSite
 
 		#endregion
 

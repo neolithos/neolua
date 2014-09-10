@@ -429,19 +429,24 @@ namespace Neo.IronLua
 			}
 			else if (toType == typeof(string)) // convert to a string
 			{
-				// try find a conversion
-				foreach (MethodInfo mi in fromType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod))
+				if (fromType == typeof(bool))
+					return Expression.Condition(expr, Expression.Constant("true"), Expression.Constant("false"));
+				else
 				{
-					if ((mi.Name == csExplicit || mi.Name == csImplicit) &&
-						mi.ReturnType == typeof(string))
-						return Expression.Convert(expr, toType, mi);
-				}
+					// try find a conversion
+					foreach (MethodInfo mi in fromType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod))
+					{
+						if ((mi.Name == csExplicit || mi.Name == csImplicit) &&
+							mi.ReturnType == typeof(string))
+							return Expression.Convert(expr, toType, mi);
+					}
 
-				// call convert to string
-				return Expression.Call(Lua.ConvertToStringMethodInfo,
-					Convert(runtime, expr, fromType, typeof(object), false),
-					Expression.Property(null, Lua.CultureInvariantPropertyInfo)
-				);
+					// call convert to string
+					return Expression.Call(Lua.ConvertToStringMethodInfo,
+						Convert(runtime, expr, fromType, typeof(object), false),
+						Expression.Property(null, Lua.CultureInvariantPropertyInfo)
+					);
+				}
 			}
 			else if (fromType == typeof(string) && IsArithmeticType(toType)) // we expect a string and have a number
 			{
@@ -689,9 +694,9 @@ namespace Neo.IronLua
           compareInterface2 = null;
       }
 
-      if (compareInterface1 != null)
+      if (compareInterface1 != null && lExact)
         return BinaryOperationCompareToExpression(runtime, compareInterface1, op, expr1, type1, expr2, type2, lParse);
-      if (compareInterface2 != null)
+      if (compareInterface2 != null && lExact)
         return BinaryOperationCompareToExpression(runtime, compareInterface2, opComplement, expr2, type2, expr1, type1, lParse);
 
       // try lift to an other operator
@@ -700,9 +705,9 @@ namespace Neo.IronLua
         if (TryConvertType(type1, ref expr2, ref type2))
           return BinaryOperationCompareExpression(runtime, op, expr1, type1, expr2, type2, lParse);
         else if (TryConvertType(type2, ref expr1, ref type1))
-          return BinaryOperationCompareExpression(runtime, op, expr1, type1, expr2, type2, lParse);
+          return BinaryOperationCompareExpression(runtime, opComplement, expr1, type1, expr2, type2, lParse);
       }
-      else if (op == ExpressionType.Equal || op == ExpressionType.NotEqual)
+      if (op == ExpressionType.Equal || op == ExpressionType.NotEqual)
       {
         expr1 = Convert(runtime, expr1, type1, typeof(object), lParse);
         expr2 = Convert(runtime, expr2, type2, typeof(object), lParse);
@@ -717,7 +722,7 @@ namespace Neo.IronLua
         return expr;
       }
 
-      throw new LuaEmitException(LuaEmitException.OperatorNotDefined, GetCompareComplement(op), type1.Name, type2.Name);
+      throw new LuaEmitException(LuaEmitException.OperatorNotDefined, op, type1.Name, type2.Name);
     } // func BinaryOperationCompareExpression
 
     private static Expression BinaryOperationCompareOperatorExpression(Lua runtime, BindingFlags bindingFlags, ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2, bool lParse)
@@ -793,10 +798,6 @@ namespace Neo.IronLua
         op = ExpressionType.LessThanOrEqual;
       else if (op == ExpressionType.LessThanOrEqual)
         op = ExpressionType.GreaterThanOrEqual;
-      else if (op == ExpressionType.NotEqual)
-        op = ExpressionType.Equal;
-      else if (op == ExpressionType.Equal)
-        op = ExpressionType.NotEqual;
       return op;
     } // func GetCompareComplement
 

@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Neo.IronLua
@@ -161,6 +162,14 @@ namespace Neo.IronLua
 		#endregion
 
 		#region -- DoChunk ----------------------------------------------------------------
+
+		/// <summary></summary>
+		/// <param name="callInfo"></param>
+		/// <returns></returns>
+		protected override CallSiteBinder GetInvokeBinder(CallInfo callInfo)
+		{
+			return lua.GetInvokeBinder(callInfo);
+		} // func GetInvokeBinder
 
 		/// <summary>Compiles and execute the filename.</summary>
 		/// <param name="sFileName">Name of the lua file.</param>
@@ -454,13 +463,11 @@ namespace Neo.IronLua
 			try
 			{
 				// collect the chunks
-				if (ld is LuaMethod)
-					ld = ((LuaMethod)ld).CreateDelegate(typeof(Func<object>)); // todo: invoke!
-				if (ld is Delegate)
+				if (Lua.IsCallable(ld))
 				{
 					StringBuilder sbCode = new StringBuilder();
 					string sPart;
-					while (!String.IsNullOrEmpty(sPart = (string)new LuaResult(Lua.RtInvoke((Delegate)ld))[0]))
+					while (!String.IsNullOrEmpty(sPart = (string)new LuaResult(RtInvokeSite(ld))[0]))
 						sbCode.Append(sPart);
 					ld = sbCode.ToString();
 				}
@@ -502,13 +509,13 @@ namespace Neo.IronLua
 		} // func LuaNext
 
 		/// <summary></summary>
-		/// <param name="dlg"></param>
+		/// <param name="target"></param>
 		/// <param name="args"></param>
 		/// <returns></returns>
 		[LuaMember("pcall")]
-		private static LuaResult LuaPCall(Delegate dlg, params object[] args)
+		private LuaResult LuaPCall(object target, params object[] args)
 		{
-			return LuaXPCall(dlg, null, args);
+			return LuaXPCall(target, null, args);
 		} // func LuaPCall
 
 		/// <summary></summary>
@@ -785,17 +792,17 @@ namespace Neo.IronLua
 		} // func LuaType
 
 		/// <summary></summary>
-		/// <param name="dlg"></param>
+		/// <param name="target"></param>
 		/// <param name="msgh"></param>
 		/// <param name="args"></param>
 		/// <returns></returns>
 		[LuaMember("xpcall")]
-		private static LuaResult LuaXPCall(Delegate dlg, Delegate msgh, params object[] args)
+		private LuaResult LuaXPCall(object target, object msgh, params object[] args)
 		{
 			// call the function save
 			try
 			{
-				return new LuaResult(true, Lua.RtInvoke(dlg, args));
+				return new LuaResult(true, RtInvokeSite(target, args));
 			}
 			catch (Exception e)
 			{
