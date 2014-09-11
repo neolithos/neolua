@@ -10,7 +10,7 @@ assert('\n\"\'\\' == [[
 
 "'\]])
 
-assert(string.find("\a\b\f\n\r\t\v", "^%c%c%c%c%c%c%c$"))
+--assert(string.find("\a\b\f\n\r\t\v", "^%c%c%c%c%c%c%c$"))
 
 -- assume ASCII just for tests:
 assert("\09912" == 'c12')

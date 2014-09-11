@@ -327,6 +327,7 @@ namespace Neo.IronLua
 		private Position fStart;                  // Start of the current token
 		private Position fEnd;                    // Posible end of the current token
 		private char cCur;                        // Current char
+		private bool lEof;												// End of file reached
 		private int iState;                       // Current state
 		private StringBuilder sbCur = null;       // Currently collected chars
 
@@ -353,6 +354,7 @@ namespace Neo.IronLua
 			this.iCurrentColumn = iCurrentColumn;
 			this.tr = tr;
 
+			lEof = false;
 			fStart =
 				fEnd = new Position(document, iCurrentLine, iCurrentColumn, iCurrentIndex);
 			cCur = Read(); // Lies das erste Zeichen aus dem Buffer
@@ -378,7 +380,10 @@ namespace Neo.IronLua
 		{
 			int i = -1;
 			if (tr == null) // Source file is readed
+			{
+				lEof = true;
 				return '\0';
+			}
 			else
 			{
 				i = tr.Read();
@@ -386,6 +391,7 @@ namespace Neo.IronLua
 				{
 					tr.Dispose();
 					tr = null;
+					lEof = true;
 					return '\0';
 				}
 				else
@@ -554,7 +560,7 @@ namespace Neo.IronLua
 				{
 					#region -- 0 ----------------------------------------------------------------
 					case 0:
-						if (c == '\0')
+						if (lEof)
 							return CreateToken(0, LuaToken.Eof);
 						else if (c == '\n')
 							return NextCharAndCreateToken(0, LuaToken.NewLine);
@@ -662,7 +668,7 @@ namespace Neo.IronLua
 					#endregion
 					#region -- 10 Whitespaces ---------------------------------------------------
 					case 10:
-						if (c == '\n' || c == '\0' || !Char.IsWhiteSpace(c))
+						if (c == '\n' || lEof || !Char.IsWhiteSpace(c))
 							return CreateToken(0, LuaToken.Whitespace);
 						else
 							NextChar(10);
@@ -696,6 +702,11 @@ namespace Neo.IronLua
 					case 24:
 						if (c == '.')
 							NextChar(25);
+						else if (c >= '0' && c <= '9')
+						{
+							AppendValue('.');
+							EatChar(62);
+						}
 						else
 							return CreateToken(0, LuaToken.Dot);
 						break;
@@ -740,7 +751,7 @@ namespace Neo.IronLua
 							return NextCharAndCreateToken(0, LuaToken.String);
 						else if (c == '\\')
 							NextChar(41);
-						else if (c == '\0' || c == '\n')
+						else if (lEof || c == '\n')
 							return CreateToken(0, LuaToken.InvalidString);
 						else
 							EatChar(40);
@@ -867,7 +878,7 @@ namespace Neo.IronLua
 							NextChar(52);
 						break;
 					case 52:
-						if (c == '\0')
+						if (lEof)
 							return CreateToken(0, LuaToken.Comment);
 						else if (c == '\n')
 							return NextCharAndCreateToken(0, LuaToken.Comment);
@@ -1083,7 +1094,7 @@ namespace Neo.IronLua
 			NextChar(0);
 
 			// Überspringe WhiteSpace bis zum ersten Zeilenumbruch
-			while (Cur != '\0' && Char.IsWhiteSpace(Cur))
+			while (!lEof && Char.IsWhiteSpace(Cur))
 			{
 				if (Cur == '\n')
 				{
@@ -1098,7 +1109,7 @@ namespace Neo.IronLua
 		ReadChars:
 			while (Cur != ']')
 			{
-				if (Cur == '\0')
+				if (lEof)
 					return NextCharAndCreateToken(0, lStringMode ? LuaToken.InvalidString : LuaToken.InvalidComment);
 				else if (lStringMode)
 					EatChar(0);

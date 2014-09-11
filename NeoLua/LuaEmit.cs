@@ -120,6 +120,9 @@ namespace Neo.IronLua
 				else if (tcTo >= TypeCode.SByte && tcTo <= TypeCode.Double &&
 							(tcFrom >= TypeCode.SByte && tcFrom <= tcTo || tcTo == TypeCode.Single && tcFrom == TypeCode.Double)) // exception for single -> double
 					return true;
+				else if(tcFrom == TypeCode.String &&
+					tcTo >= TypeCode.SByte && tcTo <= TypeCode.Double)
+					return true;
 
         return false;
       }
@@ -166,12 +169,12 @@ namespace Neo.IronLua
       }
     } // func IsFloatType
 
-    private static bool TryConvertType(Type typeTo, ref Expression expr, ref Type exprType)
+    private static bool TryConvertType(Lua runtime, Type typeTo, ref Expression expr, ref Type exprType)
     {
       bool lExact;
       if (TypesMatch(typeTo, exprType, out lExact))// is the type compitible
       {
-        expr = Convert(null, expr, exprType, typeTo, false);
+        expr = Convert(runtime, expr, exprType, typeTo, false);
         exprType = typeTo;
         return true;
       }
@@ -483,7 +486,8 @@ namespace Neo.IronLua
 
     private static Expression ParseNumberExpression(Lua runtime, Expression expr1, Type type1)
     {
-      return Expression.Call(Lua.ParseNumberMethodInfo, Convert(runtime, expr1, type1, typeof(string), false), Expression.Constant(runtime.NumberType));
+			return Expression.Call(Lua.ParseNumberMethodInfo, Convert(runtime, expr1, type1, typeof(string), false),
+				Expression.Constant(runtime == null ? ((int)LuaIntegerType.Int32 | (int)LuaFloatType.Double) : runtime.NumberType));
     } // func ParseNumberExpression
 
     public static Expression GetResultExpression(Expression target, Type type, int iIndex)
@@ -566,9 +570,9 @@ namespace Neo.IronLua
           case Lua.IntegerDivide:
             return BinaryOperationArithmeticOrBitExpression(runtime, op, expr1, type1, expr2, type2, lParse);
           case ExpressionType.Power:
-            if (!TryConvertType(typeof(double), ref expr1, ref type1))
+            if (!TryConvertType(runtime, typeof(double), ref expr1, ref type1))
               throw new LuaEmitException(LuaEmitException.ConversationNotDefined, type1.Name, typeof(double).Name);
-            else if (!TryConvertType(typeof(double), ref expr2, ref type2))
+						else if (!TryConvertType(runtime, typeof(double), ref expr2, ref type2))
               throw new LuaEmitException(LuaEmitException.ConversationNotDefined, type2.Name, typeof(double).Name);
             else
               return Expression.MakeBinary(op, expr1, expr2);
@@ -702,9 +706,9 @@ namespace Neo.IronLua
       // try lift to an other operator
       if (type1 != type2)
       {
-        if (TryConvertType(type1, ref expr2, ref type2))
+				if (TryConvertType(runtime, type1, ref expr2, ref type2))
           return BinaryOperationCompareExpression(runtime, op, expr1, type1, expr2, type2, lParse);
-        else if (TryConvertType(type2, ref expr1, ref type1))
+				else if (TryConvertType(runtime, type2, ref expr1, ref type1))
           return BinaryOperationCompareExpression(runtime, opComplement, expr1, type1, expr2, type2, lParse);
       }
       if (op == ExpressionType.Equal || op == ExpressionType.NotEqual)
@@ -862,7 +866,7 @@ namespace Neo.IronLua
       // try convert the type to an arithmetic type
       if (miOperation == null)
       {
-        if (op == ExpressionType.OnesComplement && TryConvertType(Lua.GetIntegerType(runtime.NumberType), ref expr, ref type))
+				if (op == ExpressionType.OnesComplement && TryConvertType(runtime, Lua.GetIntegerType(runtime.NumberType), ref expr, ref type))
           return UnaryOperationArithmeticExpression(runtime, op, expr, type, lParse);
         else if (op == ExpressionType.Negate)
         {
@@ -878,7 +882,7 @@ namespace Neo.IronLua
               expr = Expression.Convert(expr, type);
             return UnaryOperationArithmeticExpression(runtime, op, Expression.Convert(expr, typeInt), typeInt, lParse);
           }
-          else if (TryConvertType(Lua.GetFloatType(runtime.NumberType), ref expr, ref type))
+					else if (TryConvertType(runtime, Lua.GetFloatType(runtime.NumberType), ref expr, ref type))
             return UnaryOperationArithmeticExpression(runtime, op, expr, type, lParse);
         }
       }
@@ -1014,24 +1018,24 @@ namespace Neo.IronLua
       if (miOperation == null)
       {
         miOperation = type1.GetMethod(sMethodName, bindingFlags, null, new Type[] { type1, type1 }, null);
-        if (miOperation == null || !TryConvertType(type1, ref expr2, ref type2))
+				if (miOperation == null || !TryConvertType(runtime, type1, ref expr2, ref type2))
           miOperation = null;
       }
       // check if we have a type2 op type2 operation
       if (miOperation == null && type1 != type2)
       {
         miOperation = type2.GetMethod(sMethodName, bindingFlags, null, new Type[] { type2, type2 }, null);
-        if (miOperation == null || !TryConvertType(type2, ref expr1, ref type1))
+				if (miOperation == null || !TryConvertType(runtime, type2, ref expr1, ref type1))
           miOperation = null;
       }
 
       if (miOperation == null)
       {
         // check if there is a simple arithmetic operation for type1
-        if (lIsArithmetic1 && TryConvertType(type1, ref expr2, ref type2))
+				if (lIsArithmetic1 && TryConvertType(runtime, type1, ref expr2, ref type2))
           return BinaryOperationArithmeticOrBitExpression(runtime, op, expr1, type1, expr2, type2, lParse);
         // check if there is a simple arithmetic operation for type2
-        if (miOperation == null && lIsArithmetic2 && TryConvertType(type2, ref expr1, ref type1))
+				if (miOperation == null && lIsArithmetic2 && TryConvertType(runtime, type2, ref expr1, ref type1))
           return BinaryOperationArithmeticOrBitExpression(runtime, op, expr1, type1, expr2, type2, lParse);
       }
       #endregion

@@ -321,7 +321,10 @@ namespace Neo.IronLua
 
 		internal static object RtParseNumber(string sNumber, int numberType)
 		{
-			if (String.IsNullOrEmpty(sNumber))
+			if (sNumber == null)
+				return null;
+			sNumber = sNumber.Trim();
+			if (sNumber.Length == 0)
 				return null;
 
 			// check for hex numbers
@@ -331,6 +334,34 @@ namespace Neo.IronLua
 				numberType |= 8;
 				return ParseInteger(sNumber, numberType);
 			}
+			else if(sNumber.Length > 3 && (sNumber[0] == '+' || sNumber[0] == '-') && sNumber[1] == '0' &&(sNumber[2] == 'x' || sNumber[2] == 'X'))
+			{
+				bool lNeg = sNumber[0] == '-';
+				sNumber = sNumber.Substring(3);
+				numberType |= 8;
+				object o = ParseInteger(sNumber, numberType);
+				if (lNeg)
+					switch (Type.GetTypeCode(o.GetType()))
+					{
+						case TypeCode.Int16:
+							return -(short)o;
+						case TypeCode.UInt16:
+							return -(int)(ushort)o;
+						case TypeCode.Int32:
+							return -(int)o;
+						case TypeCode.UInt32:
+							return -(long)(uint)o;
+						case TypeCode.Int64:
+							return -(long)o;
+						case TypeCode.UInt64:
+							return -(double)o;
+						default:
+							throw new InvalidOperationException();
+					}
+				else
+					return o;
+			}
+
 
 			// try to convert the value
 			return ParseInteger(sNumber, numberType | (int)LuaNumberFlags.NoFormatError) ?? ParseFloat(sNumber, numberType);

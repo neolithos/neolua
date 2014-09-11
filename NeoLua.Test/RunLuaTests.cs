@@ -42,6 +42,8 @@ namespace LuaDLR.Test
 				}
 				catch (Exception e)
 				{
+					if (e is LuaException)
+						Console.WriteLine("Line: {0}, Column: {1}", ((LuaException)e).Line, ((LuaException)e).Column);
 					Console.WriteLine("StackTrace:");
 					Console.WriteLine(LuaExceptionData.GetData(e).StackTrace);
 					throw;
@@ -60,11 +62,12 @@ namespace LuaDLR.Test
 				dg.math.randomseed(0);
 				dg.assert = new Func<object, string, object>(TestAssert);
 
-				//DoScript(l, g, "calls.lua");
-				//DoScript(l, g, "strings.lua");
+				DoScript(l, g, "calls.lua");
+				DoScript(l, g, "strings.lua");
 				//DoScript(l, g, "literals.lua");
-				
-				//DoScript(l, g, "bitwise.lua");
+
+				DoScript(l, g, "math.lua");
+				DoScript(l, g, "bitwise.lua");
 			}
 		}
 
@@ -88,6 +91,26 @@ namespace LuaDLR.Test
 		public void TestSingle03()
 		{
 			TestCode("a = nil; (function (x) a = x end)(23) return a", 23);
+		}
+
+		[TestMethod]
+		public void TestSingle04()
+		{
+			TestCode(Lines(
+				"local x = \"-- a comment\0\0\0\\n  x = 10 + \\n23; \\",
+				"		local a = function () x = 'hi' end; \\",
+				"		return '\\0'\"",
+				"function read1 (x)",
+				"  local i = 0",
+				"  return function ()",
+				"    collectgarbage()",
+				"    i=i+1",
+				"    return string.sub(x, i, i)",
+				"  end",
+				"end",
+				"a = assert(load(read1(x), 'modname', 't', _G))",
+				"return a(), _G.x;"
+				), "\0", 33);
 		}
 	}
 }

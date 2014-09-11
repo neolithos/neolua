@@ -195,11 +195,16 @@ namespace LuaDLR.Test
     {
       Lua l = new Lua();
 
-      Assert.IsTrue(TestConstant(l, "3", 3));
-      Assert.IsTrue(TestConstant(l, "3.0", 3.0));
-      Assert.IsTrue(TestConstant(l, "3.1416", 3.1416));
-      Assert.IsTrue(TestConstant(l, "314.16e-2", 314.16e-2));
-      Assert.IsTrue(TestConstant(l, "0.31416E1", 0.31416E1));
+			Assert.IsTrue(TestConstant(l, "3", 3));
+			Assert.IsTrue(TestConstant(l, "3.0", 3.0));
+			Assert.IsTrue(TestConstant(l, "3.1416", 3.1416));
+			Assert.IsTrue(TestConstant(l, "314.16e-2", 314.16e-2));
+			Assert.IsTrue(TestConstant(l, "0.31416E1", 0.31416E1));
+			Assert.IsTrue(TestConstant(l, "0e12", 0.0));
+			Assert.IsTrue(TestConstant(l, ".0", .0));
+			Assert.IsTrue(TestConstant(l, "0.", 0.0));
+			Assert.IsTrue(TestConstant(l, ".2e2", 20.0));
+			Assert.IsTrue(TestConstant(l, "2.E-1", 0.2));
 
       Assert.IsTrue(TestConstant(l, "0xff", 0xff));
       //Assert.IsTrue(TestVariable(l, "0x0.1E", ));
