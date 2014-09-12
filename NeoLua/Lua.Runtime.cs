@@ -167,7 +167,7 @@ namespace Neo.IronLua
 			TableGetCallMemberMethodInfo = typeof(LuaTable).GetMethod("GetCallMember", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly);
 			TableSetObjectMemberMethodInfo = typeof(LuaTable).GetMethod("SetObjectMember", BindingFlags.Public | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly, null, new Type[] { typeof(object) }, null);
 
-			TableEntriesFieldInfo=typeof(LuaTable).GetField("entries", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetField);
+			TableEntriesFieldInfo = typeof(LuaTable).GetField("entries", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetField);
 			TablePropertyChangedMethodInfo = typeof(LuaTable).GetMethod("OnPropertyChanged", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.DeclaredOnly, null, new Type[] { typeof(string) }, null);
 			TableEntryValueFieldInfo = typeof(LuaTable).GetNestedType("LuaTableEntry", BindingFlags.NonPublic).GetField("value", BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetField);
 
@@ -386,6 +386,25 @@ namespace Neo.IronLua
 			return RtParseNumber(lNeg, sNumber, iOffset, iBase, lUseDouble, lThrowException);
 		} // proc RtParseNumber
 
+		private static int GetDigit(char c)
+		{
+			if (c >= '0' && c <= '9')
+				return c - '0';
+			else if (c >= 'A' && c <= 'Z')
+				return c - 'A' + 10;
+			else if (c >= 'a' && c <= 'z')
+				return c - 'a' + 10;
+			else
+				return -1;
+		} // func GetDigit
+
+		private static int SkipSpaces(string sNumber, int iOffset)
+		{
+			while (iOffset < sNumber.Length && Char.IsWhiteSpace(sNumber[iOffset]))
+				iOffset++;
+			return iOffset;
+		} // func SkipSpaces
+
 		internal static object RtParseNumber(bool? lNegValue, string sNumber, int iOffset, int iBase, bool lUseDouble, bool lThrowException)
 		{
 			if (iBase < 2 || iBase > 36)
@@ -393,15 +412,12 @@ namespace Neo.IronLua
 
 			bool lNeg;
 			bool lNegE = false;
-			bool lOverflow = false;
 
 			ulong border = UInt64.MaxValue / (ulong)iBase;
 			ulong fraction = 0;
+			int expBorder = Int32.MaxValue / 10;
 			int exponent = 0;
 			int scale = 0;
-
-			char uL = iBase > 10 ? (char)('a' + (iBase - 11)) : '\0';
-			char uU = Char.ToUpper(uL);
 
 			if (lNegValue.HasValue)
 				lNeg = lNegValue.Value;
@@ -429,97 +445,122 @@ namespace Neo.IronLua
 
 			// read the numbers
 			int iState = 0;
-			bool lNumberRead = false;
+			int n;
+			bool lNumberReaded = false;
+			bool lExponentReaded = false;
 			while (iOffset < sNumber.Length)
 			{
-				int n;
 				// convert the char
 				char c = sNumber[iOffset];
-				if (c >= '0' && c <= '9')
-					n = c - '0';
-				else if (c >= 'A' && c <= uU)
-					n = c - 'A' + 10;
-				else if (c >= 'a' && c <= uL)
-					n = c - 'a' + 10;
-				else if (iState == 0 && c == '.')
-				{
-					iState = 1;
-					iOffset++;
-					continue;
-				}
-				else if (iBase == 10 && (c == 'e' || c == 'E') ||
-					iBase == 16 && (c == 'p' || c == 'P'))
-				{
-					if (!lNumberRead || ++iOffset == sNumber.Length)
-						return ThrowFormatExpression(lThrowException, sNumber, iBase);
 
-					c = sNumber[iOffset];
-					if (c == '+')
-						iOffset++;
-					else if (c == '-')
-					{
-						lNegE = true;
-						iOffset++;
-					}
-					iState = 2;
-					lNumberRead = false;
-					continue;
-				}
-				else if (!lNumberRead)
-					return ThrowFormatExpression(lThrowException, sNumber, iBase);
-				else if (Char.IsWhiteSpace(c)) // trailing whitespaces
+				switch (iState)
 				{
-					while (iOffset < sNumber.Length)
-					{
-						if (!Char.IsWhiteSpace(sNumber[iOffset]))
-							return ThrowFormatExpression(lThrowException, sNumber, iBase);
-						iOffset++;
-					}
-					break;
-				}
-				else
-					return ThrowFormatExpression(lThrowException, sNumber, iBase);
-
-				// is the number within the base
-				if (n >= iBase)
-					return ThrowFormatExpression(lThrowException, sNumber, iBase);
-
-				if (iState <= 1)
-				{
-					if (!lOverflow)
-					{
-						if (fraction > border)
+					case 0: // read integer number
+						if (c == '.') // goto read decimal
 						{
-							if (iState == 0)
+							iState = 1;
+							break;
+						}
+						goto case 1;
+					case 1: // decimal part
+						if ((c == 'e' || c == 'E') && iBase == 10) // goto read exponent
+							iState = 4;
+						else if ((c == 'p' || c == 'P') && (iBase == 2 || iBase == 8 || iBase == 16)) // goto read binary exponent
+							iState = 5;
+						else if (Char.IsWhiteSpace(c)) // goto read trailing whitespaces
+							iState = iState | 0x100;
+						else
+						{
+							n = GetDigit(c);
+							if (n == -1 || n >= iBase)
+								return ThrowFormatExpression(lThrowException, sNumber, iBase);
+
+							if (fraction > border) // check for overflow
+							{
+								iState += 2;
+								goto case 2; // loop
+							}
+							else
+							{
+								lNumberReaded |= true;
+								fraction = unchecked(fraction * (ulong)iBase + (ulong)n);
+								if (iState == 1)
+									scale--;
+							}
+						}
+						break;
+					case 2: // integer overflow
+					case 3: // decimal overflow
+						if (Char.IsWhiteSpace(c)) // goto read trailing whitespaces
+							iState = iState | 0x100;
+						else if ((c == 'e' || c == 'E') && iBase == 10) // goto read exponent
+							iState = 4;
+						else if ((c == 'p' || c == 'P') && iBase <= 16) // goto read binary exponent
+							iState = 5;
+						else
+						{
+							n = GetDigit(c);
+							if (n >= iBase)
+								return ThrowFormatExpression(lThrowException, sNumber, iBase);
+							else if (iState == 2)
 								scale++;
-							lOverflow = true;
+						}
+						break;
+
+					case 4: // exponent +/-
+					case 5: // bexponent +/-
+						if (c == '+')
+						{
+							lNegE = false;
+							iState += 2;
+						}
+						else if (c == '-')
+						{
+							lNegE = true;
+							iState += 2;
 						}
 						else
 						{
-							lNumberRead |= true;
-							fraction = unchecked(fraction * (ulong)iBase + (ulong)n);
-							if (iState == 1)
-								scale--;
+							iState += 2;
+							iOffset--;
 						}
-					}
-					else if (iState == 0)
-						scale++;
-				}
-				else
-				{
-					exponent = unchecked(exponent * iBase + n);
-					lNumberRead |= true;
-				}
+						break;
+					case 6: // exponent
+					case 7: // b exponent
+						if (Char.IsWhiteSpace(c)) // goto read trailing whitespaces
+							iState = iState | 0x100;
+						else
+						{
+							n = GetDigit(c);
+							if (n == -1 || n >= 10 || exponent > expBorder)
+								return ThrowFormatExpression(lThrowException, sNumber, iBase);
 
+							lExponentReaded |= true;
+							exponent = unchecked(exponent * 10 + n);
+						}
+						break;
+					default:
+						if ((iState & 0x100) != 0) // read trailing spaces
+						{
+							if (Char.IsWhiteSpace(c))
+								break;
+							return ThrowFormatExpression(lThrowException, sNumber, iBase);
+						}
+						else
+							throw new InvalidOperationException();
+				}
 				iOffset++;
 			}
 
 			// check for a value
-			if (!lNumberRead)
+			if (!lNumberReaded)
 				return ThrowFormatExpression(lThrowException, sNumber, iBase);
 
+			// correct state
+			iState = iState & 0xFF;
+
 			// return the value
-			if (iState == 0 && !lOverflow) // a integer value
+			if (iState == 0) // a integer value
 				unchecked
 				{
 					if (fraction < Int32.MaxValue)
@@ -538,20 +579,59 @@ namespace Neo.IronLua
 				}
 			else
 			{
-				int t = lNegE ? scale - exponent : scale + exponent;
+				// check for a exponent
+				if (iState >= 4 && !lExponentReaded)
+					return ThrowFormatExpression(lThrowException, sNumber, iBase);
+
+				double bias = 1;
+				if (iState == 7)
+				{
+					if (iBase == 2)
+					{
+						bias = 1;
+						iBase = 2;
+					}
+					else if (iBase == 8)
+					{
+						bias = 2;
+						iBase = 2;
+					}
+					else if (iBase == 16)
+					{
+						bias = 4;
+						iBase = 2;
+					}
+				}
+
+				double t = lNegE ? scale * bias - exponent : scale * bias + exponent;
 				double r = fraction * Math.Pow(iBase, t);
 				if (lNeg)
 					r = -r;
+
+				if (iState == 7 && (r % 1) == 0)
+				{
+					if (r >= 0)
+					{
+						if (r < Int32.MaxValue)
+							return (int)r;
+						else if (r < UInt32.MaxValue)
+							return (uint)r;
+						else if (r < Int64.MaxValue)
+							return (long)r;
+						else if (r < UInt64.MaxValue)
+							return (ulong)r;
+					}
+					else if (r < 0)
+					{
+						if (r > Int32.MinValue)
+							return (int)r;
+						else if (r < Int64.MinValue)
+							return (long)r;
+					}
+				}
 				return lUseDouble ? r : (float)r;
 			}
 		} // func RtParseNumber
-
-		private static int SkipSpaces(string sNumber, int iOffset)
-		{
-			while (iOffset < sNumber.Length && Char.IsWhiteSpace(sNumber[iOffset]))
-				iOffset++;
-			return iOffset;
-		} // func SkipSpaces
 
 		private static object ThrowFormatExpression(bool lThrowException, string sNumber, int iBase)
 		{
@@ -916,7 +996,7 @@ namespace Neo.IronLua
 			newArgs[1] = target;
 			Array.Copy(args, 0, newArgs, 2, args.Length);
 
-		  // call site
+			// call site
 			return RtInvokeSite(callInfo => new Lua.LuaInvokeBinder(null, callInfo), null, newArgs);
 		} // func RtInvokeSite
 

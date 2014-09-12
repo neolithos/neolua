@@ -137,18 +137,13 @@ assert(0E+1 == 0 and 0xE+1 == 15 and 0xe-1 == 13)
 
 assert(tonumber('  0x2.5  ') == 0x25/16)
 assert(tonumber('  -0x2.5  ') == -0x25/16)
--- NeoLua: I do not logic behind this.
---assert(tonumber('  +0x0.51p+8  ') == 0x51)
-assert(tonumber('  +0x0.51p+2  ') == 0x51)
+assert(tonumber('  +0x0.51p+8  ') == 0x51)
 assert(tonumber('0x0.51p') == nil)
 assert(tonumber('0x5p+-2') == nil)
 assert(0x.FfffFFFF == 1 - '0x.00000001')
 assert('0xA.a' + 0 == 10 + 10/16)
--- NeoLua: I do not logic behind this.
---assert(0xa.aP4 == 0XAA)
-assert(0xa.aP1 == 0XAA)
--- NeoLua: I do not logic behind this.
---assert(0x4P-2 == 1)
+assert(0xa.aP4 == 0XAA)
+assert(0x4P-2 == 1)
 assert(0x1.1 == '0x1.' + '+0x.1')
 
 assert(1.1 == 1.+.1)

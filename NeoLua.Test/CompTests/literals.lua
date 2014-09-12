@@ -58,15 +58,15 @@ lexerror([["\x5]], [[\x5]])
 lexerror([["\xr"]], [[\xr]])
 lexerror([["\xr]], [[\xr]])
 lexerror([["\x.]], [[\x.]])
---todo: lexerror([["\x8%"]], [[\x8%]])
+lexerror([["\x8%"]], [[\x8%]])
 lexerror([["\xAG]], [[\xAG]])
---todo: lexerror([["\g"]], [[\g]])
+lexerror([["\g"]], [[\g]])
 lexerror([["\g]], [[\g]])
 --lexerror([["\."]], [[\.]])
 
---todo: lexerror([["\999"]], [[\999]])
---todo: lexerror([["xyz\300"]], [[\300]])
---todo: lexerror([["   \256"]], [[\256]])
+lexerror([["\999"]], [[\999]])
+lexerror([["xyz\300"]], [[\300]])
+lexerror([["   \256"]], [[\256]])
 
 
 -- unfinished strings
@@ -162,7 +162,6 @@ prog = nil
 a = nil
 b = nil
 
-return; -- todo
 -- testing line ends
 prog = [[
 a = 1        -- a comment
