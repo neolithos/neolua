@@ -201,6 +201,9 @@
   <data name="rsNilOperatorError" xml:space="preserve">
     <value>Operator ist nicht für nil definiert.</value>
   </data>
+  <data name="rsNoLengthOperator" xml:space="preserve">
+    <value>Keine Länge für {0}.</value>
+  </data>
   <data name="rsNullReference" xml:space="preserve">
     <value>Objekt ist nil.</value>
   </data>

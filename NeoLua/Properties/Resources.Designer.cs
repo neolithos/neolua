@@ -313,6 +313,15 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die No length for {0}. ähnelt.
+        /// </summary>
+        internal static string rsNoLengthOperator {
+            get {
+                return ResourceManager.GetString("rsNoLengthOperator", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Sucht eine lokalisierte Zeichenfolge, die Object is nil. ähnelt.
         /// </summary>
         internal static string rsNullReference {

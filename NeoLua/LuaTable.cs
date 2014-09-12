@@ -2238,6 +2238,13 @@ namespace Neo.IronLua
 			// look up the member
 			bool lIsMethod;
 			object value = GetCallMember(sMemberName, lIgnoreCase, lRawGet, out lIsMethod);
+			if (value == null)
+			{
+				if (lThrowExceptions)
+					throw new ArgumentNullException(Properties.Resources.rsNilNotCallable);
+				else
+					return LuaResult.Empty;
+			}
 
 			// create the argument lists
 			if (lIsMethod)

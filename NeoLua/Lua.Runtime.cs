@@ -926,7 +926,8 @@ namespace Neo.IronLua
 				if (pi != null)
 					return (int)pi.GetValue(v, null);
 
-				return 0;
+				LuaType lt = LuaType.GetType(t);
+				throw new LuaRuntimeException(String.Format(Properties.Resources.rsNoLengthOperator, lt.AliasName ?? lt.Name), null);
 			}
 		} // func RtLength
 
