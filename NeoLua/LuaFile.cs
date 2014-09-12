@@ -379,11 +379,11 @@ namespace Neo.IronLua
         switch (iState)
         {
           case 0:
-            if (c == '\0')
-              return sb.ToString();
-            else if (Char.IsNumber(c))
-              iState = 60;
-            else
+						if (c == '\0')
+							return sb.ToString();
+						else if (c == '+' || c == '-' || Char.IsNumber(c))
+							iState = 60;
+						else
               return sb.ToString();
             break;
           #region -- 60 Number --------------------------------------------------------
@@ -500,7 +500,7 @@ namespace Neo.IronLua
         string sFmt = (string)fmt;
         if (sFmt == "*n")
         {
-          return Lua.RtParseNumber(ReadNumber(), (int)LuaIntegerType.Int32 | (int)LuaFloatType.Float | (int)LuaNumberFlags.NoFormatError);
+          return Lua.RtParseNumber(ReadNumber(), true, false);
         }
         else if (sFmt == "*a")
         {

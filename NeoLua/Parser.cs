@@ -671,7 +671,6 @@ namespace Neo.IronLua
 				code.Current.Typ == LuaToken.DotDotDot ||
 				code.Current.Typ == LuaToken.String ||
 				code.Current.Typ == LuaToken.Number ||
-				code.Current.Typ == LuaToken.HexNumber ||
 				code.Current.Typ == LuaToken.KwTrue ||
 				code.Current.Typ == LuaToken.KwFalse ||
 				code.Current.Typ == LuaToken.KwNil ||
@@ -697,7 +696,6 @@ namespace Neo.IronLua
 				case LuaToken.BracketOpen:
 				case LuaToken.String:
 				case LuaToken.Number:
-				case LuaToken.HexNumber:
 				case LuaToken.KwFalse:
 				case LuaToken.KwTrue:
 				case LuaToken.KwNil:
@@ -1085,10 +1083,6 @@ namespace Neo.IronLua
 					info = new PrefixMemberInfo(tStart, ParseNumber(scope.Runtime, FetchToken(LuaToken.Number, code)), null, null, null);
 					break;
 
-				case LuaToken.HexNumber: // Literal HexZahl
-					info = new PrefixMemberInfo(tStart, ParseHexNumber(scope.Runtime, FetchToken(LuaToken.HexNumber, code)), null, null, null);
-					break;
-
 				case LuaToken.KwTrue: // Literal TRUE
 					code.Next();
 					info = new PrefixMemberInfo(tStart, Expression.Constant(true, typeof(bool)), null, null, null);
@@ -1220,37 +1214,13 @@ namespace Neo.IronLua
 				return Expression.Constant(0, Lua.GetIntegerType(runtime.NumberType));
 			else
 			{
-				object v = runtime.ParseNumber(sNumber);
+				object v = Lua.RtParseNumber(sNumber, runtime.FloatType == LuaFloatType.Double, false);
 				if (v != null)
 					return Expression.Constant(v);
 				else
 					throw ParseError(t, String.Format(Properties.Resources.rsParseConvertNumberError, sNumber));
 			}
 		} // func ParseNumber
-
-		internal static Expression ParseHexNumber(Lua runtime, Token t)
-		{
-			string sNumber = t.Value;
-
-			if (String.IsNullOrEmpty(sNumber))
-				return Expression.Constant(0, Lua.GetIntegerType(runtime.NumberType));
-			else
-			{
-				// remove the '0x'
-				if (sNumber.Length > 2 && sNumber[0] == '0' && (sNumber[1] == 'x' || sNumber[1] == 'X'))
-					sNumber = sNumber.Substring(2);
-
-				// Convert the number as an integer
-				object v = runtime.ParseNumber(sNumber, true);
-				if (v != null)
-					return Expression.Constant(v);
-				// Todo: Binary Exponents?
-				//else if (Double.TryParse(sNumber, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out d))
-				//  return Expression.Constant(d, typeof(Double));
-				else
-					throw ParseError(t, String.Format(Properties.Resources.rsParseConvertNumberError, sNumber));
-			}
-		} // func ParseHexNumber
 
 		#endregion
 

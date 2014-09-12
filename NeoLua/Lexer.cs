@@ -40,9 +40,6 @@ namespace Neo.IronLua
 		/// <summary>Integer or floating point number</summary>
 		[Description("number")]
 		Number,
-		/// <summary>Hexadecimal number</summary>
-		[Description("number")]
-		HexNumber,
 		/// <summary>Identifier</summary>
 		Identifier,
 
@@ -935,7 +932,7 @@ namespace Neo.IronLua
 						else if (c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F')
 							EatChar(70);
 						else
-							return CreateToken(0, LuaToken.HexNumber);
+							return CreateToken(0, LuaToken.Number);
 						break;
 					case 71:
 						if (c == 'p' || c == 'P')
@@ -943,7 +940,7 @@ namespace Neo.IronLua
 						else if (c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F')
 							EatChar(71);
 						else
-							return CreateToken(0, LuaToken.HexNumber);
+							return CreateToken(0, LuaToken.Number);
 						break;
 					case 72:
 						if (c == '-' || c == '+')
@@ -951,13 +948,13 @@ namespace Neo.IronLua
 						else if (c >= '0' && c <= '9')
 							EatChar(73);
 						else
-							return CreateToken(0, LuaToken.HexNumber);
+							return CreateToken(0, LuaToken.Number);
 						break;
 					case 73:
 						if (c >= '0' && c <= '9')
 							EatChar(73);
 						else
-							return CreateToken(0, LuaToken.HexNumber);
+							return CreateToken(0, LuaToken.Number);
 						break;
 					#endregion
 					#region -- 1000 Ident or Keyword --------------------------------------------

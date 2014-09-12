@@ -46,20 +46,6 @@ namespace Neo.IronLua
 
 	#endregion
 
-	#region -- enum LuaNumberFlags ------------------------------------------------------
-
-	///////////////////////////////////////////////////////////////////////////////
-	/// <summary></summary>
-	public enum LuaNumberFlags : byte
-	{
-		/// <summary></summary>
-		HexNumber = 0x08,
-		/// <summary></summary>
-		NoFormatError = 0x80
-	} // enum LuaNumberFlags
-
-	#endregion
-
 	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Manages the Lua-Script-Environment. At the time it holds the
 	/// binder cache between the compiled scripts.</summary>
@@ -329,87 +315,21 @@ namespace Neo.IronLua
 			}
 		} // func GetFloatType
 
-		private static object ParseInteger(string sNumber, int integerType)
+		/// <summary>Parses a string to a lua number.</summary>
+		/// <param name="sNumber">String representation of the number.</param>
+		/// <returns></returns>
+		public object ParseNumber(string sNumber)
 		{
-			bool lNeg = sNumber[0] == '-';
-			NumberStyles style = ((byte)integerType & 8) != 0 ? NumberStyles.HexNumber : NumberStyles.Integer;
-			switch ((LuaIntegerType)(integerType & (byte)LuaIntegerType.Mask))
-			{
-				case LuaIntegerType.Int16:
-					{
-						short t;
-						ushort t2;
-						if (Int16.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t) && (lNeg || t >= 0))
-							return t;
-						else if (UInt16.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t2))
-							return t2;
-						else
-							goto case LuaIntegerType.Int32;
-					}
-				case LuaIntegerType.Int32:
-					{
-						int t;
-						uint t2;
-						if (Int32.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t) && (lNeg || t >= 0))
-							return t;
-						else if (UInt32.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t2))
-							return t2;
-						else
-							goto case LuaIntegerType.Int64;
-					}
-				case LuaIntegerType.Int64:
-					{
-						long t;
-						ulong t2;
-						if (Int64.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t) && (lNeg || t >= 0))
-							return t;
-						else if (UInt64.TryParse(sNumber, style, CultureInfo.InvariantCulture, out t2))
-							return t2;
-						else
-							return ThrowFormatExpression(integerType, sNumber, "integer");
-					}
-				default:
-					throw new InvalidOperationException();
-			}
-		} // func ParseInteger
-
-		private static object ParseFloat(string sNumber, int floatType)
-		{
-			switch ((LuaFloatType)(floatType & (byte)LuaFloatType.Mask))
-			{
-				case LuaFloatType.Float:
-					{
-						float t;
-						return Single.TryParse(sNumber, NumberStyles.Float, CultureInfo.InvariantCulture, out t) ? t : ThrowFormatExpression(floatType, sNumber, "float");
-					}
-				case LuaFloatType.Double:
-					{
-						double t;
-						return Double.TryParse(sNumber, NumberStyles.Float, CultureInfo.InvariantCulture, out t) ? t : ThrowFormatExpression(floatType, sNumber, "double");
-					}
-				default:
-					throw new InvalidOperationException();
-			}
-		} // func ParseFloat
-
-		private static object ThrowFormatExpression(int numberType, string sNumber, string sType)
-		{
-			if ((numberType & (int)LuaNumberFlags.NoFormatError) != 0)
-				return null;
-			else
-				throw new FormatException(String.Format(Properties.Resources.rsFormatError, sNumber, sType));
-		} // func ThrowFormatExpression
+			return Lua.RtParseNumber(sNumber, FloatType == LuaFloatType.Double, false);
+		} // func ParseNumber
 
 		/// <summary>Parses a string to a lua number.</summary>
 		/// <param name="sNumber">String representation of the number.</param>
-		/// <param name="lHexNumber">Is the string a hex number</param>
+		/// <param name="iBase">Base fore the number</param>
 		/// <returns></returns>
-		public object ParseNumber(string sNumber, bool lHexNumber = false)
+		public object ParseNumber(string sNumber, int iBase)
 		{
-			int numberType = iNumberType;
-			if (lHexNumber)
-				numberType |= 8;
-			return Lua.RtParseNumber(sNumber, numberType | 0x80);
+			return Lua.RtParseNumber(null, sNumber, 0, iBase, FloatType == LuaFloatType.Double, false);
 		} // func ParseNumber
 
 		internal int NumberType { get { return iNumberType; } }

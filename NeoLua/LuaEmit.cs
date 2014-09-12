@@ -487,7 +487,8 @@ namespace Neo.IronLua
     private static Expression ParseNumberExpression(Lua runtime, Expression expr1, Type type1)
     {
 			return Expression.Call(Lua.ParseNumberMethodInfo, Convert(runtime, expr1, type1, typeof(string), false),
-				Expression.Constant(runtime == null ? ((int)LuaIntegerType.Int32 | (int)LuaFloatType.Double) : runtime.NumberType));
+				Expression.Constant(runtime == null || (runtime.NumberType & (int)LuaFloatType.Mask) != (int)LuaFloatType.Float)
+			);
     } // func ParseNumberExpression
 
     public static Expression GetResultExpression(Expression target, Type type, int iIndex)

@@ -687,23 +687,29 @@ namespace Neo.IronLua
 		/// <param name="values"></param>
 		/// <returns></returns>
 		[LuaMember("select")]
-		private static LuaResult LuaSelect(int index, params object[] values)
+		private static LuaResult LuaSelect(string index, params object[] values)
 		{
-			if (index < 0)
-			{
-				index = values.Length + index;
-				if (index < 0)
-					index = 0;
-			}
-
-			if (index < values.Length)
-			{
-				object[] r = new object[values.Length - index];
-				Array.Copy(values, index, r, 0, r.Length);
-				return r;
-			}
+			if (index == "#")
+				return new LuaResult(values.Length);
 			else
-				return LuaResult.Empty;
+			{
+				int iIndex = Convert.ToInt32(Lua.RtParseNumber(index, true) ?? 0);
+
+				if (iIndex < 0)
+				{
+					iIndex = values.Length + iIndex;
+					if (iIndex < 0)
+						iIndex = 0;
+				}
+				if (iIndex < values.Length)
+				{
+					object[] r = new object[values.Length - iIndex];
+					Array.Copy(values, iIndex, r, 0, r.Length);
+					return r;
+				}
+				else
+					return LuaResult.Empty;
+			}
 		} // func LuaSelect
 
 		/// <summary></summary>
@@ -722,7 +728,7 @@ namespace Neo.IronLua
 		/// <param name="iBase"></param>
 		/// <returns></returns>
 		[LuaMember("tonumber")]
-		private object LuaToNumber(object v, int iBase)
+		private object LuaToNumber(object v, Nullable<int> iBase = null)
 		{
 			if (v == null)
 				return null;
@@ -731,7 +737,10 @@ namespace Neo.IronLua
 				switch (Type.GetTypeCode(v.GetType()))
 				{
 					case TypeCode.String:
-						return lua.ParseNumber((string)v, iBase == 16);
+						if (iBase.HasValue)
+							return Lua.RtParseNumber(null, (string)v, 0, iBase.Value, lua.FloatType == LuaFloatType.Double, false);
+						else
+							return Lua.RtParseNumber((string)v, lua.FloatType == LuaFloatType.Double, false);
 					case TypeCode.SByte:
 					case TypeCode.Byte:
 					case TypeCode.Int16:

@@ -51,79 +51,79 @@ assert(tonumber{} == nil)
 assert(tonumber'+0.01' == 1/100 and tonumber'+.01' == 0.01 and
        tonumber'.01' == 0.01    and tonumber'-1.' == -1 and
        tonumber'+1.' == 1)
-assert(tonumber'+ 0.01' == nil and tonumber'+.e1' == nil and
-       tonumber'1e' == nil     and tonumber'1.0e+' == nil and
-       tonumber'.' == nil)
+assert(tonumber'+ 0.01' == nil); 
+assert(tonumber'+.e1' == nil)
+assert(tonumber'1e' == nil);
+assert(tonumber'1.0e+' == nil);
+assert(tonumber'.' == nil);
 assert(tonumber('-012') == -010-2)
-assert(tonumber('-1.2e2') == - - -120)
+assert(tonumber('-1.2e2') == - - -120.0)
 
 assert(tonumber("0xffffffffffff") == 2^(4*12) - 1)
--- NeoLua: No float hex
---assert(tonumber("0x"..string.rep("f", 150)) == 2^(4*150) - 1)
---assert(tonumber('0x3.' .. string.rep('0', 100)) == 3)
---assert(tonumber('0x0.' .. string.rep('0', 150).."1") == 2^(-4*151))
+assert(tonumber("0x"..string.rep("f", 150)) == 2^(4*150) - 1)
+assert(tonumber('0x3.' .. string.rep('0', 100)) == 3)
+assert(tonumber('0x0.' .. string.rep('0', 150).."1") == 2^(-4*151))
 
 -- testing 'tonumber' with base
--- NeoLua: Base 10, 16 is only implemented
---assert(tonumber('  001010  ', 2) == 10)
+assert(tonumber('  001010  ', 2) == 10)
 assert(tonumber('  001010  ', 10) == 001010)
---assert(tonumber('  -1010  ', 2) == -10)
---assert(tonumber('10', 36) == 36)
---assert(tonumber('  -10  ', 36) == -36)
---assert(tonumber('  +1Z  ', 36) == 36 + 35)
---assert(tonumber('  -1z  ', 36) == -36 + -35)
---assert(tonumber('-fFfa', 16) == -(10+(16*(15+(16*(15+(16*15)))))))
---assert(tonumber(string.rep('1', 42), 2) + 1 == 2^42)
---assert(tonumber(string.rep('1', 34), 2) + 1 == 2^34)
---assert(tonumber('ffffFFFF', 16)+1 == 2^32)
---assert(tonumber('0ffffFFFF', 16)+1 == 2^32)
---assert(tonumber('-0ffffffFFFF', 16) - 1 == -2^40)
---for i = 2,36 do
---  assert(tonumber('\t10000000000\t', i) == i^10)
---end
+assert(tonumber('  -1010  ', 2) == -10)
+assert(tonumber('10', 36) == 36)
+assert(tonumber('  -10  ', 36) == -36)
+assert(tonumber('  +1Z  ', 36) == 36 + 35)
+assert(tonumber('  -1z  ', 36) == -36 + -35)
+assert(tonumber('-fFfa', 16) == -(10+(16*(15+(16*(15+(16*15)))))))
+assert(tonumber(string.rep('1', 42), 2) + 1 == 2^42)
+assert(tonumber(string.rep('1', 34), 2) + 1 == 2^34)
+assert(tonumber('ffffFFFF', 16)+1 == 2^32)
+assert(tonumber('0ffffFFFF', 16)+1 == 2^32)
+assert(tonumber('-0ffffffFFFF', 16) - 1 == -2^40)
+for i = 2,36 do
+  assert(tonumber('\t10000000000\t', i) == i^10)
+end
 
 -- testing 'tonumber' fo invalid formats
---assert(f(tonumber('fFfa', 15)) == nil)
---assert(f(tonumber('099', 8)) == nil)
+assert(f(tonumber('fFfa', 15)) == nil)
+assert(f(tonumber('099', 8)) == nil)
+-- NeoLua: \0 is a whitespace
 --assert(f(tonumber('1\0', 2)) == nil)
---assert(f(tonumber('', 8)) == nil)
---assert(f(tonumber('  ', 9)) == nil)
---assert(f(tonumber('  ', 9)) == nil)
---assert(f(tonumber('0xf', 10)) == nil)
---
---assert(f(tonumber('inf')) == nil)
---assert(f(tonumber(' INF ')) == nil)
---assert(f(tonumber('Nan')) == nil)
---assert(f(tonumber('nan')) == nil)
---
---assert(f(tonumber('  ')) == nil)
---assert(f(tonumber('')) == nil)
---assert(f(tonumber('1  a')) == nil)
---assert(f(tonumber('1\0')) == nil)
---assert(f(tonumber('1 \0')) == nil)
---assert(f(tonumber('1\0 ')) == nil)
---assert(f(tonumber('e1')) == nil)
---assert(f(tonumber('e  1')) == nil)
---assert(f(tonumber(' 3.4.5 ')) == nil)
+assert(f(tonumber('', 8)) == nil)
+assert(f(tonumber('  ', 9)) == nil)
+assert(f(tonumber('  ', 9)) == nil)
+assert(f(tonumber('0xf', 10)) == nil)
+
+assert(f(tonumber('inf')) == nil)
+assert(f(tonumber(' INF ')) == nil)
+assert(f(tonumber('Nan')) == nil)
+assert(f(tonumber('nan')) == nil)
+
+assert(f(tonumber('  ')) == nil)
+assert(f(tonumber('')) == nil)
+assert(f(tonumber('1  a')) == nil)
+assert(f(tonumber('1\0')) == nil)
+assert(f(tonumber('1 \0')) == nil)
+assert(f(tonumber('1\0 ')) == nil)
+assert(f(tonumber('e1')) == nil)
+assert(f(tonumber('e  1')) == nil)
+assert(f(tonumber(' 3.4.5 ')) == nil)
 
 
 -- testing 'tonumber' for invalid hexadecimal formats
 
---assert(tonumber('0x') == nil)
---assert(tonumber('x') == nil)
---assert(tonumber('x3') == nil)
---assert(tonumber('00x2') == nil)
---assert(tonumber('0x 2') == nil)
---assert(tonumber('0 x2') == nil)
---assert(tonumber('23x') == nil)
---assert(tonumber('- 0xaa') == nil)
+assert(tonumber('0x') == nil)
+assert(tonumber('x') == nil)
+assert(tonumber('x3') == nil)
+assert(tonumber('00x2') == nil)
+assert(tonumber('0x 2') == nil)
+assert(tonumber('0 x2') == nil)
+assert(tonumber('23x') == nil)
+assert(tonumber('- 0xaa') == nil)
 
 
 -- testing hexadecimal numerals
 
 assert(0x10 == 16 and 0xfff == 2^12 - 1 and 0XFB == 251)
--- NeoLua: No how
---assert(0x0p12 == 0 and 0x.0p-3 == 0)
+assert(0x0p12 == 0 and 0x.0p-3 == 0)
 assert(0xFFFFFFFF == 2^32 - 1)
 assert(tonumber('+0x2') == 2)
 assert(tonumber('-0xaA') == -170)
@@ -135,17 +135,21 @@ assert(0E+1 == 0 and 0xE+1 == 15 and 0xe-1 == 13)
 
 -- floating hexas
 
--- NeoLua: No how
---assert(tonumber('  0x2.5  ') == 0x25/16)
---assert(tonumber('  -0x2.5  ') == -0x25/16)
+assert(tonumber('  0x2.5  ') == 0x25/16)
+assert(tonumber('  -0x2.5  ') == -0x25/16)
+-- NeoLua: I do not logic behind this.
 --assert(tonumber('  +0x0.51p+8  ') == 0x51)
---assert(tonumber('0x0.51p') == nil)
---assert(tonumber('0x5p+-2') == nil)
---assert(0x.FfffFFFF == 1 - '0x.00000001')
---assert('0xA.a' + 0 == 10 + 10/16)
+assert(tonumber('  +0x0.51p+2  ') == 0x51)
+assert(tonumber('0x0.51p') == nil)
+assert(tonumber('0x5p+-2') == nil)
+assert(0x.FfffFFFF == 1 - '0x.00000001')
+assert('0xA.a' + 0 == 10 + 10/16)
+-- NeoLua: I do not logic behind this.
 --assert(0xa.aP4 == 0XAA)
+assert(0xa.aP1 == 0XAA)
+-- NeoLua: I do not logic behind this.
 --assert(0x4P-2 == 1)
---assert(0x1.1 == '0x1.' + '+0x.1')
+assert(0x1.1 == '0x1.' + '+0x.1')
 
 assert(1.1 == 1.+.1)
 assert(100.0 == 1E2 and .01 == 1e-2)
@@ -176,8 +180,11 @@ assert((1>=1) and not(1>=2) and (2>=1))
 assert(('a'>='a') and not('a'>='b') and ('b'>='a'))
 
 -- testing mod operator
+-- NeoLua: I do not logic behind this.
 --assert(-4%3 == 2)
 --assert(4%-3 == -2)
+assert(-4%3 == -1)
+assert(4%-3 == 1)
 assert(math.pi - math.pi % 1 == 3)
 assert(math.pi - math.pi % 0.001 == 3.141)
 

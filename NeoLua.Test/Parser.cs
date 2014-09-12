@@ -58,8 +58,8 @@ namespace LuaDLR.Test
       Assert.IsTrue(TokenTest("'Hallo'", T(LuaToken.String,"Hallo")));
       Assert.IsTrue(TokenTest("\"Hallo\"", T(LuaToken.String, "Hallo")));
       Assert.IsTrue(TokenTest("[[Hallo]]", T(LuaToken.String, "Hallo")));
-      Assert.IsTrue(TokenTest("2",T( LuaToken.Number, "2")));
-      Assert.IsTrue(TokenTest("0xA3", T(LuaToken.HexNumber, "0xA3")));
+			Assert.IsTrue(TokenTest("2", T(LuaToken.Number, "2")));
+			Assert.IsTrue(TokenTest("0xA3", T(LuaToken.Number, "0xA3")));
 
       Assert.IsTrue(TokenTest("and break cast const do else elseif end false for foreach function goto if in local nil not or repeat return then true until while",
         T(LuaToken.KwAnd, "and"),
@@ -173,10 +173,10 @@ namespace LuaDLR.Test
       Assert.IsTrue(TokenTest("314.16e-2", T(LuaToken.Number, "314.16e-2")));
       Assert.IsTrue(TokenTest("0.31416E1", T(LuaToken.Number, "0.31416E1")));
 
-      Assert.IsTrue(TokenTest("0xff", T(LuaToken.HexNumber, "0xff")));
-      Assert.IsTrue(TokenTest("0x0.1E", T(LuaToken.HexNumber, "0x0.1E")));
-      Assert.IsTrue(TokenTest("0xA23p-4", T(LuaToken.HexNumber, "0xA23p-4")));
-      Assert.IsTrue(TokenTest("0X1.921FB54442D18P+1", T(LuaToken.HexNumber, "0X1.921FB54442D18P+1")));
+			Assert.IsTrue(TokenTest("0xff", T(LuaToken.Number, "0xff")));
+			Assert.IsTrue(TokenTest("0x0.1E", T(LuaToken.Number, "0x0.1E")));
+			Assert.IsTrue(TokenTest("0xA23p-4", T(LuaToken.Number, "0xA23p-4")));
+			Assert.IsTrue(TokenTest("0X1.921FB54442D18P+1", T(LuaToken.Number, "0X1.921FB54442D18P+1")));
     } // proc TokenTest
 
     #endregion
@@ -213,5 +213,20 @@ namespace LuaDLR.Test
     } // proc TestConstants
 
     #endregion
+
+		[TestMethod]
+		public void TestParser01()
+		{
+			Assert.AreEqual(Lua.RtParseNumber(null, "fffffffffffff800", 0, 16, true, false), 0xfffffffffffff800);
+			Assert.AreEqual(Lua.RtParseNumber(null, "314.16e-2", 0, 10, true, false), 314.16e-2);
+			Assert.AreEqual(Lua.RtParseNumber(null, "-0.1246e+4", 0, 10, true, false), -1246.0);
+			Assert.AreEqual(Lua.RtParseNumber(null, "2.5", 0, 16, true, false), 2.3125);
+			Assert.AreEqual(Lua.RtParseNumber(null, "  -1246", 0, 10, true, false), -1246);
+			Assert.AreEqual(Lua.RtParseNumber(null, "  -123456789123456789", 0, 10, true, false), -123456789123456789);
+			Assert.AreEqual(Lua.RtParseNumber(null, "  123456789123456789", 0, 10, true, false), 123456789123456789);
+			Assert.AreEqual(Lua.RtParseNumber(null, "110", 0, 2, true, false), 6);
+			Assert.AreEqual(Lua.RtParseNumber(null, "-1111", 0, 2, true, false), -15);
+			Assert.AreEqual(Lua.RtParseNumber(null, "FF", 0, 16, true, false), 255);
+		}
   } // class Lexer
 }

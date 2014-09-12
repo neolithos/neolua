@@ -534,16 +534,16 @@ namespace Neo.IronLua
   /// <summary></summary>
   internal static class LuaLibraryBit32
 	{
-    public static int arshift(int x, Nullable<int> disp = null)
+    public static uint arshift(int x, Nullable<int> disp = null)
     {
 			if(!disp.HasValue)
 				throw new LuaRuntimeException("Number for arg #2 (disp) expected.", null);
       else if (disp < 0)
-        return unchecked(x << -disp.Value);
+        return (uint)unchecked(x << -disp.Value);
       else if (disp > 0)
-        return unchecked(x >> disp.Value);
+				return (uint)unchecked(x >> disp.Value);
       else
-        return x;
+        return (uint)x;
     } // func arshift
 
 		public static uint band(params uint[] ands)
