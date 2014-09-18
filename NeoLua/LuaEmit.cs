@@ -908,8 +908,115 @@ namespace Neo.IronLua
       if (lIsArithmetic1 && lIsArithmetic2) // Arithmetic types --> create a simple arithmetic operation
       {
         #region -- simple arithmetic --
-        Type typeOp;
-        TypeCode tc1 = GetTypeCode(type1);
+				Type typeOp;
+
+				//switch (op)
+				//{
+				//	case ExpressionType.Add:
+				//	case ExpressionType.AddChecked:
+				//		typeOp = LiftType(type1, type2, false);
+				//		if (typeOp == typeof(float) || typeOp == typeof(double))
+				//		{
+				//			return Expression.Add(
+				//				 Convert(runtime, expr1, type1, typeOp, lParse),
+				//				 Convert(runtime, expr2, type2, typeOp, lParse)
+				//			 );
+				//		}
+				//		else
+				//		{
+				//			Type typeOpNext = LiftTypeNext(runtime, typeOp);
+
+				//			return Expression.TryCatch(
+				//				Expression.Convert(
+				//					Expression.AddChecked(
+				//						Convert(runtime, expr1, type1, typeOp, lParse),
+				//						Convert(runtime, expr2, type2, typeOp, lParse)
+				//					),
+				//					typeof(object)
+				//				),
+				//				Expression.Catch(
+				//					typeof(OverflowException),
+				//					Expression.Convert(
+				//						Expression.Add(
+				//							Convert(runtime, expr1, type1, typeOpNext, lParse),
+				//							Convert(runtime, expr2, type2, typeOpNext, lParse)
+				//						),
+				//						typeof(object)
+				//					)
+				//				)
+				//			);
+				//		}
+				//	case ExpressionType.Subtract:
+				//	case ExpressionType.SubtractChecked:
+				//		typeOp = LiftType(type1, type2, true);
+				//		if (typeOp == typeof(float) || typeOp == typeof(double))
+				//		{
+				//			return Expression.Subtract(
+				//				 Convert(runtime, expr1, type1, typeOp, lParse),
+				//				 Convert(runtime, expr2, type2, typeOp, lParse)
+				//			 );
+				//		}
+				//		else
+				//		{
+				//			Type typeOpNext = LiftTypeNext(runtime, typeOp);
+
+				//			return Expression.TryCatch(
+				//				Expression.Convert(
+				//					Expression.SubtractChecked(
+				//						Convert(runtime, expr1, type1, typeOp, lParse),
+				//						Convert(runtime, expr2, type2, typeOp, lParse)
+				//					),
+				//					typeof(object)
+				//				),
+				//				Expression.Catch(
+				//					typeof(OverflowException),
+				//					Expression.Convert(
+				//						Expression.Subtract(
+				//							Convert(runtime, expr1, type1, typeOpNext, lParse),
+				//							Convert(runtime, expr2, type2, typeOpNext, lParse)
+				//						),
+				//						typeof(object)
+				//					)
+				//				)
+				//			);
+				//		}
+				//	case ExpressionType.Multiply:
+				//	case ExpressionType.MultiplyChecked:
+				//		typeOp = LiftType(type1, type2, false);
+				//		if (typeOp == typeof(float) || typeOp == typeof(double))
+				//		{
+				//			return Expression.Multiply(
+				//				 Convert(runtime, expr1, type1, typeOp, lParse),
+				//				 Convert(runtime, expr2, type2, typeOp, lParse)
+				//			 );
+				//		}
+				//		else
+				//		{
+				//			Type typeOpNext = LiftTypeNext(runtime, typeOp);
+
+				//			return Expression.TryCatch(
+				//				Expression.Convert(
+				//					Expression.MultiplyChecked(
+				//						Convert(runtime, expr1, type1, typeOp, lParse),
+				//						Convert(runtime, expr2, type2, typeOp, lParse)
+				//					),
+				//					typeof(object)
+				//				),
+				//				Expression.Catch(
+				//					typeof(OverflowException),
+				//					Expression.Convert(
+				//						Expression.Multiply(
+				//							Convert(runtime, expr1, type1, typeOpNext, lParse),
+				//							Convert(runtime, expr2, type2, typeOpNext, lParse)
+				//						),
+				//						typeof(object)
+				//					)
+				//				)
+				//			);
+				//		}
+				//}
+
+				TypeCode tc1 = GetTypeCode(type1);
         TypeCode tc2 = GetTypeCode(type2);
 
         // bit operations work only on integers
@@ -1062,8 +1169,9 @@ namespace Neo.IronLua
 		/// <summary>Compares the to types and returns the "higest".</summary>
 		/// <param name="type1"></param>
 		/// <param name="type2"></param>
+		/// <param name="lUnsigned"></param>
 		/// <returns></returns>
-		public static Type LiftType(Type type1, Type type2)
+		public static Type LiftType(Type type1, Type type2, bool lSigned = false)
 		{
 			if (type1 == type2)
 				return type1;
@@ -1098,7 +1206,13 @@ namespace Neo.IronLua
 					else
 						return LiftTypeSigned(tc2, tc1);
 				}
-
+				else if (lSigned) // force unsigned
+				{
+					if (tc1 > tc2)
+						return LiftTypeSigned(tc1, tc2);
+					else
+						return LiftTypeSigned(tc2, tc1);
+				}
 				else // both are unsigned
 					return tc1 < tc2 ? type2 : type1; // -> use the highest
 			}
@@ -1122,6 +1236,30 @@ namespace Neo.IronLua
 					throw new InvalidOperationException(String.Format("Internal error in lift type ({0} vs. {1})", tc1, tc2));
 			}
 		} // func LiftTypeSigned
+
+		private static Type LiftTypeNext(Lua runtime, Type type)
+		{
+			switch (Type.GetTypeCode(type))
+			{
+				case TypeCode.SByte:
+					return typeof(short);
+				case TypeCode.Byte:
+					return typeof(ushort);
+				case TypeCode.Int16:
+					return typeof(int);
+				case TypeCode.UInt16:
+					return typeof(uint);
+				case TypeCode.Int32:
+					return typeof(long);
+				case TypeCode.UInt32:
+					return typeof(ulong);
+				default:
+					if (runtime == null)
+						return typeof(double);
+					else
+						return Lua.GetFloatType(runtime.NumberType);
+			}
+		} // func LiftTypeNext
 
     #endregion
 

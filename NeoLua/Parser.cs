@@ -767,6 +767,7 @@ namespace Neo.IronLua
 
 		private static void ParseExpressionStatement(Scope scope, LuaLexer code, bool lLocal)
 		{
+			List<ParameterExpression> registerLocals = null;
 			List<PrefixMemberInfo> prefixes = new List<PrefixMemberInfo>();
 
 			// parse the assgiee list (var0, var1, var2, ...)
@@ -780,7 +781,12 @@ namespace Neo.IronLua
 
 					ParameterExpression exprVar = scope.LookupExpression(tVar.Value, true) as ParameterExpression;
 					if (exprVar == null)
+					{
 						exprVar = Expression.Variable(typeVar, tVar.Value);
+						if (registerLocals == null)
+							registerLocals = new List<ParameterExpression>();
+						registerLocals.Add(exprVar);
+					}
 					else if (exprVar.Type != typeVar)
 						throw ParseError(tVar, Properties.Resources.rsParseTypeRedef);
 
@@ -900,8 +906,8 @@ namespace Neo.IronLua
 			}
 
 			// register the variables
-			if (lLocal)
-				prefixes.ForEach(c => scope.RegisterVariable((ParameterExpression)c.Instance));
+			if (registerLocals != null)
+				registerLocals.ForEach(c => scope.RegisterVariable(c));
 		} // proc ParseExpressionStatement
 
 		private static ParameterExpression ParseExpressionStatementExchangeToTempVar(List<ParameterExpression> assignTempVars, List<Expression> assignExprs, Expression expr)
