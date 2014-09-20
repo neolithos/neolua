@@ -229,6 +229,23 @@ namespace Neo.IronLua
 						);
 						restrictions = restrictions.Merge(BindingRestrictions.GetTypeRestriction(arg.Expression, arg.LimitType));
 					}
+					else if (arg.LimitType == typeof(uint) || arg.LimitType == typeof(long) || arg.LimitType == typeof(ulong))
+					{
+						expr = Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableSetValueKeyIntMethodInfo,
+							LuaEmit.Convert(Lua.GetRuntime(binder), arg.Expression, arg.LimitType, typeof(int), false),
+							exprSet,
+							Expression.Constant(false)
+						);
+						restrictions = restrictions.Merge(BindingRestrictions.GetExpressionRestriction(
+							Expression.AndAlso(
+								Expression.TypeEqual(arg.Expression, arg.LimitType),
+								Expression.AndAlso(
+									Expression.GreaterThanOrEqual(Lua.EnsureType(arg.Expression, arg.LimitType), Lua.EnsureType(Expression.Constant(1), arg.LimitType)),
+									Expression.LessThanOrEqual(Lua.EnsureType(arg.Expression, arg.LimitType), Lua.EnsureType(Expression.Constant(Int32.MaxValue), arg.LimitType))
+								)
+							)
+						));
+					}
 					else if (arg.LimitType == typeof(string))
 					{
 						expr = Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableSetValueKeyStringMethodInfo,
@@ -291,6 +308,22 @@ namespace Neo.IronLua
 							Expression.Constant(false)
 						);
 						restrictions = restrictions.Merge(BindingRestrictions.GetTypeRestriction(arg.Expression, arg.LimitType));
+					}
+					else if (arg.LimitType == typeof(uint) || arg.LimitType == typeof(long) || arg.LimitType == typeof(ulong))
+					{
+						expr = Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableGetValueKeyIntMethodInfo,
+							LuaEmit.Convert(Lua.GetRuntime(binder), arg.Expression, arg.LimitType, typeof(int), false),
+							Expression.Constant(false)
+						);
+						restrictions = restrictions.Merge(BindingRestrictions.GetExpressionRestriction(
+							Expression.AndAlso(
+								Expression.TypeEqual(arg.Expression, arg.LimitType),
+								Expression.AndAlso(
+									Expression.GreaterThanOrEqual(Lua.EnsureType(arg.Expression, arg.LimitType), Lua.EnsureType(Expression.Constant(1), arg.LimitType)),
+									Expression.LessThanOrEqual(Lua.EnsureType(arg.Expression, arg.LimitType), Lua.EnsureType(Expression.Constant(Int32.MaxValue), arg.LimitType))
+								)
+							)
+						));
 					}
 					else if (arg.LimitType == typeof(string))
 					{

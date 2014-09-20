@@ -558,7 +558,7 @@ namespace LuaDLR.Test
       TestExpr("15 // 3", 5);
       TestExpr("5 / 2", 2.5);
       TestExpr("5 // 2", 2);
-      TestExpr("5.2 // 2", 2);
+      TestExpr("5.2 // 2", (long)2);
       TestExpr("5 % 2", 1);
       TestExpr("5.2 % 2", 1.2);
       TestExpr("2 ^ 0.5", 1.414);
@@ -568,7 +568,7 @@ namespace LuaDLR.Test
       TestExpr("3 ~ 2", 1);
       TestExpr("1 << 8", 256);
       TestExpr("256 >> 8", 1);
-      TestExpr("3.2 ~ 2", 1);
+      TestExpr("3.2 ~ 2", (long)1);
 
       TestExpr("clr.LuaDLR.Test.Expressions.TestOperator(2) + 3", new TestOperator(5));
       TestExpr("clr.LuaDLR.Test.Expressions.TestOperator(2) - 3", new TestOperator(-1));
@@ -591,21 +591,21 @@ namespace LuaDLR.Test
 
         dynamic g = l.CreateEnvironment();
         TestResult(g.dochunk("return a // b", "dummy", "a", 15, "b", 3), 5);
-        TestResult(g.dochunk("return a // b", "dummy", "a", 5.2, "b", 2), 2);
+        TestResult(g.dochunk("return a // b", "dummy", "a", 5.2, "b", 2), (long)2);
 
-        TestResult(g.dochunk("return a & b", "dummy", "a", 3.0, "b", 2), 2);
-        TestResult(g.dochunk("return a | b", "dummy", "a", 2.0, "b", 3), 3);
-        TestResult(g.dochunk("return a ~ b", "dummy", "a", 3.0, "b", 2), 1);
-        TestResult(g.dochunk("return a << b", "dummy", "a", 1.0, "b", 8), 256);
-        TestResult(g.dochunk("return a >> b", "dummy", "a", 256.0, "b", 8), 1);
+        TestResult(g.dochunk("return a & b", "dummy", "a", 3.0, "b", 2), (long)2);
+        TestResult(g.dochunk("return a | b", "dummy", "a", 2.0, "b", 3), (long)3);
+        TestResult(g.dochunk("return a ~ b", "dummy", "a", 3.0, "b", 2), (long)1);
+				TestResult(g.dochunk("return a << b", "dummy", "a", 1.0, "b", 8), (long)256);
+        TestResult(g.dochunk("return a >> b", "dummy", "a", 256.0, "b", 8), (long)1);
 
         LuaChunk c1 = l.CompileChunk("return a ~ b", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(int)));
-        TestResult(g.dochunk(c1, 3.2, 2), 1);
-        TestResult(g.dochunk(c1, "3.2", 2), 1);
+				TestResult(g.dochunk(c1, 3.2, 2), (long)1);
+        TestResult(g.dochunk(c1, "3.2", 2), (long)1);
         TestResult(g.dochunk(c1, ShortEnum.Drei, 2), 1);
         TestResult(g.dochunk(c1, new Nullable<short>(3), 2), 1);
         LuaChunk c2 = l.CompileChunk("return a() ~ b", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(int)));
-        TestResult(g.dochunk(c2, new Func<LuaResult>(() => new LuaResult(3.2)), 2), 1);
+				TestResult(g.dochunk(c2, new Func<LuaResult>(() => new LuaResult(3.2)), 2), (long)1);
         TestResult(g.dochunk(c2, new Func<LuaResult>(() => new LuaResult(new TestOperator(3))), 2), new TestOperator(1));
         TestResult(g.dochunk(c2, new Func<LuaResult>(() => new LuaResult(new Nullable<float>(3.2f))), 2), 1);
       }
@@ -625,12 +625,12 @@ namespace LuaDLR.Test
     public void TestArithmetic17()
     {
       TestExpr("-2", -2);
-      TestExpr("-2.1", -2.1);
+			TestExpr("-2.1", -2.1);
       TestExpr("-'2.1'", -2.1);
       TestExpr("~2", ~2);
-      TestExpr("~2.1", ~2);
+			TestExpr("~2.1", (long)~2);
       TestExpr("~'2'", ~2);
-      TestExpr("~'2.1'", ~2);
+			TestExpr("~'2.1'", (long)~2);
     }
 
     [TestMethod]
@@ -648,10 +648,10 @@ namespace LuaDLR.Test
         TestResult(g.dochunk("return -a", "dummy", "a", ShortEnum.Zwei), (ShortEnum)(-2));
 
         TestResult(g.dochunk("return ~a", "dummy", "a", 2), ~2);
-        TestResult(g.dochunk("return ~a", "dummy", "a", 2.1), ~2);
+        TestResult(g.dochunk("return ~a", "dummy", "a", 2.1), (long)~2);
         TestResult(g.dochunk("return ~a", "dummy", "a", new TestOperator(2)), new TestOperator(~2));
         TestResult(g.dochunk("return ~a", "dummy", "a", new TestOperator2(2)), ~2);
-        TestResult(g.dochunk("return ~a", "dummy", "a", ShortEnum.Zwei), ~2);
+				TestResult(g.dochunk("return ~a", "dummy", "a", ShortEnum.Zwei), (ShortEnum)~2);
       }
     }
 
