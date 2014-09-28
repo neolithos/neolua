@@ -815,18 +815,42 @@ namespace Neo.IronLua
 			if (lIsArithmetic)
 			{
 				#region -- simple arithmetic --
-				if (op == ExpressionType.OnesComplement)
+
+        Type typeEnum = null;
+        if (type.IsEnum)
+        {
+          typeEnum = type; // save enum
+          type = type.GetEnumUnderlyingType();
+        }
+        
+        if (op == ExpressionType.OnesComplement)
 				{
 					expr = Convert(runtime, expr, type, LiftIntegerType(runtime, type), lParse);
 					type = expr.Type;
 				}
-
-				Type typeEnum = null;
-				if (type.IsEnum)
-				{
-					typeEnum = type; // save enum
-					type = type.GetEnumUnderlyingType();
-				}
+        else if (op == ExpressionType.Negate)
+        {
+          TypeCode tc = GetTypeCode(type);
+          switch (tc)
+          {
+            case TypeCode.Byte:
+              expr = Convert(runtime, expr, type, typeof(short), lParse);
+              type = expr.Type;
+              break;
+            case TypeCode.UInt16:
+              expr = Convert(runtime, expr, type, typeof(int), lParse);
+              type = expr.Type;
+              break;
+            case TypeCode.UInt32:
+              expr = Convert(runtime, expr, type, typeof(long), lParse);
+              type = expr.Type;
+              break;
+            case TypeCode.UInt64:
+              expr = Convert(runtime, expr, type, typeof(double), lParse);
+              type = expr.Type;
+              break;
+          }
+        }
 
 				expr = Expression.MakeUnary(op, Convert(runtime, expr, type, type, false), type);
 

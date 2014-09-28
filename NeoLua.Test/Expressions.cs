@@ -694,6 +694,14 @@ namespace LuaDLR.Test
       TestExpr("clr.LuaDLR.Test.Expressions.ReturnLua2() + 1", 3);
     }
 
+    [TestMethod]
+    public void TestArithmetic23()
+    {
+      TestCode("return -0x80", (short)-0x80);
+      TestCode("return -0x8000", (int)-0x8000);
+      TestCode("return -0x80000000", (long)-0x80000000);
+    }
+
     #endregion
 
     #region -- Const ------------------------------------------------------------------

@@ -295,6 +295,15 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
+        ///   Sucht eine lokalisierte Zeichenfolge, die Can not mix static and non-static methods ({0}). ähnelt.
+        /// </summary>
+        internal static string rsMethodStaticMix {
+            get {
+                return ResourceManager.GetString("rsMethodStaticMix", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Sucht eine lokalisierte Zeichenfolge, die Can not call nil value. ähnelt.
         /// </summary>
         internal static string rsNilNotCallable {

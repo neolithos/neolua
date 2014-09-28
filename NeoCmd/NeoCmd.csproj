@@ -59,6 +59,7 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <None Include="Samples\Debug.lua" />
     <None Include="Samples\ForEach.lua" />
     <None Include="Samples\Forms.lua" />
     <None Include="Samples\getPlus.lua" />
@@ -73,6 +74,10 @@
     <None Include="Samples\Test.lua" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\NeoLua.Dbg\NeoLua.Dbg.csproj">
+      <Project>{64e0e32c-0bc4-413e-832e-1574506e4088}</Project>
+      <Name>NeoLua.Dbg</Name>
+    </ProjectReference>
     <ProjectReference Include="..\NeoLua\NeoLua.csproj">
       <Project>{09aebb35-719e-4e32-9836-f57d7d6f1607}</Project>
       <Name>NeoLua</Name>

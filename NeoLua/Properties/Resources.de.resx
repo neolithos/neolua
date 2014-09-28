@@ -195,6 +195,9 @@
   <data name="rsMemberNotWritable" xml:space="preserve">
     <value>'{0}:{1}' nicht schreibbar.</value>
   </data>
+  <data name="rsMethodStaticMix" xml:space="preserve">
+    <value>Es ist nicht möglich statische mit nicht statischen Methoden zu vermischen ({0}).</value>
+  </data>
   <data name="rsNilNotCallable" xml:space="preserve">
     <value>Nil kann nicht aufgerufen werden.</value>
   </data>

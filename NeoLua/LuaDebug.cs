@@ -26,7 +26,7 @@ namespace Neo.IronLua
 		/// <summary>Every expression is wrap by a DebugInfo (Column exact).</summary>
 		Expression = 2,
 		/// <summary>Registriert die Methoden</summary>
-		RegsiterMethods = 4
+		RegisterMethods = 4
 	} // enum LuaDebugLevel
 
 	#endregion
@@ -70,7 +70,7 @@ namespace Neo.IronLua
 	/// <summary>Debugger that creates the methods as dynamic assembly, with them
 	/// it is possible to retrieve exact stacktraces. This debugger is good if
 	/// you are running long scripts, they stay in memory.</summary>
-	public sealed class LuaStackTraceDebugger : ILuaDebug, IDisposable
+	public sealed class LuaStackTraceDebugger : ILuaDebug
 	{
 		#region -- class LuaDebugInfo -----------------------------------------------------
 
@@ -370,7 +370,6 @@ namespace Neo.IronLua
 
 		private AssemblyBuilder assembly = null;
 		private ModuleBuilder module = null;
-		//private Dictionary<string, LuaChunk> chunks = null;
 
 		#region -- Ctor/Dtor --------------------------------------------------------------
 
@@ -378,37 +377,6 @@ namespace Neo.IronLua
 		public LuaStackTraceDebugger()
 		{
 		} // ctor
-
-		/// <summary></summary>
-		~LuaStackTraceDebugger()
-		{
-			Dispose(false);
-		} // ctor
-
-		/// <summary>Disposes the StackTrace-Debugger and the debug information that belongs to the compiled methods.</summary>
-		public void Dispose()
-		{
-			GC.SuppressFinalize(this);
-			Dispose(true);
-		} // proc Dispose
-
-		private void Dispose(bool disposing)
-		{
-			// if(disposing)
-			//lock (lockCompile)
-			//{
-			//	if (chunks != null)
-			//	{
-			//		while (chunks.Count > 0)
-			//			chunks.Values.First().Dispose();
-			//	}
-			//	assembly = null;
-			//	module = null;
-			//	loadedModuls = null;
-			//	chunks = null;
-			//}
-
-		} // proc Dispose
 
 		#endregion
 
@@ -463,84 +431,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Chunks -----------------------------------------------------------------
-
-		//internal LuaChunk CreateEmptyChunk(string sName)
-		//{
-		//	sName = (String.IsNullOrEmpty(sName) ? "lambda" : sName).Replace('.', '_')
-		//		.Replace(';', '_')
-		//		.Replace(',', '_')
-		//		.Replace('+', '_')
-		//		.Replace(':', '_');
-
-		//	lock (lockCompile)
-		//	{
-		//		if (chunks == null)
-		//			chunks = new Dictionary<string, LuaChunk>();
-
-		//		int iId = 0;
-		//		string sCurrentName = sName;
-
-		//		// create a unique name
-		//		lock (allChunks)
-		//		{
-		//			ClearUnreverencedChunks();
-		//			while (ContainsChunkKey(sCurrentName))
-		//				sCurrentName = String.Format("{0}#{1}", sName, ++iId);
-		//		}
-
-		//		// add the empty chunk, to reserve the chunk name
-		//		LuaChunk chunk = chunks[sCurrentName] = new LuaChunk(this, sCurrentName, sName);
-
-		//		RegisterChunk(chunk);
-
-		//		return chunk;
-		//	}
-		//} // func CreateEmptyChunk
-
-		//internal void RemoveChunk(string sName)
-		//{
-		//	lock (lockCompile)
-		//	{
-		//		chunks.Remove(sName);
-
-		//		if (loadedModuls != null)
-		//		{
-		//			// Search for a modul key
-		//			string sKey = null;
-		//			foreach (var c in loadedModuls)
-		//				if (c.Value == sName)
-		//				{
-		//					sKey = c.Key;
-		//					break;
-		//				}
-
-		//			// remove the modul
-		//			if (!String.IsNullOrEmpty(sKey))
-		//				loadedModuls.Remove(sKey);
-		//		}
-		//	}
-		//} // proc RemoveChunk
-
-		//private void ClearEmptyChunks()
-		//{
-		//	List<string> s = new List<string>();
-		//	lock (lockCompile)
-		//	{
-		//		// collect the empty chunks
-		//		foreach (LuaChunk c in chunks.Values)
-		//			if (c.IsEmpty)
-		//				s.Add(c.Name);
-
-		//		// remove the empty chunks
-		//		for (int i = 0; i < s.Count; i++)
-		//			RemoveChunk(s[i]);
-		//	}
-		//} // proc ClearEmptyChunks
-
-		#endregion
-
-		LuaDebugLevel ILuaDebug.Level { get { return LuaDebugLevel.Expression | LuaDebugLevel.RegsiterMethods; } }
+    LuaDebugLevel ILuaDebug.Level { get { return LuaDebugLevel.Expression | LuaDebugLevel.RegisterMethods; } }
 
 		// -- Static --------------------------------------------------------------
 

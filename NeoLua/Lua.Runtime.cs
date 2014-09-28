@@ -12,20 +12,6 @@ using System.Text;
 
 namespace Neo.IronLua
 {
-	#region -- enum LuaRuntimeHelper ----------------------------------------------------
-
-	///////////////////////////////////////////////////////////////////////////////
-	/// <summary>Enumeration with the runtime-functions.</summary>
-	internal enum LuaRuntimeHelper
-	{
-		/// <summary>Sets the table from an initializion list.</summary>
-		TableSetObjects,
-		/// <summary>Concats Result-Array</summary>
-		ConcatArrays
-	} // enum LuaRuntimeHelper
-
-	#endregion
-
 	#region -- class Lua ----------------------------------------------------------------
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -130,6 +116,8 @@ namespace Neo.IronLua
 		// List
 		internal readonly static PropertyInfo ListItemPropertyInfo;
 		internal readonly static PropertyInfo ListCountPropertyInfo;
+    // INotifyPropertyChanged
+    internal readonly static EventInfo NotifyPropertyChangedEventInfo;
 
 		#region -- sctor ------------------------------------------------------------------
 
@@ -312,6 +300,12 @@ namespace Neo.IronLua
 #if DEBUG
 			if (ListItemPropertyInfo == null || ListCountPropertyInfo == null)
 				throw new ArgumentNullException("@11", "List");
+#endif
+      
+      NotifyPropertyChangedEventInfo = typeof(INotifyPropertyChanged).GetEvent("PropertyChanged");
+#if DEBUG
+      if (NotifyPropertyChangedEventInfo == null)
+        throw new ArgumentNullException("@12", "INotifyPropertyChanged");
 #endif
 		} // sctor
 
@@ -561,22 +555,31 @@ namespace Neo.IronLua
 
 			// return the value
 			if (iState == 0) // a integer value
-				unchecked
-				{
-					if (fraction < Int32.MaxValue)
-						return lNeg ? -(int)fraction : (int)fraction;
-					else if (!lNeg && fraction < UInt32.MaxValue)
-						return (uint)fraction;
-					else if (fraction < Int64.MaxValue)
-						return lNeg ? -(long)fraction : (long)fraction;
-					else if (lNeg)
-						if (lUseDouble)
-							return -(double)fraction;
-						else
-							return -(float)fraction;
-					else
-						return fraction;
-				}
+      {
+        unchecked
+        {
+          if (lNeg)
+          {
+            if (fraction < Int32.MaxValue)
+              return -(int)fraction;
+            else if (fraction < Int64.MaxValue)
+              return -(long)fraction;
+            else
+              return lUseDouble ? -(double)fraction : -(float)fraction;
+          }
+          else
+          {
+            if (fraction <= Int32.MaxValue)
+              return (int)fraction;
+            else if (fraction <= UInt32.MaxValue)
+              return (uint)fraction;
+            else if (fraction <= Int64.MaxValue)
+              return (long)fraction;
+            else
+              return fraction;
+          }
+        }
+      }
 			else
 			{
 				// check for a exponent

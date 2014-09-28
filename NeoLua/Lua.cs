@@ -143,7 +143,7 @@ namespace Neo.IronLua
 
 			using (LuaLexer l = new LuaLexer(sChunkName, tr))
 			{
-				if (debug != null && (debug.Level & LuaDebugLevel.RegsiterMethods) == LuaDebugLevel.RegsiterMethods)
+        if (debug != null && (debug.Level & LuaDebugLevel.RegisterMethods) == LuaDebugLevel.RegisterMethods)
 					BeginCompile();
 				try
 				{
@@ -163,7 +163,7 @@ namespace Neo.IronLua
 				}
 				finally
 				{
-					if (debug != null && (debug.Level & LuaDebugLevel.RegsiterMethods) == LuaDebugLevel.RegsiterMethods)
+          if (debug != null && (debug.Level & LuaDebugLevel.RegisterMethods) == LuaDebugLevel.RegisterMethods)
 						EndCompile();
 				}
 			}
@@ -399,9 +399,9 @@ namespace Neo.IronLua
 			}
 		} // prop StandardPackagesPath
 
-		// -- Static --------------------------------------------------------------
+    // -- Static --------------------------------------------------------------
 
-		private static object lockDefaultDebugEngine = new object();
+    private static object lockDefaultDebugEngine = new object();
 		private static ILuaDebug defaultDebugEngine = null;
 
 		private static int iRegisteredChunkLock = 0;
@@ -439,18 +439,23 @@ namespace Neo.IronLua
 		{
 			lock (registeredChunks)
 			{
+        // create a unique name
 				int iIndex = 0;
 				string sUniqueName = sName;
 				while (registeredChunks.ContainsKey(sUniqueName))
 					sUniqueName = sName + (++iIndex).ToString();
-				return sUniqueName;
+
+        // reserve the name
+        registeredChunks.Add(sUniqueName, null);
+        
+        return sUniqueName;
 			}
 		} // func RegisterUniqueName
 
 		internal static void RegisterMethod(string sUniqueName, LuaChunk chunk)
 		{
-			lock (registeredChunks)
-				registeredChunks[sUniqueName] = new WeakReference(chunk);
+      lock (registeredChunks)
+        registeredChunks[sUniqueName] = new WeakReference(chunk);
 		} // proc RegsiterMethod
 
 		internal static void UnregisterMethod(string sUniqueName, LuaChunk chunk)
@@ -470,7 +475,7 @@ namespace Neo.IronLua
 		{
 			WeakReference r;
 			lock (registeredChunks)
-				if (registeredChunks.TryGetValue(sName, out r))
+				if (registeredChunks.TryGetValue(sName, out r) && r != null)
 					return (LuaChunk)r.Target;
 				else
 					return null;

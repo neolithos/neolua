@@ -509,7 +509,7 @@ namespace Neo.IronLua
 
 			// Get the name for the chunk and clean it from all unwanted chars
 			string sChunkName = CreateNameFromFile(code.Current.Start.FileName);
-			if ((debug & LuaDebugLevel.RegsiterMethods) == LuaDebugLevel.RegsiterMethods)
+      if ((debug & LuaDebugLevel.RegisterMethods) == LuaDebugLevel.RegisterMethods)
 				sChunkName = Lua.RegisterUniqueName(sChunkName);
 
 			// Create the block
@@ -2118,8 +2118,8 @@ namespace Neo.IronLua
 
 			FetchToken(LuaToken.KwEnd, code);
 			return Expression.Lambda(
-				scope.ExpressionBlock, 
-				(parent.EmitDebug & LuaDebugLevel.RegsiterMethods) == LuaDebugLevel.RegsiterMethods ? Lua.RegisterUniqueName(sName) : sName, 
+				scope.ExpressionBlock,
+        (parent.EmitDebug & LuaDebugLevel.RegisterMethods) == LuaDebugLevel.RegisterMethods ? Lua.RegisterUniqueName(sName) : sName, 
 				parameters);
 		} // proc ParseLamdaDefinition
 

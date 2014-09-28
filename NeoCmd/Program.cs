@@ -69,9 +69,126 @@ namespace Neo.IronLua
 
 		#endregion
 
-		private static Lua lua = new Lua(); // create lua script compiler
+    #region -- class LuaTraceLineConsoleDebugger --------------------------------------
+
+    private class LuaTraceLineConsoleDebugger : LuaTraceLineDebugger
+    {
+      private bool lInException = false;
+      private LuaTraceLineEventArgs lastTracePoint = null;
+      private Stack<LuaTraceLineEventArgs> frames = new Stack<LuaTraceLineEventArgs>();
+
+      private void UpdateStackLine(int iTop, LuaTraceLineEventArgs e)
+      {
+        // 12345678.123 123
+        Console.CursorLeft = Console.WindowWidth - 16;
+        Console.CursorTop = iTop;
+        if (e == null)
+          Console.Write(new string(' ', 16));
+        else
+        {
+          string sFileName = Path.GetFileName(e.SourceName);
+          if (sFileName.Length > 12)
+            sFileName = sFileName.Substring(0, 12);
+          else if (sFileName.Length < 12)
+            sFileName = sFileName.PadRight(12);
+
+          string sLine = e.SourceLine.ToString().PadLeft(4);
+          if (sLine.Length > 4)
+            sLine = sLine.Substring(0, 4);
+
+          WriteText(ConsoleColor.DarkGray, sFileName);
+          WriteText(ConsoleColor.Gray, sLine);
+        }
+      } // proc UpdateStackLine
+
+      private void UpdateStack(LuaTraceLineEventArgs e)
+      {
+        var stack = frames.ToArray();
+
+        int iCurrentLeft = Console.CursorLeft;
+        int iCurrentTop = Console.CursorTop;
+        int iStart;
+        int iTop = 0;
+        try
+        {
+          if (stack.Length > 9)
+            iStart = stack.Length - 8;
+          else
+            iStart = 0;
+
+          for (int i = iStart; i < stack.Length; i++)
+            UpdateStackLine(iTop++, stack[i]);
+          UpdateStackLine(iTop++, e);
+
+          while (iTop < 9)
+            UpdateStackLine(iTop++, null);
+        }
+        finally
+        {
+          Console.CursorLeft = iCurrentLeft;
+          Console.CursorTop = iCurrentTop;
+        }
+        Thread.Sleep(100);
+      } // proc UpdateStack
+
+      protected override void OnExceptionUnwind(LuaTraceLineExceptionEventArgs e)
+      {
+        if (!lInException)
+        {
+          lInException = true;
+          Console.WriteLine();
+          int iTop = Console.CursorTop;
+          WriteText(ConsoleColor.DarkRed, "Exception: ");
+          WriteText(ConsoleColor.Red, e.Exception.Message); Console.WriteLine();
+          WriteText(ConsoleColor.Gray, "press any key to continue");
+          Console.WriteLine();
+          Console.ReadKey();
+          int iClearTo = Console.CursorTop;
+
+          Console.CursorLeft = 0;
+ 
+          string sClear = new string(' ', Console.WindowWidth);
+          for (int i = iTop; i <= iClearTo; i++)
+          {
+            Console.CursorTop = i;
+            Console.WriteLine(sClear);
+          }
+
+          Console.CursorTop = iTop;
+        }
+        base.OnExceptionUnwind(e);
+      } // proc OnExceptionUnwind
+
+      protected override void OnFrameEnter(LuaTraceLineEventArgs e)
+      {
+        base.OnFrameEnter(e);
+        if (lastTracePoint != null)
+          frames.Push(lastTracePoint);
+      } // proc OnFrameEnter
+
+      protected override void OnTracePoint(LuaTraceLineEventArgs e)
+      {
+        UpdateStack(lastTracePoint = e);
+        base.OnTracePoint(e);
+      } // proc OnTracePoint
+
+      protected override void OnFrameExit()
+      {
+        if (frames.Count > 0)
+          frames.Pop();
+        else if (frames.Count == 0)
+          lInException = false;
+        UpdateStack(null);
+        base.OnFrameExit();
+      } // proc OnFrameExit
+    } // class LuaTraceLineConsoleDebugger
+
+    #endregion
+
+    private static Lua lua = new Lua(); // create lua script compiler
     private static LuaGlobal global;
     private static ILuaDebug debugEngine = Lua.DefaultDebugEngine;
+    private static ILuaDebug debugConsole = new LuaTraceLineConsoleDebugger();
 
     private static void WriteText(ConsoleColor textColor, string sText)
     {
@@ -239,6 +356,11 @@ namespace Neo.IronLua
             sLine = Boolean.TrueString;
             return Commands.Debug;
           }
+          else if (sCommand.StartsWith(":debugtrace", StringComparison.OrdinalIgnoreCase))
+          {
+            sLine = "trace";
+            return Commands.Debug;
+          }
           else if (sCommand.StartsWith(":env", StringComparison.OrdinalIgnoreCase))
           {
             sLine = "true";
@@ -271,6 +393,11 @@ namespace Neo.IronLua
 						sLine = Boolean.FalseString;
 						return Commands.Debug;
 					}
+          else if (sArg == "-debugtrace")
+          {
+            sLine = "trace";
+            return Commands.Debug;
+          }
 				}
 				else
 				{
@@ -408,7 +535,12 @@ namespace Neo.IronLua
             RunScript(() => File.ReadAllText(Path.GetFullPath(sLine)), Path.GetFileName(sLine));
             break;
           case Commands.Debug:
-            if (sLine == Boolean.TrueString)
+           if(sLine =="trace")
+           {
+             WriteText(ConsoleColor.DarkYellow, "Compile emits traceline code, now."); Console.WriteLine();
+             debugEngine = debugConsole;
+           }
+           else if (sLine == Boolean.TrueString)
             {
               WriteText(ConsoleColor.DarkYellow, "Compile emits stack trace information and runtime functions, now."); Console.WriteLine();
 							debugEngine = Lua.DefaultDebugEngine;
@@ -436,6 +568,7 @@ namespace Neo.IronLua
             WriteCommand(":load", "Loads the lua-script from a file.");
             WriteCommand(":debugoff", "Tell the compiler to emit no debug informations.");
             WriteCommand(":debugon", "Let the compiler emit debug informations.");
+            WriteCommand(":debugtrace", "Let the compiler emit trace line functionality.");
             WriteCommand(":c", "Clears the current script buffer.");
             WriteCommand(":env", "Create a fresh environment.");
             WriteCommand(":cache", "Shows the content of the binder cache.");

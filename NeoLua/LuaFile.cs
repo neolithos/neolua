@@ -297,6 +297,10 @@ namespace Neo.IronLua
           i++;
       }
 
+      // do not create the on readonly access
+      if (access == FileAccess.Read)
+        mode = FileMode.Open;
+
       // open the file
       this.process = null;
       this.src = new FileStream(sFileName, mode, access, (access & FileAccess.Write) != 0 ? FileShare.None : FileShare.Read);
