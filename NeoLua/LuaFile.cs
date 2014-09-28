@@ -259,7 +259,7 @@ namespace Neo.IronLua
       if (String.IsNullOrEmpty(sMode))
         throw new ArgumentNullException("mode");
 
-      FileMode mode = FileMode.OpenOrCreate;
+      FileMode mode = FileMode.Open;
       FileAccess access = (FileAccess)0;
 
       // interpret mode
@@ -280,8 +280,10 @@ namespace Neo.IronLua
             break;
           case 'w':
             access |= FileAccess.Write;
-            if (lExtend)
-              mode = FileMode.Create;
+						if (lExtend)
+							mode = FileMode.Create;
+						else
+							mode = FileMode.OpenOrCreate;
             break;
           case 'a':
             access |= FileAccess.Write;
@@ -297,11 +299,7 @@ namespace Neo.IronLua
           i++;
       }
 
-      // do not create the on readonly access
-      if (access == FileAccess.Read)
-        mode = FileMode.Open;
-
-      // open the file
+			// open the file
       this.process = null;
       this.src = new FileStream(sFileName, mode, access, (access & FileAccess.Write) != 0 ? FileShare.None : FileShare.Read);
       this.tr = (access & FileAccess.Read) == 0 ? null : new StreamReader(src, defaultEncoding);

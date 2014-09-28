@@ -888,6 +888,9 @@ namespace Neo.IronLua
 		} // prop LuaLibraryTable
 
 		#endregion
+
+		/// <summary>Access to the assigned Lua script manager</summary>
+		public Lua Lua { get { return lua; } }
 	} // class LuaGlobal
 
 	#endregion

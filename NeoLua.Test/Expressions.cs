@@ -697,7 +697,7 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestArithmetic23()
     {
-      TestCode("return -0x80", (short)-0x80);
+      TestCode("return -0x80", (int)-0x80);
       TestCode("return -0x8000", (int)-0x8000);
       TestCode("return -0x80000000", (long)-0x80000000);
     }
