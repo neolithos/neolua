@@ -15,6 +15,15 @@ namespace Neo.IronLua
 	/// <summary>Dynamic result object for lua functions.</summary>
 	public sealed class LuaResult : IDynamicMetaObjectProvider, IConvertible, System.Collections.IEnumerable, System.Collections.ICollection
 	{
+		#region -- enum CopyMode ----------------------------------------------------------
+
+		internal enum CopyMode
+		{
+			None
+		} // enum CopyMode
+
+		#endregion
+
 		#region -- class LuaResultMetaObject ----------------------------------------------
 
 		///////////////////////////////////////////////////////////////////////////////
@@ -148,16 +157,16 @@ namespace Neo.IronLua
 				this.result = new object[] { v };
 		} // ctor
 
+		internal LuaResult(CopyMode copyMode, object[] values)
+		{
+			this.result = values;
+		} // ctor
+
 		/// <summary>Creates a empty result-object.</summary>
 		/// <param name="values">Result values</param>
 		public LuaResult(params object[] values)
 		{
 			this.result = CopyResult(values);
-		} // ctor
-
-		internal LuaResult(bool lCopy, object[] values)
-		{
-			this.result = lCopy ? CopyResult(values) : values;
 		} // ctor
 
 		/// <summary></summary>

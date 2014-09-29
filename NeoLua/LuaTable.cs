@@ -3978,7 +3978,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static LuaResult unpack(LuaTable t, int i, int j)
 		{
-			return new LuaResult(false, unpack(t, i, j, LuaResult.Empty.Values));
+			return new LuaResult(LuaResult.CopyMode.None, unpack(t, i, j, LuaResult.Empty.Values));
 		} // func unpack
 
 		/// <summary>Returns the elements from the given table as a sequence.</summary>
@@ -4028,7 +4028,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static LuaResult collect(LuaTable t, int i, int j)
 		{
-			return new LuaResult(false, collect(t, i, j, LuaResult.Empty.Values));
+			return new LuaResult(LuaResult.CopyMode.None, collect(t, i, j, LuaResult.Empty.Values));
 		} // func unpack
 
 		/// <summary>Returns the elements from the given table as a sequence.</summary>

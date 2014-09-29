@@ -59,6 +59,7 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <None Include="Samples\Coroutine.lua" />
     <None Include="Samples\Debug.lua" />
     <None Include="Samples\ForEach.lua" />
     <None Include="Samples\Forms.lua" />

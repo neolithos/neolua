@@ -144,7 +144,7 @@ namespace Neo.IronLua
           {
             evYield.Dispose();
             evYield = null;
-            return new LuaResult("false", "cannot resume dead coroutine");
+            return new LuaResult(false, "cannot resume dead coroutine");
           }
           else
             return new LuaResult(true, currentYield);
