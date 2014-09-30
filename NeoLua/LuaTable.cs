@@ -2242,7 +2242,7 @@ namespace Neo.IronLua
 
 				if (value == null) // remove value
 					RemoveValue(iIndex);
-				else if (iIndex == -1 && (lRawSet || !OnNewIndex(key, value))) // insert value
+				else if (iIndex < 0 && (lRawSet || !OnNewIndex(key, value))) // insert value
 					InsertValue(key, hashCode, value, false);
 				else // update value
 					entries[iIndex].value = value;
@@ -2302,7 +2302,7 @@ namespace Neo.IronLua
 			else
 			{
 				iIndex = FindKey(key, key.GetHashCode() & 0x7FFFFFFF, comparerObject);
-				if (iIndex == -1)
+				if (iIndex < 0)
 					return lRawGet ? null : OnIndex(key);
 				else
 					return entries[iIndex].value;
