@@ -427,7 +427,10 @@ namespace Neo.IronLua
 			}
 			else if (toType == typeof(bool)) // we need a true or false
 			{
-				return BinaryOperationExpression(runtime, ExpressionType.NotEqual, expr, fromType, Expression.Default(fromType), fromType, lParse);
+				if (fromType.IsValueType)
+					return Expression.Constant(true);
+				else
+					return BinaryOperationExpression(runtime, ExpressionType.NotEqual, expr, fromType, Expression.Constant(null, fromType), fromType, lParse);
 			}
 			else if (toType == typeof(string)) // convert to a string
 			{
@@ -486,7 +489,8 @@ namespace Neo.IronLua
 		private static Expression ParseNumberExpression(Lua runtime, Expression expr1, Type type1)
 		{
 			return Expression.Call(Lua.ParseNumberMethodInfo, Convert(runtime, expr1, type1, typeof(string), false),
-				Expression.Constant(runtime == null || (runtime.NumberType & (int)LuaFloatType.Mask) != (int)LuaFloatType.Float)
+				Expression.Constant(runtime == null || (runtime.NumberType & (int)LuaFloatType.Mask) != (int)LuaFloatType.Float),
+				Expression.Constant(true)
 			);
 		} // func ParseNumberExpression
 
@@ -529,6 +533,7 @@ namespace Neo.IronLua
 				switch (op)
 				{
 					case ExpressionType.OnesComplement:
+						return UnaryOperationComplementExpression(runtime, expr, type, lParse);
 					case ExpressionType.Negate:
 						return UnaryOperationArithmeticExpression(runtime, op, expr, type, lParse);
 					default:
@@ -547,39 +552,22 @@ namespace Neo.IronLua
 				return BinaryOperationConditionExpression(runtime, op, expr1, type1, expr2, type2, lParse);
 			else if (lParse && (IsDynamicType(type1) || IsDynamicType(type2))) // is one of the type a dynamic type, than make a dynamic expression
 				return BinaryOperationDynamicExpression(runtime, op, expr1, type1, expr2, type2);
+			else if (op == ExpressionType.Power)
+			{
+				if (!TryConvertType(runtime, typeof(double), ref expr1, ref type1))
+					throw new LuaEmitException(LuaEmitException.ConversationNotDefined, type1.Name, typeof(double).Name);
+				else if (!TryConvertType(runtime, typeof(double), ref expr2, ref type2))
+					throw new LuaEmitException(LuaEmitException.ConversationNotDefined, type2.Name, typeof(double).Name);
+				else
+					return Expression.MakeBinary(op, expr1, expr2);
+			}
 			else
-				switch (op)
-				{
-					case ExpressionType.Equal:
-					case ExpressionType.NotEqual:
-					case ExpressionType.LessThan:
-					case ExpressionType.LessThanOrEqual:
-					case ExpressionType.GreaterThan:
-					case ExpressionType.GreaterThanOrEqual:
-						return BinaryOperationCompareExpression(runtime, op, expr1, type1, expr2, type2, lParse);
-					case ExpressionType.Add:
-					case ExpressionType.Subtract:
-					case ExpressionType.Multiply:
-					case ExpressionType.Divide:
-					case ExpressionType.Modulo:
-					case ExpressionType.And:
-					case ExpressionType.ExclusiveOr:
-					case ExpressionType.Or:
-					case ExpressionType.LeftShift:
-					case ExpressionType.RightShift:
-					case Lua.IntegerDivide:
-						return BinaryOperationArithmeticOrBitExpression(runtime, op, expr1, type1, expr2, type2, lParse);
-					case ExpressionType.Power:
-						if (!TryConvertType(runtime, typeof(double), ref expr1, ref type1))
-							throw new LuaEmitException(LuaEmitException.ConversationNotDefined, type1.Name, typeof(double).Name);
-						else if (!TryConvertType(runtime, typeof(double), ref expr2, ref type2))
-							throw new LuaEmitException(LuaEmitException.ConversationNotDefined, type2.Name, typeof(double).Name);
-						else
-							return Expression.MakeBinary(op, expr1, expr2);
-					default:
-						return Expression.MakeBinary(op, expr1, expr2);
-				}
+				return BinaryOperationArithmeticExpression(runtime, op, expr1, type1, expr2, type2, lParse);
 		} // func BinaryOperationExpression
+
+		#endregion
+
+		#region -- BinaryOperationDynamicExpression ---------------------------------------
 
 		private static Expression BinaryOperationDynamicExpression(Lua runtime, ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2)
 		{
@@ -642,109 +630,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Emit Binary Compare Operator -------------------------------------------
-
-		private static Expression BinaryOperationCompareExpression(Lua runtime, ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2, bool lParse)
-		{
-			bool lIsArithmetic1 = IsArithmeticType(type1);
-			bool lIsArithmetic2 = IsArithmeticType(type2);
-			if (lIsArithmetic1 && lIsArithmetic2) // first is a arithmetic --> create a simple compare operation
-			{
-				Type typeOp;
-				TypeCode tc1 = GetTypeCode(type1);
-				TypeCode tc2 = GetTypeCode(type2);
-
-				if (tc1 >= tc2)
-					typeOp = type1;
-				else
-					typeOp = type2;
-
-				return Expression.MakeBinary(op,
-					Convert(runtime, expr1, type1, typeOp, lParse),
-					Convert(runtime, expr2, type2, typeOp, lParse)
-				);
-			}
-
-			ExpressionType opComplement = GetCompareComplement(op);
-			BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod;
-
-			// try find a compare operator
-			Expression expr = BinaryOperationCompareOperatorExpression(runtime, bindingFlags, op, expr1, type1, expr2, type2, lParse);
-			if (expr != null)
-				return expr;
-
-			// try find a complement compare operator
-			if (type1 != type2)
-			{
-				expr = BinaryOperationCompareOperatorExpression(runtime, bindingFlags, opComplement, expr2, type2, expr1, type1, lParse);
-				if (expr != null)
-					return expr;
-			}
-
-			// try find a compare interface
-			bool lExact = false;
-			Type compareInterface1 = GetComparableInterface(type1, type2, ref lExact);
-			Type compareInterface2 = null;
-			if (!lExact && (lIsArithmetic1 || type1 == typeof(string))) // arithmetic type compare interface, do not use because they only compare it self
-				compareInterface1 = null;
-
-			if (type1 != type2 && !lExact)
-			{
-				// try find complement interface
-				compareInterface2 = GetComparableInterface(type2, type1, ref lExact);
-				if (lExact)
-					compareInterface1 = null;
-				else if (compareInterface1 != null || lIsArithmetic2 || type2 == typeof(string))
-					compareInterface2 = null;
-			}
-
-			if (compareInterface1 != null && lExact)
-				return BinaryOperationCompareToExpression(runtime, compareInterface1, op, expr1, type1, expr2, type2, lParse);
-			if (compareInterface2 != null && lExact)
-				return BinaryOperationCompareToExpression(runtime, compareInterface2, opComplement, expr2, type2, expr1, type1, lParse);
-
-			// try lift to an other operator
-			if (type1 != type2)
-			{
-				if (TryConvertType(runtime, type1, ref expr2, ref type2))
-					return BinaryOperationCompareExpression(runtime, op, expr1, type1, expr2, type2, lParse);
-				else if (TryConvertType(runtime, type2, ref expr1, ref type1))
-					return BinaryOperationCompareExpression(runtime, opComplement, expr1, type1, expr2, type2, lParse);
-			}
-			if (op == ExpressionType.Equal || op == ExpressionType.NotEqual)
-			{
-				expr1 = Convert(runtime, expr1, type1, typeof(object), lParse);
-				expr2 = Convert(runtime, expr2, type2, typeof(object), lParse);
-
-				expr = Expression.OrElse(
-					Expression.Call(Lua.ObjectReferenceEqualsMethodInfo, expr1, expr2),
-					Expression.Call(Lua.ObjectEqualsMethodInfo, expr1, expr2)
-				);
-				if (op == ExpressionType.NotEqual)
-					expr = Expression.Not(expr);
-
-				return expr;
-			}
-
-			throw new LuaEmitException(LuaEmitException.OperatorNotDefined, op, type1.Name, type2.Name);
-		} // func BinaryOperationCompareExpression
-
-		private static Expression BinaryOperationCompareOperatorExpression(Lua runtime, BindingFlags bindingFlags, ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2, bool lParse)
-		{
-			MethodInfo miCompare = type1.GetMethod(GetOperationMethodName(op), bindingFlags, null, new Type[] { type1, type2 }, null);
-			if (miCompare != null)
-			{
-				ParameterInfo[] parm = miCompare.GetParameters();
-				return Expression.MakeBinary(op,
-					Convert(runtime, expr1, type1, parm[0].ParameterType, lParse),
-					Convert(runtime, expr2, type2, parm[1].ParameterType, lParse),
-					true,
-					miCompare
-					);
-			}
-			else
-				return null;
-		} // func BinaryOperationCompareOperatorExpression
+		#region -- Emit Binary Compare Equalable helper -----------------------------------
 
 		private static Expression BinaryOperationCompareToExpression(Lua runtime, Type compareInterface, ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2, bool lParse)
 		{
@@ -758,29 +644,33 @@ namespace Neo.IronLua
 				Expression.Constant(0, typeof(int)));
 		} // func BinaryOperationCompareToExpression
 
+		private static Expression BinaryOperationEqualableToExpression(Lua runtime, Type equalableInterface, ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2, bool lParse)
+		{
+			Type typeParam = equalableInterface.GetGenericArguments()[0];
+			MethodInfo miMethod = equalableInterface.GetMethod("Equals", BindingFlags.Public | BindingFlags.Instance | BindingFlags.InvokeMethod, null, new Type[] { typeParam }, null);
+			Expression expr = Expression.Call(
+				Convert(runtime, expr1, type1, equalableInterface, false),
+				miMethod,
+				Convert(runtime, expr2, type2, typeParam, lParse)
+			);
+			return op == ExpressionType.NotEqual ? Expression.Not(expr) : expr;
+		} // func BinaryOperationCompareToExpression
+
 		private static Type GetComparableInterface(Type type1, Type Type2, ref bool lExact)
 		{
 			Type compareInterface = null;
 			foreach (Type typeTest in type1.GetInterfaces())
 			{
-				if (compareInterface == null && typeTest == typeof(IComparable))
-				{
-					compareInterface = typeTest;
-					lExact = false;
-				}
+				if (compareInterface == null && typeTest == typeof(IComparable) && TypesMatch(type1, Type2, out lExact))
+					return typeTest;
 				else if (!lExact && IsGenericCompare(typeTest))
 				{
 					Type p = typeTest.GetGenericArguments()[0];
-					if (p == Type2)
+					if (TypesMatch(p, Type2, out lExact))
 					{
-						lExact = true;
 						compareInterface = typeTest;
-						return compareInterface;
-					}
-					if (compareInterface == null && TypesMatch(p, Type2, out lExact))
-					{
-						lExact = false;
-						compareInterface = typeTest;
+						if (lExact)
+							break;
 					}
 				}
 			}
@@ -792,22 +682,131 @@ namespace Neo.IronLua
 			return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IComparable<>);
 		} // func IsGenericCompare
 
-		private static ExpressionType GetCompareComplement(ExpressionType op)
+		private static Type GetEqualableInterface(Type type1, Type Type2, ref bool lExact)
 		{
-			if (op == ExpressionType.GreaterThan)
-				op = ExpressionType.LessThan;
-			else if (op == ExpressionType.LessThan)
-				op = ExpressionType.GreaterThan;
-			else if (op == ExpressionType.GreaterThanOrEqual)
-				op = ExpressionType.LessThanOrEqual;
-			else if (op == ExpressionType.LessThanOrEqual)
-				op = ExpressionType.GreaterThanOrEqual;
-			return op;
-		} // func GetCompareComplement
+			Type equalableInterface = null;
+			foreach (Type typeTest in type1.GetInterfaces())
+			{
+				if (!lExact && typeTest.IsGenericType && typeTest.GetGenericTypeDefinition() == typeof(IEquatable<>))
+				{
+					Type p = typeTest.GetGenericArguments()[0];
+					if (TypesMatch(p, Type2, out lExact))
+					{
+						equalableInterface = typeTest;
+						if (lExact)
+							break;
+					}
+				}
+			}
+			return equalableInterface;
+		} // func GetEqualableInterface
 
 		#endregion
 
 		#region -- Emit Arithmetic Expression ---------------------------------------------
+
+		private static Expression UnaryOperationComplementExpression(Lua runtime, Expression expr, Type type, bool lParse)
+		{
+			TypeCode tc = GetTypeCode(type);
+			bool lIsArithmetic = IsArithmeticType(tc);
+
+			if (lIsArithmetic) // simple arithmetic complement
+			{
+				#region -- simple arithmetic --
+				Type typeOp = type;
+				Type typeEnum = null;
+				if (type.IsEnum)
+				{
+					typeEnum = type;
+					typeOp = type.GetEnumUnderlyingType();
+					tc = GetTypeCode(typeOp);
+				}
+
+				switch (tc)
+				{
+					case TypeCode.Double:
+						typeOp = typeof(long);
+						break;
+					case TypeCode.Single:
+						typeOp = typeof(int);
+						break;
+				}
+
+				expr = Expression.OnesComplement(Convert(runtime, expr, type, typeOp, lParse));
+
+				if (typeEnum != null)
+					expr = Expression.Convert(expr, typeEnum);
+
+				return expr;
+				#endregion
+			}
+
+			#region -- find operator --
+			MemberInfo[] operators = type.GetMember(GetOperationMethodName(ExpressionType.OnesComplement), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod);
+			MethodInfo miOperator = FindMethod(Array.ConvertAll(operators, o => (MethodInfo)o), new Type[] { type }, t => t, false);
+			if (miOperator != null)
+				return Expression.OnesComplement(Convert(runtime, expr, type, miOperator.GetParameters()[0].ParameterType, lParse), miOperator);
+			#endregion
+
+			#region -- inject convert --
+			if (type == typeof(string))
+				return Expression.Dynamic(runtime.GetUnaryOperationBinary(ExpressionType.OnesComplement), typeof(object), ParseNumberExpression(runtime, expr, type));
+			#endregion
+
+			#region -- try convert to integer --
+			if (TryConvertType(runtime, LiftIntegerType(runtime, type), ref expr, ref type))
+				return UnaryOperationComplementExpression(runtime, expr, type, lParse);
+			#endregion
+
+			throw new LuaEmitException(LuaEmitException.OperatorNotDefined, ExpressionType.OnesComplement, String.Empty, type.Name);
+		} // func UnaryOperationComplementExpression
+
+		private static Expression UnaryOperationNegateExpression(Lua runtime, Expression expr, Type type, bool lParse)
+		{
+			TypeCode tc = GetTypeCode(type);
+			bool lIsArithmetic = IsArithmeticType(tc);
+
+			if (lIsArithmetic) // simple arithmetic complement
+			{
+				#region -- simple arithmetic --
+				Type typeOp = type;
+				Type typeEnum = null;
+				if (type.IsEnum)
+				{
+					typeEnum = type;
+					typeOp = type.GetEnumUnderlyingType();
+					tc = GetTypeCode(typeOp);
+				}
+
+				expr = Expression.OnesComplement(Convert(runtime, expr, type, LiftTypeSigned(tc, tc), lParse));
+
+				if (typeEnum != null)
+					expr = Expression.Convert(expr, typeEnum);
+
+				return expr;
+				#endregion
+			}
+
+			#region -- find operator --
+
+			MemberInfo[] operators = type.GetMember(GetOperationMethodName(ExpressionType.Negate), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod);
+			MethodInfo miOperator = FindMethod(Array.ConvertAll(operators, o => (MethodInfo)o), new Type[] { type }, t => t, false);
+			if (miOperator != null)
+				return Expression.Negate(Convert(runtime, expr, type, miOperator.GetParameters()[0].ParameterType, lParse), miOperator);
+			#endregion
+
+			#region -- inject convert --
+			if (type == typeof(string))
+				return Expression.Dynamic(runtime.GetUnaryOperationBinary(ExpressionType.Negate), typeof(object), ParseNumberExpression(runtime, expr, type));
+			#endregion
+
+			#region -- try convert to integer --
+			if (TryConvertType(runtime, LiftIntegerType(runtime, type), ref expr, ref type))
+				return UnaryOperationNegateExpression(runtime, expr, type, lParse);
+			#endregion
+
+			throw new LuaEmitException(LuaEmitException.OperatorNotDefined, ExpressionType.Negate, String.Empty, type.Name);
+		} // func UnaryOperationNegateExpression
 
 		private static Expression UnaryOperationArithmeticExpression(Lua runtime, ExpressionType op, Expression expr, Type type, bool lParse)
 		{
@@ -816,41 +815,41 @@ namespace Neo.IronLua
 			{
 				#region -- simple arithmetic --
 
-        Type typeEnum = null;
-        if (type.IsEnum)
-        {
-          typeEnum = type; // save enum
-          type = type.GetEnumUnderlyingType();
-        }
-        
-        if (op == ExpressionType.OnesComplement)
+				Type typeEnum = null;
+				if (type.IsEnum)
+				{
+					typeEnum = type; // save enum
+					type = type.GetEnumUnderlyingType();
+				}
+
+				if (op == ExpressionType.OnesComplement)
 				{
 					expr = Convert(runtime, expr, type, LiftIntegerType(runtime, type), lParse);
 					type = expr.Type;
 				}
-        else if (op == ExpressionType.Negate)
-        {
-          TypeCode tc = GetTypeCode(type);
-          switch (tc)
-          {
-            case TypeCode.Byte:
-              expr = Convert(runtime, expr, type, typeof(short), lParse);
-              type = expr.Type;
-              break;
-            case TypeCode.UInt16:
-              expr = Convert(runtime, expr, type, typeof(int), lParse);
-              type = expr.Type;
-              break;
-            case TypeCode.UInt32:
-              expr = Convert(runtime, expr, type, typeof(long), lParse);
-              type = expr.Type;
-              break;
-            case TypeCode.UInt64:
-              expr = Convert(runtime, expr, type, typeof(double), lParse);
-              type = expr.Type;
-              break;
-          }
-        }
+				else if (op == ExpressionType.Negate)
+				{
+					TypeCode tc = GetTypeCode(type);
+					switch (tc)
+					{
+						case TypeCode.Byte:
+							expr = Convert(runtime, expr, type, typeof(short), lParse);
+							type = expr.Type;
+							break;
+						case TypeCode.UInt16:
+							expr = Convert(runtime, expr, type, typeof(int), lParse);
+							type = expr.Type;
+							break;
+						case TypeCode.UInt32:
+							expr = Convert(runtime, expr, type, typeof(long), lParse);
+							type = expr.Type;
+							break;
+						case TypeCode.UInt64:
+							expr = Convert(runtime, expr, type, typeof(double), lParse);
+							type = expr.Type;
+							break;
+					}
+				}
 
 				expr = Expression.MakeUnary(op, Convert(runtime, expr, type, type, false), type);
 
@@ -872,6 +871,7 @@ namespace Neo.IronLua
 			BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod;
 
 			// try to find a exact match for the operation
+
 			miOperation = type.GetMethod(sMethodName, bindingFlags, null, new Type[] { type }, null);
 
 			// can we inject a string conversation --> create a dynamic operation, that results in a simple arithmetic operation
@@ -912,7 +912,6 @@ namespace Neo.IronLua
 			}
 			#endregion
 
-
 			if (miOperation != null)
 			{
 				return Expression.MakeUnary(op,
@@ -923,23 +922,26 @@ namespace Neo.IronLua
 				throw new LuaEmitException(LuaEmitException.OperatorNotDefined, op, String.Empty, type.Name);
 		} // func UnaryOperationArithmeticExpression
 
-		private static Expression BinaryOperationArithmeticOrBitExpression(Lua runtime, ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2, bool lParse)
+		private static Expression BinaryOperationArithmeticExpression(Lua runtime, ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2, bool lParse)
 		{
-			bool lIsArithmetic1 = IsArithmeticType(type1);
-			bool lIsArithmetic2 = IsArithmeticType(type2);
+			TypeCode tc1 = GetTypeCode(type1);
+			TypeCode tc2 = GetTypeCode(type2);
+			bool lIsArithmetic1 = IsArithmeticType(tc1);
+			bool lIsArithmetic2 = IsArithmeticType(tc2);
 
-			if (lIsArithmetic1 && lIsArithmetic2) // Arithmetic types --> create a simple arithmetic operation
+			if (lIsArithmetic1 && lIsArithmetic2) // both are arithmetic --> simple arithmetic operation
 			{
-				#region -- simple arithmetic --
 				Type typeOp;
 				bool shift = false;
+
+				#region -- Get the type for the operation --
 				switch (op)
 				{
 					case ExpressionType.And:
 					case ExpressionType.ExclusiveOr:
 					case ExpressionType.Or:
 						// both type should the same
-						typeOp = LiftIntegerType(runtime, LiftType(type1, type2));
+						typeOp = LiftIntegerType(runtime, LiftType(type1, tc1, type2, tc2, false));
 						break;
 
 					case ExpressionType.LeftShift:
@@ -953,7 +955,8 @@ namespace Neo.IronLua
 					case ExpressionType.Subtract:
 					case ExpressionType.Multiply:
 					case ExpressionType.Modulo:
-						typeOp = LiftType(type1, type2);
+						// both types must be the same
+						typeOp = LiftType(type1, tc1, type2, tc2, false);
 						switch (GetTypeCode(typeOp))
 						{
 							case TypeCode.SByte:
@@ -964,6 +967,7 @@ namespace Neo.IronLua
 						break;
 
 					case ExpressionType.Divide:
+						// both types must be a float type
 						if (type1 == typeof(double) || type2 == typeof(double))
 							typeOp = typeof(double);
 						else if (type1 == typeof(float) || type2 == typeof(float))
@@ -975,7 +979,9 @@ namespace Neo.IronLua
 						break;
 
 					case Lua.IntegerDivide:
-						typeOp = LiftIntegerType(runtime, LiftType(type1, type2));
+						// both must be a integer
+						op = ExpressionType.Divide;
+						typeOp = LiftIntegerType(runtime, LiftType(type1, tc1, type2, tc2, false));
 						switch (GetTypeCode(typeOp))
 						{
 							case TypeCode.SByte:
@@ -986,10 +992,21 @@ namespace Neo.IronLua
 						op = ExpressionType.Divide;
 						break;
 
-					default:
-						throw new InvalidOperationException();
-				}
+					case ExpressionType.Equal:
+					case ExpressionType.NotEqual:
+					case ExpressionType.LessThan:
+					case ExpressionType.LessThanOrEqual:
+					case ExpressionType.GreaterThan:
+					case ExpressionType.GreaterThanOrEqual:
+						typeOp = LiftType(type1, tc1, type2, tc2, false);
+						break;
 
+					default:
+						throw new InvalidOperationException("no typeOp");
+				}
+				#endregion
+
+				#region -- simple enum safe operation --
 				Type typeEnum = null;
 				if (typeOp.IsEnum)
 				{
@@ -1011,93 +1028,169 @@ namespace Neo.IronLua
 				#endregion
 			}
 
-			// find a method, that can do the operation
-			MethodInfo miOperation = null;
-			string sMethodName = GetOperationMethodName(op);
-#if DEBUG
-			if (sMethodName == null)
-				throw new InvalidOperationException(String.Format("Method for Operator {0} not defined.", op));
-#endif
-
-			#region -- find operator --
-			BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod;
+			#region -- Find the the binary operator --
 			Type[] parameterTypes = new Type[] { type1, type2 };
-
-			// try to find a exact match for the operation
-			miOperation = type1.GetMethod(sMethodName, bindingFlags, null, parameterTypes, null);
-			if (miOperation == null && type1 != type2)
-				miOperation = type2.GetMethod(sMethodName, bindingFlags, null, parameterTypes, null);
-
-			if (miOperation == null)
+			BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod;
+			string sOperationName = GetOperationMethodName(op);
+			if (!String.IsNullOrEmpty(sOperationName))
 			{
-				// can we inject a string conversation --> create a dynamic operation, that results in a simple arithmetic operation
-				if (type1 == typeof(string) && type2 == typeof(string) ||
-					type1 == typeof(string) && lIsArithmetic2 ||
-					lIsArithmetic1 && type2 == typeof(string))
+				// create a list of all operators
+				MemberInfo[] members1 = type1.GetMember(sOperationName, bindingFlags);
+				MemberInfo[] members2 = type2.GetMember(sOperationName, bindingFlags);
+				MethodInfo[] members3 = new MethodInfo[members1.Length + members2.Length];
+				if (members3.Length > 0)
 				{
-					#region -- string inject for arithmetic --
-					if (type1 == typeof(string))
-					{
-						expr1 = ParseNumberExpression(runtime, expr1, type1);
-						type1 = typeof(object);
-					}
-					if (type2 == typeof(string))
-					{
-						expr2 = ParseNumberExpression(runtime, expr2, type2);
-						type2 = typeof(object);
-					}
+					Array.Copy(members1, 0, members3, 0, members1.Length);
+					Array.Copy(members2, 0, members3, members1.Length, members2.Length);
 
-					return Expression.Dynamic(runtime.GetBinaryOperationBinder(op), typeof(object),
-						Convert(runtime, expr1, type1, typeof(object), false),
-						Convert(runtime, expr2, type2, typeof(object), false)
-					);
-					#endregion
+					// Find the correct method
+					MethodInfo miOperator = FindMethod(members3, parameterTypes, t => t, false);
+					if (miOperator != null)
+					{
+						ParameterInfo[] parameterInfo = miOperator.GetParameters();
+						if (op == Lua.IntegerDivide)
+							op = ExpressionType.Divide;
+						return Expression.MakeBinary(op,
+							Convert(runtime, expr1, type1, parameterInfo[0].ParameterType, lParse),
+							Convert(runtime, expr2, type2, parameterInfo[1].ParameterType, lParse),
+							true,
+							miOperator
+						);
+					}
 				}
-			}
-
-			// check if we have a type1 op type1 operation
-			if (miOperation == null)
-			{
-				miOperation = type1.GetMethod(sMethodName, bindingFlags, null, new Type[] { type1, type1 }, null);
-				if (miOperation == null || !TryConvertType(runtime, type1, ref expr2, ref type2))
-					miOperation = null;
-			}
-			// check if we have a type2 op type2 operation
-			if (miOperation == null && type1 != type2)
-			{
-				miOperation = type2.GetMethod(sMethodName, bindingFlags, null, new Type[] { type2, type2 }, null);
-				if (miOperation == null || !TryConvertType(runtime, type2, ref expr1, ref type1))
-					miOperation = null;
-			}
-
-			if (miOperation == null)
-			{
-				// check if there is a simple arithmetic operation for type1
-				if (lIsArithmetic1 && TryConvertType(runtime, type1, ref expr2, ref type2))
-					return BinaryOperationArithmeticOrBitExpression(runtime, op, expr1, type1, expr2, type2, lParse);
-				// check if there is a simple arithmetic operation for type2
-				if (miOperation == null && lIsArithmetic2 && TryConvertType(runtime, type2, ref expr1, ref type1))
-					return BinaryOperationArithmeticOrBitExpression(runtime, op, expr1, type1, expr2, type2, lParse);
 			}
 			#endregion
 
-			// generate the non arithmetic expressions
-			if (miOperation != null)
+			#region -- Is it allowed to convert to an arithmetic type --
+			switch (op)
 			{
-				// manipulate the cast to the correct parameters
-				ParameterInfo[] parameterInfo = miOperation.GetParameters();
-				if (op == Lua.IntegerDivide)
-					op = ExpressionType.Divide;
+				case ExpressionType.And:
+				case ExpressionType.ExclusiveOr:
+				case ExpressionType.Or:
 
-				return Expression.MakeBinary(op,
-					Convert(runtime, expr1, type1, parameterInfo[0].ParameterType, lParse),
-					Convert(runtime, expr2, type2, parameterInfo[1].ParameterType, lParse),
-					true,
-					miOperation); // try find a operator for this two expressions
+				case ExpressionType.LeftShift:
+				case ExpressionType.RightShift:
+
+				case ExpressionType.Add:
+				case ExpressionType.Subtract:
+				case ExpressionType.Multiply:
+				case ExpressionType.Divide:
+				case Lua.IntegerDivide:
+				case ExpressionType.Modulo:
+					if (lIsArithmetic1 && type2 == typeof(string))
+					{
+						return Expression.Dynamic(runtime.GetBinaryOperationBinder(op), typeof(object),
+							Convert(runtime, expr1, type1, typeof(object), false),
+							ParseNumberExpression(runtime, expr2, type2)
+						);
+					}
+					else if (type1 == typeof(string) && lIsArithmetic2)
+					{
+						return Expression.Dynamic(runtime.GetBinaryOperationBinder(op), typeof(object),
+							ParseNumberExpression(runtime, expr1, type1),
+							Convert(runtime, expr2, type2, typeof(object), false)
+						);
+					}
+					else if (type1 == typeof(string) && type2 == typeof(string))
+					{
+						return Expression.Dynamic(runtime.GetBinaryOperationBinder(op), typeof(object),
+							ParseNumberExpression(runtime, expr1, type1),
+							ParseNumberExpression(runtime, expr2, type2)
+						);
+					}
+					break;
 			}
-			else
-				throw new LuaEmitException(LuaEmitException.OperatorNotDefined, op, type1.Name, type2.Name);
-		} // func BinaryOperationArithmeticOrBitExpression
+			#endregion
+
+			#region -- IComparable interface --
+			switch (op)
+			{
+				case ExpressionType.Equal:
+				case ExpressionType.NotEqual:
+				case ExpressionType.LessThan:
+				case ExpressionType.LessThanOrEqual:
+				case ExpressionType.GreaterThan:
+				case ExpressionType.GreaterThanOrEqual:
+					{
+						bool lExact = false;
+						Type compareInterface = GetComparableInterface(type1, type2, ref lExact);
+						if (!lExact)
+						{
+							bool lExact2 = false;
+							Type compareInterface2 = GetComparableInterface(type2, type1, ref lExact2);
+							if (lExact2)
+							{
+								switch (op)
+								{
+									case ExpressionType.LessThan:
+										op = ExpressionType.GreaterThanOrEqual;
+										break;
+									case ExpressionType.LessThanOrEqual:
+										op = ExpressionType.GreaterThan;
+										break;
+									case ExpressionType.GreaterThan:
+										op = ExpressionType.LessThanOrEqual;
+										break;
+									case ExpressionType.GreaterThanOrEqual:
+										op = ExpressionType.LessThan;
+										break;
+								}
+								return BinaryOperationCompareToExpression(runtime, compareInterface2, op, expr2, type2, expr1, type1, lParse);
+							}
+						}
+						if (compareInterface != null)
+							return BinaryOperationCompareToExpression(runtime, compareInterface, op, expr1, type1, expr2, type2, lParse);
+					}
+					break;
+			}
+			#endregion
+
+			#region -- IEquatable interface or Object.Equal --
+			switch (op)
+			{
+				case ExpressionType.Equal:
+				case ExpressionType.NotEqual:
+					{
+						bool lExact = false;
+						Type equalableInterface = GetEqualableInterface(type1, type2, ref lExact);
+						if (!lExact)
+						{
+							bool lExact2 = false;
+							Type equalableInterface2 = GetEqualableInterface(type2, type1, ref lExact2);
+							if (lExact2)
+								return BinaryOperationEqualableToExpression(runtime, equalableInterface, op, expr2, type2, expr1, type1, lParse);
+
+						}
+						if (equalableInterface != null)
+							return BinaryOperationEqualableToExpression(runtime, equalableInterface, op, expr1, type1, expr2, type2, lParse);
+						else
+						{
+							expr1 = Convert(runtime, expr1, type1, typeof(object), lParse);
+							expr2 = Convert(runtime, expr2, type2, typeof(object), lParse);
+
+							Expression expr = Expression.OrElse(
+								Expression.Call(Lua.ObjectReferenceEqualsMethodInfo, expr1, expr2),
+								Expression.Call(Lua.ObjectEqualsMethodInfo, expr1, expr2)
+							);
+
+							return op == ExpressionType.NotEqual ? Expression.Not(expr) : expr;
+						}
+					}
+			}
+			#endregion
+
+			#region -- Try to lift type --
+			if (type1 != type2)
+			{
+				if (TryConvertType(runtime, type2, ref expr1, ref type1))
+					return BinaryOperationArithmeticExpression(runtime, op, expr1, type1, Convert(runtime, expr2, type2, type1, lParse), type1, lParse);
+				else if (TryConvertType(runtime, type1, ref expr2, ref type2))
+					return BinaryOperationArithmeticExpression(runtime, op, expr1, type1, Convert(runtime, expr2, type2, type1, lParse), type1, lParse);
+			}
+			#endregion
+
+			throw new LuaEmitException(LuaEmitException.OperatorNotDefined, op, type1.Name, type2.Name);
+		} // func BinaryOperationArithmeticExpression
 
 		/// <summary>Compares the to types and returns the "higest".</summary>
 		/// <param name="type1"></param>
@@ -1113,44 +1206,47 @@ namespace Neo.IronLua
 			TypeCode tc2 = Type.GetTypeCode(type2);
 
 			if (IsArithmeticType(tc1) && IsArithmeticType(tc2)) // process only arithmetic types
-			{
-				// Achtung: this code depends on the numeric representation of TypeCode
-
-				if (IsFloatType(tc1) && IsFloatType(tc2)) // both are floats
-					return tc1 < tc2 ? type2 : type1; // -> use the higest
-				else if (IsFloatType(tc1)) // the first one is a float, the other one is a integer
-					return type1; // -> use the float
-				else if (IsFloatType(tc2)) // the second one is a float, the other one is a integer
-					return type2; // -> use the float
-
-				else if ((((int)tc1) & 1) == 1 && (((int)tc2) & 1) == 1) // both types are signed integers
-					return tc1 < tc2 ? type2 : type1; // -> use the highest
-				else if ((((int)tc1) & 1) == 1) // the first one is signed integer
-				{
-					if (tc1 > tc2) // the unsigned is lower then the signed
-						return type1; // -> use the signed
-					else // -> we need a higher signed integer
-						return LiftTypeSigned(tc1, tc2);
-				}
-				else if ((((int)tc2) & 1) == 1)
-				{
-					if (tc2 > tc1)
-						return type2;
-					else
-						return LiftTypeSigned(tc2, tc1);
-				}
-				else if (lSigned) // force unsigned
-				{
-					if (tc1 > tc2)
-						return LiftTypeSigned(tc1, tc2);
-					else
-						return LiftTypeSigned(tc2, tc1);
-				}
-				else // both are unsigned
-					return tc1 < tc2 ? type2 : type1; // -> use the highest
-			}
+				return LiftType(type1, tc1, type2, tc2, lSigned);
 			else
 				return typeof(object);
+		} // func LiftType
+
+		private static Type LiftType(Type type1, TypeCode tc1, Type type2, TypeCode tc2, bool lSigned)
+		{
+			// Achtung: this code depends on the numeric representation of TypeCode
+
+			if (IsFloatType(tc1) && IsFloatType(tc2)) // both are floats
+				return tc1 < tc2 ? type2 : type1; // -> use the higest
+			else if (IsFloatType(tc1)) // the first one is a float, the other one is a integer
+				return type1; // -> use the float
+			else if (IsFloatType(tc2)) // the second one is a float, the other one is a integer
+				return type2; // -> use the float
+
+			else if ((((int)tc1) & 1) == 1 && (((int)tc2) & 1) == 1) // both types are signed integers
+				return tc1 < tc2 ? type2 : type1; // -> use the highest
+			else if ((((int)tc1) & 1) == 1) // the first one is signed integer
+			{
+				if (tc1 > tc2) // the unsigned is lower then the signed
+					return type1; // -> use the signed
+				else // -> we need a higher signed integer
+					return LiftTypeSigned(tc1, tc2);
+			}
+			else if ((((int)tc2) & 1) == 1)
+			{
+				if (tc2 > tc1)
+					return type2;
+				else
+					return LiftTypeSigned(tc2, tc1);
+			}
+			else if (lSigned) // force unsigned
+			{
+				if (tc1 > tc2)
+					return LiftTypeSigned(tc1, tc2);
+				else
+					return LiftTypeSigned(tc2, tc1);
+			}
+			else // both are unsigned
+				return tc1 < tc2 ? type2 : type1; // -> use the highest
 		} // func LiftType
 
 		private static Type LiftTypeSigned(TypeCode tc1, TypeCode tc2)

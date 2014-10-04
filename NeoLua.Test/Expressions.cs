@@ -254,7 +254,7 @@ namespace LuaDLR.Test
     public void TestConvert01()
     {
       TestExpr("cast(bool, 1)", true);
-      TestExpr("cast(bool, 0)", false);
+      TestExpr("cast(bool, 0)", true);
       TestExpr("clr.LuaDLR.Test.Expressions.ReturnVoid()");
       TestExpr("(clr.LuaDLR.Test.Expressions.ReturnVoid())", NullResult);
       TestExpr("clr.LuaDLR.Test.Expressions.ReturnLua3()", 3, 2, 1);
@@ -272,7 +272,7 @@ namespace LuaDLR.Test
 
         TestResult(g.dochunk(c, 1), true);
         TestResult(g.dochunk(c, ShortEnum.Eins), true);
-        TestResult(g.dochunk(c, 0), false);
+        TestResult(g.dochunk(c, 0), true);
         TestResult(g.dochunk(c, null), false);
         TestResult(g.dochunk(c, new object()), true);
       }
@@ -477,13 +477,13 @@ namespace LuaDLR.Test
         var c1 = l.CompileChunk("return a + b;", "test.lua", null, new KeyValuePair<string, Type>("a", typeof(int)), new KeyValuePair<string, Type>("b", typeof(TestOperator)));
         var c2 = l.CompileChunk("return a + b;", "test.lua", null, new KeyValuePair<string, Type>("a", typeof(object)), new KeyValuePair<string, Type>("b", typeof(object)));
 
-        TestResult(g.DoChunk(c1, 1, new TestOperator(2)), new TestOperator(3));
+				TestResult(g.DoChunk(c1, 1, new TestOperator(2)), new TestOperator(3));
 
-        TestResult(g.DoChunk(c2, 1, new TestOperator(2)), new TestOperator(3));
-        TestResult(g.DoChunk(c2, new TestOperator(2), 1), new TestOperator(3));
-        TestResult(g.DoChunk(c2, new TestOperator(2), new TestOperator(1)), new TestOperator(3));
-        TestResult(g.DoChunk(c2, new TestOperator(2), (short)1), new TestOperator(3));
-        TestResult(g.DoChunk(c2, new TestOperator2(2), 1L), 3L);
+				TestResult(g.DoChunk(c2, 1, new TestOperator(2)), new TestOperator(3));
+				TestResult(g.DoChunk(c2, new TestOperator(2), 1), new TestOperator(3));
+				TestResult(g.DoChunk(c2, new TestOperator(2), new TestOperator(1)), new TestOperator(3));
+				TestResult(g.DoChunk(c2, new TestOperator(2), (short)1), new TestOperator(3));
+				TestResult(g.DoChunk(c2, new TestOperator2(2), 1L), 3L);
         TestResult(g.DoChunk(c2, 2, new TestOperator2(1)), 3);
       }
     }
@@ -766,9 +766,9 @@ namespace LuaDLR.Test
         var c = l.CompileChunk("if a then return true else return false end", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)));
 
         TestResult(g.DoChunk(c, 1), true);
-        TestResult(g.DoChunk(c, 0), false);
+        TestResult(g.DoChunk(c, 0), true);
         TestResult(g.DoChunk(c, ShortEnum.Drei), true);
-        TestResult(g.DoChunk(c, IntEnum.Null), false);
+        TestResult(g.DoChunk(c, IntEnum.Null), true);
         TestResult(g.DoChunk(c, new object[] { null }), false);
       }
     }
@@ -815,7 +815,7 @@ namespace LuaDLR.Test
       TestExpr("not true", false);
       TestExpr("not false", true);
       TestExpr("not 1", false);
-      TestExpr("not 0", true);
+      TestExpr("not 0", false);
       TestExpr("not nil", true);
     }
 
@@ -829,10 +829,10 @@ namespace LuaDLR.Test
         var c = l.CompileChunk("return not a", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)));
 
         TestResult(g.DoChunk(c, 1), false);
-        TestResult(g.DoChunk(c, 0), true);
+        TestResult(g.DoChunk(c, 0), false);
         TestResult(g.DoChunk(c, ShortEnum.Drei), false);
-        TestResult(g.DoChunk(c, IntEnum.Null), true);
-        TestResult(g.DoChunk(c, new LuaResult(0)), true);
+        TestResult(g.DoChunk(c, IntEnum.Null), false);
+        TestResult(g.DoChunk(c, new LuaResult(0)), false);
         TestResult(g.DoChunk(c, new object[] { null }), true);
       }
     }
@@ -845,6 +845,15 @@ namespace LuaDLR.Test
 				"if t then return 1 else return 0 end"),
 				1);
 		}
+		
+		[TestMethod]
+		public void TestLogic16() { TestCode("return not 0", false); }
+
+		[TestMethod]
+		public void TestLogic17() { TestCode("return not 1", false); }
+
+		[TestMethod]
+		public void TestLogic18() { TestCode("return not nil", true); }
 
     #endregion
 
@@ -905,7 +914,7 @@ namespace LuaDLR.Test
         TestResult(g.dochunk(c, 2, 2), true);
         TestResult(g.dochunk(c, 2, (short)2), true);
         TestResult(g.dochunk(c, new TestOperator(1), 2), false);
-        TestResult(g.dochunk(c, 2, new TestOperator(2)), true);
+        TestResult(g.dochunk(c, 2, new TestOperator(2)), false);
         object a = new object();
         TestResult(g.dochunk(c, a, a), true);
         TestResult(g.dochunk(c, "a", "a"), true);
@@ -928,8 +937,8 @@ namespace LuaDLR.Test
         TestResult(g.dochunk(c, 2, 1), true);
         TestResult(g.dochunk(c, 2, 2), false);
         TestResult(g.dochunk(c, 2, (short)2), false);
-        TestResult(g.dochunk(c, new TestOperator(1), 2), true); // int -> testoperator, but no equal
-        TestResult(g.dochunk(c, 2, new TestOperator(2)), false);
+        TestResult(g.dochunk(c, new TestOperator(1), 2), true);
+        TestResult(g.dochunk(c, 2, new TestOperator(2)), true);
         object a = new object();
         TestResult(g.dochunk(c, "a", "a"), false);
       }

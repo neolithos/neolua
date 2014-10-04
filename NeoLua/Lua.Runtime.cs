@@ -238,7 +238,7 @@ namespace Neo.IronLua
 #endif
 
 			// Lua
-			ParseNumberMethodInfo = typeof(Lua).GetMethod("RtParseNumber", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(string), typeof(bool) }, null);
+			ParseNumberMethodInfo = typeof(Lua).GetMethod("RtParseNumber", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(string), typeof(bool), typeof(bool) }, null);
 			RuntimeLengthMethodInfo = typeof(Lua).GetMethod("RtLength", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod);
 			ConvertValueMethodInfo = typeof(Lua).GetMethod("RtConvertValue", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(object), typeof(Type) }, null);
 			GetResultValuesMethodInfo = typeof(Lua).GetMethod("RtGetResultValues", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(LuaResult), typeof(int), typeof(Type) }, null);
@@ -746,7 +746,7 @@ namespace Neo.IronLua
 						switch (tcTo)
 						{
 							case TypeCode.Boolean:
-								value = !Object.Equals(value, Activator.CreateInstance(toType));
+								value = value != null;
 								break;
 							case TypeCode.Char:
 								value = Convert.ToChar(value, CultureInfo.InvariantCulture);

@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
+using Microsoft.Scripting;
 using Microsoft.Scripting.Debugging;
 using Microsoft.Scripting.Debugging.CompilerServices;
 
@@ -16,11 +17,11 @@ namespace Neo.IronLua
     private string sName;
     private string sSourceFile;
     private int iLine;
-    private Func<Microsoft.Scripting.IAttributesCollection> scopeCallback;
+		private Func<IDictionary<object, object>> scopeCallback;
     
     private IDictionary<object, object> locals;
 
-    internal LuaTraceLineEventArgs(string sName, string sSourceFile, int iLine, Func<Microsoft.Scripting.IAttributesCollection> scopeCallback)
+		internal LuaTraceLineEventArgs(string sName, string sSourceFile, int iLine, Func<IDictionary<object, object>> scopeCallback)
     {
       this.sName = sName;
       this.sSourceFile = sSourceFile;
@@ -37,7 +38,7 @@ namespace Neo.IronLua
       get
       {
         if (locals == null)
-          locals = scopeCallback().AsObjectKeyedDictionary();
+          locals = scopeCallback();
         return locals;
       }
     } // prop Locals
@@ -51,11 +52,11 @@ namespace Neo.IronLua
   {
     private Exception exception;
 
-    internal LuaTraceLineExceptionEventArgs(string sName, string sSourceFile, int iLine, Func<Microsoft.Scripting.IAttributesCollection> scopeCallback, Exception exception)
-      : base(sName, sSourceFile, iLine, scopeCallback)
-    {
-      this.exception = exception;
-    } // ctor
+		internal LuaTraceLineExceptionEventArgs(string sName, string sSourceFile, int iLine, Func<IDictionary<object, object>> scopeCallback, Exception exception)
+			: base(sName, sSourceFile, iLine, scopeCallback)
+		{
+			this.exception = exception;
+		} // ctor
 
     public Exception Exception { get { return exception; } }
   } // class LuaTraceLineExceptionEventArgs
@@ -79,7 +80,7 @@ namespace Neo.IronLua
         this.traceLineDebugger = traceLineDebugger;
       } // ctor
 
-      public void OnTraceEvent(TraceEventKind kind, string name, string sourceFileName, Microsoft.Scripting.SourceSpan sourceSpan, Func<Microsoft.Scripting.IAttributesCollection> scopeCallback, object payload, object customPayload)
+			public void OnTraceEvent(TraceEventKind kind, string name, string sourceFileName, SourceSpan sourceSpan, Func<IDictionary<object, object>> scopeCallback, object payload, object customPayload)
       {
         switch (kind)
         {
@@ -97,7 +98,7 @@ namespace Neo.IronLua
             break;
         }
       } // proc OnTraceEvent
-    } // class TraceCallback
+		} // class TraceCallback
 
     #endregion
 

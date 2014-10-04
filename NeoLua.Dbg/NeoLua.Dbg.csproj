@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-	<Import Project="..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets" Condition="Exists('..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets')" />
-	<PropertyGroup>
+  <Import Project="..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets" Condition="Exists('..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets')" />
+  <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{64E0E32C-0BC4-413E-832E-1574506E4088}</ProjectGuid>
@@ -42,14 +42,16 @@
     <AssemblyOriginatorKeyFile>NeoLua.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Microsoft.Dynamic">
-      <HintPath>..\packages\DynamicLanguageRuntime.Net40.Unofficial.2.6.1003.1\lib\net40\Microsoft.Dynamic.dll</HintPath>
+    <Reference Include="Microsoft.Dynamic, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\DLR\Microsoft.Dynamic.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Scripting">
-      <HintPath>..\packages\DynamicLanguageRuntime.Net40.Unofficial.2.6.1003.1\lib\net40\Microsoft.Scripting.dll</HintPath>
+    <Reference Include="Microsoft.Scripting, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\DLR\Microsoft.Scripting.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Scripting.Debugging">
-      <HintPath>..\packages\DynamicLanguageRuntime.Net40.Unofficial.2.6.1003.1\lib\net40\Microsoft.Scripting.Debugging.dll</HintPath>
+    <Reference Include="Microsoft.Scripting.Metadata">
+      <HintPath>..\packages\DLR\Microsoft.Scripting.Metadata.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -68,9 +70,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="NeoLua.snk" />
-    <None Include="packages.config">
-      <SubType>Designer</SubType>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NeoLua\NeoLua.csproj">
@@ -82,24 +81,24 @@
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   -->
-	<Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
-		<CreateItem Include="$(TargetDir)\Neo.Lua.*;$(TargetDir)\Microsoft.*;$(TargetDir)\de\*">
-			<Output ItemName="ZipFile" TaskParameter="Include" />
-		</CreateItem>
-		<Zip Files="@(ZipFile)" WorkingDirectory="$(TargetDir)" ZipFileName="$(TargetDir)\NeoDbg-$(Version).zip" />
-	</Target>
-	<Target Name="BeforeBuild">
-		<ReadLinesFromFile File="..\NeoLua\Properties\AssemblyInfoGlobal.cs">
-			<Output TaskParameter="Lines" ItemName="AssemblyVersionContent" />
-		</ReadLinesFromFile>
-		<PropertyGroup>
-			<Pattern>\[assembly: AssemblyFileVersion\(.(\d+)\.(\d+)\.(\d+)</Pattern>
-			<AssemblyVersionLines>@(AssemblyVersionContent)</AssemblyVersionLines>
-			<AssemblyVersionLine>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyVersionLines), $(Pattern)))</AssemblyVersionLine>
-			<Version>$(AssemblyVersionLine.Remove(0, 32))</Version>
-		</PropertyGroup>
-		<Message Text="Version: $(Version)" />
-	</Target>
-	<Target Name="AfterBuild" DependsOnTargets="ZipLua">
-	</Target>
+  <Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
+    <CreateItem Include="$(TargetDir)\Neo.Lua.*;$(TargetDir)\Microsoft.*;$(TargetDir)\de\*">
+      <Output ItemName="ZipFile" TaskParameter="Include" />
+    </CreateItem>
+    <Zip Files="@(ZipFile)" WorkingDirectory="$(TargetDir)" ZipFileName="$(TargetDir)\NeoDbg-$(Version).zip" />
+  </Target>
+  <Target Name="BeforeBuild">
+    <ReadLinesFromFile File="..\NeoLua\Properties\AssemblyInfoGlobal.cs">
+      <Output TaskParameter="Lines" ItemName="AssemblyVersionContent" />
+    </ReadLinesFromFile>
+    <PropertyGroup>
+      <Pattern>\[assembly: AssemblyFileVersion\(.(\d+)\.(\d+)\.(\d+)</Pattern>
+      <AssemblyVersionLines>@(AssemblyVersionContent)</AssemblyVersionLines>
+      <AssemblyVersionLine>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyVersionLines), $(Pattern)))</AssemblyVersionLine>
+      <Version>$(AssemblyVersionLine.Remove(0, 32))</Version>
+    </PropertyGroup>
+    <Message Text="Version: $(Version)" />
+  </Target>
+  <Target Name="AfterBuild" DependsOnTargets="ZipLua">
+  </Target>
 </Project>
