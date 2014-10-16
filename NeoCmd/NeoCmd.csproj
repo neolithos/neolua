@@ -92,7 +92,7 @@
        Other similar extension points exist, see Microsoft.Common.targets.
   -->
   <Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
-    <CreateItem Include="$(TargetDir)\NeoCmd.exe;$(TargetDir)\Neo.Lua.dll;$(TargetDir)\de\*;Samples\*.lua">
+    <CreateItem Include="$(TargetDir)\NeoCmd.exe;$(TargetDir)\Neo.Lua.dll;$(TargetDir)\Neo.Lua.Dbg.dll;$(TargetDir)\Microsoft.Dynamic.dll;$(TargetDir)\Microsoft.Scripting.dll;$(TargetDir)\Microsoft.Scripting.Metadata.dll;$(TargetDir)\de\*;Samples\*.lua">
       <Output ItemName="ZipFile" TaskParameter="Include" />
     </CreateItem>
     <Zip Files="@(ZipFile)" WorkingDirectory="$(TargetDir)" ZipFileName="$(TargetDir)\NeoCmd-$(Version).zip" />

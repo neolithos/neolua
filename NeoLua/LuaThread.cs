@@ -217,7 +217,6 @@ namespace Neo.IronLua
       lock (luaThreads)
         luaThreads.Add(this);
 
-     
       yield(new LuaResult(Lua.RtInvokeSite(target, currentArguments.Values)));
     } // proc ExecuteDelegate
 
@@ -280,10 +279,20 @@ namespace Neo.IronLua
           return LuaThreadStatus.Running;
         else
         {
-          if (evYield == null)
-            return arExecute == null ? LuaThreadStatus.Normal : LuaThreadStatus.Dead;
-          else
-            return evYield.IsSet ? LuaThreadStatus.Suspended : LuaThreadStatus.Running;
+					/*
+					 * "running", if the coroutine is running (that is, it called status); 
+					 * "suspended", if the coroutine is suspended in a call to yield, or if it has not started running yet; 
+					 * "normal" if the coroutine is active but not running (that is, it has resumed another coroutine); and 
+					 * "dead" if the coroutine has finished its body function, or if it has stopped with an error. 
+					 */
+					if (evYield == null) // is the coroutine active
+						return arExecute == null ? // is the routine started
+							LuaThreadStatus.Suspended : // no, suspended
+							LuaThreadStatus.Dead; // yes, dead
+					else if (evYield.IsSet) // atkive coroutine yields a values
+						return LuaThreadStatus.Suspended; // currently in the yield
+					else
+            return LuaThreadStatus.Normal; // not in the yield, running or waiting?
         }
       }
     } // prop Status
