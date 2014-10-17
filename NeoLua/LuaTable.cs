@@ -2568,7 +2568,7 @@ namespace Neo.IronLua
 		{
 			// get cached call site
 			CallSite site;
-			if (!callSites.TryGetValue(args.Length, out site))
+			if (callSites.TryGetValue(args.Length, out site))
 				args[0] = site;
 			// call site
 			return new LuaResult(Lua.RtInvokeSite(GetInvokeBinder, (callInfo, callSite) => callSites[callInfo.ArgumentCount + 1] = callSite, args));

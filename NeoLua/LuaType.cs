@@ -320,7 +320,7 @@ namespace Neo.IronLua
         {
           expr = Lua.ThrowExpression(e.Message, returnType);
         }
-        return new DynamicMetaObject(expr, GetTypeResolvedRestriction(typeNew));
+				return new DynamicMetaObject(expr, GetTypeResolvedRestriction(typeNew).Merge(Lua.GetMethodSignatureRestriction(null, args)));
       } // func BindNewObject
 
       private BindingRestrictions GetTypeNotResolvedRestriction()

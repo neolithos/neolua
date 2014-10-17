@@ -289,10 +289,10 @@ namespace Neo.IronLua
 						return arExecute == null ? // is the routine started
 							LuaThreadStatus.Suspended : // no, suspended
 							LuaThreadStatus.Dead; // yes, dead
-					else if (evYield.IsSet) // atkive coroutine yields a values
-						return LuaThreadStatus.Suspended; // currently in the yield
-					else
-            return LuaThreadStatus.Normal; // not in the yield, running or waiting?
+					else 
+						return evYield.IsSet ? // atkive coroutine yields a values
+							LuaThreadStatus.Suspended : // currently in the yield
+							LuaThreadStatus.Normal; // not in the yield, running or waiting?
         }
       }
     } // prop Status
