@@ -5,6 +5,7 @@ using System.Dynamic;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -867,4 +868,54 @@ namespace Neo.IronLua
   } // class LuaLibraryOS
 
   #endregion
+
+	#region -- Debug functions ----------------------------------------------------------
+
+	internal static class LuaLibraryDebug
+	{
+		public static LuaResult getupvalue(object f, int index)
+		{
+			Delegate dlg = f as Delegate;
+			if (dlg != null)
+			{
+				Closure closure = dlg.Target as Closure;
+				if (closure != null && closure.Locals != null && index >= 1 && index <= closure.Locals.Length)
+				{
+					object v = closure.Locals[index - 1];
+					if (v is IStrongBox)
+						v = ((IStrongBox)v).Value;
+					return new LuaResult("var" + index.ToString(), v);
+				}
+			}
+			return LuaResult.Empty;
+		} // func getupvalue
+
+		public static LuaResult setupvalue(object f, int index, object v)
+		{
+			Delegate dlg = f as Delegate;
+
+			if (dlg != null)
+			{
+				Closure closure = dlg.Target as Closure;
+				if (closure != null && closure.Locals != null && index >= 1 && index <= closure.Locals.Length)
+				{
+					object strongBox = closure.Locals[index - 1] ;
+					if(strongBox!= null)
+					{
+						Type typeStrongbox = strongBox.GetType();
+						if (typeStrongbox.IsGenericType && typeStrongbox.GetGenericTypeDefinition()==typeof(StrongBox<>))
+						{
+							Type typeBoxed = typeStrongbox.GetGenericArguments()[0];
+							((IStrongBox)strongBox).Value = Lua.RtConvertValue(v, typeBoxed);
+							return new LuaResult("var" + index.ToString());
+						}
+					}
+				}
+			}
+
+			return LuaResult.Empty;
+		} // func setupvalue
+	} // class LuaLibraryDebug
+
+	#endregion
 }

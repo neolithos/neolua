@@ -887,6 +887,12 @@ namespace Neo.IronLua
 			get { return LuaType.GetType(typeof(LuaLibraryString)); }
 		} // prop LuaLibraryTable
 
+		[LuaMember("debug")]
+		private static LuaType LuaLibraryDebug
+		{
+			get { return LuaType.GetType(typeof(LuaLibraryDebug)); }
+		} // prop LuaLibraryDebug
+
 		#endregion
 
 		/// <summary>Access to the assigned Lua script manager</summary>
