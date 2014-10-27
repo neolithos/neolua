@@ -8,6 +8,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Neo.IronLua
@@ -1081,6 +1082,208 @@ namespace Neo.IronLua
 			}
 			return r;
 		} // func RtInitArray
+
+		#endregion
+
+		#region -- RtSetUpValues, RtGetUpValues, RtJoinUpValues ---------------------------
+
+		/// <summary>Returns the up-value of the given index.</summary>
+		/// <param name="function">Delegate, which upvalue should returned.</param>
+		/// <param name="index">1-based index of the upvalue.</param>
+		/// <returns>Name, Value pair for the value.</returns>
+		public static LuaResult RtGetUpValue(Delegate function, int index)
+		{
+			if (function == null || function.Target == null)
+				return LuaResult.Empty;
+
+			// first we check for a closure
+			Closure closure = function.Target as Closure;
+			if (closure != null)
+			{
+				if (closure.Locals != null && index >= 1 && index <= closure.Locals.Length)
+				{
+					object v = closure.Locals[index - 1];
+					if (v is IStrongBox)
+						v = ((IStrongBox)v).Value;
+					return new LuaResult("var" + index.ToString(), v);
+				}
+				else
+					return LuaResult.Empty;
+			}
+			else // no closure, thread the members as a closure
+			{
+				FieldInfo[] fields = function.Target.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetField | BindingFlags.SetField);
+
+				if (index >= 1 && index <= fields.Length)
+				{
+					FieldInfo fi = fields[index - 1];
+					return new LuaResult(fi.Name, fi.GetValue(function.Target));
+				}
+				else
+					return LuaResult.Empty;
+			}
+		} // func RtGetUpValue
+
+		#region -- class UpValueObject ----------------------------------------------------
+
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary></summary>
+		private class UpValueObject
+		{
+			private object value;
+			private int index;
+
+			public UpValueObject(object value, int index)
+			{
+				this.value = value;
+				this.index = index;
+			} // ctor
+
+			public override bool Equals(object obj)
+			{
+				UpValueObject uvo = obj as UpValueObject;
+				if (uvo == null)
+					return false;
+				else
+					return uvo.value == value && uvo.index == index;
+			} // func Equals
+
+			public override int GetHashCode()
+			{
+				return value.GetHashCode();
+			} // func GetHashCode
+
+			public override string ToString()
+			{
+				return (index == 0 ? "strongbox: " : "class: ") + ((IntPtr)this).ToString();
+			} // func ToString
+
+			public static explicit operator IntPtr(UpValueObject o)
+			{
+				GCHandle h = GCHandle.Alloc(o.value, GCHandleType.Normal);
+				try
+				{
+					return GCHandle.ToIntPtr(h) + o.index;
+				}
+				finally
+				{
+					h.Free();
+				}
+			} // func explicit
+
+			public static explicit operator int(UpValueObject o)
+			{
+				return ((IntPtr)o).ToInt32();
+			} // func explicit
+
+			public static explicit operator long(UpValueObject o)
+			{
+				return ((IntPtr)o).ToInt64();
+			} // func explicit
+		} // class UpValueObject
+
+		#endregion
+
+		/// <summary>Simulates the upvalueid function. Becareful, the returned numbers are the current GC-Handle.</summary>
+		/// <param name="function">Delegate</param>
+		/// <param name="index">1-based index of the upvalue.</param>
+		/// <returns>Returns not a Number. It returns a object, that enforces that all operations are break down to operations on the objects.</returns>
+		public static object RtUpValueId(Delegate function, int index)
+		{
+			if (function == null || function.Target == null)
+				throw new ArgumentOutOfRangeException();
+
+			// first we check for a closure
+			Closure closure = function.Target as Closure;
+			if (closure != null)
+			{
+				if (closure.Locals != null && index >= 1 && index <= closure.Locals.Length)
+					return new UpValueObject(closure.Locals[index - 1], 0);
+				else
+					throw new ArgumentOutOfRangeException();
+			}
+			else // no closure, thread the members as a closure
+			{
+				FieldInfo[] fields = function.Target.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetField | BindingFlags.SetField);
+
+				if (index >= 1 && index <= fields.Length)
+					return new UpValueObject(function.Target, index);
+				else
+					throw new ArgumentOutOfRangeException();
+			}
+		} // func RtUpValueId
+
+		/// <summary>Changes the up-value of a delegate</summary>
+		/// <param name="function">Delegate, which will be changed.</param>
+		/// <param name="index">1-based index of the upvalue.</param>
+		/// <param name="value">New value</param>
+		/// <returns>Name of the value, that is changed or null if the function fails.</returns>
+		public static string RtSetUpValue(Delegate function, int index, object value)
+		{
+			if (function == null)
+				return null;
+
+			// first we check for a closure
+			Closure closure = function.Target as Closure;
+			if (closure != null)
+			{
+				object strongBox;
+				if (closure.Locals != null && index >= 1 && index <= closure.Locals.Length && (strongBox = closure.Locals[index - 1]) != null)
+				{
+					Type typeStrongBox = strongBox.GetType();
+					if (typeStrongBox.IsGenericType && typeStrongBox.GetGenericTypeDefinition() == typeof(StrongBox<>))
+					{
+						Type typeBoxed = typeStrongBox.GetGenericArguments()[0];
+						((IStrongBox)strongBox).Value = Lua.RtConvertValue(value, typeBoxed);
+						return "var" + index.ToString();
+					}
+				}
+				return null;
+			}
+			else // no closure, thread the members as a closure
+			{
+				FieldInfo[] fields = function.Target.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetField | BindingFlags.SetField);
+
+				if (index >= 1 && index <= fields.Length)
+				{
+					FieldInfo fi = fields[index - 1];
+					fi.SetValue(function.Target, Lua.RtConvertValue(value, fi.FieldType));
+					return fi.Name;
+				}
+				else
+					return null;
+			}
+		} // func RtSetUpValue
+
+		/// <summary>Make the index1 upvalue refer to index2 upvalue. This only works for closures.</summary>
+		/// <param name="function1">Delegate</param>
+		/// <param name="index1">1-based index of the upvalue.</param>
+		/// <param name="function2">Delegate</param>
+		/// <param name="index2">1-based index of the upvalue.</param>
+		public static void RtUpValueJoin(Delegate function1, int index1, Delegate function2, int index2)
+		{
+			// check the functions
+			if (function1 == null)
+				throw new ArgumentNullException("f1");
+			if (function2 == null)
+				throw new ArgumentNullException("f2");
+
+			// convert the closures
+			Closure closure1 = function1.Target as Closure;
+			if (closure1 == null)
+				throw new InvalidOperationException("f1 is not a closure");
+			if (index1 < 1 || index1 > closure1.Locals.Length)
+				throw new ArgumentOutOfRangeException("index1");
+
+			Closure closure2 = function2.Target as Closure;
+			if (closure2 == null)
+				throw new InvalidOperationException("f2 is not a closure");
+			if (index2 < 1 || index2 > closure2.Locals.Length)
+				throw new ArgumentOutOfRangeException("index2");
+
+			// re-reference the strongbox
+			closure1.Locals[index1 - 1] = closure2.Locals[index2 - 1];
+		} // func RtUpValueJoin
 
 		#endregion
 

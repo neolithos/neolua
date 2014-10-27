@@ -231,26 +231,12 @@ namespace Neo.IronLua
 		/// <returns>Return values of the chunk.</returns>
 		public LuaResult DoChunk(LuaChunk chunk, params object[] callArgs)
 		{
-			if (chunk == null || !chunk.IsCompiled)
+			if (chunk == null)
 				throw new ArgumentException(Properties.Resources.rsChunkNotCompiled, "chunk");
 			if (lua != chunk.Lua)
 				throw new ArgumentException(Properties.Resources.rsChunkWrongScriptManager, "chunk");
 
-			object[] args = new object[callArgs == null ? 0 : callArgs.Length + 1];
-			args[0] = this;
-			if (callArgs != null)
-				Array.Copy(callArgs, 0, args, 1, callArgs.Length);
-
-			try
-			{
-				object r = chunk.Chunk.DynamicInvoke(args);
-				return r is LuaResult ? (LuaResult)r : new LuaResult(r);
-			}
-			catch (TargetInvocationException e)
-			{
-				LuaExceptionData.GetData(e.InnerException); // secure the stacktrace
-				throw e.InnerException; // rethrow with new stackstrace
-			}
+			return chunk.Run(this, callArgs);
 		} // func DoChunk
 
 		#endregion
@@ -437,12 +423,31 @@ namespace Neo.IronLua
 			return new LuaResult(new Func<object, object, LuaResult>(pairsEnum), e, e);
 		} // func LuaPairs
 
-		private object LuaLoadReturn(LuaChunk c, LuaGlobal env)
+		#region -- class LuaLoadReturnClosure ---------------------------------------------
+
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary></summary>
+		private class LuaLoadReturnClosure
 		{
-			if (env == null)
-				return new Func<LuaResult>(() => this.DoChunk(c));
-			else
-				return new Func<LuaResult>(() => env.DoChunk(c));
+			public LuaTable env; // force the environment on the first index
+			public LuaChunk chunk;
+			public LuaGlobal @this;
+
+			public LuaResult Run(LuaTable localEnv)
+			{
+				return chunk.Run(localEnv ?? env ?? @this, new object[0]);
+			} // func Run
+		} // class LuaLoadReturnClosure
+
+		#endregion
+
+		private object LuaLoadReturn(LuaChunk c, LuaTable defaultEnv)
+		{
+			var run = new  LuaLoadReturnClosure();
+			run.env = defaultEnv;
+			run.chunk = c;
+			run.@this = this;
+			return new Func<LuaTable, LuaResult>(run.Run);
 		} // func LuaLoadReturn
 
 		/// <summary></summary>
@@ -452,7 +457,7 @@ namespace Neo.IronLua
 		/// <param name="env"></param>
 		/// <returns></returns>
 		[LuaMember("load")]
-		private object LuaLoad(object ld, string source, string mode, LuaGlobal env)
+		private object LuaLoad(object ld, string source, string mode, LuaTable env)
 		{
 			if (String.IsNullOrEmpty(source))
 				source = "=(load)";
@@ -472,7 +477,7 @@ namespace Neo.IronLua
 					ld = sbCode.ToString();
 				}
 				// create the chunk
-				return LuaLoadReturn(lua.CompileChunk((string)ld, source, null), env); // is only disposed, when Lua-Script-Engine disposed.
+				return LuaLoadReturn(lua.CompileChunk((string)ld, source, null), env);
 			}
 			catch (Exception e)
 			{
@@ -486,7 +491,7 @@ namespace Neo.IronLua
 		/// <param name="env"></param>
 		/// <returns></returns>
 		[LuaMember("loadfile")]
-		private object LuaLoadFile(string filename, string mode, LuaGlobal env)
+		private object LuaLoadFile(string filename, string mode, LuaTable env)
 		{
 			if (mode == "b") // binary chunks are not implementeted
 				throw new NotImplementedException();

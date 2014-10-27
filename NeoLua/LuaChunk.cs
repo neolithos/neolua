@@ -48,6 +48,32 @@ namespace Neo.IronLua
 			return null;
 		} // func GetDebugInfo
 
+		/// <summary>Executes the Chunk on the given Environment</summary>
+		/// <param name="env"></param>
+		/// <param name="callArgs"></param>
+		/// <returns></returns>
+		public LuaResult Run(LuaTable env, object[] callArgs)
+		{
+			if (!IsCompiled)
+				throw new ArgumentException(Properties.Resources.rsChunkNotCompiled, "chunk");
+
+			object[] args = new object[callArgs == null ? 0 : callArgs.Length + 1];
+			args[0] = env;
+			if (callArgs != null)
+				Array.Copy(callArgs, 0, args, 1, callArgs.Length);
+
+			try
+			{
+				object r = chunk.DynamicInvoke(args);
+				return r is LuaResult ? (LuaResult)r : new LuaResult(r);
+			}
+			catch (TargetInvocationException e)
+			{
+				LuaExceptionData.GetData(e.InnerException); // secure the stacktrace
+				throw e.InnerException; // rethrow with new stackstrace
+			}
+		} // proc Run
+
     /// <summary>Returns the associated LuaEngine</summary>
     public Lua Lua { get { return lua; } }
     /// <summary>Set or get the compiled script.</summary>

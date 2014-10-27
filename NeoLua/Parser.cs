@@ -495,7 +495,7 @@ namespace Neo.IronLua
 
 			// Registers the global LuaTable
 			if (lHasEnvironment)
-				parameters.Add(globalScope.RegisterParameter(typeof(LuaGlobal), csEnv)); // todo: LuaTable instead of LuaGlobal
+				parameters.Add(globalScope.RegisterParameter(typeof(LuaTable), csEnv));
 
 			if (args != null)
 			{
