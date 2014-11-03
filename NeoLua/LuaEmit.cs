@@ -1323,11 +1323,17 @@ namespace Neo.IronLua
 					type.GetMember(sMemberName, GetBindingFlags(instance != null, lIgnoreCase)); // get the current members
 
 			if (members == null || members.Length == 0) // no member found, try later again
+			{
 				if (lParse)
 					return Expression.Dynamic(runtime.GetGetMemberBinder(sMemberName), typeof(object), Convert(runtime, instance, type, typeof(object), false));
 				else
 					return Expression.Default(typeof(object));
-			else if (members.Length == 1) // return the one member
+			}
+			else if (members.Length > 1 && members[0].MemberType == MemberTypes.Method) // multiple member
+			{
+				return Expression.New(Lua.OverloadedMethodConstructorInfo, instance == null ? Expression.Default(typeof(object)) : instance, Expression.Constant(Lua.RtConvertArray(members, typeof(MethodInfo)), typeof(MethodInfo[])));
+			}
+			else // return the one member
 			{
 				var member = members[0];
 
@@ -1360,10 +1366,6 @@ namespace Neo.IronLua
 				}
 				else
 					throw new LuaEmitException(LuaEmitException.CanNotReadMember, type.Name, sMemberName);
-			}
-			else // multiple member
-			{
-				return Expression.New(Lua.OverloadedMethodConstructorInfo, instance == null ? Expression.Default(typeof(object)) : instance, Expression.Constant(Lua.RtConvertArray(members, typeof(MethodInfo)), typeof(MethodInfo[])));
 			}
 		} // func GetMember
 
