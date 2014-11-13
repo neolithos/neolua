@@ -17,34 +17,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoLua.Dbg", "NeoLua.Dbg\Ne
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExtTest", "ExtTest\ExtTest.csproj", "{AE970FAD-2DDB-4FE5-A1B3-8C5E318823D4}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Doc", "Doc", "{4195023D-91A3-4ADC-9171-A260AD774B50}"
+	ProjectSection(SolutionItems) = preProject
+		LICENSE.md = LICENSE.md
+		README.md = README.md
+	EndProjectSection
+EndProject
 Global
-	GlobalSection(TeamFoundationVersionControl) = preSolution
-		SccNumberOfProjects = 8
-		SccEnterpriseProvider = {4CA58AB2-18FA-4F8D-95D4-32DDF27D184C}
-		SccTeamFoundationServer = https://tfs.codeplex.com/tfs/tfs33
-		SccLocalPath0 = .
-		SccProjectUniqueName1 = NeoLua\\NeoLua.csproj
-		SccProjectName1 = NeoLua
-		SccLocalPath1 = NeoLua
-		SccProjectUniqueName2 = NeoLua.Test\\NeoLua.Test.csproj
-		SccProjectName2 = NeoLua.Test
-		SccLocalPath2 = NeoLua.Test
-		SccProjectUniqueName3 = NeoCmd\\NeoCmd.csproj
-		SccProjectName3 = NeoCmd
-		SccLocalPath3 = NeoCmd
-		SccProjectUniqueName4 = NeoSpeed\\NeoSpeed.csproj
-		SccProjectName4 = NeoSpeed
-		SccLocalPath4 = NeoSpeed
-		SccProjectUniqueName5 = NeoLua.MSBuild\\NeoLua.MSBuild.csproj
-		SccProjectName5 = NeoLua.MSBuild
-		SccLocalPath5 = NeoLua.MSBuild
-		SccProjectUniqueName6 = NeoLua.Dbg\\NeoLua.Dbg.csproj
-		SccProjectName6 = NeoLua.Dbg
-		SccLocalPath6 = NeoLua.Dbg
-		SccProjectUniqueName7 = ExtTest\\ExtTest.csproj
-		SccProjectName7 = ExtTest
-		SccLocalPath7 = ExtTest
-	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
