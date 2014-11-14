@@ -12,6 +12,7 @@ b.c = a + 8; -- the variable "a" is converted to an integer and assigned to the 
 ```
 
 The following table shows the types of the lua constants:
+
 | Lua         | Example 	| CLR 	| Difference |
 | :-----------|----------:|:------|:------------ |
 | nil         |           | `System.Object` | |
