@@ -12,18 +12,18 @@ b.c = a + 8; -- the variable "a" is converted to an integer and assigned to the 
 ```
 
 The following table shows the types of the lua constants:
-Lua         | Example 	| CLR 	| Difference
-:-----------|----------:|:------|-------------
-nil         |           | `System.Object` |
-false       |           | `System.Boolean` |	
-true        |           | `System.Boolean` |	
-number      |    `1.45` | `System.Double` |
-number      |      `23` | `System.IntXX` | Lua will choose the correct size of the interger.
-string      |  `"Test"` | `System.String` | Difference to 8bit string of lua.
-function    | `function() end;` | `System.Delegate` | All lua functions are compiled to delegates.
-userdata    |           | Does not exists. | All values have there initial CLR-type.
-thread      |           | Not implemented. |
-table       |     `{1}` | `Neo.IronLua.LuaTable` |
+| Lua         | Example 	| CLR 	| Difference |
+| :-----------|----------:|:------|:------------ |
+| nil         |           | `System.Object` | |
+| false       |           | `System.Boolean` | |
+| true        |           | `System.Boolean` | |	
+| number      |    `1.45` | `System.Double` | |
+| number      |      `23` | `System.IntXX` | Lua will choose the correct size of the interger. |
+| string      |  `"Test"` | `System.String` | Difference to 8bit string of lua. |
+| function    | `function() end;` | `System.Delegate` | All lua functions are compiled to delegates. |
+| userdata    |           | Does not exists. | All values have there initial CLR-type. |
+| thread      |           | Not implemented. | |
+| table       |     `{1}` | `Neo.IronLua.LuaTable` | |
 
 For the conversion between types NeoLua uses the:
 * rules of Lua or C#
@@ -45,7 +45,7 @@ First there is the script engine (`Lua`) that is responsible for compiling the s
 
 The second is global environment (`LuaGlobal`) on which chunks are executed. This table holds all global variables and defines the basic functions and packages.
 
-#### Create the script engine and a environment:
+###### Create the script engine and a environment:
 ```C#
 using (Lua l = new Lua())
 {

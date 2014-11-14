@@ -24,7 +24,7 @@ Aliases can be define on the `LuaType` class, with the static method `RegisterTy
 
 Another reason to use typed locals is to avoid  unboxing and boxing operations (performance!).
 
-#### Example:
+###### Example:
 ```Lua
 local a : int, b : int = 23, 42;
 return a + b;
@@ -76,7 +76,7 @@ cast(System.Text.StringBuilder, var);
 
 The type must be known during the compile time, so it is not possible to use a variable that holds a type.
 
-#### Example (find correct overload):
+###### Example (find correct overload):
 ```Lua
 local sb = clr.System.Text.StringBuilder();
 
@@ -106,7 +106,7 @@ const a = 3 - 2; -- the result of the expression will be assigned to a (int)
 return  a * 2; -- the result will be 2 and not -1, because 1 is included and not 3 - 2
 ```
 
-#### Type shortcuts:
+###### Type shortcuts:
 ```Lua
 const StringBuilder typeof System.Test.StringBuilder;
 local sb : StringBuilder = StringBuilder(); -- declare a variable of the type StringBuilder, none dynamic
@@ -171,7 +171,6 @@ Functions
 
 ```
 lambda ::=  ‘(‘ vardecl { ‘,’ vardecl } ´)´ ´:´ type block ‘end’
-
 ```
 
 It is possible to create a typed function signature.

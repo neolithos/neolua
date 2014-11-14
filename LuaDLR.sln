@@ -32,6 +32,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{DE128F74-1BF
 	ProjectSection(SolutionItems) = preProject
 		doc\02_basics.md = doc\02_basics.md
 		doc\03_language.md = doc\03_language.md
+		doc\04_01_start.md = doc\04_01_start.md
 	EndProjectSection
 EndProject
 Global

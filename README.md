@@ -83,7 +83,7 @@ So, this could be reliable partner for your compiled .NET application or engine 
 2. [Basic concepts](doc/02_basics.md)
 3. [Language](doc/03_language.md)
 4. Application Program Interface
-    1. Getting started
+    1. [Getting started](doc/04_01_start.md)
     2. Script engine
     3. Chunks
     4. Global/Table's
