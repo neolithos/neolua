@@ -6,3 +6,11 @@
 /NeoLua/obj/Debug
 /NeoSpeed/obj/Debug
 *.suo
+/packages
+/ExtTest/bin/Debug
+/NeoCmd/bin/Debug
+/NeoLua/bin/Debug
+/NeoLua.Dbg/bin/Debug
+/NeoLua.MSBuild/bin/Debug
+/NeoLua.Test/bin/Debug
+/NeoSpeed/bin/Debug

@@ -14,9 +14,9 @@ be easy access variables and functions from a .net language (e.g. C#, VB.NET, ..
 NeoLua is implemented in C# and uses the [Dynamic Language Runtime](https://dlr.codeplex.com/). It therefore 
 integrates very well with the .net framework.
 
-### Getting started
+### Quickstart
 
-You can play and test the project with the tool NeoCmd.
+You can play and test the language with the tool NeoCmd.
 
 ![NeoCmd](doc/imgs/Image.png)
 
@@ -79,8 +79,9 @@ So, this could be reliable partner for your compiled .NET application or engine 
 
 *This documention has the same structure like the official reference ([Lua 5.2](http://www.lua.org/manual/5.2/manual.html)), so it should be easy to compare the two worlds.*
 
-2. Basic concepts
-3. Language
+1. Introduction
+2. [Basic concepts](doc/02_basics.md)
+3. [Language](doc/03_language.md)
 4. Application Program Interface
     1. Getting started
     2. Script engine
@@ -92,11 +93,11 @@ So, this could be reliable partner for your compiled .NET application or engine 
     2. Extent LuaGlobal
     3. clr library
 6. Standard libraries
+7. NeoCmd
 
 If there is something unclear, wrong or misunderstanding please use the discussions.
 
 ## Links
 
-Article on CodeProject: http://www.codeproject.com/Articles/674128/NeoLua-Lua-for-the-net-dynamic-lanuguage-runtime
-
-Nuget package: https://www.nuget.org/packages/NeoLua/
+* Article on CodeProject: http://www.codeproject.com/Articles/674128/NeoLua-Lua-for-the-net-dynamic-lanuguage-runtime
+* Nuget package: https://www.nuget.org/packages/NeoLua/

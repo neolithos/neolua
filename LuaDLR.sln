@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.30723.0
+VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoLua", "NeoLua\NeoLua.csproj", "{09AEBB35-719E-4E32-9836-F57D7D6F1607}"
 EndProject
@@ -17,10 +17,21 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoLua.Dbg", "NeoLua.Dbg\Ne
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExtTest", "ExtTest\ExtTest.csproj", "{AE970FAD-2DDB-4FE5-A1B3-8C5E318823D4}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Doc", "Doc", "{4195023D-91A3-4ADC-9171-A260AD774B50}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Content", "Content", "{4195023D-91A3-4ADC-9171-A260AD774B50}"
 	ProjectSection(SolutionItems) = preProject
 		LICENSE.md = LICENSE.md
 		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "imgs", "imgs", "{FC7C816D-687C-4972-9E8F-2B737FE89864}"
+	ProjectSection(SolutionItems) = preProject
+		doc\imgs\Image.png = doc\imgs\Image.png
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{DE128F74-1BFF-4289-A592-5F71497B0CC5}"
+	ProjectSection(SolutionItems) = preProject
+		doc\02_basics.md = doc\02_basics.md
+		doc\03_language.md = doc\03_language.md
 	EndProjectSection
 EndProject
 Global
@@ -60,5 +71,9 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{FC7C816D-687C-4972-9E8F-2B737FE89864} = {DE128F74-1BFF-4289-A592-5F71497B0CC5}
+		{DE128F74-1BFF-4289-A592-5F71497B0CC5} = {4195023D-91A3-4ADC-9171-A260AD774B50}
 	EndGlobalSection
 EndGlobal
