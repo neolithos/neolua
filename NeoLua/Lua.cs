@@ -277,7 +277,7 @@ namespace Neo.IronLua
 		/// <summary>Create an empty environment</summary>
 		/// <typeparam name="T"></typeparam>
 		/// <returns></returns>
-		public LuaGlobal CreateEnvironment<T>()
+		public T CreateEnvironment<T>()
 			where T : LuaGlobal
 		{
 			return (T)Activator.CreateInstance(typeof(T), this);

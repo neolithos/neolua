@@ -14,7 +14,7 @@ b.c = a + 8; -- the variable "a" is converted to an integer and assigned to the 
 The following table shows the types of the lua constants:
 
 | Lua         | Example 	| CLR 	| Difference |
-| :-----------|----------:|:------|:------------ |
+| :-----------|:---------:|:------|:------------ |
 | nil         |           | `System.Object` | |
 | false       |           | `System.Boolean` | |
 | true        |           | `System.Boolean` | |	
@@ -69,9 +69,7 @@ runtime exception is for all runtime errors. Overflow- or DivByZero exception wi
 be catch or converted. The lua error-function creates a LuaRuntimeException.
 
 If you need a stack trace to the exception, you need to compile the script with 
-debug information. With the method LuaExceptionData.GetData you can retrieve for all exceptions a lua stacktrace.
-
-See more under Debugging.
+debug information. With the method `LuaExceptionData.GetData` you can retrieve for all exceptions a lua stacktrace.
 
 ## Metatables and Metamethods
 

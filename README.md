@@ -84,10 +84,9 @@ So, this could be reliable partner for your compiled .NET application or engine 
 3. [Language](doc/03_language.md)
 4. Application Program Interface
     1. [Getting started](doc/04_01_start.md)
-    2. Script engine
-    3. Chunks
-    4. Global/Table's
-    5. Debug information
+    2. [Script engine](doc/03_02_engine.md)
+    3. [Chunks](doc/03_03_chunk.md)
+    4. [Table's](doc/03_04_table.md)
 5. The Auxilary Library
     1. Packages
     2. Extent LuaGlobal
