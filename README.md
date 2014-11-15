@@ -90,7 +90,7 @@ So, this could be reliable partner for your compiled .NET application or engine 
 5. The Auxilary Library
     1. [clr library](doc/05_01_clr.md)
     2. [Extent lua table](doc/05_02_extent.md)
-    3. [Debugging](doc/05_02_debug.md)
+    3. [Debugging](doc/05_03_debug.md)
 6. [Standard libraries](doc/06_std.md)
 7. [NeoCmd](doc/07_neocmd.md)
 
