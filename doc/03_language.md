@@ -46,20 +46,6 @@ end;
 
 Global values are always declared as objects, because they are members on the global table/environment.
 
-## Extension methods
-
-If you want use extension methods on the clr types in a lua script, you have the register them. They are not resolved automaticly due performance reasons.
-
-To call the lua `sub` method I registered the string library first.
-```C#
-LuaType.RegisterTypeExtension(typeof(LuaLibraryString));
-```
-That is the reason why you can call
-```Lua
-return "test":sub(2, 2);
-```
-in a script.
-
 ## Keyword `cast`
 
 ```

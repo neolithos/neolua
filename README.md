@@ -88,11 +88,11 @@ So, this could be reliable partner for your compiled .NET application or engine 
     3. [Chunks](doc/04_03_chunk.md)
     4. [Table's](doc/04_04_table.md)
 5. The Auxilary Library
-    1. Packages
-    2. Extent LuaGlobal
-    3. clr library
-6. Standard libraries
-7. NeoCmd
+    1. [clr library](doc/05_01_clr.md)
+    2. [Extent lua table](doc/05_02_extent.md)
+    3. [Debugging](doc/05_02_debug.md)
+6. [Standard libraries](doc/06_std.md)
+7. [NeoCmd](doc/07_neocmd.md)
 
 If there is something unclear, wrong or misunderstanding please use the discussions.
 

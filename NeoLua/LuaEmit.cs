@@ -473,7 +473,7 @@ namespace Neo.IronLua
 			}
 			else if (fromType.IsArray && toType.IsArray)
 			{
-				return Expression.Convert(Expression.Call(Lua.ConvertArrayMethodInfo, Convert(runtime, expr, fromType, toType, lParse), Expression.Constant(toType.GetElementType())), toType);
+				return Expression.Convert(Expression.Call(Lua.ConvertArrayMethodInfo, Convert(runtime, expr, fromType, typeof(Array), lParse), Expression.Constant(toType.GetElementType())), toType);
 			}
 			else
 				try
