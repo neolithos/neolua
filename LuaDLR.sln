@@ -25,7 +25,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Content", "Content", "{4195
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "imgs", "imgs", "{FC7C816D-687C-4972-9E8F-2B737FE89864}"
 	ProjectSection(SolutionItems) = preProject
+		doc\imgs\done.png = doc\imgs\done.png
 		doc\imgs\Image.png = doc\imgs\Image.png
+		doc\imgs\noco.png = doc\imgs\noco.png
+		doc\imgs\noti.png = doc\imgs\noti.png
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{DE128F74-1BFF-4289-A592-5F71497B0CC5}"
@@ -35,6 +38,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{DE128F74-1BF
 		doc\04_01_start.md = doc\04_01_start.md
 		doc\04_02_engine.md = doc\04_02_engine.md
 		doc\04_03_chunk.md = doc\04_03_chunk.md
+		doc\05_01_clr.md = doc\05_01_clr.md
+		doc\05_02_extent.md = doc\05_02_extent.md
+		doc\05_03_debug.md = doc\05_03_debug.md
+		doc\06_std.md = doc\06_std.md
+		doc\07_neocmd.md = doc\07_neocmd.md
 		doc\04_04_table.md = doc\04_04_table.md
 	EndProjectSection
 EndProject
