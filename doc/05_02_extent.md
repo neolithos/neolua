@@ -1,4 +1,4 @@
-# Packages
+# Packages (!todo!)
 
 It is possible to add more packages to the environment. There are two ways to add packages. Static packages and dynamic packages.
 
@@ -7,7 +7,7 @@ Static Packages are basically static classes. The static members will be availab
 Restrictions:
 
 * No overload allowed.
-`* No Instance members allowed. 
+* No Instance members allowed. 
 
 
 Example declaration:
