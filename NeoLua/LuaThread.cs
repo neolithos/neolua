@@ -217,7 +217,7 @@ namespace Neo.IronLua
       lock (luaThreads)
         luaThreads.Add(this);
 
-      yield(new LuaResult(Lua.RtInvokeSite(target, currentArguments.Values)));
+      yield(new LuaResult(Lua.RtInvoke(target, currentArguments.Values)));
     } // proc ExecuteDelegate
 
     private void EndExecuteDelegate(IAsyncResult ar)

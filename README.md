@@ -68,7 +68,7 @@ So, this could be reliable partner for your compiled .NET application or engine 
 ### Drawbacks of NeoLua
 
 * It is not [100% compatible](http://todo) to Lua. But I will try very hard.
-* No deploy of precompiled scripts.
+* No deployment of precompiled scripts.
 
 ### Drawbacks of bridges to c-lua, that are solved with NeoLua
 

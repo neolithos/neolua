@@ -988,7 +988,11 @@ namespace Neo.IronLua
 			return new LuaResult(dlg.DynamicInvoke(args));
 		} // func RtInvokeSite
 
-		internal static object RtInvokeSite(object target, params object[] args)
+		/// <summary></summary>
+		/// <param name="target"></param>
+		/// <param name="args"></param>
+		/// <returns></returns>
+		public static object RtInvoke(object target, params object[] args)
 		{
 			return RtInvokeSite(null, callInfo => new Lua.LuaInvokeBinder(null, callInfo), null, target, args);
 		} // func RtInvokeSite
