@@ -870,7 +870,7 @@ namespace Neo.IronLua
 							return ReadTextBlock(false);
 						}
 						else if (c == '\n')
-							return NextCharAndCreateToken(0, LuaToken.Comment);
+							return CreateToken(0, LuaToken.Comment);
 						else
 							NextChar(52);
 						break;

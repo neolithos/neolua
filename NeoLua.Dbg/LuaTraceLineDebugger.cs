@@ -48,6 +48,8 @@ namespace Neo.IronLua
 
   #region -- class LuaTraceLineExceptionEventArgs -------------------------------------
 
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary></summary>
   public class LuaTraceLineExceptionEventArgs : LuaTraceLineEventArgs
   {
     private Exception exception;
@@ -58,6 +60,7 @@ namespace Neo.IronLua
 			this.exception = exception;
 		} // ctor
 
+		/// <summary></summary>
     public Exception Exception { get { return exception; } }
   } // class LuaTraceLineExceptionEventArgs
 
