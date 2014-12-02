@@ -693,6 +693,11 @@ namespace Neo.IronLua
 
 		/// <summary>Alias name</summary>
 		public string AliasName { get { return sAliasName; } }
+		/// <summary>Returns the alias or if it is <c>null</c> the full name</summary>
+		public string AliasOrFullName
+		{
+			get { return sAliasName ?? FullName; }
+		} // prop AliasOrFullName
 
     /// <summary>Type that is represented by the LuaType</summary>
     public Type Type
