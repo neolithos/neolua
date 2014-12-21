@@ -3103,7 +3103,7 @@ namespace Neo.IronLua
 						SetClassMemberValue(i, null, classDefinition[i].GetInitialValue(this), false);
 					else
 						SetClassMemberValue(i, null, null, false);
-				else
+				else if (entries[i].hashCode != -1)
 					RemoveValue(i);
 			}
 		} // proc ICollection<KeyValuePair<string, object>>.Clear

@@ -119,6 +119,16 @@ namespace LuaDLR.Test
 			Assert.Fail();
     }
 
+	  [TestMethod]
+		public void TestMember10()
+		{
+			LuaGlobal g = new LuaGlobal(new Lua());
+			g["a"] = 1;
+			g.Members.Clear();
+
+			TestResult(new LuaResult(g["a"], g["print"]), null, null);
+		}
+
     #endregion
 
     #region -- TestIndex --------------------------------------------------------------
