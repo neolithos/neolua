@@ -431,7 +431,7 @@ namespace Neo.IronLua
     private void ResolveType()
     {
       if (parent != null && // the root has no type
-          iAssemblyCount >= 0) // Namespace, there is no type7
+          iAssemblyCount >= 0) // Namespace, there is no type
       {
         Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
         string sTypeName = FullName;
@@ -482,13 +482,13 @@ namespace Neo.IronLua
 
 		private bool SetType(Type type, bool lUpdateKnownTypes)
 		{
-			// set the value
-			this.type = type;
-
 			if (type == null)
 				return false;
 			else
 			{
+				// set the value
+				this.type = type;
+
 				// update the base type
 				baseType = type.BaseType != null ? LuaType.GetType(type.BaseType) : null;
 
