@@ -1126,7 +1126,7 @@ namespace Neo.IronLua
     {
       // create the call expression
       Expression expr = Lua.EnsureType(LuaEmit.BindParameter(runtime,
-        a => Expression.Call(GetInstance(methodExpression, methodValue, methodValue.Type), mi, a),
+        a => Expression.Call(mi.IsStatic ? null : GetInstance(methodExpression, methodValue, methodValue.Type), mi, a),
         mi.GetParameters(),
         args,
         mo => mo.Expression, mo => mo.LimitType, true), typeReturn, true);
@@ -1136,9 +1136,7 @@ namespace Neo.IronLua
 
     private static Expression GetInstance(Expression methodExpression, ILuaMethod methodValue, Type returnType)
     {
-      return methodValue.Instance == null ?
-        null :
-        Lua.EnsureType(Expression.Property(Lua.EnsureType(methodExpression, typeof(ILuaMethod)), Lua.MethodInstancePropertyInfo), returnType);
+      return Lua.EnsureType(Expression.Property(Lua.EnsureType(methodExpression, typeof(ILuaMethod)), Lua.MethodInstancePropertyInfo), returnType);
     } //func GetInstance
 
     internal static DynamicMetaObject CreateDelegate(Expression methodExpression, ILuaMethod methodValue, Type typeDelegate, MethodInfo miTarget, Type typeReturn)

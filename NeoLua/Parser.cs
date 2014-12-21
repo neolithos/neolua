@@ -894,11 +894,11 @@ namespace Neo.IronLua
 				while (expr.MoveNext())
 					scope.AddExpression(expr.Current);
 			}
-			else
+			else if (!lLocal)
 			{
 				for (int i = 0; i < prefixes.Count; i++)
 				{
-					if (prefixes[i].Arguments == null && !lLocal) // do not execute getMember
+					if (prefixes[i].Arguments == null) // do not execute getMember
 						throw ParseError(prefixes[i].Position, Properties.Resources.rsParseAssignmentExpected);
 
 					scope.AddExpression(prefixes[i].GenerateGet(scope, InvokeResult.None));

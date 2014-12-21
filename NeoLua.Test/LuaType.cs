@@ -476,6 +476,22 @@ namespace LuaDLR.Test
 			TestCode("return 'Hallo0':LetterCount();", 5);
 			TestCode("t = 'Hallo0'; return t:LetterCount();", 5);
 		}
+
+		[TestMethod]
+		public void NullMember01()
+		{
+			try
+			{
+				TestCode(Lines(
+					"local c : System.Console;",
+					"c.WriteLine('Hallo Welt!');"));
+				Assert.Fail();
+			}
+			catch (LuaRuntimeException e)
+			{
+				Console.WriteLine("Failed...");
+			}
+		}
   } // class LuaTypeTests 
 
 	public static class TypeExt

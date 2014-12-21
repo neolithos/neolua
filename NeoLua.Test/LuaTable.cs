@@ -126,7 +126,7 @@ namespace LuaDLR.Test
 			g["a"] = 1;
 			g.Members.Clear();
 
-			TestResult(new LuaResult(g["a"], g["print"]), null, null);
+			TestResult(new LuaResult(g["a"]), new object[] { null });
 		}
 
     #endregion
