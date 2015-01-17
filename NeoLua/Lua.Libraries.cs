@@ -521,11 +521,53 @@ namespace Neo.IronLua
       return Math.Tanh(x);
     } // func tanh
 
-    // todo: type
+		public static string type(object x)
+		{
+			if (x == null)
+				return null;
+			else
+			{
+				switch (Type.GetTypeCode(x.GetType()))
+				{
+					case TypeCode.Byte:
+					case TypeCode.SByte:
+					case TypeCode.Int16:
+					case TypeCode.UInt16:
+					case TypeCode.Int32:
+						return "integer";
+					case TypeCode.Double:
+					case TypeCode.Single:
+					case TypeCode.Decimal:
+						return "float";
+					default:
+						return null;
+				}
+			}
+		} // func type
+
+		public static object tointeger(object x)
+		{
+			try
+			{
+				return (int)Lua.RtConvertValue(x, typeof(int));
+			}
+			catch
+			{
+				return null;
+			}
+		} // func tointeger
+
+		public static bool ult(int m, int n)
+		{
+			return m < n;
+		} // func ult
 
     public static double pi { get { return Math.PI; } }
     public static double e { get { return Math.E; } }
-  } // clas LuaLibraryMath
+	
+		public static int mininteger { get { return Int32.MinValue; } }
+		public static int maxinteger { get { return Int32.MaxValue; } }
+	} // clas LuaLibraryMath
 
   #endregion
 
