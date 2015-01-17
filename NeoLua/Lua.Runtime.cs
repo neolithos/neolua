@@ -1006,7 +1006,7 @@ namespace Neo.IronLua
 			Array.Copy(args, 0, newArgs, 2, args.Length);
 
 			// call site
-			return RtInvokeSite(callInfo => new Lua.LuaInvokeBinder(null, callInfo), null, newArgs);
+			return RtInvokeSite(callInfo => new Lua.LuaInvokeBinder(null, callInfo), updateCache, newArgs);
 		} // func RtInvokeSite
 
 		#endregion

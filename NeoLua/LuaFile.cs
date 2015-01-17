@@ -500,7 +500,6 @@ namespace Neo.IronLua
       else if (fmt is string)
       {
         string sFmt = (string)fmt;
-				int i = 0;
 				if (sFmt.Length > 0 && sFmt[0] == '*')
 					sFmt = sFmt.Substring(1);
 
