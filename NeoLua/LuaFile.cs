@@ -500,18 +500,22 @@ namespace Neo.IronLua
       else if (fmt is string)
       {
         string sFmt = (string)fmt;
-        if (sFmt == "*n")
+				int i = 0;
+				if (sFmt.Length > 0 && sFmt[0] == '*')
+					sFmt = sFmt.Substring(1);
+
+        if (sFmt == "n")
         {
           return Lua.RtParseNumber(ReadNumber(), true, false);
         }
-        else if (sFmt == "*a")
+        else if (sFmt == "a")
         {
           if (tr.EndOfStream)
             return String.Empty;
           else
             return tr.ReadToEnd();
         }
-        else if (sFmt == "*l" || sFmt == "*L")
+        else if (sFmt == "l" || sFmt == "L")
           return tr.ReadLine();
         else
           return null;
