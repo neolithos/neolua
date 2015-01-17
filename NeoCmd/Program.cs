@@ -369,7 +369,12 @@ namespace Neo.IronLua
           else
             WriteError("Unkown command.");
         }
-        else
+				else if (sbLine.Length == 0 && sInput.Length > 1 && sInput[0] == '=')
+				{
+					sLine = "return " + sInput.Substring(1);
+					return Commands.Run;
+				}
+				else
         {
           sbLine.AppendLine(sInput);
           Console.Write("> ");

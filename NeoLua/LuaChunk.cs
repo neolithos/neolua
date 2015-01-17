@@ -52,7 +52,7 @@ namespace Neo.IronLua
 		/// <param name="env"></param>
 		/// <param name="callArgs"></param>
 		/// <returns></returns>
-		public LuaResult Run(LuaTable env, object[] callArgs)
+		public LuaResult Run(LuaTable env, params object[] callArgs)
 		{
 			if (!IsCompiled)
 				throw new ArgumentException(Properties.Resources.rsChunkNotCompiled, "chunk");
