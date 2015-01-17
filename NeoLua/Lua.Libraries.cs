@@ -534,6 +534,9 @@ namespace Neo.IronLua
 					case TypeCode.Int16:
 					case TypeCode.UInt16:
 					case TypeCode.Int32:
+					case TypeCode.UInt32:
+					case TypeCode.Int64:
+					case TypeCode.UInt64:
 						return "integer";
 					case TypeCode.Double:
 					case TypeCode.Single:
@@ -549,7 +552,7 @@ namespace Neo.IronLua
 		{
 			try
 			{
-				return (int)Lua.RtConvertValue(x, typeof(int));
+				return (long)Lua.RtConvertValue(x, typeof(long));
 			}
 			catch
 			{
@@ -557,7 +560,7 @@ namespace Neo.IronLua
 			}
 		} // func tointeger
 
-		public static bool ult(int m, int n)
+		public static bool ult(long m, long n)
 		{
 			return m < n;
 		} // func ult
