@@ -1,6 +1,6 @@
 # Language
 
-Because there exists a official [lua language reference](http://www.lua.org/manual/5.2/manual.html#3), I will only cover in this document the differences.
+Because there exists a official [lua language reference](http://www.lua.org/manual/5.3/manual.html#3), I will only cover in this document the differences.
 
 ## Explicit types
 

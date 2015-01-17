@@ -6,7 +6,7 @@ A Lua implementation for the Dynamic Language Runtime (DLR).
 ## Introduction
 
 NeoLua is an implementation of the Lua language. Currently, the implementation is on 
-the level of [Lua_5.2](http://www.lua.org/) (http://www.lua.org/manual/5.2/manual.html). 
+the level of [Lua_5.3](http://www.lua.org/) (http://www.lua.org/manual/5.3/manual.html). 
 The goal is to follow the reference of the C-Lua implementation and combine this with full 
 .NET Framework support. That means, it should be easy to call .NET functions from Lua and it should 
 be easy access variables and functions from a .net language (e.g. C#, VB.NET, ...).
@@ -77,7 +77,7 @@ So, this could be reliable partner for your compiled .NET application or engine 
 
 ## Documentation
 
-*This documention has the same structure like the official reference ([Lua 5.2](http://www.lua.org/manual/5.2/manual.html)), so it should be easy to compare the two worlds.*
+*This documention has the same structure like the official reference ([Lua 5.3](http://www.lua.org/manual/5.3/manual.html)), so it should be easy to compare the two worlds.*
 
 1. Introduction
 2. [Basic concepts](doc/02_basics.md)

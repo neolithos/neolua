@@ -5,7 +5,7 @@ This sections gives an overview of the implementation state of the lua system li
 
 * ![Is compatible to the lua reference.][done] `assert`  Calls `System.Diagnostics.Debug.Assert`.
 * ![Not full compatible to the lua reference.][noco] `collectgarbage`  Only the parameter "count" and "collect" are supported. "step" and "isrunning" return always "true". "setpause" returns "false".
-* ![Not full compatible to the lua reference.][noco] `dofile`  Redirects to DoChunk to load and run a text file. Optional add parameters for the script.
+"* ![Not full compatible to the lua reference.][noco] `dofile`  Redirects to DoChunk to load and run a text file. Optional add parameters for the script.
 ```Lua
 dofile('test.lua', 'a', 1, 'b', 2);
 ```
@@ -63,22 +63,26 @@ Coroutines are implemented in the LuaThread class. This class creates a managed 
 * ![Is compatible to the lua reference.][done] `byte`  
 * ![Is compatible to the lua reference.][done] `char`  
 * ![Not implemented. Yet.][noti] `dump`  
-* ![Not full compatible to the lua reference.][noco] `find`  .net regex syntax with an exchange of the escape symbol % is \.
+* ![Not full compatible to the lua reference.][noco] `find`  .net regex syntax with an exchange of the escape symbol % is \. But you can set string__TranslateRegEx to false to use .net regulare expressions.
 * ![Is compatible to the lua reference.][done] `format`  
-* ![Not full compatible to the lua reference.][noco] `gmatch`  
-* ![Not implemented. Yet.][noti] `gsub`  
+* ![Not full compatible to the lua reference.][noco] `gmatch`  .net regex syntax with an exchange of the escape symbol % is \. But you can set string__TranslateRegEx to false to use .net regulare expressions.
+* ![Not full compatible to the lua reference.][noco] `gsub`  .net regex syntax with an exchange of the escape symbol % is \. But you can set string__TranslateRegEx to false to use .net regulare expressions.
 * ![Is compatible to the lua reference.][done] `len`  
 * ![Is compatible to the lua reference.][done] `lower`  
 * ![Not full compatible to the lua reference.][noco] `match`  
+* ![Not implemented. Yet.][noti] `pack`  
+* ![Not implemented. Yet.][noti] `packsize`  
 * ![Is compatible to the lua reference.][done] `rep`  
 * ![Is compatible to the lua reference.][done] `reverse`  
 * ![Is compatible to the lua reference.][done] `sub`  
+* ![Not implemented. Yet.][noti] `unpack`  
 * ![Is compatible to the lua reference.][done] `upper`  
 
 ## Table manipulation (table)
 
 * ![Is compatible to the lua reference.][done] `conat`  
 * ![Is compatible to the lua reference.][done] `insert`  
+* ![Not implemented. Yet.][noti] `move`  
 * ![Is compatible to the lua reference.][done] `pack`  
 * ![Is compatible to the lua reference.][done] `remove`  
 * ![Is compatible to the lua reference.][done] `sort`  
@@ -104,7 +108,9 @@ Coroutines are implemented in the LuaThread class. This class creates a managed 
 * ![Not implemented. Yet.][noti] `ldexp`  
 * ![Is compatible to the lua reference.][done] `log`  
 * ![Is compatible to the lua reference.][done] `max`  
+* ![Is compatible to the lua reference.][done] `maxinteger`  
 * ![Is compatible to the lua reference.][done] `min`  
+* ![Is compatible to the lua reference.][done] `mininteger`  
 * ![Is compatible to the lua reference.][done] `modf`  
 * ![Is compatible to the lua reference.][done] `pi`  
 * ![Is compatible to the lua reference.][done] `pow`  
@@ -116,6 +122,9 @@ Coroutines are implemented in the LuaThread class. This class creates a managed 
 * ![Is compatible to the lua reference.][done] `sqrt`  
 * ![Is compatible to the lua reference.][done] `tan`  
 * ![Is compatible to the lua reference.][done] `tanh`  
+* ![Is compatible to the lua reference.][done] `tointeger`  
+* ![Is compatible to the lua reference.][done] `type`  
+* ![Is compatible to the lua reference.][done] `ult`  
 
 ## Bitwise operations (bit32)
 
