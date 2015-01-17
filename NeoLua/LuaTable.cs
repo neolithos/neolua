@@ -3837,6 +3837,39 @@ namespace Neo.IronLua
 
 		#endregion
 
+		#region -- move --
+
+		/// <summary></summary>
+		/// <param name="t1"></param>
+		/// <param name="f"></param>
+		/// <param name="e"></param>
+		/// <param name="t"></param>
+		public static void move(LuaTable t1, int f, int e, int t)
+		{
+			move(t1, f, e, t, t1);
+		} // proc move
+
+		/// <summary></summary>
+		/// <param name="t1"></param>
+		/// <param name="f"></param>
+		/// <param name="e"></param>
+		/// <param name="t"></param>
+		/// <param name="t2"></param>
+		public static void move(LuaTable t1, int f, int e, int t, LuaTable t2)
+		{
+			if (f < 0)
+				throw new ArgumentOutOfRangeException("f");
+			if (t < 0)
+				throw new ArgumentOutOfRangeException("t");
+			if (f > e)
+				return;
+
+			while (f < e)
+				t2[t++] = t1[f++];
+		} // proc move
+
+		#endregion
+
 		#region -- pack --
 
 		/// <summary>Returns a new table with all parameters stored into keys 1, 2, etc. and with a field &quot;n&quot; 
