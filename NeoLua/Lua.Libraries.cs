@@ -68,7 +68,7 @@ namespace Neo.IronLua
 						switch (c)
 						{
 							case 'a': // all letters
-								sb.Append("[\\w-[\\d]]");
+								sb.Append("\\p{L}");
 								break;
 							case 's': // all space characters
 								sb.Append("\\s");
@@ -80,12 +80,40 @@ namespace Neo.IronLua
 								sb.Append("\\w");
 								break;
 							case 'c': // all control characters
+								sb.Append("\\p{P}");
+								break;
 							case 'g': // all printable characters except space
-							case 'l': // all lowercase letters
+								sb.Append("[^\\p{P}]");
+								break;
 							case 'p': // all punctuation characters
+								sb.Append("\\p{P}");
+								break;
+							case 'l': // all lowercase letters
+								sb.Append("\\p{Li}");
+								break;
 							case 'u': // all uppercase letters
+								sb.Append("\\p{Lu}");
+								break;
 							case 'x': // all hexadecimal digits
-								throw new NotImplementedException();
+								sb.Append("\\[0-9A-Fa-f]");
+								break;
+
+							//case 'b': does not work
+							//	if (i < sRegEx.Length - 2)
+							//	{
+							//		char c1 = sRegEx[i + 1];
+							//		char c2 = sRegEx[i + 2];
+							//		sb.Append("\\").Append(c1)
+							//			.Append("(?:[^").Append(c1).Append(c2).Append("]")
+							//				.Append("|(?<open> \\").Append(c1).Append(" )")
+							//				.Append("|(?<-open> \\").Append(c2).Append(" )")
+							//			.Append(")*")
+							//			.Append("\\").Append(c2);
+							//	}
+							//	else
+							//		throw new ArgumentOutOfRangeException();
+							//	break;
+
 							default:
 								sb.Append('\\');
 								sb.Append(c);
@@ -102,6 +130,8 @@ namespace Neo.IronLua
 				{
 					sb.Append("\\\\");
 				}
+				else if (c == '-')
+					sb.Append("+?");
 				else
 					sb.Append(c);
 			}
@@ -225,10 +255,8 @@ namespace Neo.IronLua
 			// translate the regular expression
 			pattern = TranslateRegularExpression(pattern);
 
-			Regex r = new Regex(pattern);
-			MatchCollection m = r.Matches(s);
-			System.Collections.IEnumerator e = m.GetEnumerator();
-
+			// Find Matches
+			System.Collections.IEnumerator e = Regex.Matches(s, pattern).GetEnumerator();
 			return new LuaResult(new Func<object, object, LuaResult>(matchEnum), e, e);
 		} // func gmatch
 
@@ -272,7 +300,7 @@ namespace Neo.IronLua
 
 			protected override string MatchEvaluatorImpl(Match m)
 			{
-				return (string)Lua.RtConvertValue(t.GetMemberValue(m.Value, lIgnoreCase), typeof(string));
+				return (string)Lua.RtConvertValue(t.GetMemberValue(m.Groups[1].Value, lIgnoreCase), typeof(string));
 			} // func MatchEvaluator
 		} // class GSubLuaTableMatchEvaluator
 
@@ -299,7 +327,11 @@ namespace Neo.IronLua
 
 			protected override string MatchEvaluatorImpl(Match m)
 			{
-				return (string)Lua.RtConvertValue(Lua.RtInvokeSite(callSite, callInfo => new Lua.LuaInvokeBinder(null, callInfo), UpdateCallSite, funcCall, m), typeof(string));
+				string[] args = new string[m.Groups.Count - 1];
+				for (int i = 1; i < m.Groups.Count; i++)
+					args[i - 1] = m.Groups[i].Value;
+
+				return (string)Lua.RtConvertValue(Lua.RtInvokeSite(callSite, callInfo => new Lua.LuaInvokeBinder(null, callInfo), UpdateCallSite, funcCall, args), typeof(string));
 			} // func MatchEvaluator
 		} // class GSubLuaTableMatchEvaluator
 
@@ -370,8 +402,8 @@ namespace Neo.IronLua
 						int iIndex = (int)replaces[i];
 						if (iIndex == 0)
 							result[i] = m.Value;
-						else if (iIndex <= m.Captures.Count)
-							result[i] = m.Captures[iIndex - 1].Value;
+						else if (iIndex <= m.Groups.Count)
+							result[i] = m.Groups[iIndex].Value;
 						else
 							result[i] = String.Empty;
 					}
