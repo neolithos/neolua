@@ -123,9 +123,14 @@ namespace Neo.IronLua
 			}
 		} // func ConcatOperationExpression
 
-		private static Expression MemberGetExpression(Lua runtime, Token tStart, Expression instance, string sMember, bool lMethodMember)
+		private static Expression MemberGetSandbox(Scope scope, Expression getMember, Expression instance, string sMember)
 		{
-  		return SafeExpression(() => LuaEmit.GetMember(runtime, instance, instance.Type, sMember, false, true), tStart);
+			return scope.Options.SandboxCore(getMember, instance, sMember);
+		} // func MemberGetSandbox
+
+		private static Expression MemberGetExpression(Scope scope, Token tStart, Expression instance, string sMember)
+		{
+			return MemberGetSandbox(scope, SafeExpression(() => LuaEmit.GetMember(scope.Runtime, instance, instance.Type, sMember, false, true), tStart), instance, sMember);
 		} // func MemberGetExpression
 
 		private static Expression MemberSetExpression(Lua runtime, Token tStart, Expression instance, string sMember, bool lMethodMember, Expression set)
@@ -144,7 +149,7 @@ namespace Neo.IronLua
 				return SafeExpression(() => LuaEmit.SetMember(runtime, instance, instance.Type, sMember, false, set, set.Type, true), tStart);
 		} // func MemberSetExpression
 
-		private static Expression IndexGetExpression(Lua runtime, Token tStart, Expression instance, Expression[] indexes)
+		private static Expression IndexGetExpression(Scope scope, Token tStart, Expression instance, Expression[] indexes)
 		{
 			if (instance.Type == typeof(LuaTable))
 			{
@@ -154,45 +159,65 @@ namespace Neo.IronLua
 
 					if (LuaTable.IsIndexKey(arg.Type)) // integer access
 					{
-						return Expression.Call(instance, Lua.TableGetValueKeyIntMethodInfo,
-							ConvertExpression(runtime, tStart, arg, typeof(int)),
-							Expression.Constant(false)
+						return MemberGetSandbox(
+							scope,
+							Expression.Call(instance, Lua.TableGetValueKeyIntMethodInfo,
+								ConvertExpression(scope.Runtime, tStart, arg, typeof(int)),
+								Expression.Constant(false)
+							),
+							instance, null
 						);
 					}
 					else if (arg.Type == typeof(string)) // member access
 					{
-						return Expression.Call(instance, Lua.TableGetValueKeyStringMethodInfo,
-							arg,
-							Expression.Constant(false),
-							Expression.Constant(false)
+						return MemberGetSandbox(
+							scope,
+							Expression.Call(instance, Lua.TableGetValueKeyStringMethodInfo,
+								arg,
+								Expression.Constant(false),
+								Expression.Constant(false)
+							),
+							instance, null
 						);
 					}
 					else // key access
 					{
-						return Expression.Call(instance, Lua.TableGetValueKeyObjectMethodInfo,
-							 ConvertObjectExpression(runtime, tStart, arg, true),
-							Expression.Constant(false)
+						return MemberGetSandbox(
+							scope,
+							Expression.Call(instance, Lua.TableGetValueKeyObjectMethodInfo,
+								ConvertObjectExpression(scope.Runtime, tStart, arg, true),
+								Expression.Constant(false)
+							),
+							instance, null
 						);
 					}
 				}
 				else
 				{
-					return Expression.Call(instance, Lua.TableGetValueKeyListMethodInfo,
-						Expression.NewArrayInit(typeof(object), from i in indexes select ConvertObjectExpression(runtime, tStart, i, true)),
-						Expression.Constant(false)
+					return MemberGetSandbox(
+						scope,
+						Expression.Call(instance, Lua.TableGetValueKeyListMethodInfo,
+							Expression.NewArrayInit(typeof(object), from i in indexes select ConvertObjectExpression(scope.Runtime, tStart, i, true)),
+							Expression.Constant(false)
+						),
+						instance, null
 					);
 				}
 			}
 			else if (instance.Type == typeof(LuaResult) && indexes.Length == 1)
 			{
-				return Expression.MakeIndex(
-					instance,
-					Lua.ResultIndexPropertyInfo,
-					new Expression[] { ConvertExpression(runtime, tStart, indexes[0], typeof(int)) }
+				return MemberGetSandbox(
+					scope,
+					Expression.MakeIndex(
+						instance,
+						Lua.ResultIndexPropertyInfo,
+						new Expression[] { ConvertExpression(scope.Runtime, tStart, indexes[0], typeof(int)) }
+					),
+					instance, null
 				);
 			}
 			else
-				return SafeExpression(() => LuaEmit.GetIndex(runtime, instance, indexes, getExpressionFunction, getExpressionTypeFunction, true), tStart);
+				return MemberGetSandbox(scope, SafeExpression(() => LuaEmit.GetIndex(scope.Runtime, instance, indexes, getExpressionFunction, getExpressionTypeFunction, true), tStart), instance, null);
 		} // func IndexGetExpression
 
 		private static Expression IndexSetExpression(Lua runtime, Token tStart, Expression instance, Expression[] indexes, Expression set)
@@ -241,7 +266,7 @@ namespace Neo.IronLua
 				return SafeExpression(() => LuaEmit.SetIndex(runtime, instance, indexes, set, getExpressionFunction, getExpressionTypeFunction, true), tStart);
 		} // func IndexSetExpression
 
-		private static Expression InvokeExpression(Lua runtime, Token tStart, Expression instance, InvokeResult result, Expression[] arguments, bool lParse)
+		private static Expression InvokeExpression(Scope scope, Token tStart, Expression instance, InvokeResult result, Expression[] arguments, bool lParse)
 		{
 			MethodInfo mi;
 			ConstantExpression constInstance = instance as ConstantExpression;
@@ -257,7 +282,7 @@ namespace Neo.IronLua
 				if (ci == null && !type.IsValueType)
 					throw ParseError(tStart, String.Format(Properties.Resources.rsMemberNotResolved, type.Name, "ctor"));
 
-				return SafeExpression(() => LuaEmit.BindParameter(runtime,
+				return SafeExpression(() => LuaEmit.BindParameter(scope.Runtime,
 					args => ci == null ? Expression.New(type) : Expression.New(ci, args),
 					ci == null ? new ParameterInfo[0] : ci.GetParameters(),
 					arguments,
@@ -266,44 +291,44 @@ namespace Neo.IronLua
 			else if (LuaEmit.IsDynamicType(instance.Type))
 			{
 				// fallback is a dynamic call
-				return EnsureInvokeResult(runtime, tStart,
-					Expression.Dynamic(runtime.GetInvokeBinder(new CallInfo(arguments.Length)),
+				return EnsureInvokeResult(scope, tStart,
+					Expression.Dynamic(scope.Runtime.GetInvokeBinder(new CallInfo(arguments.Length)),
 						typeof(object),
-						new Expression[] { ConvertExpression(runtime, tStart, instance, typeof(object)) }.Concat(
+						new Expression[] { ConvertExpression(scope.Runtime, tStart, instance, typeof(object)) }.Concat(
 							from c in arguments select Lua.EnsureType(c, typeof(object))
 						)
 					),
-					result
+					result, instance, null
 				);
 			}
 			else if (typeof(Delegate).IsAssignableFrom(instance.Type) &&  // test if the type is assignable from delegate
 				(mi = instance.Type.GetMethod("Invoke")) != null) // Search the Invoke method for the arguments
 			{
-				return EnsureInvokeResult(runtime, tStart,
+				return EnsureInvokeResult(scope, tStart,
 					SafeExpression(() => LuaEmit.BindParameter<Expression>(
-						runtime,
+						scope.Runtime,
 						args => Expression.Invoke(instance, args),
 						mi.GetParameters(),
 						arguments,
 						getExpressionFunction, getExpressionTypeFunction, true), tStart),
-					result
+					result, instance, null
 				);
 			}
 			else
 				throw ParseError(tStart, LuaEmitException.GetMessageText(LuaEmitException.InvokeNoDelegate, instance.Type.Name));
 		}  // func InvokeExpression
 
-		private static Expression InvokeMemberExpression(Lua runtime, Token tStart, Expression instance, string sMember, InvokeResult result, Expression[] arguments)
+		private static Expression InvokeMemberExpression(Scope scope, Token tStart, Expression instance, string sMember, InvokeResult result, Expression[] arguments)
 		{
 			if (LuaEmit.IsDynamicType(instance.Type))
 			{
-				return EnsureInvokeResult(runtime, tStart,
-					Expression.Dynamic(runtime.GetInvokeMemberBinder(sMember, new CallInfo(arguments.Length)), typeof(object),
-						new Expression[] { ConvertExpression(runtime, tStart, instance, typeof(object)) }.Concat(
+				return EnsureInvokeResult(scope, tStart,
+					Expression.Dynamic(scope.Runtime.GetInvokeMemberBinder(sMember, new CallInfo(arguments.Length)), typeof(object),
+						new Expression[] { ConvertExpression(scope.Runtime, tStart, instance, typeof(object)) }.Concat(
 							from c in arguments select Lua.EnsureType(c, typeof(object))
 						).ToArray()
 					),
-					result
+					result, instance, sMember
 				 );
 			}
 			else
@@ -316,14 +341,9 @@ namespace Neo.IronLua
 					true);
 
 				if (method != null)
-				{
-					return SafeExpression(() => EnsureInvokeResult(runtime, tStart,
-						InvokeMemberExpressionBind(method, runtime, instance, arguments),
-						result
-					), tStart);
-				}
+					return EnsureInvokeResult(scope, tStart, SafeExpression(() => InvokeMemberExpressionBind(method, scope.Runtime, instance, arguments), tStart), result, instance, sMember);
 				else
-					return InvokeMemberExpressionDynamic(runtime, tStart, instance, sMember, result, arguments);
+					return InvokeMemberExpressionDynamic(scope, tStart, instance, sMember, result, arguments);
 			}
 		} // func InvokeMemberExpression
 
@@ -349,29 +369,29 @@ namespace Neo.IronLua
 			}
 		} // func InvokeMemberExpressionBind
 
-		private static Expression InvokeMemberExpressionDynamic(Lua runtime, Token tStart, Expression instance, string sMember, InvokeResult result, Expression[] arguments)
+		private static Expression InvokeMemberExpressionDynamic(Scope scope, Token tStart, Expression instance, string sMember, InvokeResult result, Expression[] arguments)
 		{
-			return EnsureInvokeResult(runtime, tStart,
-				Expression.Dynamic(runtime.GetInvokeMemberBinder(sMember, new CallInfo(arguments.Length)), typeof(object),
-					new Expression[] { ConvertExpression(runtime, tStart, instance, typeof(object)) }.Concat(from a in arguments select Lua.EnsureType(a, typeof(object))).ToArray()
+			return EnsureInvokeResult(scope, tStart,
+				Expression.Dynamic(scope.Runtime.GetInvokeMemberBinder(sMember, new CallInfo(arguments.Length)), typeof(object),
+					new Expression[] { ConvertExpression(scope.Runtime, tStart, instance, typeof(object)) }.Concat(from a in arguments select Lua.EnsureType(a, typeof(object))).ToArray()
 				),
-				result
+				result, instance, sMember
 			 );
 		} // func InvokeMemberExpressionDynamic
 
-		private static Expression EnsureInvokeResult(Lua runtime, Token tStart, Expression expr, InvokeResult result)
+		private static Expression EnsureInvokeResult(Scope scope, Token tStart, Expression expr, InvokeResult result, Expression instance, string sMember)
 		{
 			switch (result)
 			{
 				case InvokeResult.LuaResult:
-					return ConvertExpression(runtime, tStart, expr, typeof(LuaResult));
+					return ConvertExpression(scope.Runtime, tStart, expr, typeof(LuaResult));
 				case InvokeResult.Object:
 					if (LuaEmit.IsDynamicType(expr.Type))
-						return Expression.Dynamic(runtime.GetConvertBinder(typeof(object)), typeof(object), ConvertExpression(runtime, tStart, expr, typeof(object)));
+						return MemberGetSandbox(scope, Expression.Dynamic(scope.Runtime.GetConvertBinder(typeof(object)), typeof(object), ConvertExpression(scope.Runtime, tStart, expr, typeof(object))), instance, sMember);
 					else
-						return expr;
+						return MemberGetSandbox(scope, expr, instance, sMember);
 				default:
-					return expr;
+					return MemberGetSandbox(scope, expr, instance, sMember);
 			}
 		} // func EnsureInvokeResult
 

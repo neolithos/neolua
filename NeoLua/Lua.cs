@@ -46,6 +46,76 @@ namespace Neo.IronLua
 
 	#endregion
 
+	#region -- enum LuaSandboxResult ----------------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary>Defines the sandbox type</summary>
+	public enum LuaSandboxResult
+	{
+		/// <summary>No sandbox</summary>
+		None,
+		/// <summary>Access is not allowed.</summary>
+		Restrict,
+		/// <summary>Check the access during runtime.</summary>
+		Dynamic
+	} // enum LuaSandboxResult
+
+	#endregion
+
+	#region -- class LuaCompileOptions --------------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary>Defines option for the parse and compile of a script.</summary>
+	public class LuaCompileOptions
+	{
+		/// <summary>Action on access diened.</summary>
+		/// <returns></returns>
+		protected virtual Expression RestrictAccess()
+		{
+			return Expression.Throw(Expression.New(typeof(UnauthorizedAccessException)));
+		} // func RestrictAccess
+
+		/// <summary>Most core method, that gets called to sandbox a value.</summary>
+		/// <param name="expression">Expression, that should be sandboxed.</param>
+		/// <param name="instance">Optional: Instance, that was called to get the expression.</param>
+		/// <param name="sMember">Optional: Name of the member that was used to resolve the expression.</param>
+		/// <returns>Sandboxed expression</returns>
+		protected internal virtual Expression SandboxCore(Expression expression, Expression instance, string sMember)
+		{
+			switch (Sandbox(expression.Type, instance == null ? null : instance.Type, sMember))
+			{
+				case LuaSandboxResult.Dynamic:
+					if (DynamicSandbox == null)
+						return expression;
+					else
+						return LuaEmit.Convert(null, Expression.Invoke(Expression.Constant(DynamicSandbox), expression), typeof(object), expression.Type, false);
+
+				case LuaSandboxResult.Restrict:
+					return RestrictAccess();
+				
+				default:
+					return expression;
+			}
+		} // func SandboxCore
+
+		/// <summary>Higher level method to restict access to types.</summary>
+		/// <param name="expressionType">Type of the sandbox value</param>
+		/// <param name="instanceType">Optional: Instance, that was called to get the expression.</param>
+		/// <param name="sMember">Optional: Name of the member that was used to resolve the expression.</param>
+		/// <returns>Sandbox action</returns>
+		protected virtual LuaSandboxResult Sandbox(Type expressionType, Type instanceType, string sMember)
+		{
+			return DynamicSandbox == null ? LuaSandboxResult.None : LuaSandboxResult.Dynamic;
+		} // func Sandbox
+
+		/// <summary>Gets called if the sandbox will resolved during runtime.</summary>
+		public Func<object, object> DynamicSandbox { get; set; }
+		/// <summary>Set this member to compile the script with Debug-Infos.</summary>
+		public ILuaDebug DebugEngine { get; set; }
+	} // class LuaCompileOptions
+
+	#endregion
+
 	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Manages the Lua-Script-Environment. At the time it holds the
 	/// binder cache between the compiled scripts.</summary>
@@ -106,48 +176,51 @@ namespace Neo.IronLua
 
 		/// <summary>Erzeugt ein Delegate aus dem Code, ohne ihn auszuführen.</summary>
 		/// <param name="sFileName">Dateiname die gelesen werden soll.</param>
-		/// <param name="debug">Compile with debug infos</param>
+		/// <param name="options">Options for the compile process.</param>
 		/// <param name="args">Parameter für den Codeblock</param>
 		/// <returns>Compiled chunk.</returns>
-		public LuaChunk CompileChunk(string sFileName, ILuaDebug debug, params KeyValuePair<string, Type>[] args)
+		public LuaChunk CompileChunk(string sFileName, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
 		{
-			return CompileChunk(sFileName, debug, new StreamReader(sFileName), args);
+			return CompileChunk(sFileName, options, new StreamReader(sFileName), args);
 		} // func CompileChunk
 
 		/// <summary>Erzeugt ein Delegate aus dem Code, ohne ihn auszuführen.</summary>
 		/// <param name="tr">Inhalt</param>
 		/// <param name="sName">Name der Datei</param>
-		/// <param name="debug">Compile with debug infos</param>
+		/// <param name="options">Options for the compile process.</param>
 		/// <param name="args">Parameter für den Codeblock</param>
 		/// <returns>Compiled chunk.</returns>
-		public LuaChunk CompileChunk(TextReader tr, string sName, ILuaDebug debug, params KeyValuePair<string, Type>[] args)
+		public LuaChunk CompileChunk(TextReader tr, string sName, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
 		{
-			return CompileChunk(sName, debug, tr, args);
+			return CompileChunk(sName, options, tr, args);
 		} // func CompileChunk
 
 		/// <summary>Erzeugt ein Delegate aus dem Code, ohne ihn auszuführen.</summary>
 		/// <param name="sCode">Code, der das Delegate darstellt.</param>
 		/// <param name="sName">Name des Delegates</param>
-		/// <param name="debug">Compile with debug infos</param>
+		/// <param name="options">Options for the compile process.</param>
 		/// <param name="args">Argumente</param>
 		/// <returns>Compiled chunk.</returns>
-		public LuaChunk CompileChunk(string sCode, string sName, ILuaDebug debug, params KeyValuePair<string, Type>[] args)
+		public LuaChunk CompileChunk(string sCode, string sName, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
 		{
-			return CompileChunk(sName, debug, new StringReader(sCode), args);
+			return CompileChunk(sName, options, new StringReader(sCode), args);
 		} // func CompileChunk
 
-		internal LuaChunk CompileChunk(string sChunkName, ILuaDebug debug, TextReader tr, IEnumerable<KeyValuePair<string, Type>> args)
+		internal LuaChunk CompileChunk(string sChunkName, LuaCompileOptions options, TextReader tr, IEnumerable<KeyValuePair<string, Type>> args)
 		{
 			if (String.IsNullOrEmpty(sChunkName))
 				throw new ArgumentNullException("chunkname");
+			if (options == null)
+				options = new LuaCompileOptions();
 
 			using (LuaLexer l = new LuaLexer(sChunkName, tr))
 			{
-        if (debug != null && (debug.Level & LuaDebugLevel.RegisterMethods) == LuaDebugLevel.RegisterMethods)
+				bool lRegisterMethods = options.DebugEngine != null && (options.DebugEngine.Level & LuaDebugLevel.RegisterMethods) == LuaDebugLevel.RegisterMethods;
+				if (lRegisterMethods)
 					BeginCompile();
 				try
 				{
-					LambdaExpression expr = Parser.ParseChunk(this, debug == null ? LuaDebugLevel.None : debug.Level, true, l, null, typeof(LuaResult), args);
+					LambdaExpression expr = Parser.ParseChunk(this, options, true, l, null, typeof(LuaResult), args);
 
 					if (lPrintExpressionTree)
 					{
@@ -156,14 +229,14 @@ namespace Neo.IronLua
 					}
 
 					// compile the chunk
-					if (debug == null)
+					if (options.DebugEngine == null)
 						return new LuaChunk(this, expr.Name, expr.Compile());
 					else
-						return debug.CreateChunk(this, expr);
+						return options.DebugEngine.CreateChunk(this, expr);
 				}
 				finally
 				{
-          if (debug != null && (debug.Level & LuaDebugLevel.RegisterMethods) == LuaDebugLevel.RegisterMethods)
+					if (lRegisterMethods)
 						EndCompile();
 				}
 			}
@@ -180,7 +253,7 @@ namespace Neo.IronLua
 		{
 			using (LuaLexer l = new LuaLexer(sName, new StringReader(sCode)))
 			{
-				LambdaExpression expr = Parser.ParseChunk(this, LuaDebugLevel.None, false, l, typeDelegate, returnType, arguments);
+				LambdaExpression expr = Parser.ParseChunk(this, new LuaCompileOptions(), false, l, typeDelegate, returnType, arguments);
 
 				if (lPrintExpressionTree)
 				{
@@ -402,7 +475,7 @@ namespace Neo.IronLua
     // -- Static --------------------------------------------------------------
 
     private static object lockDefaultDebugEngine = new object();
-		private static ILuaDebug defaultDebugEngine = null;
+		private static LuaCompileOptions defaultDebugEngine = null;
 
 		private static int iRegisteredChunkLock = 0;
 		private static Dictionary<string, WeakReference> registeredChunks = new Dictionary<string, WeakReference>();
@@ -492,13 +565,13 @@ namespace Neo.IronLua
 		#endregion
 
 		/// <summary>Returns a default StackTrace-Debug Engine</summary>
-		public static ILuaDebug DefaultDebugEngine
+		public static LuaCompileOptions DefaultDebugEngine
 		{
 			get
 			{
 				lock (lockDefaultDebugEngine)
 					if (defaultDebugEngine == null)
-						defaultDebugEngine = new LuaStackTraceDebugger();
+						defaultDebugEngine = new LuaCompileOptions() { DebugEngine = new LuaStackTraceDebugger() };
 				return defaultDebugEngine;
 			}
 		} // prop DefaultDebugEngine

@@ -165,6 +165,8 @@ namespace Neo.IronLua
 			public virtual Lua Runtime { get { return parent.Runtime; } }
 			/// <summary>Emit-Debug-Information</summary>
 			public virtual LuaDebugLevel EmitDebug { get { return parent.EmitDebug; } }
+			/// <summary>Options</summary>
+			public virtual LuaCompileOptions Options { get { return parent.Options; } }
 			/// <summary>DebugInfo on expression level</summary>
 			public bool EmitExpressionDebug { get { return (EmitDebug & LuaDebugLevel.Expression) != 0; } }
 			/// <summary>Return type of the current Lambda-Scope</summary>
@@ -342,24 +344,28 @@ namespace Neo.IronLua
 		private class GlobalScope : LambdaScope
 		{
 			private Lua runtime;
+			private LuaCompileOptions options;
 			private LuaDebugLevel debug;
 
 			/// <summary>Global parse-scope</summary>
 			/// <param name="runtime">Runtime and binder of the global scope.</param>
-			/// <param name="debug"></param>
+			/// <param name="options"></param>
 			/// <param name="returnType"></param>
 			/// <param name="returnDefaultValue"></param>
-			public GlobalScope(Lua runtime, LuaDebugLevel debug, Type returnType, Expression returnDefaultValue)
+			public GlobalScope(Lua runtime, LuaCompileOptions options, Type returnType, Expression returnDefaultValue)
 				: base(null, returnType, returnDefaultValue)
 			{
 				this.runtime = runtime;
-				this.debug = debug;
+				this.options = options;
+				this.debug = options.DebugEngine == null ? LuaDebugLevel.None : options.DebugEngine.Level;
 			} // ctor
 
 			/// <summary>Access to the binders</summary>
 			public override Lua Runtime { get { return runtime; } }
 			/// <summary>Emit-Debug-Information</summary>
 			public override LuaDebugLevel EmitDebug { get { return debug; } }
+			/// <summary>Options</summary>
+			public override LuaCompileOptions Options { get { return options; } }
 		} // class GlobalScope
 
 		#endregion
@@ -418,14 +424,14 @@ namespace Neo.IronLua
 						Indices[Indices.Length - 1] = WrapDebugInfo(scope.EmitExpressionDebug, true, Position, Position, Indices[Indices.Length - 1]); // Let the type as it is
 					}
 
-					Instance = IndexGetExpression(scope.Runtime, Position, Instance, Indices);
+					Instance = IndexGetExpression(scope, Position, Instance, Indices);
 					Indices = null;
 				}
 				else if (Instance != null && Member != null && Indices == null && Arguments == null)
 				{
 					// Convert the member to an instance
 					Instance = WrapDebugInfo(scope.EmitExpressionDebug, true, Position, Position, Instance);
-					Instance = MemberGetExpression(scope.Runtime, Position, Instance, Member, MethodMember);
+					Instance = MemberGetExpression(scope, Position, Instance, Member);
 					Member = null;
 					MethodMember = false;
 				}
@@ -444,9 +450,9 @@ namespace Neo.IronLua
 						Instance = WrapDebugInfo(scope.EmitExpressionDebug, true, Position, Position, Instance);
 
 					if (String.IsNullOrEmpty(Member))
-						Instance = InvokeExpression(scope.Runtime, Position, Instance, result, Arguments, true);
+						Instance = InvokeExpression(scope, Position, Instance, result, Arguments, true);
 					else
-						Instance = InvokeMemberExpression(scope.Runtime, Position, Instance, Member, result, Arguments);
+						Instance = InvokeMemberExpression(scope, Position, Instance, Member, result, Arguments);
 
 					Member = null;
 					MethodMember = false;
@@ -479,19 +485,19 @@ namespace Neo.IronLua
 
 		/// <summary>Parses the chunk to an function.</summary>
 		/// <param name="runtime">Binder</param>
-		/// <param name="debug">Compile the script with debug information.</param>
+		/// <param name="options">Compile options for the script.</param>
 		/// <param name="lHasEnvironment">Creates the _G parameter.</param>
 		/// <param name="code">Lexer for the code.</param>
 		/// <param name="typeDelegate">Type for the delegate. <c>null</c>, for an automatic type</param>
 		/// <param name="returnType">Defines the return type of the chunk.</param>
 		/// <param name="args">Arguments of the function.</param>
 		/// <returns>Expression-Tree for the code.</returns>
-		public static LambdaExpression ParseChunk(Lua runtime, LuaDebugLevel debug, bool lHasEnvironment, LuaLexer code, Type typeDelegate, Type returnType, IEnumerable<KeyValuePair<string, Type>> args)
+		public static LambdaExpression ParseChunk(Lua runtime, LuaCompileOptions options, bool lHasEnvironment, LuaLexer code, Type typeDelegate, Type returnType, IEnumerable<KeyValuePair<string, Type>> args)
 		{
 			List<ParameterExpression> parameters = new List<ParameterExpression>();
 			if (returnType == null)
 				returnType = typeof(LuaResult);
-			var globalScope = new GlobalScope(runtime, debug, returnType, returnType == typeof(LuaResult) ? Expression.Property(null, Lua.ResultEmptyPropertyInfo) : null);
+			var globalScope = new GlobalScope(runtime, options, returnType, returnType == typeof(LuaResult) ? Expression.Property(null, Lua.ResultEmptyPropertyInfo) : null);
 
 			// Registers the global LuaTable
 			if (lHasEnvironment)
@@ -509,7 +515,7 @@ namespace Neo.IronLua
 
 			// Get the name for the chunk and clean it from all unwanted chars
 			string sChunkName = CreateNameFromFile(code.Current.Start.FileName);
-      if ((debug & LuaDebugLevel.RegisterMethods) == LuaDebugLevel.RegisterMethods)
+      if ((globalScope.EmitDebug & LuaDebugLevel.RegisterMethods) == LuaDebugLevel.RegisterMethods)
 				sChunkName = Lua.RegisterUniqueName(sChunkName);
 
 			// Create the block
@@ -1950,7 +1956,7 @@ namespace Neo.IronLua
 				Expression.Label(loopScope.ContinueLabel),
 
 				// local tmp = f(s, var)
-				Expression.Assign(varTmp, InvokeExpression(loopScope.Runtime, tStart, varFunc, InvokeResult.LuaResult,
+				Expression.Assign(varTmp, InvokeExpression(loopScope, tStart, varFunc, InvokeResult.LuaResult,
 					new Expression[] { varState, varVar }, true)
 				),
 
@@ -2045,7 +2051,7 @@ namespace Neo.IronLua
 					assignee = expr;
 			}
 			else
-				assignee = MemberGetExpression(scope.Runtime, tStart, assignee, sMember, false);
+				assignee = MemberGetExpression(scope, tStart, assignee, sMember);
 			return assignee;
 		} // proc ParseFunctionAddChain
 

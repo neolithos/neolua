@@ -66,6 +66,8 @@ namespace Neo.IronLua
 
 	#endregion
 
+	#region -- class LuaStackTraceDebugger ----------------------------------------------
+
 	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Debugger that creates the methods as dynamic assembly, with them
 	/// it is possible to retrieve exact stacktraces. This debugger is good if
@@ -464,4 +466,6 @@ namespace Neo.IronLua
 			}
 		} // func GetLuaDynamicName
 	} // class StackTraceDebugger
+
+	#endregion
 }

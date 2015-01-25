@@ -187,7 +187,7 @@ namespace Neo.IronLua
 
     private static Lua lua = new Lua(); // create lua script compiler
     private static LuaGlobal global;
-    private static ILuaDebug debugEngine = Lua.DefaultDebugEngine;
+    private static ILuaDebug debugEngine = Lua.DefaultDebugEngine.DebugEngine;
     private static ILuaDebug debugConsole = new LuaTraceLineConsoleDebugger();
 
     private static void WriteText(ConsoleColor textColor, string sText)
@@ -423,7 +423,7 @@ namespace Neo.IronLua
 				sw.Start();
 
 				// compile chunk
-				LuaChunk c = lua.CompileChunk(code(), sName, debugEngine);
+				LuaChunk c = lua.CompileChunk(code(), sName, new LuaCompileOptions() { DebugEngine = debugEngine });
 
 				string sCompileTime = String.Format("{0:N0} ms", sw.ElapsedMilliseconds);
 				sw.Reset();
@@ -548,7 +548,7 @@ namespace Neo.IronLua
            else if (sLine == Boolean.TrueString)
             {
               WriteText(ConsoleColor.DarkYellow, "Compile emits stack trace information and runtime functions, now."); Console.WriteLine();
-							debugEngine = Lua.DefaultDebugEngine;
+							debugEngine = Lua.DefaultDebugEngine.DebugEngine;
             }
             else
             {
