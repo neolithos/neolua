@@ -267,7 +267,8 @@ namespace Neo.IronLua
 		[LuaMember("assert")]
 		private static object LuaAssert(object value, string sMessage)
 		{
-			Debug.Assert(IsTrue(value), sMessage);
+			if (!IsTrue(value))
+				LuaError(sMessage ?? "assertion failed!", 1);
 			return value;
 		} // func LuaAssert
 
