@@ -1938,7 +1938,7 @@ namespace Neo.IronLua
 			const string csVar = "#var";
 
 			ParameterExpression varTmp = Expression.Variable(typeof(LuaResult), "#tmp");
-			ParameterExpression varFunc = Expression.Variable(typeof(Func<object, object, LuaResult>), csFunc);
+			ParameterExpression varFunc = Expression.Variable(explist.Length > 0 && typeof(Delegate).IsAssignableFrom(explist[0].Type) ? explist[0].Type : typeof(object), csFunc);
 			ParameterExpression varState = Expression.Variable(typeof(object), csState);
 			ParameterExpression varVar = Expression.Variable(typeof(object), csVar);
 
