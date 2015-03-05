@@ -921,18 +921,31 @@ namespace Neo.IronLua
 			// Unix timestamp is seconds past epoch. Epoch date for time_t is 00:00:00 UTC, January 1, 1970.
 			DateTime dt;
 
-			var firstC = string.IsNullOrEmpty(format) ? (char?)null : format[0];
-			if (firstC == '!')
+			bool lUtc = format != null && format.Length > 0 && format[0] == '!';
+
+			if (time == null)
+				dt = lUtc ? DateTime.UtcNow : DateTime.Now;
+			else if (time is DateTime)
 			{
-				// Date and time expressed as coordinated universal time (UTC).
-				dt = time == null ? DateTime.UtcNow : dtUnixStartTime.AddSeconds((int)time).ToUniversalTime();
-				format = format.Substring(1);
+				dt = (DateTime)time;
+				switch (dt.Kind)
+				{
+					case DateTimeKind.Utc:
+						if (!lUtc)
+							dt = dt.ToLocalTime();
+						break;
+					default:
+						if (lUtc)
+							dt = dt.ToUniversalTime();
+						break;
+				}
 			}
 			else
-			{
-				// Date and time adjusted to the local time zone.
-				dt = time == null ? DateTime.Now : dtUnixStartTime.AddSeconds((int)time).ToLocalTime();
-			}
+				dt = dtUnixStartTime.AddSeconds((long)Convert.ChangeType(time, typeof(long))).ToLocalTime();
+
+			// Date and time expressed as coordinated universal time (UTC).
+			if (lUtc)
+				format = format.Substring(1);
 
 			if (String.Compare(format, "*t", false) == 0)
 			{
