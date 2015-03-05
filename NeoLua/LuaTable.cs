@@ -4022,7 +4022,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static T[] unpack<T>(LuaTable t, int i, int j, T[] empty)
 		{
-			if (j < i || i == j)
+			if (j < i)
 				return empty;
 
 			T[] list = new T[j - i + 1];
