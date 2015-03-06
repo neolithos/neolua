@@ -171,7 +171,7 @@ namespace Neo.IronLua
 		private static bool TryConvertType(Lua runtime, Type typeTo, ref Expression expr, ref Type exprType)
 		{
 			bool lExact;
-			if (TypesMatch(typeTo, exprType, out lExact))// is the type compitible
+			if (TypesMatch(typeTo, exprType, out lExact)) // is the type compitible
 			{
 				expr = Convert(runtime, expr, exprType, typeTo, false);
 				exprType = typeTo;
@@ -1049,15 +1049,27 @@ namespace Neo.IronLua
 					MethodInfo miOperator = FindMethod(members3, parameterTypes, t => t, false);
 					if (miOperator != null)
 					{
+						// Get the argumentslist
 						ParameterInfo[] parameterInfo = miOperator.GetParameters();
 						if (op == Lua.IntegerDivide)
 							op = ExpressionType.Divide;
-						return Expression.MakeBinary(op,
-							Convert(runtime, expr1, type1, parameterInfo[0].ParameterType, lParse),
-							Convert(runtime, expr2, type2, parameterInfo[1].ParameterType, lParse),
-							true,
-							miOperator
-						);
+
+						// Check if the arguments are valid
+						Expression exprOperatorArgument1 = expr1;
+						Type typeOperatorArgument1 = type1;
+						Expression exprOperatorArgument2 = expr2;
+						Type typeOperatorArgument2 = type2;
+
+						if (TryConvertType(runtime, parameterInfo[0].ParameterType, ref exprOperatorArgument1, ref typeOperatorArgument1) &&
+							TryConvertType(runtime, parameterInfo[1].ParameterType, ref exprOperatorArgument2, ref typeOperatorArgument2))
+						{
+							return Expression.MakeBinary(op,
+								exprOperatorArgument1,
+								exprOperatorArgument2,
+								true,
+								miOperator
+							);
+						}
 					}
 				}
 			}

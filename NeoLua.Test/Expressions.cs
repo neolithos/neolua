@@ -909,16 +909,19 @@ namespace LuaDLR.Test
           new KeyValuePair<string, Type>("b", typeof(object))
         );
 
-        TestResult(g.dochunk(c, 1, 2), false);
-        TestResult(g.dochunk(c, 2, 1), false);
-        TestResult(g.dochunk(c, 2, 2), true);
-        TestResult(g.dochunk(c, 2, (short)2), true);
-        TestResult(g.dochunk(c, new TestOperator(1), 2), false);
-        TestResult(g.dochunk(c, 2, new TestOperator(2)), false);
-        object a = new object();
-        TestResult(g.dochunk(c, a, a), true);
-        TestResult(g.dochunk(c, "a", "a"), true);
-      }
+				TestResult(g.dochunk(c, 1, 2), false);
+				TestResult(g.dochunk(c, 2, 1), false);
+				TestResult(g.dochunk(c, 2, 2), true);
+				TestResult(g.dochunk(c, 2, (short)2), true);
+				TestResult(g.dochunk(c, new TestOperator(1), 2), false);
+				TestResult(g.dochunk(c, 2, new TestOperator(2)), false);
+				object a = new object();
+				TestResult(g.dochunk(c, a, a), true);
+				TestResult(g.dochunk(c, "a", "a"), true);
+				TestResult(g.dochunk(c, 3.0m, null), false);
+				TestResult(g.dochunk(c, null, 3.0m), false);
+				TestResult(g.dochunk(c, null, null), true);
+			}
     }
 
     [TestMethod]
