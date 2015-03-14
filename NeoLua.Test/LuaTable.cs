@@ -222,6 +222,14 @@ namespace LuaDLR.Test
 				"Sunday", "Monday", "Tuesday", "Wednesday");
 		}
 
+		[TestMethod]
+		public void TestIndex08()
+		{
+			LuaTable t = new LuaTable();
+			t[-1] = 50;
+			Assert.AreEqual(50, t[-1]);
+		}
+
     #endregion
 
     #region -- MetaTable --------------------------------------------------------------

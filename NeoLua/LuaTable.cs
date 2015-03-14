@@ -1849,7 +1849,7 @@ namespace Neo.IronLua
 
 		private int FindKey(int iIndex)
 		{
-			return FindKey(iIndex, iIndex.GetHashCode(), comparerInt);
+			return FindKey(iIndex, iIndex.GetHashCode() & 0x7FFFFFFF, comparerInt);
 		} // func FindKey
 
 		private void SetIndexCopyValuesToArray(object[] newArray, int iStart)
