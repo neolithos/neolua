@@ -1003,7 +1003,7 @@ namespace Neo.IronLua
     /// <summary>Root for all clr-types.</summary>
     public static LuaType Clr { get { return clr; } }
 		/// <summary>Should the type resolve also scan references assemblies.</summary>
-		public static bool LookupReferencedAssemblies { get { return lLookupReferencedAssemblies; } set { lLookupReferencedAssemblies = true; } }
+		public static bool LookupReferencedAssemblies { get { return lLookupReferencedAssemblies; } set { lLookupReferencedAssemblies = value; } }
   } // class LuaType
 
   #endregion
