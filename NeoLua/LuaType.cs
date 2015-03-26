@@ -725,7 +725,7 @@ namespace Neo.IronLua
     private static LuaType clr = new LuaType();                 // root type
     private static List<LuaType> types = new List<LuaType>();   // SubItems of this type
     private static Dictionary<string, int> knownTypes = new Dictionary<string, int>(); // index for well known types
-		private static bool lLookupReferencedAssemblies = true;			// reference search for types
+		private static bool lLookupReferencedAssemblies = false;		// reference search for types
 
 		static LuaType()
 		{
@@ -753,6 +753,8 @@ namespace Neo.IronLua
 			RegisterTypeAlias("void", typeof(void));
 
 			RegisterTypeExtension(typeof(LuaLibraryString));
+
+			lLookupReferencedAssemblies = true;
 		} // /sctor
 
     #region -- Operator ---------------------------------------------------------------
