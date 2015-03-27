@@ -367,7 +367,226 @@ namespace Neo.IronLua
 
     #endregion
 
-    private LuaType parent;           // Access to parent type or namespace
+		#region -- AssemblyCacheItem ------------------------------------------------------
+
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary></summary>
+		private sealed class AssemblyCacheList : IEnumerable<Assembly>
+		{
+			#region -- CacheItem ------------------------------------------------------------
+
+			///////////////////////////////////////////////////////////////////////////////
+			/// <summary></summary>
+			private class CacheItem
+			{
+				private AssemblyName assemblyName;
+				public Assembly assembly = null;			// Reference to the loaded assembly
+				public Assembly reflected = null;			// Reflected assembly
+				public CacheItem next = null;					// Next item
+				public CacheItem prev = null;					// Prev item
+
+				public CacheItem(AssemblyName assemblyName)
+				{
+					this.assemblyName = assemblyName;
+				} // ctor
+
+				public override string ToString()
+				{
+					return assemblyName.Name;
+				} // func ToString
+
+				public AssemblyName Name { get { return assemblyName; } }
+			} // class AssemblyCacheItem
+
+			#endregion
+
+			#region -- AssemblyCacheEnumerator ----------------------------------------------
+
+			private sealed class AssemblyCacheEnumerator : IEnumerator<Assembly>
+			{
+				private AssemblyCacheList owner;
+				private Assembly currentAssembly = null;
+				private CacheItem current = null;
+
+				public AssemblyCacheEnumerator(AssemblyCacheList owner)
+				{
+					this.owner = owner;
+					Reset();
+				} // ctor
+
+				public void Dispose()
+				{
+				} // proc Dispose
+
+				public bool MoveNext()
+				{
+					if (current == null)
+						current = owner.first;
+					else
+						current = current.next;
+
+					if (current == null)
+						return false;
+					else
+					{
+						lock (current)
+						{
+							currentAssembly = current.assembly ?? current.reflected;
+
+							if (currentAssembly == null && LookupReferencedAssemblies)
+							{
+								try
+								{
+									currentAssembly =
+										current.reflected =
+										Assembly.ReflectionOnlyLoad(current.Name.FullName);
+								}
+								catch { }
+							}
+
+							return currentAssembly != null;
+						}
+					}
+				} // func MoveNext
+
+				public void Reset()
+				{
+					currentAssembly = null;
+					current = null;
+				} // proc Reset
+
+				public Assembly Current { get { return currentAssembly; } }
+				object System.Collections.IEnumerator.Current { get { return Current; } }
+			} // class AssemblyCacheEnumerator
+
+			#endregion
+
+			private Dictionary<string, CacheItem> cache = new Dictionary<string, CacheItem>(StringComparer.OrdinalIgnoreCase);
+			private CacheItem first = null;
+			private CacheItem lastLoaded = null;
+			private CacheItem lastReflected = null;
+
+			private int iAssemblyCount = 0;
+
+			public AssemblyCacheList()
+			{
+				AssemblyName assemblyName = typeof(string).Assembly.GetName(); // mscorlib is always first
+				cache[assemblyName.Name] = 
+					first =
+					lastReflected =
+					lastLoaded = new CacheItem(assemblyName);
+			} // ctor
+
+			public void Refresh()
+			{
+				lock (this)
+				{
+					Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+
+					if (iAssemblyCount < assemblies.Length) // New assemblies loaded 
+					{
+						for (int i = iAssemblyCount; i < assemblies.Length; i++) // add the new assemblies
+						{
+							Assembly asm = assemblies[i];
+
+							// check if the assembly is in the list, if not create the item
+							CacheItem item;
+							AssemblyName assemblyName = asm.GetName();
+							if (!cache.TryGetValue(assemblyName.Name, out item))
+								item = AddCacheItem(assemblyName, true);
+							else
+								InsertLoaded(item);
+
+							UpdateLoadedAssembly(item, asm);
+						}
+
+						// Update the assembly count
+						iAssemblyCount = assemblies.Length;
+					}
+				}
+			} // proc Refresh
+
+			private void UpdateLoadedAssembly(CacheItem item, Assembly assembly)
+			{
+				if (item.assembly == assembly)
+					return;
+
+				// update the assembly
+				lock (item)
+				{
+					item.assembly = assembly;
+					item.reflected = null;
+				}
+
+				// add direct referenced assemblies
+				foreach (var r in assembly.GetReferencedAssemblies())
+				{
+					if (!cache.ContainsKey(r.Name))
+						AddCacheItem(r, false);
+				}
+			} // proc UpdateLoadedAssembly
+
+			private CacheItem AddCacheItem(AssemblyName assemblyName, bool lLastLoaded)
+			{
+				lock (this)
+				{
+					var n = new CacheItem(assemblyName);
+
+					// add the item to the list
+					if (lLastLoaded)
+						InsertLoaded(n);
+					else
+					{
+						if (lastReflected.next != null)
+							lastReflected = lastLoaded;
+						n.prev = lastReflected;
+						lastReflected =
+							lastReflected.next = n;
+					}
+					// add the item to the cache
+					cache[assemblyName.Name] = n;
+
+					return n;
+				}
+			} // proc AddCacheItem
+
+			private void InsertLoaded(CacheItem n)
+			{
+				if (lastLoaded == n)
+					return;
+
+				// Remove n
+				if (n.prev != null )
+					n.prev.next = n.next;
+				
+				// Insert after last loaded
+				var after = lastLoaded.next;
+				n.prev = lastLoaded;
+				lastLoaded =
+					lastLoaded.next = n;
+				n.next = after;
+
+				if (after != null)
+					after.prev = n;
+			} // proc InsertLoaded
+
+			public IEnumerator<Assembly> GetEnumerator()
+			{
+				return new AssemblyCacheEnumerator(this);
+			} // func GetEnumerator
+
+			System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+			{
+				return new AssemblyCacheEnumerator(this);
+			} // func System.Collections.IEnumerable.GetEnumerator
+
+			/// <summary>Number of loaded assemblies</summary>
+			public int AssemblyCount { get { return iAssemblyCount; } }
+		} // class AssemblyCacheList
+
+		#endregion
+
+		private LuaType parent;           // Access to parent type or namespace
 		private LuaType baseType;					// If the type is inherited, then this points to the base type
     private Type type;                // Type that is represented, null if it is not resolved until now
 
@@ -435,49 +654,29 @@ namespace Neo.IronLua
       if (parent != null && // the root has no type
           iAssemblyCount >= 0) // Namespace, there is no type
       {
-        Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
         string sTypeName = FullName;
 
         // new assembly loaded?
-				if (assemblies.Length != iAssemblyCount)
+				assemblyList.Refresh();
+				if (iAssemblyCount != assemblyList.AssemblyCount)
 				{
-					List<string> referencedAssemblies = LookupReferencedAssemblies ? new List<string>() : null;
-
-					// Lookup the loaded assemblies
-					for (int i = iAssemblyCount; i < assemblies.Length; i++)
+					foreach (Assembly asm in assemblyList)
 					{
-						if (SetType(assemblies[i].GetType(sTypeName, false), true))
-							break;
-
-						// collect the references
-						if (referencedAssemblies != null)
+						// Search the type in the assembly
+						Type t = asm.GetType(sTypeName, false);
+						
+						if (t != null)
 						{
-							foreach (AssemblyName n in assemblies[i].GetReferencedAssemblies())
-							{
-								if (!referencedAssemblies.Exists(c => n.FullName == c) && !Array.Exists(assemblies, a => a.FullName == n.FullName))
-									referencedAssemblies.Add(n.FullName);
-							}
+							// the type is reflected, load the assembly and get the type
+							if (asm.ReflectionOnly)
+								t = Type.GetType(t.AssemblyQualifiedName);
+
+							if (SetType(t, true))
+								break;
 						}
 					}
 
-					// lookup the references
-					if (referencedAssemblies != null && type == null)
-					{
-						foreach (string sAssemblyName in referencedAssemblies)
-							try
-							{
-								Assembly asm = Assembly.ReflectionOnlyLoad(sAssemblyName);
-								Type typeReflected = asm.GetType(sTypeName, false);
-								if (typeReflected != null)
-								{
-									SetType(Type.GetType(typeReflected.AssemblyQualifiedName), true);
-									break;
-								}
-							}
-							catch { }
-					}
-
-					iAssemblyCount = assemblies.Length;
+					iAssemblyCount = assemblyList.AssemblyCount;
 				}
 			}
     } // func GetItemType
@@ -726,6 +925,7 @@ namespace Neo.IronLua
     private static List<LuaType> types = new List<LuaType>();   // SubItems of this type
     private static Dictionary<string, int> knownTypes = new Dictionary<string, int>(); // index for well known types
 		private static bool lLookupReferencedAssemblies = false;		// reference search for types
+		private static AssemblyCacheList assemblyList = new AssemblyCacheList();
 
 		static LuaType()
 		{
