@@ -367,7 +367,7 @@ namespace Neo.IronLua
 
     #endregion
 
-		#region -- AssemblyCacheItem ------------------------------------------------------
+		#region -- class AssemblyCacheItem ------------------------------------------------
 
 		///////////////////////////////////////////////////////////////////////////////
 		/// <summary></summary>
@@ -441,7 +441,10 @@ namespace Neo.IronLua
 										current.reflected =
 										Assembly.ReflectionOnlyLoad(current.Name.FullName);
 								}
-								catch { }
+								catch
+								{
+									return MoveNext(); // current reflect load failed, try next
+								}
 							}
 
 							return currentAssembly != null;
@@ -494,8 +497,18 @@ namespace Neo.IronLua
 							AssemblyName assemblyName = asm.GetName();
 							if (!cache.TryGetValue(assemblyName.Name, out item))
 								item = AddCacheItem(assemblyName, true);
-							else
+							else if (lastLoaded != item)
+							{
+								// Remove item
+								if (item.prev != null)
+									item.prev.next = item.next;
+								if (item.next == null)
+									lastReflected = item.prev;
+								else
+									item.next.prev = item.prev;
+
 								InsertLoaded(item);
+							}
 
 							UpdateLoadedAssembly(item, asm);
 						}
@@ -537,12 +550,11 @@ namespace Neo.IronLua
 						InsertLoaded(n);
 					else
 					{
-						if (lastReflected.next != null)
-							lastReflected = lastLoaded;
 						n.prev = lastReflected;
-						lastReflected =
-							lastReflected.next = n;
+						lastReflected.next = n;
+						lastReflected = n;
 					}
+
 					// add the item to the cache
 					cache[assemblyName.Name] = n;
 
@@ -552,22 +564,19 @@ namespace Neo.IronLua
 
 			private void InsertLoaded(CacheItem n)
 			{
-				if (lastLoaded == n)
-					return;
-
-				// Remove n
-				if (n.prev != null )
-					n.prev.next = n.next;
-				
 				// Insert after last loaded
 				var after = lastLoaded.next;
+
 				n.prev = lastLoaded;
-				lastLoaded =
-					lastLoaded.next = n;
 				n.next = after;
+
+				lastLoaded.next = n;
+				lastLoaded = n;
 
 				if (after != null)
 					after.prev = n;
+				else
+					lastReflected = lastLoaded;
 			} // proc InsertLoaded
 
 			public IEnumerator<Assembly> GetEnumerator()
