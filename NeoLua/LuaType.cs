@@ -425,6 +425,7 @@ namespace Neo.IronLua
 					else
 						current = current.next;
 
+				Retry:
 					if (current == null)
 						return false;
 					else
@@ -443,7 +444,12 @@ namespace Neo.IronLua
 								}
 								catch
 								{
-									return MoveNext(); // current reflect load failed, try next
+									// current reflect load failed, try next
+									var t = current;
+									current = current.next;
+									owner.RemoveAssembly(t);
+
+									goto Retry;
 								}
 							}
 
@@ -500,12 +506,7 @@ namespace Neo.IronLua
 							else if (lastLoaded != item)
 							{
 								// Remove item
-								if (item.prev != null)
-									item.prev.next = item.next;
-								if (item.next == null)
-									lastReflected = item.prev;
-								else
-									item.next.prev = item.prev;
+								RemoveAssembly(item);
 
 								InsertLoaded(item);
 							}
@@ -578,6 +579,22 @@ namespace Neo.IronLua
 				else
 					lastReflected = lastLoaded;
 			} // proc InsertLoaded
+
+			private void RemoveAssembly(CacheItem item)
+			{
+				lock (this)
+				{
+					if (item.prev != null)
+						item.prev.next = item.next;
+					if (item.next == null)
+						lastReflected = item.prev;
+					else
+						item.next.prev = item.prev;
+
+					item.next = null;
+					item.prev = null;
+				}
+			} // proc RemoveAssembly
 
 			public IEnumerator<Assembly> GetEnumerator()
 			{
