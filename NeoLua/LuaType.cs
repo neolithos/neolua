@@ -191,12 +191,13 @@ namespace Neo.IronLua
             MethodInfo mi = LuaEmit.FindMethod((MethodInfo[])type.GetMember(binder.Name, MemberTypes.Method, Lua.GetBindingFlags(false, binder.IgnoreCase)), args, mo => mo.LimitType, false);
             if (mi == null)
             {
-              if (args.Length == 0 && String.Compare(binder.Name, "GetType", binder.IgnoreCase) == 0)
+							var stringComparison = binder.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+							if (args.Length == 0 && String.Compare(binder.Name, "GetType", stringComparison) == 0)
               {
                 restrictions = BindingRestrictions.GetInstanceRestriction(Expression, Value);
                 expr = Lua.EnsureType(Expression.Property(Lua.EnsureType(Expression, typeof(LuaType)), Lua.TypeTypePropertyInfo), binder.ReturnType);
               }
-              else if (String.Compare(binder.Name, "ctor", binder.IgnoreCase) == 0)
+							else if (String.Compare(binder.Name, "ctor", stringComparison) == 0)
               {
                 return BindNewObject(type, args, binder.ReturnType);
               }
@@ -689,14 +690,14 @@ namespace Neo.IronLua
 					foreach (Assembly asm in assemblyList)
 					{
 						// Search the type in the assembly
-						Type t = asm.GetType(sTypeName, false);
+						Type t =  (from c in asm.ExportedTypes where c.FullName == sTypeName select c).FirstOrDefault();
 						
 						if (t != null)
 						{
 							// the type is reflected, load the assembly and get the type
 							if (asm.ReflectionOnly)
 								t = Type.GetType(t.AssemblyQualifiedName);
-
+						
 							if (SetType(t, true))
 								break;
 						}
@@ -766,27 +767,25 @@ namespace Neo.IronLua
 			}
 		} // proc RegisterExtension
 
-		internal MethodInfo[] GetInstanceMethods(BindingFlags flags, string sName)
+		internal MethodInfo[] GetInstanceMethods(string sName, bool lIgnoreCase)
 		{
-			flags = (flags | BindingFlags.Instance | BindingFlags.InvokeMethod) & ~BindingFlags.Static;
-
 			// Collect all extension methods
 			List<MethodInfo> methods = null;
 			CollectExtensions(
 				ref methods,
-				(flags & BindingFlags.IgnoreCase) != 0 ?
-					new Predicate<MethodInfo>(mi => String.Compare(mi.Name, sName, true) == 0) :
-					new Predicate<MethodInfo>(mi => String.Compare(mi.Name, sName, false) == 0),
-				(flags & BindingFlags.DeclaredOnly) == 0);
+				mi => String.Compare(mi.Name, sName, lIgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) == 0,
+				true
+			);
 
 			// Return the methods
+			var typeMethods = (from mi in type.GetTypeInfo().DeclaredMethods where mi.IsPublic select mi).ToArray();
 			if (methods != null)
 			{
-				methods.InsertRange(0, (MethodInfo[])type.GetMember(sName, MemberTypes.Method, flags));
+				methods.InsertRange(0, typeMethods);
 				return methods.ToArray();
 			}
 			else
-				return (MethodInfo[])type.GetMember(sName, MemberTypes.Method, flags);
+				return typeMethods;
 		} // func GetInstanceMethods
 
 		private void CollectExtensions(ref List<MethodInfo> methods, Predicate<MethodInfo> compare, bool lRecursive)
@@ -856,17 +855,19 @@ namespace Neo.IronLua
       {
         if (!index.TryGetValue(sName, out iIndex))
         {
-          if (lIgnoreCase)
-            foreach (var k in index)
-            {
-              if (String.Compare(sName, k.Key, lIgnoreCase) == 0)
-              {
-                iIndex = k.Value;
-                break;
-              }
-            }
-          else
-            iIndex = -1;
+					if (lIgnoreCase)
+					{
+						foreach (var k in index)
+						{
+							if (String.Compare(sName, k.Key, StringComparison.OrdinalIgnoreCase) == 0)
+							{
+								iIndex = k.Value;
+								break;
+							}
+						}
+					}
+					else
+						iIndex = -1;
         }
       }
       return iIndex;
@@ -1706,12 +1707,13 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
       {
-        if (String.Compare(binder.Name, csAdd, binder.IgnoreCase) == 0)
+				var stringComparison = binder.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+				if (String.Compare(binder.Name, csAdd, stringComparison) == 0)
         {
           return BindGetMember(binder, Lua.AddMethodInfoPropertyInfo);
         }
-        else if (String.Compare(binder.Name, csDel, binder.IgnoreCase) == 0 ||
-          String.Compare(binder.Name, csRemove, binder.IgnoreCase) == 0)
+				else if (String.Compare(binder.Name, csDel, stringComparison) == 0 ||
+					String.Compare(binder.Name, csRemove, stringComparison) == 0)
         {
           return BindGetMember(binder, Lua.RemoveMethodInfoPropertyInfo);
         }
@@ -1721,12 +1723,13 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
       {
-        if (String.Compare(binder.Name, csAdd, binder.IgnoreCase) == 0)
+				var stringComparison = binder.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+				if (String.Compare(binder.Name, csAdd, stringComparison) == 0)
         {
           return BindAddMethod(binder, args);
         }
-        else if (String.Compare(binder.Name, csDel, binder.IgnoreCase) == 0 ||
-          String.Compare(binder.Name, csRemove, binder.IgnoreCase) == 0)
+				else if (String.Compare(binder.Name, csDel, stringComparison) == 0 ||
+					String.Compare(binder.Name, csRemove, stringComparison) == 0)
         {
           return BindRemoveMethod(binder, args);
         }

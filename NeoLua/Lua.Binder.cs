@@ -371,7 +371,7 @@ namespace Neo.IronLua
         {
           MethodInfo method =
             LuaEmit.FindMethod(
-              LuaType.GetType(target.LimitType).GetInstanceMethods(BindingFlags.Public, Name),
+              LuaType.GetType(target.LimitType).GetInstanceMethods(Name, IgnoreCase),
               args,
               mo => mo.LimitType,
 							true);

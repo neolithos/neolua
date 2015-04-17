@@ -13,7 +13,10 @@ namespace Neo.IronLua
 
 	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Dynamic result object for lua functions.</summary>
-	public sealed class LuaResult : IDynamicMetaObjectProvider, IConvertible, System.Collections.IEnumerable, System.Collections.ICollection
+	public sealed class LuaResult : IDynamicMetaObjectProvider, System.Collections.IEnumerable, System.Collections.ICollection
+#if DESKTOP
+		, IConvertible
+#endif
 	{
 		#region -- enum CopyMode ----------------------------------------------------------
 
@@ -238,12 +241,14 @@ namespace Neo.IronLua
 
 		#region -- IConvertible members ---------------------------------------------------
 
+#if DESKTOP
 		/// <summary></summary>
 		/// <returns></returns>
 		public TypeCode GetTypeCode()
 		{
 			return TypeCode.Object;
 		} // func GetTypeCode
+#endif
 
 		/// <summary></summary>
 		/// <typeparam name="T"></typeparam>
@@ -365,12 +370,16 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public object ToType(Type conversionType, IFormatProvider provider = null)
 		{
+#if DESKTOP
 			object o = this[0];
 			if (o == null)
 				return null;
 
 			TypeConverter conv = TypeDescriptor.GetConverter(o);
 			return conv.ConvertTo(o, conversionType);
+#else
+			return Convert.ChangeType(this[0], conversionType, provider);
+#endif
 		} // func ToType
 
 		/// <summary></summary>

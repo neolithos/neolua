@@ -73,7 +73,7 @@ namespace Neo.IronLua
 			{
 				DynamicExpression exprDynamic = (DynamicExpression)expr;
 				if (exprDynamic.Binder is InvokeBinder || exprDynamic.Binder is InvokeMemberBinder)
-					return Expression.Dynamic(runtime.GetConvertBinder(typeof(object)), typeof(object), expr);
+					return DynamicExpression.Dynamic(runtime.GetConvertBinder(typeof(object)), typeof(object), expr);
 				else if (lConvertToObject)
 					return Lua.EnsureType(expr, typeof(object));
 				else
@@ -335,7 +335,7 @@ namespace Neo.IronLua
 			{
 				// look up the method
 				MethodInfo method = LuaEmit.FindMethod(
-					LuaType.GetType(instance.Type).GetInstanceMethods(BindingFlags.Public, sMember),
+					LuaType.GetType(instance.Type).GetInstanceMethods(sMember, false),
 					arguments,
 					getExpressionTypeFunction,
 					true);
@@ -387,7 +387,7 @@ namespace Neo.IronLua
 					return ConvertExpression(scope.Runtime, tStart, expr, typeof(LuaResult));
 				case InvokeResult.Object:
 					if (LuaEmit.IsDynamicType(expr.Type))
-						return MemberGetSandbox(scope, Expression.Dynamic(scope.Runtime.GetConvertBinder(typeof(object)), typeof(object), ConvertExpression(scope.Runtime, tStart, expr, typeof(object))), instance, sMember);
+						return MemberGetSandbox(scope,DynamicExpression.Dynamic(scope.Runtime.GetConvertBinder(typeof(object)), typeof(object), ConvertExpression(scope.Runtime, tStart, expr, typeof(object))), instance, sMember);
 					else
 						return MemberGetSandbox(scope, expr, instance, sMember);
 				default:

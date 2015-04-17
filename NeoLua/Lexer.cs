@@ -9,6 +9,25 @@ using System.Text;
 
 namespace Neo.IronLua
 {
+	#region -- class TokenNameAttribute -------------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary></summary>
+	[AttributeUsage(AttributeTargets.Field)]
+	internal sealed class TokenNameAttribute : Attribute
+	{
+		private string sName;
+
+		public TokenNameAttribute(string sName)
+		{
+			this.sName = sName;
+		} // ctor
+
+		public string Name { get { return sName; } }
+	} // class TokenName
+
+	#endregion
+
 	#region -- enum LuaToken ------------------------------------------------------------
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -28,195 +47,195 @@ namespace Neo.IronLua
 		InvalidComment,
 
 		/// <summary>NewLine</summary>
-		[Description("\\n")]
+		[TokenName("\\n")]
 		NewLine,
 		/// <summary>Space</summary>
 		Whitespace,
 		/// <summary>Comment</summary>
 		Comment,
 		/// <summary>string</summary>
-		[Description("string")]
+		[TokenName("string")]
 		String,
 		/// <summary>Integer or floating point number</summary>
-		[Description("number")]
+		[TokenName("number")]
 		Number,
 		/// <summary>Identifier</summary>
 		Identifier,
 
 		/// <summary>Keyword and</summary>
-		[Description("and")]
+		[TokenName("and")]
 		KwAnd,
 		/// <summary>Keyword break</summary>
-		[Description("break")]
+		[TokenName("break")]
 		KwBreak,
 		/// <summary>Keyword cast</summary>
-		[Description("cast")]
+		[TokenName("cast")]
 		KwCast,
 		/// <summary>Keyword const</summary>
-		[Description("const")]
+		[TokenName("const")]
 		KwConst,
 		/// <summary>Keyword do</summary>
-		[Description("do")]
+		[TokenName("do")]
 		KwDo,
 		/// <summary>Keyword else</summary>
-		[Description("else")]
+		[TokenName("else")]
 		KwElse,
 		/// <summary>Keyword elseif</summary>
-		[Description("elseif")]
+		[TokenName("elseif")]
 		KwElseif,
 		/// <summary>Keyword end</summary>
-		[Description("end")]
+		[TokenName("end")]
 		KwEnd,
 		/// <summary>Keyword false</summary>
-		[Description("false")]
+		[TokenName("false")]
 		KwFalse,
 		/// <summary>Keyword for</summary>
-		[Description("for")]
+		[TokenName("for")]
 		KwFor,
 		/// <summary>Keyword foreach</summary>
-		[Description("foreach")]
+		[TokenName("foreach")]
 		KwForEach,
 		/// <summary>Keyword function</summary>
-		[Description("function")]
+		[TokenName("function")]
 		KwFunction,
 		/// <summary>Keyword goto</summary>
-		[Description("goto")]
+		[TokenName("goto")]
 		KwGoto,
 		/// <summary>Keyword if</summary>
-		[Description("if")]
+		[TokenName("if")]
 		KwIf,
 		/// <summary>Keyword in</summary>
-		[Description("in")]
+		[TokenName("in")]
 		KwIn,
 		/// <summary>Keyword local</summary>
-		[Description("local")]
+		[TokenName("local")]
 		KwLocal,
 		/// <summary>Keyword nil</summary>
-		[Description("nil")]
+		[TokenName("nil")]
 		KwNil,
 		/// <summary>Keyword not</summary>
-		[Description("not")]
+		[TokenName("not")]
 		KwNot,
 		/// <summary>Keyword or</summary>
-		[Description("or")]
+		[TokenName("or")]
 		KwOr,
 		/// <summary>Keyword repeat</summary>
-		[Description("repeat")]
+		[TokenName("repeat")]
 		KwRepeat,
 		/// <summary>Keyword return</summary>
-		[Description("return")]
+		[TokenName("return")]
 		KwReturn,
 		/// <summary>Keyword then</summary>
-		[Description("then")]
+		[TokenName("then")]
 		KwThen,
 		/// <summary>Keyword true</summary>
-		[Description("true")]
+		[TokenName("true")]
 		KwTrue,
 		/// <summary>Keyword until</summary>
-		[Description("until")]
+		[TokenName("until")]
 		KwUntil,
 		/// <summary>Keyword while</summary>
-		[Description("while")]
+		[TokenName("while")]
 		KwWhile,
 
 		/// <summary>+</summary>
-		[Description("+")]
+		[TokenName("+")]
 		Plus,
 		/// <summary>-</summary>
-		[Description("-")]
+		[TokenName("-")]
 		Minus,
 		/// <summary>*</summary>
-		[Description("*")]
+		[TokenName("*")]
 		Star,
 		/// <summary>/</summary>
-		[Description("/")]
+		[TokenName("/")]
 		Slash,
 		/// <summary>//</summary>
-		[Description("//")]
+		[TokenName("//")]
 		SlashShlash,
 		/// <summary>%</summary>
-		[Description("%")]
+		[TokenName("%")]
 		Percent,
 		/// <summary>^</summary>
-		[Description("^")]
+		[TokenName("^")]
 		Caret,
 		/// <summary>&amp;</summary>
-		[Description("&")]
+		[TokenName("&")]
 		BitAnd,
 		/// <summary>|</summary>
-		[Description("|")]
+		[TokenName("|")]
 		BitOr,
 		/// <summary>~</summary>
-		[Description("~")]
+		[TokenName("~")]
 		Dilde,
 		/// <summary>#</summary>
-		[Description("#")]
+		[TokenName("#")]
 		Cross,
 		/// <summary>==</summary>
-		[Description("==")]
+		[TokenName("==")]
 		Equal,
 		/// <summary>~=</summary>
-		[Description("~=")]
+		[TokenName("~=")]
 		NotEqual,
 		/// <summary>&lt;=</summary>
-		[Description("<=")]
+		[TokenName("<=")]
 		LowerEqual,
 		/// <summary>&gt;=</summary>
-		[Description(">=")]
+		[TokenName(">=")]
 		GreaterEqual,
 		/// <summary>&lt;</summary>
-		[Description("<")]
+		[TokenName("<")]
 		Lower,
 		/// <summary>&gt;</summary>
-		[Description(">")]
+		[TokenName(">")]
 		Greater,
 		/// <summary>&lt;&lt;</summary>
-		[Description("<<")]
+		[TokenName("<<")]
 		ShiftLeft,
 		/// <summary>&gt;&gt;</summary>
-		[Description(">>")]
+		[TokenName(">>")]
 		ShiftRight,
 		/// <summary>=</summary>
-		[Description("=")]
+		[TokenName("=")]
 		Assign,
 		/// <summary>(</summary>
-		[Description("(")]
+		[TokenName("(")]
 		BracketOpen,
 		/// <summary>)</summary>
-		[Description(")")]
+		[TokenName(")")]
 		BracketClose,
 		/// <summary>{</summary>
-		[Description("{")]
+		[TokenName("{")]
 		BracketCurlyOpen,
 		/// <summary>}</summary>
-		[Description("}")]
+		[TokenName("}")]
 		BracketCurlyClose,
 		/// <summary>[</summary>
-		[Description("[")]
+		[TokenName("[")]
 		BracketSquareOpen,
 		/// <summary>]</summary>
-		[Description("]")]
+		[TokenName("]")]
 		BracketSquareClose,
 		/// <summary>;</summary>
-		[Description(";")]
+		[TokenName(";")]
 		Semicolon,
 		/// <summary>:</summary>
-		[Description(":")]
+		[TokenName(":")]
 		Colon,
 		/// <summary>::</summary>
-		[Description("::")]
+		[TokenName("::")]
 		ColonColon,
 		/// <summary>,</summary>
-		[Description(",")]
+		[TokenName(",")]
 		Comma,
 		/// <summary>.</summary>
-		[Description(".")]
+		[TokenName(".")]
 		Dot,
 		/// <summary>..</summary>
-		[Description("..")]
+		[TokenName("..")]
 		DotDot,
 		/// <summary>...</summary>
-		[Description("...")]
+		[TokenName("...")]
 		DotDotDot
 	} // enum LuaToken
 
@@ -226,7 +245,6 @@ namespace Neo.IronLua
 
 	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Position in the source file</summary>
-	[TypeConverter(typeof(ExpandableObjectConverter))]
 	public struct Position
 	{
 		private SymbolDocumentInfo document;
@@ -267,7 +285,6 @@ namespace Neo.IronLua
 
 	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Represents a token of the lua source file.</summary>
-	[TypeConverter(typeof(ExpandableObjectConverter))]
 	public class Token
 	{
 		// -- Position innerhalb der Datei --
@@ -1136,19 +1153,22 @@ namespace Neo.IronLua
 		#endregion
 
 		/// <summary>Resolves the name of the token.</summary>
-		/// <param name="typ"></param>
+		/// <param name="type"></param>
 		/// <returns></returns>
-		public static string GetTokenName(LuaToken typ)
+		public static string GetTokenName(LuaToken type)
 		{
-			Type t = typeof(LuaToken);
-			string sName = t.GetEnumName(typ);
-			FieldInfo fi = t.GetField(sName);
+			Type tokenType = typeof(LuaToken);
+			TypeInfo ti = tokenType.GetTypeInfo();
+			string sName = Enum.GetName(tokenType, type);
+
+			FieldInfo fi = ti.GetDeclaredField(sName);
 			if (fi != null)
 			{
-				DescriptionAttribute attr = (DescriptionAttribute)Attribute.GetCustomAttribute(fi, typeof(DescriptionAttribute));
-				if (attr != null)
-					return attr.Description;
+				var tokenName = fi.GetCustomAttribute<TokenNameAttribute>();
+				if (tokenName != null)
+					sName = tokenName.Name;
 			}
+
 			return sName;
 		} // func GetTokenName
 	} // class LuaLexer

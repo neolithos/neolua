@@ -13,7 +13,7 @@ namespace Neo.IronLua
 {
 	///////////////////////////////////////////////////////////////////////////////
 	/// <summary></summary>
-  public class LuaTable : IDynamicMetaObjectProvider, INotifyPropertyChanged, IDictionary<string, object>, IList<object>, IDictionary<object, object>, ITypedList
+  public class LuaTable : IDynamicMetaObjectProvider, INotifyPropertyChanged, IDictionary<string, object>, IList<object>, IDictionary<object, object>
 	{
 		/// <summary>Member name of the metatable</summary>
 		public const string csMetaTable = "__metatable";
@@ -558,7 +558,7 @@ namespace Neo.IronLua
 					for (int i = 0; i < args.Length; i++)
 						exprArgs[i + 1] = args[i].Expression;
 
-					Expression exprCallMember = Expression.Dynamic(t.GetInvokeBinder(binder.CallInfo), typeof(object), exprArgs);
+					Expression exprCallMember =DynamicExpression.Dynamic(t.GetInvokeBinder(binder.CallInfo), typeof(object), exprArgs);
 
 					// Method Call
 					exprArgs = new Expression[args.Length + 2];
@@ -567,7 +567,7 @@ namespace Neo.IronLua
 					for (int i = 0; i < args.Length; i++)
 						exprArgs[i + 2] = args[i].Expression;
 
-					Expression exprCallMethod = Expression.Dynamic(t.GetInvokeBinder(new CallInfo(binder.CallInfo.ArgumentCount + 1)), typeof(object), exprArgs);
+					Expression exprCallMethod =DynamicExpression.Dynamic(t.GetInvokeBinder(new CallInfo(binder.CallInfo.ArgumentCount + 1)), typeof(object), exprArgs);
 
 					// Get Member
 					Expression expr = Expression.Block(new ParameterExpression[] { exprIsMethod, exprDelegate },
@@ -674,7 +674,6 @@ namespace Neo.IronLua
 			public Action<LuaTable, object> setValue;
 
 			private LuaMemberAttribute info;
-      private PropertyDescriptor descriptor;
 
 			protected LuaTableDefine(LuaMemberAttribute info)
 			{
@@ -690,20 +689,6 @@ namespace Neo.IronLua
 			} // proc CollectMember
 
 			protected abstract void CollectMember(List<LuaCollectedMember> collected, LuaMemberAttribute info);
-
-      protected abstract PropertyDescriptor CreatePropertyDescriptor(int iIndex);
-
-      public PropertyDescriptor GetPropertyDescriptor(int iIndex)
-      {
-        lock (this)
-          if (descriptor == null)
-          {
-            descriptor = CreatePropertyDescriptor(iIndex);
-            if (descriptor == null)
-              throw new ArgumentNullException("descriptor", "no descriptor created");
-          }
-        return descriptor;
-      } // func GetPropertyDescriptor
 
 			public string MemberName { get { return info.Name; } }
       public abstract Type DeclaredType { get; }
@@ -805,18 +790,6 @@ namespace Neo.IronLua
 
 			#endregion
 
-      #region -- CreatePropertyDescriptor ---------------------------------------------
-
-      protected override PropertyDescriptor CreatePropertyDescriptor(int iIndex)
-      {
-        if (mode == LuaTableDefineMode.Direct)
-          return TypeDescriptor.GetProperties(pi.DeclaringType, null, true)[pi.Name];
-        else
-          return new LuaTableClassPropertyDescriptor(this, iIndex);
-      } // func CreatePropertyDescriptor
-
-      #endregion
-
 			public PropertyInfo PropertyInfo { get { return pi; } }
       public override Type DeclaredType { get { return pi.DeclaringType; } }
 		} // class LuaTablePropertyDefine
@@ -854,13 +827,9 @@ namespace Neo.IronLua
 
 			protected override void CollectMember(List<LuaCollectedMember> collected, LuaMemberAttribute info)
 			{
-				Array.ForEach(methods, c => collected.Add(new LuaCollectedMember { Define = this, Info = info, Member = c }));
+				foreach (var mi in methods)
+					collected.Add(new LuaCollectedMember { Define = this, Info = info, Member = c });
 			} // proc CollectMember
-
-      protected override PropertyDescriptor CreatePropertyDescriptor(int iIndex)
-      {
-        return new LuaTableClassPropertyDescriptor(this, iIndex);
-      } // func CreatePropertyDescriptor
 
 			public MethodInfo[] Methods { get { return methods; } }
 
@@ -869,8 +838,9 @@ namespace Neo.IronLua
         get
         {
           Type type = methods[0].DeclaringType;
+					TypeInfo typeInfo = type.GetTypeInfo();
           for (int i = 1; i < methods.Length; i++)
-            if (type.IsSubclassOf(methods[i].DeclaringType))
+            if (typeInfo.IsSubclassOf(methods[i].DeclaringType))
               type = methods[i].DeclaringType;
           return type;
         }
@@ -1169,183 +1139,6 @@ namespace Neo.IronLua
 		} // class LuaTableClass
 
 		#endregion
-
-    #region -- class LuaTablePropertyDescriptor ---------------------------------------
-
-    private abstract class LuaTablePropertyDescriptor : PropertyDescriptor
-    {
-      private Dictionary<object, int> attachedHandler = null;
-
-      protected LuaTablePropertyDescriptor(MemberDescriptor member)
-        : base(member)
-      {
-      } // ctor
-
-      protected LuaTablePropertyDescriptor(string sName, Attribute[] attrs)
-        : base(sName, attrs)
-      {
-      } // ctor
-
-      public override void AddValueChanged(object component, EventHandler handler)
-      {
-        if (component == null)
-          throw new ArgumentNullException("component");
-        if (handler == null)
-          throw new ArgumentNullException("handler");
-
-        if (attachedHandler == null)
-          attachedHandler = new Dictionary<object, int>();
-
-        int iAttachedReferences;
-        if (attachedHandler.TryGetValue(component, out iAttachedReferences))
-          iAttachedReferences++;
-        else
-        {
-          attachedHandler[component] = 1;
-          Lua.NotifyPropertyChangedEventInfo.AddEventHandler(component, new PropertyChangedEventHandler(OnPropertyChanged));
-        }
-
-        base.AddValueChanged(component, handler);
-      } // proc AddValueChanged
-
-      public override void RemoveValueChanged(object component, EventHandler handler)
-      {
-        if (component == null)
-          throw new ArgumentNullException("component");
-        if (handler == null)
-          throw new ArgumentNullException("handler");
-
-        if (attachedHandler != null)
-        {
-          int iRef = attachedHandler[component];
-          if (iRef == 1)
-          {
-            Lua.NotifyPropertyChangedEventInfo.RemoveEventHandler(component, handler);
-            attachedHandler.Remove(component);
-          }
-          else
-            attachedHandler[component] = iRef - 1;
-        }
-        base.RemoveValueChanged(component, handler);
-      } // proc RemoveValueChanged
-
-      private void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
-      {
-        if (!String.IsNullOrEmpty(e.PropertyName) && String.Compare(e.PropertyName, Name, true) == 0)
-          OnValueChanged(sender, e);
-      } // proc OnPropertyChanged
-
-      public override Type ComponentType { get { return typeof(LuaTable); } }
-    } // class LuaTablePropertyDescriptor
-
-    #endregion
-
-    #region -- class LuaTableClassPropertyDescriptor ----------------------------------
-
-    private sealed class LuaTableClassPropertyDescriptor : LuaTablePropertyDescriptor
-    {
-      private LuaTableDefine define;
-      private int iIndex;
-
-      public LuaTableClassPropertyDescriptor(LuaTableDefine define, int iIndex)
-        : base(define.MemberName, null)
-      {
-        if (define.mode == LuaTableDefineMode.Direct)
-          throw new ArgumentException("is not allowed");
-
-        this.define = define;
-        this.iIndex = iIndex;
-      } // ctor
-
-      public override bool CanResetValue(object component)
-      {
-        return true;
-      } // func CanResetValue
-
-      public override void ResetValue(object component)
-      {
-        SetValue(component, define.GetInitialValue((LuaTable)component));
-      } // proc ResetValue
-
-      public override bool ShouldSerializeValue(object component)
-      {
-        LuaTable t = (LuaTable)component;
-        return !comparerObject.Equals(t.GetClassMemberValue(iIndex, true), define.GetInitialValue(t));
-      } // func ShouldSerializeValue
-
-      public override object GetValue(object component)
-      {
-        return ((LuaTable)component).GetClassMemberValue(iIndex, false);
-      } // func GetValue
-
-      public override void SetValue(object component, object value)
-      {
-        ((LuaTable)component).SetClassMemberValue(iIndex, value);
-      } // proc SetValue
-
-      public override bool IsReadOnly { get { return false; } }
-      public override Type ComponentType { get { return define.DeclaredType; } }
-      public override Type PropertyType { get { return typeof(object); } }
-    } // class LuaTableClassPropertyDescriptor
-
-    #endregion
-
-    #region -- class LuaTableValuePropertyDescriptor ----------------------------------
-
-    private sealed class LuaTableValuePropertyDescriptor : LuaTablePropertyDescriptor
-    {
-      public LuaTableValuePropertyDescriptor(string sMemberName)
-        : base(sMemberName, null)
-      {
-      } // ctor
-
-      public override bool CanResetValue(object component)
-      {
-        return true;
-      } // func CanResetValue
-
-      public override bool ShouldSerializeValue(object component)
-      {
-        return GetValue(component) != null;
-      } // func ShouldSerializeValue
-
-      public override void ResetValue(object component)
-      {
-        SetValue(component, null);
-      } // func ResetValue
-
-      public override object GetValue(object component)
-      {
-        return ((LuaTable)component).GetMemberValue(this.Name, false, false);
-      } // func GetValue
-
-      public override void SetValue(object component, object value)
-      {
-        ((LuaTable)component).SetMemberValue(Name, value, false, false);
-      } // proc SetValue
-
-      public override bool IsReadOnly { get { return false; } }
-      public override Type PropertyType { get { return typeof(object); } }
-
-      // -- Static ------------------------------------------------------------
-
-      private static Dictionary<string, PropertyDescriptor> descriptorCache = new Dictionary<string, PropertyDescriptor>();
-
-      public static PropertyDescriptor Get(string sMemberName)
-      {
-        PropertyDescriptor descriptor;
-        lock (descriptorCache)
-          if (descriptorCache.TryGetValue(sMemberName, out descriptor))
-            return descriptor;
-          else
-          {
-            descriptorCache[sMemberName] = descriptor = new LuaTableValuePropertyDescriptor(sMemberName);
-            return descriptor;
-          }
-      } // func Get
-    } // class LuaTableValuePropertyDescriptor
-
-    #endregion
 
 		/// <summary>Value has changed.</summary>
 		public event PropertyChangedEventHandler PropertyChanged;
@@ -3658,91 +3451,6 @@ namespace Neo.IronLua
 
     #endregion
 
-    #region -- ITypedList.GetItemProperties members -----------------------------------
-
-    private T FindTypeList<T>(LuaTable current, PropertyDescriptor[] listAccessors, int iIndex, Func<LuaTable, PropertyDescriptor, T> action, Func<ITypedList, PropertyDescriptor[], T> continueAction)
-    {
-      if (iIndex < listAccessors.Length)
-      {
-        object newCurrent = listAccessors[iIndex].GetValue(current);
-        if (newCurrent is LuaTable)
-          return FindTypeList((LuaTable)newCurrent, listAccessors, iIndex + 1, action, continueAction);
-        else if (newCurrent is ITypedList)
-        {
-          if (iIndex < listAccessors.Length - 1)
-          {
-            PropertyDescriptor[] newListAccessors = new PropertyDescriptor[listAccessors.Length - iIndex - 1];
-            Array.Copy(listAccessors, iIndex + 1, newListAccessors, 0, newListAccessors.Length);
-            return continueAction((ITypedList)newCurrent, newListAccessors);
-          }
-          else
-            return continueAction((ITypedList)newCurrent, null);
-        }
-        else
-          return default(T);
-      }
-      else
-        return action(current, listAccessors[iIndex - 1]);
-    } // func FindTypeList
-
-    PropertyDescriptorCollection ITypedList.GetItemProperties(PropertyDescriptor[] listAccessors)
-    {
-      return FindTypeList<PropertyDescriptorCollection>(this, listAccessors, 0, GetItemProperties, (t, la) => t.GetItemProperties(la));
-    } /// func ITypedList.GetItemProperties
-
-    string ITypedList.GetListName(PropertyDescriptor[] listAccessors)
-    {
-      if (listAccessors == null || listAccessors.Length == 0)
-        return String.Empty;
-
-      return FindTypeList<string>(this, listAccessors, 0, (t, p) => p.Name, (t, la) => t.GetListName(la));
-    } // func ITypedList.GetListName 
-
-    private static PropertyDescriptorCollection GetItemProperties(LuaTable table, PropertyDescriptor p)
-    {
-      return table.GetItemProperties();
-    } // func PropertyDescriptorCollection
-
-    /// <summary>Returns the current property table.</summary>
-    /// <param name="properties">Properties, that must be in the list.</param>
-    /// <returns>PropertyCollection</returns>
-    public PropertyDescriptorCollection GetItemProperties(params string[] properties)
-    {
-      PropertyDescriptorCollection c = new PropertyDescriptorCollection(null, false);
-
-      // Return the class properties
-      for (int i = 0; i < classDefinition.Count; i++)
-        c.Add(classDefinition[i].GetPropertyDescriptor(i));
-
-      // Return the dynamic properties
-      for (int i = classDefinition.Count; i < entries.Length; i++)
-      {
-        if (entries[i].key is string)
-          c.Add(LuaTableValuePropertyDescriptor.Get((string)entries[i].key));
-      }
-
-      // Return extra properties
-      for (int i = 0; i < properties.Length; i++)
-        if (c.Find(properties[i], true) == null)
-          c.Add(LuaTableValuePropertyDescriptor.Get(properties[i]));
-
-      return c;
-    } // func GetItemProperties
-
-    /// <summary>Returns the property descriptor for exact one member</summary>
-    /// <param name="sMemberName">Name of the member</param>
-    /// <returns>Descriptor, for the property. Every memberName gets only one instance</returns>
-    public PropertyDescriptor GetItemProperty(string sMemberName)
-    {
-      int iEntryIndex = FindKey(sMemberName, GetMemberHashCode(sMemberName), compareStringIgnoreCase);
-      if (iEntryIndex < classDefinition.Count)
-        return classDefinition[iEntryIndex].GetPropertyDescriptor(iEntryIndex);
-      else
-        return LuaTableValuePropertyDescriptor.Get(sMemberName);
-    } // proc GetItemProperty
-
-		#endregion
-
 		/// <summary>Returns or sets an value in the lua-table.</summary>
 		/// <param name="iIndex">Index.</param>
 		/// <returns>Value or <c>null</c></returns>
@@ -3770,10 +3478,7 @@ namespace Neo.IronLua
 		/// <summary>Length if it is an array.</summary>
 		public int Length { get { return iArrayLength; } }
 		/// <summary>Access to the __metatable</summary>
-    [
-    LuaMember(csMetaTable),
-    Browsable(false),
-    ]
+    [LuaMember(csMetaTable)]
 		public LuaTable MetaTable { get { return metaTable; } set { metaTable = value; } }
 
 		// -- Static --------------------------------------------------------------
