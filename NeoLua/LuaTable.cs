@@ -11,6 +11,30 @@ using System.Text;
 
 namespace Neo.IronLua
 {
+	#region -- class LuaMemberAttribute -------------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary>Marks a function or a GET property for the global namespace.</summary>
+	[AttributeUsage(AttributeTargets.Property | AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
+	public sealed class LuaMemberAttribute : Attribute
+	{
+		private string sName;
+
+		/// <summary>Marks global Members, they act normally as library</summary>
+		/// <param name="sName"></param>
+		public LuaMemberAttribute(string sName)
+		{
+			this.sName = sName;
+		} // ctor
+
+		/// <summary>Global name of the function.</summary>
+		public string Name { get { return sName; } }
+	} // class LuaLibraryAttribute
+
+	#endregion
+
+	#region -- class LuaTable -----------------------------------------------------------
+
 	///////////////////////////////////////////////////////////////////////////////
 	/// <summary></summary>
   public class LuaTable : IDynamicMetaObjectProvider, INotifyPropertyChanged, IDictionary<string, object>, IList<object>, IDictionary<object, object>
@@ -378,7 +402,7 @@ namespace Neo.IronLua
 			private Expression GetDirectMemberAccess(int iEntryIndex, LuaTablePropertyDefine pd, bool lGenerateRestriction, ref BindingRestrictions restrictions)
 			{
 				// static property
-				bool lStatic = pd.PropertyInfo.GetGetMethod().IsStatic;
+				bool lStatic = pd.PropertyInfo.GetMethod.IsStatic;
 
 				// generate restriction
 				if (lGenerateRestriction)
@@ -596,7 +620,7 @@ namespace Neo.IronLua
 			public override DynamicMetaObject BindConvert(ConvertBinder binder)
 			{
 				// Automatic convert to a special type, only for classes and structure
-				if (Type.GetTypeCode(binder.Type) == TypeCode.Object && !binder.Type.IsAssignableFrom(Value.GetType()))
+				if (!binder.Type.GetTypeInfo().IsValueType && !binder.Type.GetTypeInfo().IsAssignableFrom(Value.GetType().GetTypeInfo()))
 				{
 					return new DynamicMetaObject(
 						Lua.EnsureType(
@@ -711,8 +735,8 @@ namespace Neo.IronLua
 			{
 				this.pi = pi;
 
-				MethodInfo miGet = pi.GetGetMethod(true);
-				MethodInfo miSet = pi.GetSetMethod(false);
+				MethodInfo miGet = pi.GetMethod;
+				MethodInfo miSet = pi.SetMethod;
 
 				if (miGet == null) // invalid property
 					throw new InvalidOperationException("No get property.");
@@ -760,7 +784,7 @@ namespace Neo.IronLua
 			{
 				if (mode == LuaTableDefineMode.Init)
 				{
-					return pi.GetGetMethod(true).IsStatic ?
+					return pi.GetMethod.IsStatic ?
 						GetPropertyStaticValue(table) :
 						GetPropertyInstanceValue(table);
 				}
@@ -828,7 +852,7 @@ namespace Neo.IronLua
 			protected override void CollectMember(List<LuaCollectedMember> collected, LuaMemberAttribute info)
 			{
 				foreach (var mi in methods)
-					collected.Add(new LuaCollectedMember { Define = this, Info = info, Member = c });
+					collected.Add(new LuaCollectedMember { Define = this, Info = info, Member = mi });
 			} // proc CollectMember
 
 			public MethodInfo[] Methods { get { return methods; } }
@@ -907,21 +931,28 @@ namespace Neo.IronLua
 			private void Collect(Type type, List<LuaCollectedMember> collected)
 			{
 				// is the type collected
-
-				if (type.BaseType != typeof(object))
+				TypeInfo ti = type.GetTypeInfo();
+				if (ti.BaseType != typeof(object))
 				{
-					LuaTableClass baseClass = GetClass(type.BaseType);  // collect recursive
-					Array.ForEach(baseClass.defines, d => d.CollectMember(collected)); // dump current defines
+					LuaTableClass baseClass = GetClass(ti.BaseType);  // collect recursive
+
+					 // dump current defines
+					for(int i = 0;i<baseClass.defines.Length;i++)
+						baseClass.defines[i].CollectMember(collected);
 				}
 
 				// collect current level
-				foreach (MemberInfo mi in type.GetMembers(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.InvokeMethod | BindingFlags.GetProperty | BindingFlags.DeclaredOnly))
+				foreach (var mi in ti.DeclaredMembers)
 				{
-					LuaMemberAttribute[] info = (LuaMemberAttribute[])Attribute.GetCustomAttributes(mi, typeof(LuaMemberAttribute));
+					MethodInfo method = mi as MethodInfo;
+					PropertyInfo property = mi as PropertyInfo;
 
-					for (int i = 0; i < info.Length; i++)
+					if (property == null && method == null) // test on properties and methods
+						continue;
+
+					foreach (var info in mi.GetCustomAttributes<LuaMemberAttribute>())
 					{
-						if (info[i].Name == null) // remove all member
+						if (info.Name == null) // remove all member
 						{
 							for (int j = 0; j < collected.Count - 1; j++)
 								if (IsOverrideOf(mi, collected[j].Member))
@@ -932,32 +963,32 @@ namespace Neo.IronLua
 						}
 						else
 						{
-							int iStartIndex = FindMember(collected, info[i].Name);
+							int iStartIndex = FindMember(collected, info.Name);
 							if (iStartIndex == -1)
 							{
-								collected.Add(new LuaCollectedMember { Info = info[i], Member = mi, Define = null });
+								collected.Add(new LuaCollectedMember { Info = info, Member = mi, Define = null });
 							}
 							else
 							{
 								// count the overloaded elements
 								int iNextIndex = iStartIndex;
-								while (iNextIndex < collected.Count && collected[iNextIndex].Info.Name == info[i].Name)
+								while (iNextIndex < collected.Count && collected[iNextIndex].Info.Name == info.Name)
 									iNextIndex++;
 
 								// properties it can only exists one property
-								if (mi.MemberType == MemberTypes.Property)
+								if (property != null)
 								{
 									collected.RemoveRange(iStartIndex, iNextIndex - iStartIndex);
-									collected.Add(new LuaCollectedMember { Info = info[i], Member = mi });
+									collected.Add(new LuaCollectedMember { Info = info, Member = property });
 								}
-								else // generate overload list
+								else if (method != null) // generate overload list
 								{
 									RemoveUseLessOverloads(collected, (MethodInfo)mi, iStartIndex, ref iNextIndex);
-									collected.Insert(iNextIndex, new LuaCollectedMember { Info = info[i], Member = mi });
+									collected.Insert(iNextIndex, new LuaCollectedMember { Info = info, Member = method });
 								}
 							}
 						}
-					} // for info
+					} // foreach info
 				} // for member
 			} // proc Collect
 
@@ -982,9 +1013,9 @@ namespace Neo.IronLua
 			{
 				if (mi.GetType() == miTest.GetType() && mi.Name == miTest.Name)
 				{
-					if (mi.MemberType == MemberTypes.Property)
+					if (mi is PropertyInfo)
 						return IsOverridePropertyOf((PropertyInfo)mi, (PropertyInfo)miTest);
-					else if (mi.MemberType == MemberTypes.Method)
+					else if (mi is MethodInfo)
 						return IsOverrideMethodOf((MethodInfo)mi, (MethodInfo)miTest);
 					else
 						return false;
@@ -995,7 +1026,7 @@ namespace Neo.IronLua
 
 			private bool IsOverridePropertyOf(PropertyInfo pi, PropertyInfo piTest)
 			{
-				return IsOverrideMethodOf(pi.GetGetMethod(true), piTest.GetGetMethod(true));
+				return IsOverrideMethodOf(pi.GetMethod, piTest.GetMethod);
 			} // func IsOverridePropertyOf
 
 			private bool IsOverrideMethodOf(MethodInfo mi, MethodInfo miTest)
@@ -1005,9 +1036,9 @@ namespace Neo.IronLua
 				{
 					if (miCur == miTest)
 						return true;
-					else if (miCur == miCur.GetBaseDefinition())
+					else if (miCur == miCur.GetRuntimeBaseDefinition())
 						return false;
-					miCur = miCur.GetBaseDefinition();
+					miCur = miCur.GetRuntimeBaseDefinition();
 				}
 			} // func IsOverrideMethodOf
 
@@ -1062,9 +1093,9 @@ namespace Neo.IronLua
 						else
 						{
 							MemberInfo mi = collected[iStart].Member;
-							if (mi.MemberType == MemberTypes.Property)
+							if (mi is PropertyInfo)
 								defineList.Add(new LuaTablePropertyDefine(collected[iStart].Info, (PropertyInfo)mi));
-							else if (mi.MemberType == MemberTypes.Method)
+							else if (mi is MethodInfo)
 								defineList.Add(new LuaTableMethodDefine(collected[iStart].Info, new MethodInfo[] { (MethodInfo)mi }));
 							else
 								throw new ArgumentException();
@@ -1887,31 +1918,31 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		internal static bool IsIndexKey(Type type)
 		{
-			TypeCode tc = Type.GetTypeCode(type);
-			return tc >= TypeCode.SByte && tc <= TypeCode.Int32;
+			var tc = LuaEmit.GetTypeCode(type);
+			return tc >= LuaEmitTypeCode.SByte && tc <= LuaEmitTypeCode.Int32;
 		} // func IsIndexKey
 
 		private static bool IsIndexKey(object item, out int iIndex)
 		{
 			#region -- IsIndexKey --
-			switch (Type.GetTypeCode(item.GetType()))
+			switch (LuaEmit.GetTypeCode(item.GetType()))
 			{
-				case TypeCode.Int32:
+				case LuaEmitTypeCode.Int32:
 					iIndex = (int)item;
 					return true;
-				case TypeCode.Byte:
+				case LuaEmitTypeCode.Byte:
 					iIndex = (byte)item;
 					return true;
-				case TypeCode.SByte:
+				case LuaEmitTypeCode.SByte:
 					iIndex = (sbyte)item;
 					return true;
-				case TypeCode.UInt16:
+				case LuaEmitTypeCode.UInt16:
 					iIndex = (ushort)item;
 					return true;
-				case TypeCode.Int16:
+				case LuaEmitTypeCode.Int16:
 					iIndex = (short)item;
 					return true;
-				case TypeCode.UInt32:
+				case LuaEmitTypeCode.UInt32:
 					unchecked
 					{
 						uint t = (uint)item;
@@ -1926,7 +1957,7 @@ namespace Neo.IronLua
 							return false;
 						}
 					}
-				case TypeCode.Int64:
+				case LuaEmitTypeCode.Int64:
 					unchecked
 					{
 						long t = (uint)item;
@@ -1941,7 +1972,7 @@ namespace Neo.IronLua
 							return false;
 						}
 					}
-				case TypeCode.UInt64:
+				case LuaEmitTypeCode.UInt64:
 					unchecked
 					{
 						ulong t = (uint)item;
@@ -1956,7 +1987,7 @@ namespace Neo.IronLua
 							return false;
 						}
 					}
-				case TypeCode.Single:
+				case LuaEmitTypeCode.Single:
 					{
 						float f = (float)item;
 						if (f % 1 == 0 && f >= 1 && f <= Int32.MaxValue)
@@ -1970,7 +2001,7 @@ namespace Neo.IronLua
 							return false;
 						}
 					}
-				case TypeCode.Double:
+				case LuaEmitTypeCode.Double:
 					{
 						double f = (double)item;
 						if (f % 1 == 0 && f >= 1 && f <= Int32.MaxValue)
@@ -1984,7 +2015,7 @@ namespace Neo.IronLua
 							return false;
 						}
 					}
-				case TypeCode.Decimal:
+				case LuaEmitTypeCode.Decimal:
 					{
 						decimal f = (decimal)item;
 						if (f % 1 == 0 && f >= 1 && f <= Int32.MaxValue)
@@ -2198,8 +2229,8 @@ namespace Neo.IronLua
 			if (method == null)
 				throw new ArgumentNullException("method");
 
-			Type typeFirstParameter = method.Method.GetParameters()[0].ParameterType;
-			if (!typeFirstParameter.IsAssignableFrom(typeof(LuaTable)))
+			Type typeFirstParameter = method.GetMethodInfo().GetParameters()[0].ParameterType;
+			if (!typeFirstParameter.GetTypeInfo().IsAssignableFrom(typeof(LuaTable).GetTypeInfo()))
 				throw new ArgumentException(String.Format(Properties.Resources.rsTableMethodExpected, sMethodName));
 
 			SetMemberValueIntern(sMethodName, method, lIgnoreCase, false, false, true);
@@ -2381,7 +2412,7 @@ namespace Neo.IronLua
 			Type type = obj.GetType();
 
 			// set all fields
-			foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.SetField))
+			foreach (FieldInfo field in type.GetRuntimeFields().Where(fi => fi.IsPublic && !fi.IsStatic && !fi.IsInitOnly))
 			{
 				int iEntryIndex = FindKey(field.Name, GetMemberHashCode(field.Name), compareString);
 				if (iEntryIndex >= 0)
@@ -2389,7 +2420,7 @@ namespace Neo.IronLua
 			}
 
 			// set all properties
-			foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.SetProperty))
+			foreach (PropertyInfo property in type.GetRuntimeProperties().Where(pi => pi.SetMethod.IsPublic && !pi.SetMethod.IsStatic))
 			{
 				int iEntryIndex = FindKey(property.Name, GetMemberHashCode(property.Name), compareString);
 				if (iEntryIndex >= 0)
@@ -3659,7 +3690,7 @@ namespace Neo.IronLua
 			public int Compare(object x, object y)
 			{
 				if (compare == null)
-					return Comparer.Default.Compare(x, y);
+					return Comparer<object>.Default.Compare(x, y);
 				else
 				{
 					// Call the comparer
@@ -3672,7 +3703,7 @@ namespace Neo.IronLua
 						return (int)r;
 					else if ((bool)Lua.RtConvertValue(r, typeof(bool)))
 						return -1;
-					else if (Comparer.Default.Compare(x, y) == 0)
+					else if (Comparer<object>.Default.Compare(x, y) == 0)
 						return 0;
 					else
 						return 1;
@@ -4008,4 +4039,6 @@ namespace Neo.IronLua
 
 		#endregion
 	} // class LuaTable
+
+	#endregion
 }

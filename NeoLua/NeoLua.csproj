@@ -49,21 +49,16 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Exceptions.cs" />
-    <Compile Include="Extern\printf.cs" />
     <Compile Include="Lexer.cs" />
     <Compile Include="Lua.Binder.cs" />
     <Compile Include="Lua.cs" />
-    <Compile Include="Lua.Libraries.cs" />
     <Compile Include="Lua.Runtime.cs" />
     <Compile Include="LuaDebug.cs" />
     <Compile Include="LuaEmit.cs" />
     <Compile Include="LuaResult.cs" />
     <Compile Include="LuaType.cs" />
-    <Compile Include="LuaFile.cs" />
-    <Compile Include="LuaGlobal.cs" />
     <Compile Include="LuaChunk.cs" />
     <Compile Include="LuaTable.cs" />
-    <Compile Include="LuaThread.cs" />
     <Compile Include="Parser.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\AssemblyInfoGlobal.cs" />

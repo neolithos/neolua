@@ -14,9 +14,6 @@ namespace Neo.IronLua
 	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Dynamic result object for lua functions.</summary>
 	public sealed class LuaResult : IDynamicMetaObjectProvider, System.Collections.IEnumerable, System.Collections.ICollection
-#if DESKTOP
-		, IConvertible
-#endif
 	{
 		#region -- enum CopyMode ----------------------------------------------------------
 
@@ -51,7 +48,7 @@ namespace Neo.IronLua
 			private DynamicMetaObject GetTargetDynamicCall(CallSiteBinder binder, Type typeReturn, Expression[] exprs)
 			{
 				return new DynamicMetaObject(
-					Expression.Dynamic(binder, typeReturn, exprs),
+					DynamicExpression.Dynamic(binder, typeReturn, exprs),
 					BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaResult))
 				);
 			} // func GetTargetDynamicCall
@@ -90,7 +87,7 @@ namespace Neo.IronLua
 				else if (binder.Type == typeof(object[]))
 					return new DynamicMetaObject(GetValuesExpression(), r, v.result);
 				else
-					return new DynamicMetaObject(Expression.Dynamic(binder, binder.Type, GetFirstResultExpression()), r);
+					return new DynamicMetaObject(DynamicExpression.Dynamic(binder, binder.Type, GetFirstResultExpression()), r);
 			} // func BindConvert
 
 			public override DynamicMetaObject BindInvoke(InvokeBinder binder, DynamicMetaObject[] args)
@@ -239,16 +236,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- IConvertible members ---------------------------------------------------
-
-#if DESKTOP
-		/// <summary></summary>
-		/// <returns></returns>
-		public TypeCode GetTypeCode()
-		{
-			return TypeCode.Object;
-		} // func GetTypeCode
-#endif
+		#region -- ToXXXX -----------------------------------------------------------------
 
 		/// <summary></summary>
 		/// <typeparam name="T"></typeparam>
@@ -370,16 +358,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public object ToType(Type conversionType, IFormatProvider provider = null)
 		{
-#if DESKTOP
-			object o = this[0];
-			if (o == null)
-				return null;
-
-			TypeConverter conv = TypeDescriptor.GetConverter(o);
-			return conv.ConvertTo(o, conversionType);
-#else
 			return Convert.ChangeType(this[0], conversionType, provider);
-#endif
 		} // func ToType
 
 		/// <summary></summary>

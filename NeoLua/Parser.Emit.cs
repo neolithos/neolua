@@ -5,10 +5,29 @@ using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Neo.IronLua
 {
+	#region -- enum ReflectionFlag ------------------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary></summary>
+	internal enum ReflectionFlag
+	{
+		None = 0,
+		Static = 1,
+		Instance = 2,
+		NonPublic = 4,
+		Public = 8,
+		IgnoreCase = 16,
+		NoException = 32,
+		NoArguments = 64
+	} //enum ReflectionFlag
+
+	#endregion
+
 	#region -- class Parser -------------------------------------------------------------
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -274,12 +293,13 @@ namespace Neo.IronLua
 			if (constInstance != null && (t = constInstance.Value as LuaType) != null && t.Type != null) // we have a type, bind the ctor
 			{
 				Type type = t.Type;
+				TypeInfo typeInfo = type.GetTypeInfo();
 				ConstructorInfo ci =
-					type.IsValueType && arguments.Length == 0 ?
+					typeInfo.IsValueType && arguments.Length == 0 ?
 						null :
-						LuaEmit.FindMember(type.GetConstructors(BindingFlags.Public | BindingFlags.CreateInstance | BindingFlags.Instance), arguments, getExpressionTypeFunction);
+						LuaEmit.FindMember(typeInfo.DeclaredConstructors.Where(c => c.IsPublic), arguments, getExpressionTypeFunction);
 
-				if (ci == null && !type.IsValueType)
+				if (ci == null && !typeInfo.IsValueType)
 					throw ParseError(tStart, String.Format(Properties.Resources.rsMemberNotResolved, type.Name, "ctor"));
 
 				return SafeExpression(() => LuaEmit.BindParameter(scope.Runtime,
@@ -292,7 +312,7 @@ namespace Neo.IronLua
 			{
 				// fallback is a dynamic call
 				return EnsureInvokeResult(scope, tStart,
-					Expression.Dynamic(scope.Runtime.GetInvokeBinder(new CallInfo(arguments.Length)),
+					DynamicExpression.Dynamic(scope.Runtime.GetInvokeBinder(new CallInfo(arguments.Length)),
 						typeof(object),
 						new Expression[] { ConvertExpression(scope.Runtime, tStart, instance, typeof(object)) }.Concat(
 							from c in arguments select Lua.EnsureType(c, typeof(object))
@@ -301,8 +321,8 @@ namespace Neo.IronLua
 					result, instance, null
 				);
 			}
-			else if (typeof(Delegate).IsAssignableFrom(instance.Type) &&  // test if the type is assignable from delegate
-				(mi = instance.Type.GetMethod("Invoke")) != null) // Search the Invoke method for the arguments
+			else if (typeof(Delegate).GetTypeInfo().IsAssignableFrom(instance.Type.GetTypeInfo()) &&  // test if the type is assignable from delegate
+				(mi = instance.Type.GetRuntimeMethods().Where(c => !c.IsStatic && c.IsPublic && c.Name == "Invoke").FirstOrDefault()) != null) // Search the Invoke method for the arguments
 			{
 				return EnsureInvokeResult(scope, tStart,
 					SafeExpression(() => LuaEmit.BindParameter<Expression>(
@@ -323,7 +343,7 @@ namespace Neo.IronLua
 			if (LuaEmit.IsDynamicType(instance.Type))
 			{
 				return EnsureInvokeResult(scope, tStart,
-					Expression.Dynamic(scope.Runtime.GetInvokeMemberBinder(sMember, new CallInfo(arguments.Length)), typeof(object),
+					DynamicExpression.Dynamic(scope.Runtime.GetInvokeMemberBinder(sMember, new CallInfo(arguments.Length)), typeof(object),
 						new Expression[] { ConvertExpression(scope.Runtime, tStart, instance, typeof(object)) }.Concat(
 							from c in arguments select Lua.EnsureType(c, typeof(object))
 						).ToArray()
@@ -372,7 +392,7 @@ namespace Neo.IronLua
 		private static Expression InvokeMemberExpressionDynamic(Scope scope, Token tStart, Expression instance, string sMember, InvokeResult result, Expression[] arguments)
 		{
 			return EnsureInvokeResult(scope, tStart,
-				Expression.Dynamic(scope.Runtime.GetInvokeMemberBinder(sMember, new CallInfo(arguments.Length)), typeof(object),
+				DynamicExpression.Dynamic(scope.Runtime.GetInvokeMemberBinder(sMember, new CallInfo(arguments.Length)), typeof(object),
 					new Expression[] { ConvertExpression(scope.Runtime, tStart, instance, typeof(object)) }.Concat(from a in arguments select Lua.EnsureType(a, typeof(object))).ToArray()
 				),
 				result, instance, sMember
@@ -413,8 +433,8 @@ namespace Neo.IronLua
 		{
 			if ((mi.CallingConvention & CallingConventions.VarArgs) != 0)
 				throw new ArgumentException("Call of VarArgs not implemented.");
-			Type typeDelegate = GetDelegateType(mi);
-			return Delegate.CreateDelegate(typeDelegate, firstArgument, mi);
+
+			return mi.CreateDelegate(GetDelegateType(mi), firstArgument);
 		} // func CreateDelegateFromMethodInfo
 
 		private static Type GetExpressionType(Expression e)

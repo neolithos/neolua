@@ -69,7 +69,7 @@ namespace Neo.IronLua
 			}
 			catch (TargetInvocationException e)
 			{
-				LuaExceptionData.GetData(e.InnerException); // secure the stacktrace
+				// todo: LuaExceptionData.GetData(e.InnerException); // secure the stacktrace
 				throw e.InnerException; // rethrow with new stackstrace
 			}
 		} // proc Run
@@ -88,7 +88,7 @@ namespace Neo.IronLua
 		public virtual bool HasDebugInfo { get { return false; } }
 
     /// <summary>Returns the declaration of the compiled chunk.</summary>
-    public MethodInfo Method { get { return chunk == null ? null : chunk.Method; } }
+    public MethodInfo Method { get { return chunk == null ? null : chunk.GetMethodInfo(); } }
 
     /// <summary>Get the IL-Size</summary>
     public virtual int Size
@@ -98,22 +98,23 @@ namespace Neo.IronLua
 				if (chunk == null)
 					return 0;
 
-				// Gib den Type zurück
-				Type typeMethod = chunk.Method.GetType();
-				if (typeMethod.FullName == "System.Reflection.RuntimeMethodInfo")
-					return chunk.Method.GetMethodBody().GetILAsByteArray().Length;
-				else if (typeMethod.FullName == "System.Reflection.Emit.DynamicMethod+RTDynamicMethod")
-				{
-					if (fiOwner == null)
-					{
-						fiOwner = typeMethod.GetField("m_owner", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetField);
-						if (fiOwner == null)
-							throw new InvalidOperationException("RTDynamicMethod:m_owner not found");
-					}
-					DynamicMethod dyn = (DynamicMethod)fiOwner.GetValue(chunk.Method);
-					return dyn.GetILGenerator().ILOffset;
-				}
-				else
+				// todo: 
+				//// Gib den Type zurück
+				//Type typeMethod = chunk.Method.GetType();
+				//if (typeMethod.FullName == "System.Reflection.RuntimeMethodInfo")
+				//	return chunk.Method.GetMethodBody().GetILAsByteArray().Length;
+				//else if (typeMethod.FullName == "System.Reflection.Emit.DynamicMethod+RTDynamicMethod")
+				//{
+				//	if (fiOwner == null)
+				//	{
+				//		fiOwner = typeMethod.GetField("m_owner", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetField);
+				//		if (fiOwner == null)
+				//			throw new InvalidOperationException("RTDynamicMethod:m_owner not found");
+				//	}
+				//	DynamicMethod dyn = (DynamicMethod)fiOwner.GetValue(chunk.Method);
+				//	return dyn.GetILGenerator().ILOffset;
+				//}
+				//else
 					return -1;
 			}
     } // prop Size

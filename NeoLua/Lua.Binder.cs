@@ -288,9 +288,9 @@ namespace Neo.IronLua
           }
           else
           {
-            ParameterInfo[] methodParameters = invokeTarget.Method.GetParameters();
+            ParameterInfo[] methodParameters = invokeTarget.GetMethodInfo().GetParameters();
             ParameterInfo[] parameters = null;
-            MethodInfo mi = target.LimitType.GetMethod("Invoke");
+						MethodInfo mi = target.LimitType.GetTypeInfo().FindDeclaredMethod("Invoke", ReflectionFlag.Public | ReflectionFlag.Instance | ReflectionFlag.NoException | ReflectionFlag.NoArguments);
             if (mi != null)
             {
               ParameterInfo[] typeParameters = mi.GetParameters();
@@ -580,15 +580,14 @@ namespace Neo.IronLua
         return new DynamicMetaObject(expr, restrictions);
       } // func FallbackConvert
 
-      static LuaConvertBinder()
-      {
-        miGetType = typeof(object).GetMethod("GetType", BindingFlags.Public | BindingFlags.Instance | BindingFlags.InvokeMethod);
-        miIsArithmetic = typeof(LuaEmit).GetMethod("IsArithmeticType", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(Type) }, null);
-#if DEBUG
-        if (miGetType == null || miIsArithmetic == null)
-          throw new ArgumentNullException();
-#endif
-      } // sctor
+			static LuaConvertBinder()
+			{
+				TypeInfo tiObject = typeof(Object).GetTypeInfo();
+				TypeInfo tiLuaEmit = typeof(LuaEmit).GetTypeInfo();
+
+				miGetType = tiObject.FindDeclaredMethod("GetType", ReflectionFlag.Instance);
+				miIsArithmetic = tiLuaEmit.FindDeclaredMethod("IsArithmeticType", ReflectionFlag.Static, typeof(Type));
+			} // sctor
 
       public Lua Lua { get { return lua; } }
     } // class LuaConvertBinder
@@ -661,61 +660,52 @@ namespace Neo.IronLua
 		} // proc ClearBinderCache
 
 		/// <summary>Writes the content of the rule cache to a file. For debug-reasons.</summary>
-		/// <param name="sFileName"></param>
-		public void DumpRuleCaches(string sFileName)
+		/// <param name="tw"></param>
+		public void DumpRuleCaches(TextWriter tw)
 		{
 			string sSep = new string('=', 66);
-			bool lFileMode = String.IsNullOrEmpty(sFileName);
-			TextWriter tw = lFileMode ? Console.Out : new StreamWriter(sFileName);
-			try
-			{
-				FieldInfo fiCache = typeof(CallSiteBinder).GetField("Cache", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetField | BindingFlags.DeclaredOnly);
 
-				tw.WriteLine(sSep);
-				tw.WriteLine("= Operation Binders");
-				DumpRuleCache<ExpressionType>(tw, operationBinder, fiCache);
-				tw.WriteLine();
+			FieldInfo fiCache = typeof(CallSiteBinder).GetTypeInfo().FindDeclaredField("Cache", ReflectionFlag.NonPublic | ReflectionFlag.Instance);
 
-				tw.WriteLine(sSep);
-				tw.WriteLine("= GetMember Binders");
-				DumpRuleCache<string>(tw, getMemberBinder, fiCache);
-				tw.WriteLine();
+			tw.WriteLine(sSep);
+			tw.WriteLine("= Operation Binders");
+			DumpRuleCache<ExpressionType>(tw, operationBinder, fiCache);
+			tw.WriteLine();
 
-				tw.WriteLine(sSep);
-				tw.WriteLine("= SetMember Binders");
-				DumpRuleCache<string>(tw, setMemberBinder, fiCache);
-				tw.WriteLine();
+			tw.WriteLine(sSep);
+			tw.WriteLine("= GetMember Binders");
+			DumpRuleCache<string>(tw, getMemberBinder, fiCache);
+			tw.WriteLine();
 
-				tw.WriteLine(sSep);
-				tw.WriteLine("= Get Index Binders");
-				DumpRuleCache<CallInfo>(tw, getIndexBinder, fiCache);
-				tw.WriteLine();
+			tw.WriteLine(sSep);
+			tw.WriteLine("= SetMember Binders");
+			DumpRuleCache<string>(tw, setMemberBinder, fiCache);
+			tw.WriteLine();
 
-				tw.WriteLine(sSep);
-				tw.WriteLine("= Set Index Binders");
-				DumpRuleCache<CallInfo>(tw, setIndexBinder, fiCache);
-				tw.WriteLine();
+			tw.WriteLine(sSep);
+			tw.WriteLine("= Get Index Binders");
+			DumpRuleCache<CallInfo>(tw, getIndexBinder, fiCache);
+			tw.WriteLine();
 
-				tw.WriteLine(sSep);
-				tw.WriteLine("= Invoke Binders");
-				DumpRuleCache<CallInfo>(tw, invokeBinder, fiCache);
-				tw.WriteLine();
+			tw.WriteLine(sSep);
+			tw.WriteLine("= Set Index Binders");
+			DumpRuleCache<CallInfo>(tw, setIndexBinder, fiCache);
+			tw.WriteLine();
 
-				tw.WriteLine(sSep);
-				tw.WriteLine("= Invoke Member Binders");
-				DumpRuleCache<MemberCallInfo>(tw, invokeMemberBinder, fiCache);
-				tw.WriteLine();
+			tw.WriteLine(sSep);
+			tw.WriteLine("= Invoke Binders");
+			DumpRuleCache<CallInfo>(tw, invokeBinder, fiCache);
+			tw.WriteLine();
 
-				tw.WriteLine(sSep);
-				tw.WriteLine("= Convert Binders");
-				DumpRuleCache<Type>(tw, convertBinder, fiCache);
-				tw.WriteLine();
-			}
-			finally
-			{
-				if (lFileMode)
-					tw.Close();
-			}
+			tw.WriteLine(sSep);
+			tw.WriteLine("= Invoke Member Binders");
+			DumpRuleCache<MemberCallInfo>(tw, invokeMemberBinder, fiCache);
+			tw.WriteLine();
+
+			tw.WriteLine(sSep);
+			tw.WriteLine("= Convert Binders");
+			DumpRuleCache<Type>(tw, convertBinder, fiCache);
+			tw.WriteLine();
 		} // proc DumpRuleCaches
 
 		private void DumpRuleCache<T>(TextWriter tw,  Dictionary<T, CallSiteBinder> binder, FieldInfo fiCache)
@@ -735,7 +725,7 @@ namespace Neo.IronLua
 					foreach (var a in cache)
 					{
 						Type t = a.Value.GetType();
-						Array rules = (Array)t.GetField("_rules", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetField | BindingFlags.Instance).GetValue(a.Value);
+						Array rules = (Array)t.GetTypeInfo().FindDeclaredField("_rules", ReflectionFlag.Instance | ReflectionFlag.NonPublic).GetValue(a.Value);
 						tw.WriteLine(String.Format("{0}: {1}", sKey, rules.Length));
 						//for (int i = 0; i < rules.Length; i++)
 						//{
@@ -892,15 +882,19 @@ namespace Neo.IronLua
         return Expression.Convert(expr, returnType);
     } // func EnsureType
 
-    internal static BindingFlags GetBindingFlags(bool lInstance, bool lIgnoreCase)
-    {
-      BindingFlags flags = BindingFlags.Public | BindingFlags.Static;
-      if (lInstance)
-        flags |= BindingFlags.Instance;
-      if (lIgnoreCase)
-        flags |= BindingFlags.IgnoreCase;
-      return flags;
-    } // func GetBindingFlags
+		internal static ReflectionFlag GetReflectionFlags(bool lInstance, bool lIgnoreCase)
+		{
+			var flags = ReflectionFlag.Public;
+
+			if (lInstance)
+				flags |= ReflectionFlag.Instance;
+			else
+				flags |= ReflectionFlag.Static;
+
+			if (lIgnoreCase)
+				flags |= ReflectionFlag.IgnoreCase;
+			return flags;
+		} // func GetReflectionFlags
 
     #endregion
   } // class Lua
