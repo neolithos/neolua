@@ -1,0 +1,26 @@
+﻿<Page
+    x:Class="WindowPhoneText.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:WindowPhoneText"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+	<Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="80" />
+			<RowDefinition Height="80" />
+			<RowDefinition />
+		</Grid.RowDefinitions>
+
+		<TextBlock Text="NeoLua@Windows Store" FontSize="48" HorizontalAlignment="Center" Margin="16" />
+		<StackPanel Orientation="Horizontal" Grid.Row="1">
+			<TextBox x:Name="txtLuaCode" Width="220" Height="23" Margin="16" />
+			<Button Content="Execute" Margin="3" Click="Button_Click" />
+		</StackPanel>
+
+		<TextBlock x:Name="txtResult" Text="..." FontFamily="40" Margin="16" Grid.Row="2" />
+	</Grid>
+</Page>

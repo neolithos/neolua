@@ -26,6 +26,7 @@ namespace WindowsStoreTest
 	{
 		private Lua lua = new Lua();
 		private LuaTable table = new LuaTable();
+
 		public MainPage()
 		{
 			this.InitializeComponent();

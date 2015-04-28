@@ -28,7 +28,7 @@ namespace LuaDLR.Test
 			t.SetMemberValue("Test", "n", true);
 			Assert.AreEqual(t["test"], "n");
 
-			IDictionary<string, object> a = (IDictionary<string, object>)t;
+			IDictionary<string, object> a = t.Members;
 			string[] r = new string[2];
 			a.Keys.CopyTo(r, 0);
 			Assert.IsTrue(r[0] == "test" && r[1] == "Test");
@@ -122,11 +122,12 @@ namespace LuaDLR.Test
 	  [TestMethod]
 		public void TestMember10()
 		{
-			LuaGlobal g = new LuaGlobal(new Lua());
-			g["a"] = 1;
-			g.Members.Clear();
+			throw new NotImplementedException();
+			//LuaGlobal g = new LuaGlobal(new Lua());
+			//g["a"] = 1;
+			//g.Members.Clear();
 
-			TestResult(new LuaResult(g["a"]), new object[] { null });
+			//TestResult(new LuaResult(g["a"]), new object[] { null });
 		}
 
     #endregion
@@ -368,15 +369,16 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestConvert01()
     {
-      using (Lua l = new Lua())
-      {
-        l.PrintExpressionTree = true;
-        var g = l.CreateEnvironment();
-        var r = g.DoChunk("return cast(System.Diagnostics.ProcessStartInfo, { FileName = 'Test.exe', Arguments = 'aaa' });", "dummy");
-        ProcessStartInfo psi = (ProcessStartInfo)r[0];
-        Assert.IsTrue(psi.FileName == "Test.exe");
-        Assert.IsTrue(psi.Arguments == "aaa");
-      }
+			throw new NotImplementedException();
+			//using (Lua l = new Lua())
+			//{
+			//	l.PrintExpressionTree = true;
+			//	var g = l.CreateEnvironment();
+			//	var r = g.DoChunk("return cast(System.Diagnostics.ProcessStartInfo, { FileName = 'Test.exe', Arguments = 'aaa' });", "dummy");
+			//	ProcessStartInfo psi = (ProcessStartInfo)r[0];
+			//	Assert.IsTrue(psi.FileName == "Test.exe");
+			//	Assert.IsTrue(psi.Arguments == "aaa");
+			//}
     } // func TestConvert01
 
     #endregion
@@ -639,31 +641,32 @@ namespace LuaDLR.Test
 		[TestMethod]
     public void EnvDynamicCall01()
     {
-      using (Lua l = new Lua())
-      {
-        l.PrintExpressionTree = true;
-        dynamic g = l.CreateEnvironment();
-        g.dochunk(GetLines("Lua.EnvDynamicCall01.lua"), "test.lua");
+			using (Lua l = new Lua())
+			{
+				l.PrintExpressionTree = Console.Out;
+				throw new NotImplementedException();
+				//var g = l.CreateEnvironment();
+				//g.dochunk(GetLines("Lua.EnvDynamicCall01.lua"), "test.lua");
 
-				TestResult(new LuaResult(g.test(2)), 4);
-				TestResult(((LuaTable)g).CallMember("test", 2), 4);
+				//TestResult(new LuaResult(g.test(2)), 4);
+				//TestResult(((LuaTable)g).CallMember("test", 2), 4);
 
-        // test of c# binders
-        Debug.Print("C# Binders:");
-        TestResult(g.b.a(5), 20);
-        TestResult(g.b.b(5), 115);
-        TestResult(g.b.c(g.b, 5), 110);
-        TestResult(g.test(5), 10);
+				//// test of c# binders
+				//Debug.Print("C# Binders:");
+				//TestResult(g.b.a(5), 20);
+				//TestResult(g.b.b(5), 115);
+				//TestResult(g.b.c(g.b, 5), 110);
+				//TestResult(g.test(5), 10);
 
-        // test of lua binders
-        Debug.Print("Lua Binders:");
-        TestResult(g.dochunk("return b.a(5)", "test.lua"), 20);
-        TestResult(g.dochunk("return b:b(5)", "test.lua"), 115);
-        TestResult(g.dochunk("return b.b(b, 5)","test.lua"),  115);
-        TestResult(g.dochunk("return b:c(5)","test.lua"),  110);
-        TestResult(g.dochunk("return b.c(b, 5)","test.lua"),  110);
-        TestResult(g.dochunk("return test(5)", "test.lua"), 10);
-      }
+				//// test of lua binders
+				//Debug.Print("Lua Binders:");
+				//TestResult(g.dochunk("return b.a(5)", "test.lua"), 20);
+				//TestResult(g.dochunk("return b:b(5)", "test.lua"), 115);
+				//TestResult(g.dochunk("return b.b(b, 5)", "test.lua"), 115);
+				//TestResult(g.dochunk("return b:c(5)", "test.lua"), 110);
+				//TestResult(g.dochunk("return b.c(b, 5)", "test.lua"), 110);
+				//TestResult(g.dochunk("return test(5)", "test.lua"), 10);
+			}
     } // prop EnvDynamicCall01
 
 		[TestMethod]
