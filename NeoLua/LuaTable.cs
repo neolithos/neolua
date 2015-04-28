@@ -2920,7 +2920,7 @@ namespace Neo.IronLua
 				object o = metaTable[sKey];
 				if (o != null)
 				{
-					if (Lua.IsCallable(o))
+					if (Lua.RtInvokeable(o))
 					{
 						r = (TRETURN)Lua.RtConvertValue(RtInvokeSite(o, args), typeof(TRETURN));
 						return true;
@@ -3132,7 +3132,7 @@ namespace Neo.IronLua
 
 			if ((t = index as LuaTable) != null) // default table
 				return t.GetValue(key, false);
-			else if (Lua.IsCallable(index)) // default function
+			else if (Lua.RtInvokeable(index)) // default function
 				return new LuaResult(RtInvokeSite(index, this, key))[0];
 			else
 				return null;
@@ -3148,7 +3148,7 @@ namespace Neo.IronLua
 				return false;
 
 			object o = metaTable["__newindex"];
-			if (Lua.IsCallable(o))
+			if (Lua.RtInvokeable(o))
 			{
 				RtInvokeSite(o, this, key, value);
 				return true;

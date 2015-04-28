@@ -31,14 +31,12 @@ namespace LuaDLR.Test
 			using (Lua l = new Lua())
 			{
 				l.PrintExpressionTree = PrintExpressionTree ? Console.Out : null;
-				//var g = l.CreateEnvironment();
-				var t = new LuaTable();
+				var g = l.CreateEnvironment();
 				Console.WriteLine("Test: {0}", sCode);
 				Console.WriteLine(new string('=', 66));
 				Stopwatch sw = new Stopwatch();
 				sw.Start();
-				//TestResult(g.DoChunk(sCode, "test.lua"), expectedResult);
-				TestResult(l.CompileChunk(sCode, "test.lua", null).Run(t), expectedResult);
+				TestResult(g.dochunk(sCode, "test.lua"), expectedResult);
 				Console.WriteLine("  Dauer: {0}ms", sw.ElapsedMilliseconds);
 				Console.WriteLine();
 				Console.WriteLine();

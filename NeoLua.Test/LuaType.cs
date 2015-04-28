@@ -496,7 +496,7 @@ namespace LuaDLR.Test
 					"c.WriteLine('Hallo Welt!');"));
 				Assert.Fail();
 			}
-			catch (LuaRuntimeException e)
+			catch (LuaRuntimeException)
 			{
 				Console.WriteLine("Failed...");
 			}

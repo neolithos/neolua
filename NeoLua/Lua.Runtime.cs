@@ -13,6 +13,28 @@ using System.Text;
 
 namespace Neo.IronLua
 {
+	#region -- interface ILuaThread -----------------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary></summary>
+	public interface ILuaThread
+	{
+	} // interface ILuaThread
+
+	#endregion
+
+	#region -- interface ILuaFile -------------------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary></summary>
+	public interface ILuaFile
+	{
+		/// <summary>Is the file closed.</summary>
+		bool IsClosed { get; }
+	} // interface ILuaFile
+
+	#endregion
+
 	#region -- class Lua ----------------------------------------------------------------
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -932,10 +954,13 @@ namespace Neo.IronLua
 
 		#region -- RtInvoke ---------------------------------------------------------------
 
-		internal static bool IsCallable(object ld)
+		/// <summary></summary>
+		/// <param name="ld"></param>
+		/// <returns></returns>
+		public static bool RtInvokeable(object ld)
 		{
 			return ld is Delegate || ld is ILuaMethod || ld is IDynamicMetaObjectProvider;
-		} // func IsCallable
+		} // func RtInvokeable
 
 		internal static object RtInvokeSite(Func<CallInfo, CallSiteBinder> createInvokeBinder, Action<CallInfo, CallSite> updateCache, object[] args)
 		{

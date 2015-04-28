@@ -986,7 +986,7 @@ namespace Neo.IronLua
 			RegisterTypeAlias("result", typeof(LuaResult));
 			RegisterTypeAlias("void", typeof(void));
 
-			// todo: RegisterTypeExtension(typeof(LuaLibraryString));
+			RegisterTypeExtension(typeof(LuaLibraryString));
 
 			lLookupReferencedAssemblies = true;
 		} // /sctor
