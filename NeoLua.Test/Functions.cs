@@ -206,7 +206,7 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        l.PrintExpressionTree = true;
+				l.PrintExpressionTree = Console.Out;
         var g = l.CreateEnvironment();
         var p = new TestParam();
         g.DoChunk("p.Test = 3;", "dummy", new KeyValuePair<string, object>("p", p));
@@ -219,7 +219,7 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        l.PrintExpressionTree = true;
+				l.PrintExpressionTree = Console.Out;
         var f = l.CreateLambda<Func<int>>("test", "local function test(a:int):int return 1 + a; end; return test(2);");
         TestResult(new LuaResult(f()), 3);
       }
@@ -273,7 +273,7 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        l.PrintExpressionTree = true;
+				l.PrintExpressionTree = Console.Out;
         dynamic  g = l.CreateEnvironment();
         TestResult(g.dochunk("return p:ParamOut(1, 2);", "dummy", "p", new TestParam()), 1, 1, 2);
       }
@@ -284,7 +284,7 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        l.PrintExpressionTree = true;
+				l.PrintExpressionTree = Console.Out;
         dynamic g = l.CreateEnvironment();
         TestResult(g.dochunk("local b = p:GetValue(); return b;", "dummy", "p", new TestParam()), 4);
       }
@@ -295,7 +295,7 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        l.PrintExpressionTree = true;
+				l.PrintExpressionTree = Console.Out;
         dynamic g = l.CreateEnvironment();
         g.dochunk(Lines(
           "function add(a : int, b : int) : int",
@@ -312,7 +312,7 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        l.PrintExpressionTree = true;
+				l.PrintExpressionTree = Console.Out;
         dynamic g = l.CreateEnvironment();
         TestResult(g.dochunk("function test(a) if a ~= nil then return a; end; end;", "test.lua"));
         TestResult(g.test());
@@ -325,7 +325,7 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        l.PrintExpressionTree = true;
+        l.PrintExpressionTree = Console.Out;
         dynamic g = l.CreateEnvironment();
         var c = l.CompileChunk("print(a)", "dummy", null, new KeyValuePair<string, Type>("a", typeof(object)));
 

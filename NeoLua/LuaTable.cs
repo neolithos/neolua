@@ -2899,7 +2899,7 @@ namespace Neo.IronLua
 			}
 
 			// set all properties
-			foreach (PropertyInfo property in type.GetRuntimeProperties().Where(pi => pi.SetMethod.IsPublic && !pi.SetMethod.IsStatic))
+			foreach (PropertyInfo property in type.GetRuntimeProperties().Where(pi => pi.SetMethod != null && pi.SetMethod.IsPublic && !pi.SetMethod.IsStatic))
 			{
 				int iEntryIndex = FindKey(property.Name, GetMemberHashCode(property.Name), compareString);
 				if (iEntryIndex >= 0)

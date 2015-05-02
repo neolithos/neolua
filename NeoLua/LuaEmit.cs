@@ -2169,7 +2169,7 @@ namespace Neo.IronLua
 						continue;
 					else if (member is FieldInfo && ((FieldInfo)member).IsStatic != lStatic)
 						continue;
-					else if (member is EventInfo && ((EventInfo)member).RaiseMethod.IsStatic != lStatic)
+					else if (member is EventInfo && ((EventInfo)member).AddMethod.IsStatic != lStatic)
 						continue;
 					
 					yield return member;
