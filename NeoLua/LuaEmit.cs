@@ -2297,15 +2297,3 @@ namespace Neo.IronLua
 				//			);
 				//		}
 				//}
-
-		//private static BindingFlags GetBindingFlags(bool lInstance, bool lIgnoreCase)
-		//{
-		//	BindingFlags flags = BindingFlags.Public;
-		//	if (lInstance)
-		//		flags |= BindingFlags.Instance;
-		//	else
-		//		flags |= BindingFlags.Static;
-		//	if (lIgnoreCase)
-		//		flags |= BindingFlags.IgnoreCase;
-		//	return flags;
-		//} // func GetBindingFlags

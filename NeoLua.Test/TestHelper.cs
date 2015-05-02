@@ -36,7 +36,7 @@ namespace LuaDLR.Test
 				Console.WriteLine(new string('=', 66));
 				Stopwatch sw = new Stopwatch();
 				sw.Start();
-				TestResult(g.dochunk(sCode, "test.lua"), expectedResult);
+				TestResult(g.DoChunk(sCode, "test.lua"), expectedResult);
 				Console.WriteLine("  Dauer: {0}ms", sw.ElapsedMilliseconds);
 				Console.WriteLine();
 				Console.WriteLine();

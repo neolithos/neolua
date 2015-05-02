@@ -413,3 +413,4 @@ namespace Neo.IronLua
 
 	#endregion
 }
+// todo: LuaExceptionData.GetData(e.InnerException); // secure the stacktrace

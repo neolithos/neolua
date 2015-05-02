@@ -145,6 +145,8 @@ namespace Neo.IronLua
 		// IEnumerator
 		internal readonly static MethodInfo EnumeratorMoveNextMethodInfo;
 		internal readonly static PropertyInfo EnumeratorCurrentPropertyInfo;
+		// MethodInfo
+		internal readonly static MethodInfo MethodInfoCreateDelegateMethodInfo;
 
 		#region -- sctor ------------------------------------------------------------------
 
@@ -296,6 +298,10 @@ namespace Neo.IronLua
 			var tiEnumerator = typeof(System.Collections.IEnumerator).GetTypeInfo();
 			EnumeratorMoveNextMethodInfo = tiEnumerator.FindDeclaredMethod("MoveNext", ReflectionFlag.None);
 			EnumeratorCurrentPropertyInfo = tiEnumerator.FindDeclaredProperty("Current", ReflectionFlag.None);
+
+			// MethodInfo
+			var tiMethodInfo = typeof(MethodInfo).GetTypeInfo();
+			MethodInfoCreateDelegateMethodInfo = tiMethodInfo.FindDeclaredMethod("CreateDelegate", ReflectionFlag.None, typeof(Type), typeof(object));
 		} // sctor
 
 		#endregion

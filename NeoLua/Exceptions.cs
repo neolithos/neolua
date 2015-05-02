@@ -9,6 +9,29 @@ using System.Text;
 
 namespace Neo.IronLua
 {
+	#region -- interface ILuaExceptionData ----------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary>Helps to make an exception extension visible for LuaRuntimeException.</summary>
+	public interface ILuaExceptionData
+	{
+		/// <summary>Returns the formatted stacktrace.</summary>
+		/// <param name="iLevel">Level to start.</param>
+		/// <param name="lSkipSClrFrame">Only Lua frames.</param>
+		/// <returns></returns>
+		string FormatStackTrace(int iLevel = 0, bool lSkipSClrFrame = true);
+
+		/// <summary>Returns the debug info from a frame.</summary>
+		/// <param name="iLevel"></param>
+		/// <returns></returns>
+		ILuaDebugInfo this[int iLevel] { get; }
+		
+		/// <summary>Stacktrace length.</summary>
+		int Count { get; }
+	} // interface ILuaExceptionData
+
+	#endregion
+
 	#region -- class LuaException -------------------------------------------------------
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -102,12 +125,28 @@ namespace Neo.IronLua
 		{
 			get
 			{
-				// todo:
-				//LuaExceptionData data = LuaExceptionData.GetData(this);
-				//if (data == null)
-					return base.StackTrace;
-				//else
-				//	return data.GetStackTrace(iLevel, lSkipClrFrames);
+				var data = Data[ExceptionDataKey] as ILuaExceptionData;
+				if (data == null)
+				{
+					if (iLevel == 0)
+						return base.StackTrace;
+					else
+					{
+						string sStackTrace = base.StackTrace;
+						if (String.IsNullOrEmpty(sStackTrace))
+							return sStackTrace;
+						else
+						{
+							string[] lines = sStackTrace.Replace(Environment.NewLine, "\n").Split('\n');
+							if (iLevel < lines.Length)
+								return String.Join(Environment.NewLine, lines, iLevel, lines.Length - iLevel);
+							else
+								return sStackTrace;
+						}
+					}
+				}
+				else
+					return data.FormatStackTrace(iLevel, lSkipClrFrames);
 			}
 		} // prop StackTrace
 
@@ -116,12 +155,11 @@ namespace Neo.IronLua
 		{
 			get
 			{
-				// todo:
-				//LuaExceptionData data = LuaExceptionData.GetData(this);
-				//if (data == null || iLevel < 0 || iLevel >= data.Count)
+				var data = Data[ExceptionDataKey] as ILuaExceptionData;
+				if (data == null || iLevel < 0 || iLevel >= data.Count)
 					return null;
-				//else
-				//	return data[iLevel].FileName;
+				else
+					return data[iLevel].FileName;
 			}
 		} // pro FileName
 
@@ -130,11 +168,11 @@ namespace Neo.IronLua
 		{
 			get
 			{
-				//LuaExceptionData data = LuaExceptionData.GetData(this);
-				//if (data == null || iLevel < 0 || iLevel >= data.Count)
+				var data = Data[ExceptionDataKey] as ILuaExceptionData;
+				if (data == null || iLevel < 0 || iLevel >= data.Count)
 					return 0;
-				//else
-				//	return data[iLevel].LineNumber;
+				else
+					return data[iLevel].Line;
 			}
 		} // prop Line
 
@@ -143,13 +181,16 @@ namespace Neo.IronLua
 		{
 			get
 			{
-				//LuaExceptionData data = LuaExceptionData.GetData(this);
-				//if (data == null || iLevel < 0 || iLevel >= data.Count)
+				var data = Data[ExceptionDataKey] as ILuaExceptionData;
+				if (data == null || iLevel < 0 || iLevel >= data.Count)
 					return 0;
-				//else
-				//	return data[iLevel].ColumnNumber;
+				else
+					return data[iLevel].Column;
 			}
 		} // prop Column
+
+		/// <summary>Key of the ILuaExceptionData.</summary>
+		public static readonly object ExceptionDataKey = new object();
 	} // class LuaRuntimeException
 
 	#endregion

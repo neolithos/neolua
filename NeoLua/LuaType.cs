@@ -9,9 +9,81 @@ using System.Text;
 
 namespace Neo.IronLua
 {
-  #region -- class LuaType ------------------------------------------------------------
+	#region -- interface ILuaTypeResolver -----------------------------------------------
 
-  ///////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary>Interface to the logic, that resolves the types.</summary>
+	public interface ILuaTypeResolver
+	{
+		/// <summary>Gets called before the resolve of a assembly.</summary>
+		void Refresh();
+		/// <summary>Resolves the type.</summary>
+		/// <param name="sTypeName">Name of the type.</param>
+		/// <returns></returns>
+		Type GetType(string sTypeName);
+		/// <summary>Versioninformation for the re-resolve of types.</summary>
+		int Version { get; }
+	} // interface ILuaTypeResolver
+
+	#endregion
+
+	#region -- class LuaSimpleTypeResolver ----------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary>Simple resolver, that iterates over a list of static assemblies.</summary>
+	public class LuaSimpleTypeResolver : ILuaTypeResolver
+	{
+		private List<Assembly> assemblies = new List<Assembly>();
+
+		/// <summary>Creates a simple type resolver.</summary>
+		public LuaSimpleTypeResolver()
+		{
+			Add(typeof(string).GetTypeInfo().Assembly);
+			Add(GetType().GetTypeInfo().Assembly);
+		} // ctor
+
+		/// <summary>Appends a new assembly for the search.</summary>
+		/// <param name="assembly">Assembly</param>
+		public void Add(Assembly assembly)
+		{
+			lock (assemblies)
+			{
+				if (assemblies.IndexOf(assembly) == -1)
+					assemblies.Add(assembly);
+			}
+		} // proc Add
+
+		void ILuaTypeResolver.Refresh() { }
+
+		Type ILuaTypeResolver.GetType(string sTypeName)
+		{
+			lock(assemblies)
+			{
+				foreach (var assembly in assemblies)
+				{
+					var type = assembly.ExportedTypes.FirstOrDefault(c => c.FullName == sTypeName);
+					if (type != null)
+						return type;
+				}
+				return null;
+			}
+		} // func ILuaTypeResolver.GetType
+
+		int ILuaTypeResolver.Version
+		{
+			get
+			{
+				lock (assemblies)
+					return assemblies.Count;
+			}
+		} // prop Version
+	} // class LuaSimpleTypeResolver
+
+	#endregion
+
+	#region -- class LuaType ------------------------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
   /// <summary>Base class for the Type-Wrapper.</summary>
   public sealed class LuaType : IDynamicMetaObjectProvider
   {
@@ -373,258 +445,13 @@ namespace Neo.IronLua
 
     #endregion
 
-		#region -- class AssemblyCacheItem ------------------------------------------------
-
-		/////////////////////////////////////////////////////////////////////////////////
-		///// <summary></summary>
-		//private sealed class AssemblyCacheList : IEnumerable<Assembly>
-		//{
-		//	#region -- CacheItem ------------------------------------------------------------
-
-		//	///////////////////////////////////////////////////////////////////////////////
-		//	/// <summary></summary>
-		//	private class CacheItem
-		//	{
-		//		private AssemblyName assemblyName;
-		//		public Assembly assembly = null;			// Reference to the loaded assembly
-		//		public Assembly reflected = null;			// Reflected assembly
-		//		public CacheItem next = null;					// Next item
-		//		public CacheItem prev = null;					// Prev item
-
-		//		public CacheItem(AssemblyName assemblyName)
-		//		{
-		//			this.assemblyName = assemblyName;
-		//		} // ctor
-
-		//		public override string ToString()
-		//		{
-		//			return assemblyName.Name;
-		//		} // func ToString
-
-		//		public AssemblyName Name { get { return assemblyName; } }
-		//	} // class AssemblyCacheItem
-
-		//	#endregion
-
-		//	#region -- AssemblyCacheEnumerator ----------------------------------------------
-
-		//	private sealed class AssemblyCacheEnumerator : IEnumerator<Assembly>
-		//	{
-		//		private AssemblyCacheList owner;
-		//		private Assembly currentAssembly = null;
-		//		private CacheItem current = null;
-
-		//		public AssemblyCacheEnumerator(AssemblyCacheList owner)
-		//		{
-		//			this.owner = owner;
-		//			Reset();
-		//		} // ctor
-
-		//		public void Dispose()
-		//		{
-		//		} // proc Dispose
-
-		//		public bool MoveNext()
-		//		{
-		//			if (current == null)
-		//				current = owner.first;
-		//			else
-		//				current = current.next;
-
-		//		Retry:
-		//			if (current == null)
-		//				return false;
-		//			else
-		//			{
-		//				lock (current)
-		//				{
-		//					currentAssembly = current.assembly ?? current.reflected;
-
-		//					if (currentAssembly == null && LookupReferencedAssemblies)
-		//					{
-		//						try
-		//						{
-		//							currentAssembly =
-		//								current.reflected =
-		//								Assembly.ReflectionOnlyLoad(current.Name.FullName);
-		//						}
-		//						catch
-		//						{
-		//							// current reflect load failed, try next
-		//							var t = current;
-		//							current = current.next;
-		//							owner.RemoveAssembly(t);
-
-		//							goto Retry;
-		//						}
-		//					}
-
-		//					return currentAssembly != null;
-		//				}
-		//			}
-		//		} // func MoveNext
-
-		//		public void Reset()
-		//		{
-		//			currentAssembly = null;
-		//			current = null;
-		//		} // proc Reset
-
-		//		public Assembly Current { get { return currentAssembly; } }
-		//		object System.Collections.IEnumerator.Current { get { return Current; } }
-		//	} // class AssemblyCacheEnumerator
-
-		//	#endregion
-
-		//	private Dictionary<string, CacheItem> cache = new Dictionary<string, CacheItem>(StringComparer.OrdinalIgnoreCase);
-		//	private CacheItem first = null;
-		//	private CacheItem lastLoaded = null;
-		//	private CacheItem lastReflected = null;
-
-		//	private int iAssemblyCount = 0;
-
-		//	public AssemblyCacheList()
-		//	{
-		//		AssemblyName assemblyName = typeof(string).GetTypeInfo().Assembly.GetName(); // mscorlib is always first
-		//		cache[assemblyName.Name] = 
-		//			first =
-		//			lastReflected =
-		//			lastLoaded = new CacheItem(assemblyName);
-		//	} // ctor
-
-		//	public void Refresh()
-		//	{
-		//		lock (this)
-		//		{
-		//			Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
-
-		//			if (iAssemblyCount < assemblies.Length) // New assemblies loaded 
-		//			{
-		//				for (int i = iAssemblyCount; i < assemblies.Length; i++) // add the new assemblies
-		//				{
-		//					Assembly asm = assemblies[i];
-
-		//					// check if the assembly is in the list, if not create the item
-		//					CacheItem item;
-		//					AssemblyName assemblyName = asm.GetName();
-		//					if (!cache.TryGetValue(assemblyName.Name, out item))
-		//						item = AddCacheItem(assemblyName, true);
-		//					else if (lastLoaded != item)
-		//					{
-		//						// Remove item
-		//						RemoveAssembly(item);
-
-		//						InsertLoaded(item);
-		//					}
-
-		//					UpdateLoadedAssembly(item, asm);
-		//				}
-
-		//				// Update the assembly count
-		//				iAssemblyCount = assemblies.Length;
-		//			}
-		//		}
-		//	} // proc Refresh
-
-		//	private void UpdateLoadedAssembly(CacheItem item, Assembly assembly)
-		//	{
-		//		if (item.assembly == assembly)
-		//			return;
-
-		//		// update the assembly
-		//		lock (item)
-		//		{
-		//			item.assembly = assembly;
-		//			item.reflected = null;
-		//		}
-
-		//		// add direct referenced assemblies
-		//		foreach (var r in assembly.GetReferencedAssemblies())
-		//		{
-		//			if (!cache.ContainsKey(r.Name))
-		//				AddCacheItem(r, false);
-		//		}
-		//	} // proc UpdateLoadedAssembly
-
-		//	private CacheItem AddCacheItem(AssemblyName assemblyName, bool lLastLoaded)
-		//	{
-		//		lock (this)
-		//		{
-		//			var n = new CacheItem(assemblyName);
-
-		//			// add the item to the list
-		//			if (lLastLoaded)
-		//				InsertLoaded(n);
-		//			else
-		//			{
-		//				n.prev = lastReflected;
-		//				lastReflected.next = n;
-		//				lastReflected = n;
-		//			}
-
-		//			// add the item to the cache
-		//			cache[assemblyName.Name] = n;
-
-		//			return n;
-		//		}
-		//	} // proc AddCacheItem
-
-		//	private void InsertLoaded(CacheItem n)
-		//	{
-		//		// Insert after last loaded
-		//		var after = lastLoaded.next;
-
-		//		n.prev = lastLoaded;
-		//		n.next = after;
-
-		//		lastLoaded.next = n;
-		//		lastLoaded = n;
-
-		//		if (after != null)
-		//			after.prev = n;
-		//		else
-		//			lastReflected = lastLoaded;
-		//	} // proc InsertLoaded
-
-		//	private void RemoveAssembly(CacheItem item)
-		//	{
-		//		lock (this)
-		//		{
-		//			if (item.prev != null)
-		//				item.prev.next = item.next;
-		//			if (item.next == null)
-		//				lastReflected = item.prev;
-		//			else
-		//				item.next.prev = item.prev;
-
-		//			item.next = null;
-		//			item.prev = null;
-		//		}
-		//	} // proc RemoveAssembly
-
-		//	public IEnumerator<Assembly> GetEnumerator()
-		//	{
-		//		return new AssemblyCacheEnumerator(this);
-		//	} // func GetEnumerator
-
-		//	System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-		//	{
-		//		return new AssemblyCacheEnumerator(this);
-		//	} // func System.Collections.IEnumerable.GetEnumerator
-
-		//	/// <summary>Number of loaded assemblies</summary>
-		//	public int AssemblyCount { get { return iAssemblyCount; } }
-		//} // class AssemblyCacheList
-
-		#endregion
-
 		private LuaType parent;           // Access to parent type or namespace
 		private LuaType baseType;					// If the type is inherited, then this points to the base type
     private Type type;                // Type that is represented, null if it is not resolved until now
 
     private string sName;             // Name of the unresolved type or namespace
 		private string sAliasName = null; // Current alias name
-    private int iAssemblyCount;       // Number of loaded assemblies or -1 if the type is resolved as a namespace
+    private int iResolverVersion;     // Number of loaded assemblies or -1 if the type is resolved as a namespace
 
     private Dictionary<string, int> index = null; // Index to speed up the search in big namespaces
 		private List<MethodInfo> extensionMethods = null; // Liste with extension methods
@@ -637,7 +464,7 @@ namespace Neo.IronLua
 			this.SetType(null, false);
 			this.baseType = null;
       this.sName = null;
-      this.iAssemblyCount = -2;
+			this.iResolverVersion = -2;
     } // ctor
 
     private LuaType(LuaType parent, string sName, Type type)
@@ -648,7 +475,7 @@ namespace Neo.IronLua
       this.parent = parent;
 			this.SetType(type, false);
 			this.sName = sName;
-      this.iAssemblyCount = 0;
+			this.iResolverVersion = 0;
     } // ctor
 
     private LuaType(LuaType parent, string sName)
@@ -659,7 +486,7 @@ namespace Neo.IronLua
       this.parent = parent;
 			this.SetType(null, false);
 			this.sName = sName;
-      this.iAssemblyCount = 0;
+			this.iResolverVersion = 0;
     } // ctor
 		
     /// <summary></summary>
@@ -684,33 +511,21 @@ namespace Neo.IronLua
     private void ResolveType()
     {
       if (parent != null && // the root has no type
-          iAssemblyCount >= 0) // Namespace, there is no type
+					iResolverVersion >= 0) // Namespace, there is no type
       {
-        //string sTypeName = FullName;
-				
-				iAssemblyCount = 1;
-				//// new assembly loaded?
-				//assemblyList.Refresh();
-				//if (iAssemblyCount != assemblyList.AssemblyCount)
-				//{
-				//	foreach (Assembly asm in assemblyList)
-				//	{
-				//		// Search the type in the assembly
-				//		Type t =  (from c in asm.ExportedTypes where c.FullName == sTypeName select c).FirstOrDefault();
-						
-				//		if (t != null)
-				//		{
-				//			// the type is reflected, load the assembly and get the type
-				//			if (asm.ReflectionOnly)
-				//				t = Type.GetType(t.AssemblyQualifiedName);
-						
-				//			if (SetType(t, true))
-				//				break;
-				//		}
-				//	}
+        string sTypeName = FullName;
 
-				//	iAssemblyCount = assemblyList.AssemblyCount;
-				//}
+				iResolverVersion = 1;
+
+				// new assembly loaded?
+				typeResolver.Refresh();
+				if (iResolverVersion != typeResolver.Version)
+				{
+					// Set the resolved assembly
+					SetType(typeResolver.GetType(sTypeName), true);
+					// Update the resolver version
+					iResolverVersion = typeResolver.Version;
+				}
 			}
     } // func GetItemType
 
@@ -776,16 +591,18 @@ namespace Neo.IronLua
 
 		internal MethodInfo[] GetInstanceMethods(string sName, bool lIgnoreCase)
 		{
+			var stringComparison = lIgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
 			// Collect all extension methods
 			List<MethodInfo> methods = null;
 			CollectExtensions(
 				ref methods,
-				mi => String.Compare(mi.Name, sName, lIgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) == 0,
+				mi => String.Compare(mi.Name, sName, stringComparison) == 0,
 				true
 			);
 
 			// Return the methods
-			var typeMethods = (from mi in type.GetTypeInfo().DeclaredMethods where mi.IsPublic select mi).ToArray();
+			var typeMethods = (from mi in type.GetTypeInfo().DeclaredMethods where mi.IsPublic && String.Compare(mi.Name, sName, stringComparison) == 0 select mi).ToArray();
 			if (methods != null)
 			{
 				methods.InsertRange(0, typeMethods);
@@ -842,12 +659,12 @@ namespace Neo.IronLua
       }
 
       // No type for this level, but sub-items -> it is a namespace
-      if (iAssemblyCount >= 0 && GetType(iIndex).Type != null && Type == null)
+      if (iResolverVersion >= 0 && GetType(iIndex).Type != null && Type == null)
       {
         LuaType c = this;
-        while (c.parent != null && c.iAssemblyCount >= 0)
+				while (c.parent != null && c.iResolverVersion >= 0)
         {
-          c.iAssemblyCount = -1;
+					c.iResolverVersion = -1;
           c = c.parent;
         }
       }
@@ -949,7 +766,7 @@ namespace Neo.IronLua
     } // prop Type
 
     /// <summary>Is the LuaType only a namespace at the time.</summary>
-    public bool IsNamespace { get { return iAssemblyCount == -1 || type == null && iAssemblyCount >= 0; } }
+		public bool IsNamespace { get { return iResolverVersion == -1 || type == null && iResolverVersion >= 0; } }
 
     #endregion
 
@@ -958,11 +775,25 @@ namespace Neo.IronLua
     private static LuaType clr = new LuaType();                 // root type
     private static List<LuaType> types = new List<LuaType>();   // SubItems of this type
     private static Dictionary<string, int> knownTypes = new Dictionary<string, int>(); // index for well known types
-		private static bool lLookupReferencedAssemblies = false;		// reference search for types
-		//private static AssemblyCacheList assemblyList = new AssemblyCacheList();
+		private static ILuaTypeResolver typeResolver;
 
 		static LuaType()
 		{
+			// Find type resolver
+			PropertyInfo piLookupReferencedAssemblies = null;
+			var typeLuaDesktop = Type.GetType("Neo.IronLua.LuaDeskop, Neo.Lua.Desktop, Version=5.3.0.0, Culture=neutral, PublicKeyToken=fdb0cd4fe8a6e3b2", false);
+			if (typeLuaDesktop != null)
+			{
+				piLookupReferencedAssemblies = typeLuaDesktop.GetRuntimeProperty("LookupReferencedAssemblies");
+				var r = typeLuaDesktop.GetRuntimeProperty("LuaTypeResolver");
+				if (r != null)
+					typeResolver = r.GetValue(null) as ILuaTypeResolver;
+			}
+
+			if (typeResolver == null)
+				typeResolver = new LuaSimpleTypeResolver();
+
+			// Register basic types
 			RegisterTypeAlias("byte", typeof(byte));
 			RegisterTypeAlias("sbyte", typeof(sbyte));
 			RegisterTypeAlias("short", typeof(short));
@@ -988,7 +819,8 @@ namespace Neo.IronLua
 
 			RegisterTypeExtension(typeof(LuaLibraryString));
 
-			lLookupReferencedAssemblies = true;
+			if (piLookupReferencedAssemblies != null)
+				piLookupReferencedAssemblies.SetValue(null, true);
 		} // /sctor
 
     #region -- Operator ---------------------------------------------------------------
@@ -1239,8 +1071,8 @@ namespace Neo.IronLua
 
     /// <summary>Root for all clr-types.</summary>
     public static LuaType Clr { get { return clr; } }
-		/// <summary>Should the type resolve also scan references assemblies.</summary>
-		public static bool LookupReferencedAssemblies { get { return lLookupReferencedAssemblies; } set { lLookupReferencedAssemblies = value; } }
+		/// <summary>Resolver for types.</summary>
+		public static ILuaTypeResolver Resolver { get { return typeResolver; } set { typeResolver = value; } }
   } // class LuaType
 
   #endregion
@@ -1390,19 +1222,18 @@ namespace Neo.IronLua
 
         typeDelegate = Expression.GetDelegateType(parameters);
       }
-
-			// todo:
-			throw new NotImplementedException("todo");
-			//return new DynamicMetaObject(
-			//	Lua.EnsureType(
-			//		Expression.Call(Lua.CreateDelegateMethodInfo,
-			//			Expression.Constant(typeDelegate),
-			//			GetInstance(methodExpression, methodValue, typeof(object)) ?? Expression.Default(typeof(object)),
-			//			Expression.Constant(miTarget)
-			//		), typeReturn
-			//	),
-			//	BindInvokeRestrictions(methodExpression, methodValue)
-			//);
+			
+			return new DynamicMetaObject(
+				Lua.EnsureType(
+					Expression.Call(
+						Expression.Constant(miTarget),
+						Lua.MethodInfoCreateDelegateMethodInfo,
+						Expression.Constant(typeDelegate),
+						GetInstance(methodExpression, methodValue, typeof(object)) ?? Expression.Default(typeof(object))
+					), typeReturn
+				),
+				BindInvokeRestrictions(methodExpression, methodValue)
+			);
     } // func CreateDelegate
 
     internal static BindingRestrictions BindInvokeRestrictions(Expression methodExpression, ILuaMethod methodValue)

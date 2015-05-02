@@ -49,6 +49,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Exceptions.cs" />
+    <Compile Include="Extern\printf.cs" />
     <Compile Include="Lexer.cs" />
     <Compile Include="Lua.Binder.cs" />
     <Compile Include="Lua.cs" />

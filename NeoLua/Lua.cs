@@ -171,9 +171,18 @@ namespace Neo.IronLua
 
 		/// <summary>Creates a Environment</summary>
 		/// <returns></returns>
-		public dynamic CreateEnvironment()
+		public LuaGlobalPortable CreateEnvironment()
 		{
 			return new LuaGlobalPortable(this);
+		} // func CreateEnvironment
+
+		/// <summary>Create an empty environment</summary>
+		/// <typeparam name="T"></typeparam>
+		/// <returns></returns>
+		public T CreateEnvironment<T>()
+			where T : LuaTable
+		{
+			return (T)Activator.CreateInstance(typeof(T), this);
 		} // func CreateEnvironment
 
 		#endregion

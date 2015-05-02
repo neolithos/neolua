@@ -372,7 +372,7 @@ namespace LuaDLR.Test
 			{
 				l.PrintExpressionTree = Console.Out;
 				var g = l.CreateEnvironment();
-				var r = g.dochunk("return cast(System.Diagnostics.ProcessStartInfo, { FileName = 'Test.exe', Arguments = 'aaa' });", "dummy");
+				var r = g.DoChunk("return cast(System.Diagnostics.ProcessStartInfo, { FileName = 'Test.exe', Arguments = 'aaa' });", "dummy");
 				ProcessStartInfo psi = (ProcessStartInfo)r[0];
 				Assert.IsTrue(psi.FileName == "Test.exe");
 				Assert.IsTrue(psi.Arguments == "aaa");
@@ -642,7 +642,7 @@ namespace LuaDLR.Test
 			using (Lua l = new Lua())
 			{
 				l.PrintExpressionTree = Console.Out;
-				var g = l.CreateEnvironment();
+				dynamic g = l.CreateEnvironment();
 				g.dochunk(GetLines("Lua.EnvDynamicCall01.lua"), "test.lua");
 
 				TestResult(new LuaResult(g.test(2)), 4);

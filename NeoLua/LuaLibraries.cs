@@ -244,9 +244,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static string format(this string formatstring, params object[] args)
 		{
-			// todo:
-			throw new NotImplementedException();
-			//return AT.MIN.Tools.sprintf(formatstring, args);
+			return AT.MIN.Tools.sprintf(formatstring, args);
 		} // func format
 
 		private static LuaResult matchEnum(object s, object current)
