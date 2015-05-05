@@ -289,6 +289,7 @@ namespace Neo.IronLua
 		//} // func CreateEnvironment
 
 		/// <summary>Erzeugt ein Delegate aus dem Code, ohne ihn auszuführen.</summary>
+		/// <param name="lua"></param>
 		/// <param name="sFileName">Dateiname die gelesen werden soll.</param>
 		/// <param name="options">Options for the compile process.</param>
 		/// <param name="args">Parameter für den Codeblock</param>

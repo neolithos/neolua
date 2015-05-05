@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("Neo.Lua.Desktop")]
 [assembly: AssemblyDescription("")]
-[assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCulture("")]
 
 [assembly: ComVisible(false)]

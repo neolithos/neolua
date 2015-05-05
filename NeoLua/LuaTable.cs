@@ -621,7 +621,7 @@ namespace Neo.IronLua
 			{
 				// Automatic convert to a special type, only for classes and structure
 				var typeInfo = binder.Type.GetTypeInfo();
-				if (!typeInfo.IsValueType && !typeInfo.IsAssignableFrom(Value.GetType().GetTypeInfo()))
+				if (!typeInfo.IsPrimitive && !typeInfo.IsAssignableFrom(Value.GetType().GetTypeInfo()))
 				{
 					return new DynamicMetaObject(
 						Lua.EnsureType(
