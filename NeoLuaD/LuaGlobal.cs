@@ -17,8 +17,6 @@ namespace Neo.IronLua
 	/// <summary></summary>
 	public class LuaGlobal : LuaGlobalPortable
 	{
-
-
 		#region -- class LuaLoadedTable ---------------------------------------------------
 
 		private class LuaLoadedTable : LuaTable
@@ -74,7 +72,6 @@ namespace Neo.IronLua
 
 		#endregion
 
-		private Lua lua;
 		private LuaFilePackage io = null;
 		private LuaLibraryPackage package = null;
 		private Dictionary<object, object> loaded = new Dictionary<object, object>();
@@ -84,11 +81,8 @@ namespace Neo.IronLua
 		/// <summary>Create a new environment for the lua script manager.</summary>
 		/// <param name="lua"></param>
 		public LuaGlobal(Lua lua)
+			: base(lua)
 		{
-			if (lua == null)
-				throw new ArgumentNullException("lua");
-
-			this.lua = lua;
 		} // ctor
 
 		#endregion
@@ -96,12 +90,14 @@ namespace Neo.IronLua
 		#region -- DoChunk ----------------------------------------------------------------
 
 		/// <summary>Compiles and execute the filename.</summary>
+		/// <param name="lua"></param>
 		/// <param name="sFileName">Name of the lua file.</param>
 		/// <param name="args">Parameter definition for the file.</param>
 		/// <returns>Return values of the file.</returns>
 		public LuaResult DoChunk(string sFileName, params KeyValuePair<string, object>[] args)
 		{
-			return DoChunk(sFileName, new StreamReader(sFileName), args);
+			using (StreamReader sr = new StreamReader(sFileName))
+				return DoChunk(sr, sFileName, args);
 		} // proc DoFile
 
 		#endregion
@@ -175,7 +171,7 @@ namespace Neo.IronLua
 			try
 			{
 				// collect the chunks
-				if (Lua.IsCallable(ld))
+				if (Lua.RtInvokeable(ld))
 				{
 					StringBuilder sbCode = new StringBuilder();
 					string sPart;
@@ -184,7 +180,7 @@ namespace Neo.IronLua
 					ld = sbCode.ToString();
 				}
 				// create the chunk
-				return LuaLoadReturn(lua.CompileChunk((string)ld, source, null), env);
+				return LuaLoadReturn(Lua.CompileChunk((string)ld, source, null), env);
 			}
 			catch (Exception e)
 			{
@@ -204,100 +200,101 @@ namespace Neo.IronLua
 				throw new NotImplementedException();
 
 			// create the chunk
-			return LuaLoadReturn(lua.CompileChunk(filename, null), env);
+			return LuaLoadReturn(Lua.CompileChunk(filename, null), env);
 		} // func LuaLoadFile
 
-		[LuaMember("require")]
-		private LuaResult LuaRequire(object modname)
-		{
-			if (modname == null)
-				throw new ArgumentNullException();
+		// todo:
+		//[LuaMember("require")]
+		//private LuaResult LuaRequire(object modname)
+		//{
+		//	if (modname == null)
+		//		throw new ArgumentNullException();
 
-			// check if the modul is loaded in this global
-			if (loaded.ContainsKey(modname))
-				return new LuaResult(loaded[modname]);
+		//	// check if the modul is loaded in this global
+		//	if (loaded.ContainsKey(modname))
+		//		return new LuaResult(loaded[modname]);
 
-			// check if the modul is loaded in a different global
-			LuaChunk chunk = lua.LuaRequire(this, modname);
-			if (chunk != null)
-				return new LuaResult(loaded[modname] = DoChunk(chunk)[0]);
-			else
-				return LuaResult.Empty;
-		} // func LuaRequire
+		//	// check if the modul is loaded in a different global
+		//	LuaChunk chunk = Lua.LuaRequire(this, modname);
+		//	if (chunk != null)
+		//		return new LuaResult(loaded[modname] = DoChunk(chunk)[0]);
+		//	else
+		//		return LuaResult.Empty;
+		//} // func LuaRequire
 
-		private bool LuaRequireCheckFile(ref string sFileName, ref DateTime dtStamp)
-		{
-			try
-			{
-				if (!File.Exists(sFileName))
-					return false;
+		//private bool LuaRequireCheckFile(ref string sFileName, ref DateTime dtStamp)
+		//{
+		//	try
+		//	{
+		//		if (!File.Exists(sFileName))
+		//			return false;
 
-				dtStamp = File.GetLastWriteTime(sFileName);
-				return true;
-			}
-			catch (IOException)
-			{
-				return false;
-			}
-		} // func LuaRequireCheckFile
+		//		dtStamp = File.GetLastWriteTime(sFileName);
+		//		return true;
+		//	}
+		//	catch (IOException)
+		//	{
+		//		return false;
+		//	}
+		//} // func LuaRequireCheckFile
 
-		internal bool LuaRequireFindFile(string sPath, string sModName, ref string sFileName, ref DateTime dtStamp)
-		{
-			if (sPath == "%currentdirectory%")
-				sPath = Environment.CurrentDirectory;
+		//internal bool LuaRequireFindFile(string sPath, string sModName, ref string sFileName, ref DateTime dtStamp)
+		//{
+		//	if (sPath == "%currentdirectory%")
+		//		sPath = Environment.CurrentDirectory;
 
-			sFileName = Path.Combine(sPath, sModName + ".lua");
-			return LuaRequireCheckFile(ref sFileName, ref dtStamp);
-		} // func LuaRequireFindFile
+		//	sFileName = Path.Combine(sPath, sModName + ".lua");
+		//	return LuaRequireCheckFile(ref sFileName, ref dtStamp);
+		//} // func LuaRequireFindFile
 
-		internal bool LuaRequireFindFile(string sModName, out string sFileName, out DateTime dtStamp)
-		{
-			dtStamp = DateTime.MinValue;
-			sFileName = null;
+		//internal bool LuaRequireFindFile(string sModName, out string sFileName, out DateTime dtStamp)
+		//{
+		//	dtStamp = DateTime.MinValue;
+		//	sFileName = null;
 
-			bool lStdIncluded = false;
-			string[] paths;
-			if (package == null || package.Path == null)
-			{
-				paths = lua.StandardPackagesPaths;
-				lStdIncluded = true;
-			}
-			else
-				paths = package.Path;
+		//	bool lStdIncluded = false;
+		//	string[] paths;
+		//	if (package == null || package.Path == null)
+		//	{
+		//		paths = Lua.StandardPackagesPaths;
+		//		lStdIncluded = true;
+		//	}
+		//	else
+		//		paths = package.Path;
 
-			foreach (string c in paths)
-			{
-				if (String.IsNullOrEmpty(c))
-				{
-					if (lStdIncluded)
-						continue;
+		//	foreach (string c in paths)
+		//	{
+		//		if (String.IsNullOrEmpty(c))
+		//		{
+		//			if (lStdIncluded)
+		//				continue;
 
-					foreach (string c1 in lua.StandardPackagesPaths)
-					{
-						if (LuaRequireFindFile(c1, sModName, ref sFileName, ref dtStamp))
-							return true;
-					}
-					lStdIncluded = true;
-				}
-				else
-				{
-					if (LuaRequireFindFile(c, sModName, ref sFileName, ref dtStamp))
-						return true;
-				}
-			}
+		//			foreach (string c1 in Lua.StandardPackagesPaths)
+		//			{
+		//				if (LuaRequireFindFile(c1, sModName, ref sFileName, ref dtStamp))
+		//					return true;
+		//			}
+		//			lStdIncluded = true;
+		//		}
+		//		else
+		//		{
+		//			if (LuaRequireFindFile(c, sModName, ref sFileName, ref dtStamp))
+		//				return true;
+		//		}
+		//	}
 
-			return false;
-		} // func LuaRequireFindFile
+		//	return false;
+		//} // func LuaRequireFindFile
 
 		#endregion
 
 		#region -- Basic Libraries --------------------------------------------------------
 
-		[LuaMember("coroutine")]
-		private static LuaType LuaLibraryCoroutine
-		{
-			get { return LuaType.GetType(typeof(LuaThread)); }
-		} // prop LuaLibraryTable
+		//[LuaMember("coroutine")]
+		//private static LuaType LuaLibraryCoroutine
+		//{
+		//	get { return LuaType.GetType(typeof(LuaThread)); }
+		//} // prop LuaLibraryTable
 
 		/// <summary></summary>
 		[LuaMember("io")]
@@ -336,9 +333,6 @@ namespace Neo.IronLua
 		} // prop LuaLibraryDebug
 
 		#endregion
-
-		/// <summary>Access to the assigned Lua script manager</summary>
-		public Lua Lua { get { return lua; } }
 	} // class LuaGlobal
 
 	#endregion

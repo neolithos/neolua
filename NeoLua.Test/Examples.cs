@@ -187,7 +187,7 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        l.PrintExpressionTree = true;
+        l.PrintExpressionTree = Console.Out;
         dynamic dg = l.CreateEnvironment();
         
         dg.dochunk("function classA()" +
@@ -247,7 +247,7 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        l.PrintExpressionTree = true;
+        l.PrintExpressionTree = Console.Out;
         var g = l.CreateEnvironment();
         object[] r = g.DoChunk(
           String.Join(Environment.NewLine,

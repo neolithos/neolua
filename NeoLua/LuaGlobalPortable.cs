@@ -190,7 +190,7 @@ namespace Neo.IronLua
 				}
 		} // func IsTrue
 
-		private static KeyValuePair<string, object>[] CreateArguments(int iOffset, object[] args)
+		internal static KeyValuePair<string, object>[] CreateArguments(int iOffset, object[] args)
 		{
 			KeyValuePair<string, object>[] p = new KeyValuePair<string, object>[(args.Length - iOffset + 1) / 2]; // on 3 arguments we have 1 parameter
 

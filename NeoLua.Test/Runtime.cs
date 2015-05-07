@@ -195,7 +195,7 @@ namespace LuaDLR.Test
       using (Lua l = new Lua())
       {
         var g = l.CreateEnvironment();
-        l.PrintExpressionTree = true;
+        l.PrintExpressionTree = Console.Out;
         g.RegisterPackage("debug", typeof(System.Diagnostics.Debug));
         g.DoChunk("debug:Print('Hallo World!');", "test.lua");
       }
