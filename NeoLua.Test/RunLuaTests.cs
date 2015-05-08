@@ -66,7 +66,7 @@ namespace LuaDLR.Test
 				DoScript(l, g, "strings.lua");
 				//DoScript(l, g, "literals.lua");
 
-				//DoScript(l, g, "math.lua"); overflows?
+				DoScript(l, g, "math.lua");
 				DoScript(l, g, "bitwise.lua");
 			}
 		}

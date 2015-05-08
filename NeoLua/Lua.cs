@@ -483,7 +483,10 @@ namespace Neo.IronLua
 			get
 			{
 				if (versionInfo == null)
-					versionInfo = typeof(Lua).GetTypeInfo().Assembly.GetName().Version;
+				{
+					var versionAttribute = typeof(Lua).GetTypeInfo().Assembly.GetCustomAttribute<AssemblyFileVersionAttribute>();
+					versionInfo = new Version(versionAttribute.Version);
+				}
 				return versionInfo;
 			}
 		} // prop Version
