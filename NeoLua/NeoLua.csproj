@@ -59,6 +59,7 @@
     <Compile Include="LuaGlobalPortable.cs" />
     <Compile Include="LuaLibraries.cs" />
     <Compile Include="LuaResult.cs" />
+    <Compile Include="LuaThread.cs" />
     <Compile Include="LuaType.cs" />
     <Compile Include="LuaChunk.cs" />
     <Compile Include="LuaTable.cs" />

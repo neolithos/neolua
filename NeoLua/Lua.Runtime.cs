@@ -13,28 +13,6 @@ using System.Text;
 
 namespace Neo.IronLua
 {
-	#region -- interface ILuaThread -----------------------------------------------------
-
-	///////////////////////////////////////////////////////////////////////////////
-	/// <summary></summary>
-	public interface ILuaThread
-	{
-	} // interface ILuaThread
-
-	#endregion
-
-	#region -- interface ILuaFile -------------------------------------------------------
-
-	///////////////////////////////////////////////////////////////////////////////
-	/// <summary></summary>
-	public interface ILuaFile
-	{
-		/// <summary>Is the file closed.</summary>
-		bool IsClosed { get; }
-	} // interface ILuaFile
-
-	#endregion
-
 	#region -- class Lua ----------------------------------------------------------------
 
 	///////////////////////////////////////////////////////////////////////////////

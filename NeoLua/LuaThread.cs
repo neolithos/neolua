@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Neo.IronLua
 {
@@ -44,10 +45,8 @@ namespace Neo.IronLua
     private ManualResetEventSlim evYield = null;
     private ManualResetEventSlim evResume = null;
     private object lockResume = null;
-    private Action procExecute;
-    private IAsyncResult arExecute = null;
-
-    private int iCoroutineThreadId = -1;
+		private Task taskExecute = null;
+		private CancellationTokenSource taskCancelExecute = null;
 
     #region -- Ctor/Dtor --------------------------------------------------------------
 
@@ -56,7 +55,6 @@ namespace Neo.IronLua
 		public LuaThread(object target)
     {
 			this.target = target;
-      this.procExecute = ExecuteDelegate;
     } // ctor
 
     /// <summary>Gibt die Daten frei</summary>
@@ -64,6 +62,13 @@ namespace Neo.IronLua
     {
       currentArguments = null;
       currentArguments = null;
+			if (taskCancelExecute != null)
+			{
+				if (!taskCancelExecute.IsCancellationRequested)
+					taskCancelExecute.Cancel();
+				taskCancelExecute.Dispose();
+				taskCancelExecute = null;
+			}
       if (evYield != null)
       {
         evYield.Dispose();
@@ -108,11 +113,12 @@ namespace Neo.IronLua
       currentArguments = args;
 
       // start the coroutine, if not startet
-      if (arExecute == null)
+      if (taskExecute == null)
       {
         evYield = new ManualResetEventSlim(false);
 
-        arExecute = procExecute.BeginInvoke(EndExecuteDelegate, null);
+				taskCancelExecute = new CancellationTokenSource();
+				taskExecute = Task.Factory.StartNew(ExecuteDelegate, taskCancelExecute.Token);
       }
       else if (evResume != null)
       {
@@ -184,20 +190,25 @@ namespace Neo.IronLua
     {
       // search for the correct thread
       LuaThread t = null;
-      lock (luaThreads)
-        t = luaThreads.Find(c => c.iCoroutineThreadId == Thread.CurrentThread.ManagedThreadId);
+			lock (luaThreads)
+			{
+				if (Task.CurrentId.HasValue)
+					t = luaThreads.Find(c => c.taskExecute != null && c.taskExecute.Id == Task.CurrentId.Value);
+			}
       if (t == null)
         throw new LuaRuntimeException(Properties.Resources.rsCoroutineWrongThread, 2, false);
 
       // yield value
       t.currentYield = args;
       t.evYield.Set();
-      // wait for next arguments
+      
+			// wait for next arguments
       t.evResume.Reset();
       t.evResume.Wait();
+
       // return the arguments or stop the background thread
-      if (t.evResume == null)
-        Thread.CurrentThread.Abort();
+			if (t.evResume == null)
+				t.taskCancelExecute.Cancel();
       if (t.currentArguments != null)
         return new LuaResult(t.currentArguments);
       else
@@ -211,37 +222,34 @@ namespace Neo.IronLua
     private void ExecuteDelegate()
     {
       evResume = new ManualResetEventSlim(false);
-       
+
+			Task.Yield(); // force background thread
+
       // add this thread to the thread-pool
-      iCoroutineThreadId = Thread.CurrentThread.ManagedThreadId;
       lock (luaThreads)
         luaThreads.Add(this);
 
-      yield(new LuaResult(Lua.RtInvoke(target, currentArguments.Values)));
+			try
+			{
+				yield(new LuaResult(Lua.RtInvoke(target, currentArguments.Values)));
+			}
+			finally
+			{
+				// remove the thread from the pool
+				lock (luaThreads)
+					luaThreads.Remove(this);
+
+				taskExecute = null;
+				taskCancelExecute.Dispose();
+				taskCancelExecute = null;
+
+				// dispose the events
+				currentYield = LuaResult.Empty;
+				evResume.Dispose();
+				evResume = null;
+				evYield.Set();
+			}
     } // proc ExecuteDelegate
-
-    private void EndExecuteDelegate(IAsyncResult ar)
-    {
-      try
-      {
-        procExecute.EndInvoke(ar);
-      }
-      catch
-      {
-      }
-
-      // remove the thread from the pool
-      lock (luaThreads)
-        luaThreads.Remove(this);
-
-      iCoroutineThreadId = -1;
-      
-      // dispose the events
-      currentYield = LuaResult.Empty;
-      evResume.Dispose();
-      evResume = null;
-      evYield.Set();
-    } // proc EndExecuteDelegate
 
     #endregion
 
@@ -261,11 +269,14 @@ namespace Neo.IronLua
     public static LuaResult running()
     {
       LuaThread t = null;
-      lock (luaThreads)
-        t = luaThreads.Find(c => c.iCoroutineThreadId == Thread.CurrentThread.ManagedThreadId);
+			lock (luaThreads)
+			{
+				if (Task.CurrentId.HasValue)
+					t = luaThreads.Find(c => c.taskExecute != null && c.taskExecute.Id == Task.CurrentId.Value);
+			}
 
       if (t == null)
-        return new LuaResult(Thread.CurrentThread, true);
+        return new LuaResult(null, true);
       else
         return new LuaResult(t, false);
     } // func running
@@ -275,10 +286,10 @@ namespace Neo.IronLua
     {
       get
       {
-        if (iCoroutineThreadId == Thread.CurrentThread.ManagedThreadId)
-          return LuaThreadStatus.Running;
-        else
-        {
+				if (taskExecute != null && Task.CurrentId.HasValue && taskExecute.Id == Task.CurrentId.Value)
+					return LuaThreadStatus.Running;
+				else
+				{
 					/*
 					 * "running", if the coroutine is running (that is, it called status); 
 					 * "suspended", if the coroutine is suspended in a call to yield, or if it has not started running yet; 
@@ -286,14 +297,14 @@ namespace Neo.IronLua
 					 * "dead" if the coroutine has finished its body function, or if it has stopped with an error. 
 					 */
 					if (evYield == null) // is the coroutine active
-						return arExecute == null ? // is the routine started
+						return taskExecute == null ? // is the routine started
 							LuaThreadStatus.Suspended : // no, suspended
 							LuaThreadStatus.Dead; // yes, dead
-					else 
+					else
 						return evYield.IsSet ? // atkive coroutine yields a values
 							LuaThreadStatus.Suspended : // currently in the yield
 							LuaThreadStatus.Normal; // not in the yield, running or waiting?
-        }
+				}
       }
     } // prop Status
 
@@ -303,35 +314,24 @@ namespace Neo.IronLua
     public static LuaResult status(object co)
     {
       LuaThread luaThread = co as LuaThread;
-      Thread clrThread = co as Thread;
-      if (luaThread != null)
-        switch (luaThread.Status)
-        {
-          case LuaThreadStatus.Dead:
-            return new LuaResult(csDead);
-          case LuaThreadStatus.Normal:
-            return new LuaResult(csNormal);
-          case LuaThreadStatus.Running:
-            return new LuaResult(csRunning);
-          case LuaThreadStatus.Suspended:
-            return new LuaResult(csSuspended);
-          default:
-            throw new LuaRuntimeException("thead-status invalid", 2, false);
-        }
-      else if (clrThread != null)
-      {
-        ThreadState s = clrThread.ThreadState;
-        if ((s & (ThreadState.Aborted | ThreadState.AbortRequested | ThreadState.Stopped | ThreadState.StopRequested)) != 0)
-          return new LuaResult(csDead);
-        else if ((s & (ThreadState.Suspended | ThreadState.SuspendRequested | ThreadState.WaitSleepJoin)) != 0)
-          return new LuaResult(csSuspended);
-        else if ((s & ThreadState.Unstarted) != 0)
-          return new LuaResult(csNormal);
-        else
-          return new LuaResult(csRunning);
-      }
-      else
-        throw new LuaRuntimeException(Properties.Resources.rsCoroutineInvalidCO, 2, false);
+			if (luaThread != null)
+			{
+				switch (luaThread.Status)
+				{
+					case LuaThreadStatus.Dead:
+						return new LuaResult(csDead);
+					case LuaThreadStatus.Normal:
+						return new LuaResult(csNormal);
+					case LuaThreadStatus.Running:
+						return new LuaResult(csRunning);
+					case LuaThreadStatus.Suspended:
+						return new LuaResult(csSuspended);
+					default:
+						throw new LuaRuntimeException("thead-status invalid", 2, false);
+				}
+			}
+			else
+				throw new LuaRuntimeException(Properties.Resources.rsCoroutineInvalidCO, 2, false);
     } // func running
 
     /// <summary>Creates a function, that wraps resume.</summary>

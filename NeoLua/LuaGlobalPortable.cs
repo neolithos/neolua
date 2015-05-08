@@ -552,10 +552,10 @@ namespace Neo.IronLua
 				return "table";
 			else if (v is Delegate || v is ILuaMethod)
 				return "function";
-			else if (v is ILuaThread)
+			else if (v is LuaThread)
 				return "thread";
-			else if (v is ILuaFile)
-				return ((ILuaFile)v).IsClosed ? "closed file" : "file";
+			else if (v is LuaFile)
+				return ((LuaFile)v).IsClosed ? "closed file" : "file";
 			else
 				return lClr ? v.GetType().FullName : "userdata";
 		} // func LuaType
@@ -586,6 +586,12 @@ namespace Neo.IronLua
 		#endregion
 
 		#region -- Basic Libraries --------------------------------------------------------
+
+		[LuaMember("coroutine")]
+		private static LuaType LuaLibraryCoroutine
+		{
+			get { return LuaType.GetType(typeof(LuaThread)); }
+		} // prop LuaLibraryTable
 
 		[LuaMember("bit32")]
 		private static LuaType LuaLibraryBit32

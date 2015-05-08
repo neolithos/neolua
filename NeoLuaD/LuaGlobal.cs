@@ -290,12 +290,6 @@ namespace Neo.IronLua
 
 		#region -- Basic Libraries --------------------------------------------------------
 
-		//[LuaMember("coroutine")]
-		//private static LuaType LuaLibraryCoroutine
-		//{
-		//	get { return LuaType.GetType(typeof(LuaThread)); }
-		//} // prop LuaLibraryTable
-
 		/// <summary></summary>
 		[LuaMember("io")]
 		public dynamic LuaLibraryIO

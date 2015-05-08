@@ -811,7 +811,7 @@ namespace Neo.IronLua
 			RegisterTypeAlias("bool", typeof(bool));
 			RegisterTypeAlias("object", typeof(object));
 			RegisterTypeAlias("type", typeof(Type));
-			// todo: RegisterTypeAlias("thread", typeof(LuaThread));
+			RegisterTypeAlias("thread", typeof(LuaThread));
 			RegisterTypeAlias("luatype", typeof(LuaType));
 			RegisterTypeAlias("table", typeof(LuaTable));
 			RegisterTypeAlias("result", typeof(LuaResult));

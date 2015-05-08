@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Neo.IronLua;
 
 namespace NeoTest1
@@ -26,8 +27,15 @@ namespace NeoTest1
 
 	class Program
 	{
+		static async Task<int> TestAsync()
+		{
+			await Task.Yield();
+			return 0;
+		}
+
 		static void Main(string[] args)
 		{
+			Console.Write(TestAsync().Result);
 			using (Lua l = new Lua())
 			{
 				var t = new LuaTable();
