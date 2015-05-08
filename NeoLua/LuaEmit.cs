@@ -1340,16 +1340,17 @@ namespace Neo.IronLua
 			else if (IsFloatType(tc2)) // the second one is a float, the other one is a integer
 				return type2; // -> use the float
 
-			else if ((((int)tc1) & 1) == 1 && (((int)tc2) & 1) == 1) // both types are signed integers
+			else if ((tc1 & LuaEmitTypeCode.UnsignedFlag) != LuaEmitTypeCode.UnsignedFlag &&
+							 (tc2 & LuaEmitTypeCode.UnsignedFlag) != LuaEmitTypeCode.UnsignedFlag) // both types are signed integers
 				return tc1 < tc2 ? type2 : type1; // -> use the highest
-			else if ((((int)tc1) & 1) == 1) // the first one is signed integer
+			else if ((tc1 & LuaEmitTypeCode.UnsignedFlag) != LuaEmitTypeCode.UnsignedFlag) // the first one is signed integer
 			{
 				if (tc1 > tc2) // the unsigned is lower then the signed
 					return type1; // -> use the signed
 				else // -> we need a higher signed integer
 					return LiftTypeSigned(tc1, tc2);
 			}
-			else if ((((int)tc2) & 1) == 1)
+			else if ((tc2 & LuaEmitTypeCode.UnsignedFlag) != LuaEmitTypeCode.UnsignedFlag)
 			{
 				if (tc2 > tc1)
 					return type2;

@@ -112,5 +112,11 @@ namespace LuaDLR.Test
 				"return a(), _G.x;"
 				), "\0", 33);
 		}
+
+		[TestMethod]
+		public void TestSingle05()
+		{
+			TestCode("return tonumber('0ffffFFFF', 16) + 1", (long)4294967296);
+		}
 	}
 }
