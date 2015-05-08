@@ -126,6 +126,9 @@ namespace Neo.IronLua
 		// MethodInfo
 		internal readonly static MethodInfo MethodInfoCreateDelegateMethodInfo;
 
+		internal readonly static Type ClosureType;
+		internal readonly static FieldInfo ClosureLocalsFieldInfo;
+
 		#region -- sctor ------------------------------------------------------------------
 
 		static Lua()
@@ -248,11 +251,6 @@ namespace Neo.IronLua
 			var tiCultureInfo = typeof(CultureInfo).GetTypeInfo();
 			CultureInvariantPropertyInfo = tiCultureInfo.FindDeclaredProperty("InvariantCulture", ReflectionFlag.Public | ReflectionFlag.Static);
 
-			//// Delegate
-			//var tiDelegate = typeof(Delegate).GetTypeInfo();
-			//DelegateMethodPropertyInfo = tiDelegate.FindDeclaredProperty("Method", ReflectionFlag.Public | ReflectionFlag.Instance);
-			////CreateDelegateMethodInfo = tiDelegate.FindDeclaredMethod("CreateDelegate", BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod, null, new Type[] { typeof(Type), typeof(object), typeof(MethodInfo) }, null);
-
 			// List<object>
 			var tiList = typeof(List<object>).GetTypeInfo();
 			ListItemPropertyInfo = tiList.FindDeclaredProperty("Item", ReflectionFlag.Public | ReflectionFlag.Instance);
@@ -280,6 +278,20 @@ namespace Neo.IronLua
 			// MethodInfo
 			var tiMethodInfo = typeof(MethodInfo).GetTypeInfo();
 			MethodInfoCreateDelegateMethodInfo = tiMethodInfo.FindDeclaredMethod("CreateDelegate", ReflectionFlag.None, typeof(Type), typeof(object));
+
+			// Closure
+			string sClosureTypeString = typeof(IStrongBox).AssemblyQualifiedName.Replace(".IStrongBox", ".Closure");
+			ClosureType = Type.GetType(sClosureTypeString, false);
+			//// WinStore, Desktop
+			//ClosureType = Type.GetType("System.Runtime.CompilerServices.Closure, System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", false);
+			//if (ClosureType == null) // WinPhone
+			//	ClosureType = Type.GetType("System.Runtime.CompilerServices.Closure, System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e", false);
+			if (ClosureType != null)
+			{
+				var tiClosureInfo = ClosureType.GetTypeInfo();
+
+				ClosureLocalsFieldInfo = tiClosureInfo.FindDeclaredField("Locals", ReflectionFlag.Instance);
+			}
 		} // sctor
 
 		#endregion
@@ -1075,6 +1087,19 @@ namespace Neo.IronLua
 
 		#region -- RtSetUpValues, RtGetUpValues, RtJoinUpValues ---------------------------
 
+		private static TResult UpValueChangeEditor<TResult>(object target, Func<object[], TResult> changeClosure, Func<FieldInfo[], TResult> changeClass)
+		{
+			// first we check for a closure
+			if (target.GetType() == ClosureType)
+			{
+				return changeClosure(ClosureLocalsFieldInfo.GetValue(target) as object[]);
+			}
+			else // no closure, thread the members as a closure
+			{
+				return changeClass(target.GetType().GetRuntimeFields().Where(fi => fi.IsPublic && !fi.IsStatic).ToArray());
+			}
+		} // func UpValueChangeEditor
+
 		/// <summary>Returns the up-value of the given index.</summary>
 		/// <param name="function">Delegate, which upvalue should returned.</param>
 		/// <param name="index">1-based index of the upvalue.</param>
@@ -1084,34 +1109,29 @@ namespace Neo.IronLua
 			if (function == null || function.Target == null)
 				return LuaResult.Empty;
 
-			throw new NotImplementedException("todo");
-
-			//// first we check for a closure
-			//Closure closure = function.Target as Closure;
-			//if (closure != null)
-			//{
-			//	if (closure.Locals != null && index >= 1 && index <= closure.Locals.Length)
-			//	{
-			//		object v = closure.Locals[index - 1];
-			//		if (v is IStrongBox)
-			//			v = ((IStrongBox)v).Value;
-			//		return new LuaResult("var" + index.ToString(), v);
-			//	}
-			//	else
-			//		return LuaResult.Empty;
-			//}
-			//else // no closure, thread the members as a closure
-			//{
-			//	FieldInfo[] fields = function.Target.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetField | BindingFlags.SetField);
-
-			//	if (index >= 1 && index <= fields.Length)
-			//	{
-			//		FieldInfo fi = fields[index - 1];
-			//		return new LuaResult(fi.Name, fi.GetValue(function.Target));
-			//	}
-			//	else
-			//		return LuaResult.Empty;
-			//}
+			return UpValueChangeEditor(function.Target,
+				locals =>
+				{
+					if (locals != null && index >= 1 && index <= locals.Length)
+					{
+						object v = locals.GetValue(index - 1);
+						if (v is IStrongBox)
+							v = ((IStrongBox)v).Value;
+						return new LuaResult("var" + index.ToString(), v);
+					}
+					else
+						return LuaResult.Empty;
+				},
+				fields =>
+				{
+					if (index >= 1 && index <= fields.Length)
+					{
+						FieldInfo fi = fields[index - 1];
+						return new LuaResult(fi.Name, fi.GetValue(function.Target));
+					}
+					else
+						return LuaResult.Empty;
+				});
 		} // func RtGetUpValue
 
 		#region -- class UpValueObject ----------------------------------------------------
@@ -1183,26 +1203,21 @@ namespace Neo.IronLua
 			if (function == null || function.Target == null)
 				throw new ArgumentOutOfRangeException();
 
-			throw new NotImplementedException("todo");
-
-			//// first we check for a closure
-			//Closure closure = function.Target as Closure;
-			//if (closure != null)
-			//{
-			//	if (closure.Locals != null && index >= 1 && index <= closure.Locals.Length)
-			//		return new UpValueObject(closure.Locals[index - 1], 0);
-			//	else
-			//		throw new ArgumentOutOfRangeException();
-			//}
-			//else // no closure, thread the members as a closure
-			//{
-			//	FieldInfo[] fields = function.Target.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetField | BindingFlags.SetField);
-
-			//	if (index >= 1 && index <= fields.Length)
-			//		return new UpValueObject(function.Target, index);
-			//	else
-			//		throw new ArgumentOutOfRangeException();
-			//}
+			return UpValueChangeEditor(function.Target,
+				locals =>
+				{
+				if (locals != null && index >= 1 && index <= locals.Length)
+					return new UpValueObject(locals[index - 1], 0);
+				else
+					throw new ArgumentOutOfRangeException();
+				},
+				fields =>
+				{
+					if (index >= 1 && index <= fields.Length)
+						return new UpValueObject(function.Target, index);
+					else
+						throw new ArgumentOutOfRangeException();
+				});
 		} // func RtUpValueId
 
 		/// <summary>Changes the up-value of a delegate</summary>
@@ -1215,38 +1230,33 @@ namespace Neo.IronLua
 			if (function == null)
 				return null;
 
-			throw new NotImplementedException("todo");
-
-			//// first we check for a closure
-			//Closure closure = function.Target as Closure;
-			//if (closure != null)
-			//{
-			//	object strongBox;
-			//	if (closure.Locals != null && index >= 1 && index <= closure.Locals.Length && (strongBox = closure.Locals[index - 1]) != null)
-			//	{
-			//		Type typeStrongBox = strongBox.GetType();
-			//		if (typeStrongBox.IsGenericType && typeStrongBox.GetGenericTypeDefinition() == typeof(StrongBox<>))
-			//		{
-			//			Type typeBoxed = typeStrongBox.GetGenericArguments()[0];
-			//			((IStrongBox)strongBox).Value = Lua.RtConvertValue(value, typeBoxed);
-			//			return "var" + index.ToString();
-			//		}
-			//	}
-			//	return null;
-			//}
-			//else // no closure, thread the members as a closure
-			//{
-			//	FieldInfo[] fields = function.Target.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetField | BindingFlags.SetField);
-
-			//	if (index >= 1 && index <= fields.Length)
-			//	{
-			//		FieldInfo fi = fields[index - 1];
-			//		fi.SetValue(function.Target, Lua.RtConvertValue(value, fi.FieldType));
-			//		return fi.Name;
-			//	}
-			//	else
-			//		return null;
-			//}
+			return UpValueChangeEditor(function.Target,
+				locals =>
+				{
+					object strongBox;
+					if (locals != null && index >= 1 && index <= locals.Length && (strongBox = locals[index - 1]) != null)
+					{
+						var tiStrongBox = strongBox.GetType().GetTypeInfo();
+						if (tiStrongBox.IsGenericType && tiStrongBox.GetGenericTypeDefinition() == typeof(StrongBox<>))
+						{
+							Type typeBoxed = tiStrongBox.GenericTypeArguments[0];
+							((IStrongBox)strongBox).Value = Lua.RtConvertValue(value, typeBoxed);
+							return "var" + index.ToString();
+						}
+					}
+					return null;
+				},
+				fields =>
+				{
+					if (index >= 1 && index <= fields.Length)
+					{
+						FieldInfo fi = fields[index - 1];
+						fi.SetValue(function.Target, Lua.RtConvertValue(value, fi.FieldType));
+						return fi.Name;
+					}
+					else
+						return null;
+				});
 		} // func RtSetUpValue
 
 		/// <summary>Make the index1 upvalue refer to index2 upvalue. This only works for closures.</summary>
@@ -1262,23 +1272,24 @@ namespace Neo.IronLua
 			if (function2 == null)
 				throw new ArgumentNullException("f2");
 
-			throw new NotImplementedException("todo");
+			// only closures are allowed
+			if (function1.Target.GetType() == ClosureType)
+				throw new InvalidOperationException("f1 is not a closure");
 
-			//// convert the closures
-			//Closure closure1 = function1.Target as Closure;
-			//if (closure1 == null)
-			//	throw new InvalidOperationException("f1 is not a closure");
-			//if (index1 < 1 || index1 > closure1.Locals.Length)
-			//	throw new ArgumentOutOfRangeException("index1");
+			if (function2.Target.GetType() == ClosureType)
+				throw new InvalidOperationException("f2 is not a closure");
 
-			//Closure closure2 = function2.Target as Closure;
-			//if (closure2 == null)
-			//	throw new InvalidOperationException("f2 is not a closure");
-			//if (index2 < 1 || index2 > closure2.Locals.Length)
-			//	throw new ArgumentOutOfRangeException("index2");
+			// check the indexes
+			var locals1 = ClosureLocalsFieldInfo.GetValue(function1.Target) as object[];
+			if (locals1 == null || index1 < 1 || index1 > locals1.Length)
+				throw new ArgumentOutOfRangeException("index1");
 
-			//// re-reference the strongbox
-			//closure1.Locals[index1 - 1] = closure2.Locals[index2 - 1];
+			var locals2 = ClosureLocalsFieldInfo.GetValue(function2.Target) as object[];
+			if (locals2 == null || index2 < 1 || index2 > locals2.Length)
+				throw new ArgumentOutOfRangeException("index2");
+
+			// re-reference the strongbox
+			locals1[index1 - 1] = locals2[index2 - 1];
 		} // func RtUpValueJoin
 
 		#endregion

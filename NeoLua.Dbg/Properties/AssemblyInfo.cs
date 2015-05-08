@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("NeoLua.Dbg")]
 [assembly: AssemblyDescription("")]
-[assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCulture("")]
 
 [assembly: ComVisible(false)]

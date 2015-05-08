@@ -39,9 +39,16 @@ namespace NeoTest1
 			using (Lua l = new Lua())
 			{
 				var t = new LuaTable();
-				var c = l.CompileChunk("return 4 + 3", "test", null);
-				var r =				c.Run(t);
-				Console.WriteLine("Test: {0}", r.ToInt32());
+				var c = l.CompileChunk(
+					String.Join(Environment.NewLine,
+						"local v1 = 2;",
+						"local v2 = 4;",
+						"function f()",
+						"  return v1 + v2;",
+						"end;",
+						"return f();"), "test", null);
+				var r = c.Run(t);
+				Console.WriteLine("Test: v1=[{0}], v2=[{1}], r={2}", Lua.RtGetUpValue(t.GetMemberValue("f") as Delegate, 1), Lua.RtGetUpValue(t.GetMemberValue("f") as Delegate, 2), r.ToInt32());
 			}
 
 			//LinqTest2();

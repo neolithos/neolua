@@ -31,7 +31,7 @@ namespace LuaDLR.Test
 			using (Lua l = new Lua())
 			{
 				l.PrintExpressionTree = PrintExpressionTree ? Console.Out : null;
-				var g = l.CreateEnvironment();
+				var g = l.CreateEnvironment<LuaGlobal>();
 				Console.WriteLine("Test: {0}", sCode);
 				Console.WriteLine(new string('=', 66));
 				Stopwatch sw = new Stopwatch();

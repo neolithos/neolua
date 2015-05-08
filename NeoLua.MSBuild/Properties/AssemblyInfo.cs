@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("NeoLua.MSBuild")]
 [assembly: AssemblyDescription("")]
-[assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCulture("")]
 
 [assembly: ComVisible(false)]

@@ -602,7 +602,7 @@ namespace Neo.IronLua
 			);
 
 			// Return the methods
-			var typeMethods = (from mi in type.GetTypeInfo().DeclaredMethods where mi.IsPublic && String.Compare(mi.Name, sName, stringComparison) == 0 select mi).ToArray();
+			var typeMethods = (from mi in type.GetRuntimeMethods() where mi.IsPublic && String.Compare(mi.Name, sName, stringComparison) == 0 select mi).ToArray();
 			if (methods != null)
 			{
 				methods.InsertRange(0, typeMethods);

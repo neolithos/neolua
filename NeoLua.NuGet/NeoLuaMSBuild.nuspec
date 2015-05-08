@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>NeoLuaMSBuild</id>
+    <version>$version$</version>
+    <title>NeoLua for MSBuild</title>
+    <authors>Neolithos</authors>
+    <projectUrl>https://neolua.codeplex.com/</projectUrl>
+    <licenseUrl>https://neolua.codeplex.com/license</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Write msbuild tasks with NeoLua.</description>
+    <summary>      
+    </summary>
+    <tags>Lua NeoLua .net MSBuild</tags>
+  </metadata>
+  <files>
+    <file src="Init.ps1" target="tools" />
+    <file src="bin\Release\Neo.Lua.dll" target="tools" />
+    <file src="bin\Release\Neo.Lua.MSBuild.dll" target="tools" />
+  </files>
+</package>

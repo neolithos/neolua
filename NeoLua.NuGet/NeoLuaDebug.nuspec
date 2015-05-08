@@ -1,14 +1,14 @@
 <?xml version="1.0"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
-		<id>NeoLua</id>
+		<id>NeoLuaDebug</id>
 		<version>$version$</version>
-		<title>NeoLua</title>
+		<title>NeoLua - Debug</title>
 		<authors>Neolithos</authors>
 		<projectUrl>https://neolua.codeplex.com/</projectUrl>
 		<licenseUrl>https://neolua.codeplex.com/license</licenseUrl>
 		<requireLicenseAcceptance>false</requireLicenseAcceptance>
-		<description>A Lua implementation for the Dynamic Language Runtime (DLR).</description>
+		<description>A Lua implementation for the Dynamic Language Runtime (DLR). Debug-Extension.</description>
 		<summary>
 			A Lua implementation for the Dynamic Language Runtime (DLR).
 
@@ -22,16 +22,14 @@
 		<frameworkAssemblies>
 			<frameworkAssembly assemblyName="System" targetFramework="net45" />
 		</frameworkAssemblies>
+		<dependencies>
+			<dependency id="DynamicLanguageRuntime" />
+			<dependency id="NeoLua" />
+		</dependencies>
 	</metadata>
   <files>
-		<file src="..\NeoLua\bin\Release\Neo.Lua.dll" target="lib\portable-windows8+net45" />
-		<file src="..\NeoLua\bin\Release\Neo.Lua.pdb" target="lib\portable-windows8+net45" />
-		<file src="..\NeoLua\bin\Release\Neo.Lua.xml" target="lib\portable-windows8+net45" />
-		<file src="..\NeoLua\bin\Release\Neo.Lua.dll" target="lib\net45" />
-		<file src="..\NeoLua\bin\Release\Neo.Lua.pdb" target="lib\net45" />
-		<file src="..\NeoLua\bin\Release\Neo.Lua.xml" target="lib\net45" />
-		<file src="..\NeoLuaD\bin\Release\Neo.Lua.Desktop.dll" target="lib\net45" />
-		<file src="..\NeoLuaD\bin\Release\Neo.Lua.Desktop.pdb" target="lib\net45" />
-		<file src="..\NeoLuaD\bin\Release\Neo.Lua.Desktop.xml" target="lib\net45" />
+		<file src="..\NeoLua.Dbg\bin\Release\Neo.Lua.Dbg.dll" target="lib\net45" />
+		<file src="..\NeoLua.Dbg\bin\Release\Neo.Lua.Dbg.pdb" target="lib\net45" />
+		<file src="..\NeoLua.Dbg\bin\Release\Neo.Lua.Dbg.xml" target="lib\net45" />
 	</files>
 </package>

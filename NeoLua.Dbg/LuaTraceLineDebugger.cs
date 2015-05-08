@@ -12,6 +12,8 @@ namespace Neo.IronLua
 {
   #region -- class LuaTraceLineEventArgs ----------------------------------------------
 
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary></summary>
   public class LuaTraceLineEventArgs : EventArgs
   {
     private string sName;
@@ -29,11 +31,15 @@ namespace Neo.IronLua
       this.scopeCallback = scopeCallback;
     } // ctor
 
-    public string ScopeName { get { return sName; } }
-    public string SourceName { get { return sSourceFile; } }
-    public int SourceLine { get { return iLine; } }
+		/// <summary></summary>
+		public string ScopeName { get { return sName; } }
+		/// <summary></summary>
+		public string SourceName { get { return sSourceFile; } }
+		/// <summary></summary>
+		public int SourceLine { get { return iLine; } }
 
-    public IDictionary<object, object> Locals
+		/// <summary></summary>
+		public IDictionary<object, object> Locals
     {
       get
       {
@@ -68,7 +74,8 @@ namespace Neo.IronLua
   
   #region -- class LuaTraceLineDebugger -----------------------------------------------
 
-  /// <summary></summary>
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary></summary>
   public class LuaTraceLineDebugger : ILuaDebug
   {
     #region -- class TraceCallback ----------------------------------------------------
@@ -194,6 +201,7 @@ namespace Neo.IronLua
     private DebugContext context;
     private ITracePipeline pipeline;
 
+		/// <summary></summary>
     public LuaTraceLineDebugger()
     {
       callback = new TraceCallback(this);
@@ -216,18 +224,25 @@ namespace Neo.IronLua
 
     #endregion
 
-    protected virtual void OnFrameEnter(LuaTraceLineEventArgs e)
+		/// <summary></summary>
+		/// <param name="e"></param>
+		protected virtual void OnFrameEnter(LuaTraceLineEventArgs e)
     {
     } // proc OnFrameEnter
 
-    protected virtual void OnTracePoint(LuaTraceLineEventArgs e)
+		/// <summary></summary>
+		/// <param name="e"></param>
+		protected virtual void OnTracePoint(LuaTraceLineEventArgs e)
     {
     } // proc OnTracePoint
 
+		/// <summary></summary>
+		/// <param name="e"></param>
     protected virtual void OnExceptionUnwind(LuaTraceLineExceptionEventArgs e)
     {
     } // proc OnExceptionUnwind
 
+		/// <summary></summary>
     protected virtual void OnFrameExit()
     {
     } // proc OnFrameExit

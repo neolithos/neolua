@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("NeoCmd")]
 [assembly: AssemblyDescription("")]
-[assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCulture("")]
 
 [assembly: ComVisible(false)]

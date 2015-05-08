@@ -58,6 +58,8 @@
       <Link>nuspec.2011.8.xsd</Link>
       <SubType>Designer</SubType>
     </None>
+    <None Include="NeoLuaDebug.nuspec" />
+    <None Include="NeoLuaMSBuild.nuspec" />
     <None Include="NuGet.config" />
     <None Include="NeoLua.nuspec" />
     <None Include="package.targets">

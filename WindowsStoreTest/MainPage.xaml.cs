@@ -56,5 +56,23 @@ namespace WindowsStoreTest
 				txtResult.Text = String.Format("[{0}] {1}", ex.GetType().Name, ex.Message);
 			}
 		}
+
+		private void Button_Click_1(object sender, RoutedEventArgs e)
+		{
+			using (Lua l = new Lua())
+			{
+				var t = new LuaTable();
+				var c = l.CompileChunk(
+					String.Join(Environment.NewLine,
+						"local v1 = 2;",
+						"local v2 = 4;",
+						"function f()",
+						"  return v1 + v2;",
+						"end;",
+						"return f();"), "test", null);
+				var r = c.Run(t);
+				txtResult.Text = String.Format("Test: v1=[{0}], v2=[{1}], r={2}", Lua.RtGetUpValue(t.GetMemberValue("f") as Delegate, 1), Lua.RtGetUpValue(t.GetMemberValue("f") as Delegate, 2), r.ToInt32());
+			}
+		}
 	}
 }

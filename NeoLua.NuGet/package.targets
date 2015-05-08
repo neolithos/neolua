@@ -7,6 +7,7 @@
 	<ItemGroup>
 		<ZipFile Include="$(MSBuildProjectDirectory)\..\NeoLuaD\bin\Release\Neo.Lua.*" />
 		<ZipFile Include="$(MSBuildProjectDirectory)\..\NeoLuaD\bin\Release\de\*" />
+		<ZipFileDbg Include="$(MSBuildProjectDirectory)\..\NeoLua.Dbg\bin\Release\Neo.Lua.Dbg.*" />
 	</ItemGroup>
 	
 	<Target Name="PrepareVersion">
@@ -39,9 +40,23 @@
 		
 		<!-- Zip -->
 		<Zip Files="@(ZipFile)" WorkingDirectory="$(MSBuildProjectDirectory)\..\NeoLuaD\bin\Release" ZipFileName="$(TargetDir)\$(Version)\NeoLua-$(Version).zip" />
-		
+		<Zip Files="@(ZipFileDbg)" WorkingDirectory="$(MSBuildProjectDirectory)\..\NeoLua.Dbg\bin\Release" ZipFileName="$(TargetDir)\$(Version)\NeoLuaDbg-$(Version).zip" />
+
 		<!-- Create NuGet Package -->
 		<Exec Command="c:\Projects\Bin\NuGet.exe pack NeoLua.nuspec -OutputDirectory $(TargetDir)\$(Version) -Version $(Version)" />
+		<Exec Command="c:\Projects\Bin\NuGet.exe pack NeoLuaDebug.nuspec -OutputDirectory $(TargetDir)\$(Version) -Version $(Version)" />
 		<!--<Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir)\NeoLua.$(Version).nupkg" />-->
 	</Target>
 </Project>
+<!--<Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
+    <CreateItem Include="$(TargetDir)\Neo.Lua.MSBuild.dll;$(TargetDir)\Neo.Lua.dll;$(TargetDir)\de\*">
+      <Output ItemName="ZipFile" TaskParameter="Include" />
+    </CreateItem>
+    <Zip Files="@(ZipFile)" WorkingDirectory="$(TargetDir)" ZipFileName="$(TargetDir)\NeoLuaMSBuild-$(Version).zip" />
+  </Target>
+  <Target Name="NuGet" Condition=" '$(Configuration)' == 'Release' ">
+    <Exec Command="c:\Projects\Bin\NuGet.exe pack NeoLuaMSBuild.nuspec -OutputDirectory $(TargetDir) -Version $(Version)" />
+    -->
+<!--<Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir)NeoLuaMSBuild.$(Version).nupkg" />-->
+<!--
+  </Target>-->

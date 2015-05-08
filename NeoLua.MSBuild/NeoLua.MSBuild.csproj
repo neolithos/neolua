@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Neo.IronLua</RootNamespace>
     <AssemblyName>Neo.Lua.MSBuild</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SccProjectName>SAK</SccProjectName>
     <SccLocalPath>SAK</SccLocalPath>
@@ -26,6 +26,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -34,6 +35,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Build.Framework" />
@@ -55,6 +57,10 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\NeoLuaD\NeoLuaD.csproj">
+      <Project>{2fb491e8-65af-4c0d-a13e-4af73419ae0c}</Project>
+      <Name>NeoLuaD</Name>
+    </ProjectReference>
     <ProjectReference Include="..\NeoLua\NeoLua.csproj">
       <Project>{09aebb35-719e-4e32-9836-f57d7d6f1607}</Project>
       <Name>NeoLua</Name>
@@ -62,32 +68,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Init.ps1" />
-    <None Include="NeoLuaMSBuild.nuspec" />
     <None Include="Sample\Test.bproj" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Target Name="BeforeBuild">
-    <ReadLinesFromFile File="..\NeoLua\Properties\AssemblyInfoGlobal.cs">
-      <Output TaskParameter="Lines" ItemName="AssemblyVersionContent" />
-    </ReadLinesFromFile>
-    <PropertyGroup>
-      <Pattern>\[assembly: AssemblyFileVersion\(.(\d+)\.(\d+)\.(\d+)</Pattern>
-      <AssemblyVersionLines>@(AssemblyVersionContent)</AssemblyVersionLines>
-      <AssemblyVersionLine>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyVersionLines), $(Pattern)))</AssemblyVersionLine>
-      <Version>$(AssemblyVersionLine.Remove(0, 32))</Version>
-    </PropertyGroup>
-    <Message Text="Version: $(Version)" />
-  </Target>
-  <Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
-    <CreateItem Include="$(TargetDir)\Neo.Lua.MSBuild.dll;$(TargetDir)\Neo.Lua.dll;$(TargetDir)\de\*">
-      <Output ItemName="ZipFile" TaskParameter="Include" />
-    </CreateItem>
-    <Zip Files="@(ZipFile)" WorkingDirectory="$(TargetDir)" ZipFileName="$(TargetDir)\NeoLuaMSBuild-$(Version).zip" />
-  </Target>
-  <Target Name="NuGet" Condition=" '$(Configuration)' == 'Release' ">
-    <Exec Command="c:\Projects\Bin\NuGet.exe pack NeoLuaMSBuild.nuspec -OutputDirectory $(TargetDir) -Version $(Version)" />
-    <!--<Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir)NeoLuaMSBuild.$(Version).nupkg" />-->
-  </Target>
-  <Target Name="AfterBuild" DependsOnTargets="ZipLua;NuGet">
-  </Target>
 </Project>

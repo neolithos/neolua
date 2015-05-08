@@ -22,5 +22,6 @@
 		</StackPanel>
 
 		<TextBlock x:Name="txtResult" Text="..." FontFamily="40" Margin="16" Grid.Row="2" />
+		<Button Content="Closure" Click="Button_Click_1" />
 	</Grid>
 </Page>

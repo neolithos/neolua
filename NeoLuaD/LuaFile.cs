@@ -81,6 +81,7 @@ namespace Neo.IronLua
 		/// <summary>Creates a new lua compatible file access.</summary>
 		/// <param name="sFileName">Name of the file</param>
 		/// <param name="sMode">mode</param>
+		/// <param name="encoding"></param>
 		public static LuaFile OpenFile(string sFileName, string sMode, Encoding encoding)
 		{
 			if (String.IsNullOrEmpty(sMode))
@@ -366,6 +367,7 @@ namespace Neo.IronLua
       return new LuaFileProcess(Process.Start(psi), psi.RedirectStandardOutput, psi.RedirectStandardInput);
     } // func popen
 
+		/// <summary>Defines the encoding for stdout</summary>
 		public Encoding DefaultEncoding
 		{
 			get { return defaultEncoding; }

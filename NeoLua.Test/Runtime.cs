@@ -225,7 +225,7 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        dynamic g = l.CreateEnvironment();
+        dynamic g = l.CreateEnvironment<LuaGlobal>();
 
         g.dochunk("print(os.date('Today is %A, in %B'))");
 

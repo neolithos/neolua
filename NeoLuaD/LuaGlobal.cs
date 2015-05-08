@@ -90,7 +90,6 @@ namespace Neo.IronLua
 		#region -- DoChunk ----------------------------------------------------------------
 
 		/// <summary>Compiles and execute the filename.</summary>
-		/// <param name="lua"></param>
 		/// <param name="sFileName">Name of the lua file.</param>
 		/// <param name="args">Parameter definition for the file.</param>
 		/// <returns>Return values of the file.</returns>
@@ -104,6 +103,8 @@ namespace Neo.IronLua
 
 		#region -- Basic Functions --------------------------------------------------------
 
+		/// <summary></summary>
+		/// <param name="sText"></param>
 		protected override void OnPrint(string sText)
 		{
 			if (Environment.UserInteractive)
