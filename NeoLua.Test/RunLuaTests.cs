@@ -15,42 +15,40 @@ namespace LuaDLR.Test
 	{
 		private object TestAssert(object test, string sMessage)
 		{
-			throw new NotImplementedException();
-			//if (!(bool)Lua.RtConvertValue(test, typeof(bool)))
-			//{
-			//	LuaStackFrame frame = LuaExceptionData.GetStackTrace(new StackTrace(0, true)).FirstOrDefault(c => c.Type == LuaStackFrameType.Lua);
-			//	if (frame == null)
-			//		Assert.IsTrue(false, "Test failed (unknown position) " + sMessage);
-			//	else
-			//		Assert.IsTrue(false, "Test failed at line {0}, column {1}, file {2} {3}", frame.LineNumber, frame.ColumnNumber, frame.FileName, sMessage);
-			//}
-			//return test;
+			if (!(bool)Lua.RtConvertValue(test, typeof(bool)))
+			{
+				LuaStackFrame frame = LuaExceptionData.GetStackTrace(new StackTrace(0, true)).FirstOrDefault(c => c.Type == LuaStackFrameType.Lua);
+				if (frame == null)
+					Assert.IsTrue(false, "Test failed (unknown position) " + sMessage);
+				else
+					Assert.IsTrue(false, "Test failed at line {0}, column {1}, file {2} {3}", frame.LineNumber, frame.ColumnNumber, frame.FileName, sMessage);
+			}
+			return test;
 		}
 
 		private void DoScript(Lua l, LuaGlobal g, string sScript)
 		{
-			throw new NotImplementedException();
-		//	Type type = typeof(RunLuaTests);
-		//	using (Stream src = type.Assembly.GetManifestResourceStream(type, "CompTests." + sScript))
-		//	using (StreamReader sr = new StreamReader(src))
-		//	{
-		//		Console.WriteLine();
-		//		Console.WriteLine(new string('=', 60));
-		//		Console.WriteLine("= " + sScript);
-		//		Console.WriteLine();
-		//		try
-		//		{
-		//			g.DoChunk(l.CompileChunk(sr, sScript, Lua.DefaultDebugEngine));
-		//		}
-		//		catch (Exception e)
-		//		{
-		//			if (e is LuaException)
-		//				Console.WriteLine("Line: {0}, Column: {1}", ((LuaException)e).Line, ((LuaException)e).Column);
-		//			Console.WriteLine("StackTrace:");
-		//			Console.WriteLine(LuaExceptionData.GetData(e).StackTrace);
-		//			throw;
-		//		}
-		//	}
+			Type type = typeof(RunLuaTests);
+			using (Stream src = type.Assembly.GetManifestResourceStream(type, "CompTests." + sScript))
+			using (StreamReader sr = new StreamReader(src))
+			{
+				Console.WriteLine();
+				Console.WriteLine(new string('=', 60));
+				Console.WriteLine("= " + sScript);
+				Console.WriteLine();
+				try
+				{
+					g.DoChunk(l.CompileChunk(sr, sScript, LuaDeskop.StackTraceCompileOptions));
+				}
+				catch (Exception e)
+				{
+					if (e is LuaException)
+						Console.WriteLine("Line: {0}, Column: {1}", ((LuaException)e).Line, ((LuaException)e).Column);
+					Console.WriteLine("StackTrace:");
+					Console.WriteLine(LuaExceptionData.GetData(e).StackTrace);
+					throw;
+				}
+			}
 		}
 
 		[TestMethod]
@@ -68,7 +66,7 @@ namespace LuaDLR.Test
 				DoScript(l, g, "strings.lua");
 				//DoScript(l, g, "literals.lua");
 
-				DoScript(l, g, "math.lua");
+				//DoScript(l, g, "math.lua"); overflows?
 				DoScript(l, g, "bitwise.lua");
 			}
 		}

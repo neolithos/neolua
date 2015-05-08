@@ -280,6 +280,7 @@ namespace Neo.IronLua
 
 		private static bool lLookupReferencedAssemblies = false;	// reference search for types
 		private static ILuaTypeResolver typeResolver = new AssemblyCacheList();
+		private static LuaCompileOptions stackTraceCompileOptions = new LuaCompileOptions { DebugEngine = LuaStackTraceDebugger.Default };
 
 		///// <summary>Creates an empty environment.</summary>
 		///// <returns>Initialized environment</returns>
@@ -304,6 +305,8 @@ namespace Neo.IronLua
 		public static ILuaTypeResolver LuaTypeResolver { get { return typeResolver; } }
 		/// <summary>Should the type resolve also scan references assemblies.</summary>
 		public static bool LookupReferencedAssemblies { get { return lLookupReferencedAssemblies; } set { lLookupReferencedAssemblies = value; } }
+		/// <summary></summary>
+		public static LuaCompileOptions StackTraceCompileOptions { get { return stackTraceCompileOptions; } }
 	} // class LuaDeskop
 }
 

@@ -384,6 +384,7 @@ namespace Neo.IronLua
 
 		private static object luaDynamicNameLock = new object();
 		private static AssemblyName luaDynamicName = null;
+		private static ILuaDebug stackTraceDebugger = new LuaStackTraceDebugger();
 
 		private static AssemblyName GetLuaDynamicName()
 		{
@@ -410,7 +411,10 @@ namespace Neo.IronLua
 				return luaDynamicName;
 			}
 		} // func GetLuaDynamicName
-	} // class StackTraceDebugger
+
+		/// <summary>Default debugger for the stack trace debugger.</summary>
+		public static ILuaDebug Default { get { return stackTraceDebugger; } }
+	} // class LuaStackTraceDebugger
 
 	#endregion
 }

@@ -76,8 +76,8 @@ assert(tonumber('-fFfa', 16) == -(10+(16*(15+(16*(15+(16*15)))))))
 assert(tonumber(string.rep('1', 42), 2) + 1 == 2^42)
 assert(tonumber(string.rep('1', 34), 2) + 1 == 2^34)
 assert(tonumber('ffffFFFF', 16)+1 == 2^32)
-assert(tonumber('0ffffFFFF', 16)+1 == 2^32)
-assert(tonumber('-0ffffffFFFF', 16) - 1 == -2^40)
+ assert(tonumber('0ffffFFFF', 16)+1 == 2^32)
+ assert(tonumber('-0ffffffFFFF', 16) - 1 == -2^40)
 for i = 2,36 do
   assert(tonumber('\t10000000000\t', i) == i^10)
 end

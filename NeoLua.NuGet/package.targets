@@ -7,7 +7,17 @@
 	<ItemGroup>
 		<ZipFile Include="$(MSBuildProjectDirectory)\..\NeoLuaD\bin\Release\Neo.Lua.*" />
 		<ZipFile Include="$(MSBuildProjectDirectory)\..\NeoLuaD\bin\Release\de\*" />
+		
 		<ZipFileDbg Include="$(MSBuildProjectDirectory)\..\NeoLua.Dbg\bin\Release\Neo.Lua.Dbg.*" />
+
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\NeoCmd.exe" />
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Neo.Lua.dll" />
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Neo.Lua.Dbg.dll" />
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Microsoft.Dynamic.dll" />
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Microsoft.Scripting.dll" />
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Microsoft.Scripting.Metadata.dll" />
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\de\*" />
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Samples\*.lua" />
 	</ItemGroup>
 	
 	<Target Name="PrepareVersion">
@@ -41,11 +51,13 @@
 		<!-- Zip -->
 		<Zip Files="@(ZipFile)" WorkingDirectory="$(MSBuildProjectDirectory)\..\NeoLuaD\bin\Release" ZipFileName="$(TargetDir)\$(Version)\NeoLua-$(Version).zip" />
 		<Zip Files="@(ZipFileDbg)" WorkingDirectory="$(MSBuildProjectDirectory)\..\NeoLua.Dbg\bin\Release" ZipFileName="$(TargetDir)\$(Version)\NeoLuaDbg-$(Version).zip" />
+		<Zip Files="@(ZipFileCmd)" WorkingDirectory="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release" ZipFileName="$(TargetDir)\$(Version)\NeoLuaCmd-$(Version).zip" />
 
 		<!-- Create NuGet Package -->
 		<Exec Command="c:\Projects\Bin\NuGet.exe pack NeoLua.nuspec -OutputDirectory $(TargetDir)\$(Version) -Version $(Version)" />
 		<Exec Command="c:\Projects\Bin\NuGet.exe pack NeoLuaDebug.nuspec -OutputDirectory $(TargetDir)\$(Version) -Version $(Version)" />
-		<!--<Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir)\NeoLua.$(Version).nupkg" />-->
+		<!--<Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir)\$(Version)\NeoLua.$(Version).nupkg" />-->
+		<!--<Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir)\$(Version)\NeoLuaDebug.$(Version).nupkg" />-->
 	</Target>
 </Project>
 <!--<Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">

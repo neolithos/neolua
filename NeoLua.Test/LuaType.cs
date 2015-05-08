@@ -341,14 +341,13 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-				throw new NotImplementedException();
-				//var g = l.CreateEnvironment();
-				//var c = l.CompileChunk(Lines(
-				//	"local a : System.EventHandler = function(a, b) : void",
-				//	"  print('Hallo');",
-				//	"end;",
-				//	"a()"), "dummy", Lua.DefaultDebugEngine);
-				//g.DoChunk(c);
+				var g = l.CreateEnvironment();
+				var c = l.CompileChunk(Lines(
+					"local a : System.EventHandler = function(a, b) : void",
+					"  print('Hallo');",
+					"end;",
+					"a()"), "dummy", LuaDeskop.StackTraceCompileOptions);
+				g.DoChunk(c);
       }
     }
 

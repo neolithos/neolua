@@ -385,6 +385,7 @@ namespace Neo.IronLua
 
     // -- Static --------------------------------------------------------------
 
+		private static Version versionInfo = null;
     private static object lockDefaultDebugEngine = new object();
 		// todo:
 		//private static LuaCompileOptions defaultDebugEngine = null;
@@ -475,5 +476,16 @@ namespace Neo.IronLua
 		} // func GetChunkFromMethodInfo
 
 		#endregion
+
+		/// <summary>Returns the version of lua.</summary>
+		public static Version Version
+		{
+			get
+			{
+				if (versionInfo == null)
+					versionInfo = typeof(Lua).GetTypeInfo().Assembly.GetName().Version;
+				return versionInfo;
+			}
+		} // prop Version
 	} // class Lua
 }

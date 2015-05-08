@@ -98,24 +98,8 @@
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   -->
-  <Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
-    <CreateItem Include="$(TargetDir)\NeoCmd.exe;$(TargetDir)\Neo.Lua.dll;$(TargetDir)\Neo.Lua.Dbg.dll;$(TargetDir)\Microsoft.Dynamic.dll;$(TargetDir)\Microsoft.Scripting.dll;$(TargetDir)\Microsoft.Scripting.Metadata.dll;$(TargetDir)\de\*;Samples\*.lua">
-      <Output ItemName="ZipFile" TaskParameter="Include" />
-    </CreateItem>
-    <Zip Files="@(ZipFile)" WorkingDirectory="$(TargetDir)" ZipFileName="$(TargetDir)\NeoCmd-$(Version).zip" />
-  </Target>
   <Target Name="BeforeBuild">
-    <ReadLinesFromFile File="..\NeoLua\Properties\AssemblyInfoGlobal.cs">
-      <Output TaskParameter="Lines" ItemName="AssemblyVersionContent" />
-    </ReadLinesFromFile>
-    <PropertyGroup>
-      <Pattern>\[assembly: AssemblyFileVersion\(.(\d+)\.(\d+)\.(\d+)</Pattern>
-      <AssemblyVersionLines>@(AssemblyVersionContent)</AssemblyVersionLines>
-      <AssemblyVersionLine>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyVersionLines), $(Pattern)))</AssemblyVersionLine>
-      <Version>$(AssemblyVersionLine.Remove(0, 32))</Version>
-    </PropertyGroup>
-    <Message Text="Version: $(Version)" />
   </Target>
-  <Target Name="AfterBuild" DependsOnTargets="ZipLua">
+  <Target Name="AfterBuild">
   </Target>
 </Project>
