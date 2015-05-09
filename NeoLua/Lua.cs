@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -116,11 +117,6 @@ namespace Neo.IronLua
 	public partial class Lua : IDisposable
 	{
 		private TextWriter printExpressionTree = null;
-
-		private object packageLock = new object();
-		// todo:
-		//private Dictionary<string, WeakReference> loadedModuls = null;
-		//private string[] standardPackagePaths = null;
 
 		private int iNumberType = (int)LuaIntegerType.Int32 | (int)LuaFloatType.Double;
 
@@ -386,9 +382,6 @@ namespace Neo.IronLua
     // -- Static --------------------------------------------------------------
 
 		private static Version versionInfo = null;
-    private static object lockDefaultDebugEngine = new object();
-		// todo:
-		//private static LuaCompileOptions defaultDebugEngine = null;
 
 		private static int iRegisteredChunkLock = 0;
 		private static Dictionary<string, WeakReference> registeredChunks = new Dictionary<string, WeakReference>();
@@ -485,7 +478,7 @@ namespace Neo.IronLua
 				if (versionInfo == null)
 				{
 					var versionAttribute = typeof(Lua).GetTypeInfo().Assembly.GetCustomAttribute<AssemblyFileVersionAttribute>();
-					versionInfo = new Version(versionAttribute.Version);
+					versionInfo = versionAttribute == null ? new Version(0, 0) : new Version(versionAttribute.Version);
 				}
 				return versionInfo;
 			}

@@ -240,31 +240,4 @@ namespace Neo.IronLua
 	} // class LuaLibraryOS
 
 	#endregion
-
-	#region -- Debug functions ----------------------------------------------------------
-
-	internal static class LuaLibraryDebug
-	{
-		public static LuaResult getupvalue(object f, int index)
-		{
-			return Lua.RtGetUpValue(f as Delegate, index);
-		} // func getupvalue
-
-		public static LuaResult upvalueid(object f, int index)
-		{
-			return new LuaResult(Lua.RtUpValueId(f as Delegate, index));
-		} // func upvalueid
-
-		public static LuaResult setupvalue(object f, int index, object v)
-		{
-			return new LuaResult(Lua.RtSetUpValue(f as Delegate, index, v));
-		} // func setupvalue
-
-		public static void upvaluejoin(object f1, int n1, object f2, int n2)
-		{
-			Lua.RtUpValueJoin(f1 as Delegate, n1, f2 as Delegate, n2);
-		} // func upvaluejoin
-	} // class LuaLibraryDebug
-
-	#endregion
 }

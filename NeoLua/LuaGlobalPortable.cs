@@ -597,6 +597,12 @@ namespace Neo.IronLua
 			get { return LuaType.GetType(typeof(LuaLibraryBit32)); }
 		} // prop LuaLibraryTable
 
+		[LuaMember("debug")]
+		private static LuaType LuaLibraryDebug
+		{
+			get { return LuaType.GetType(typeof(LuaLibraryDebug)); }
+		} // prop LuaLibraryDebug
+
 		[LuaMember("math")]
 		private static LuaType LuaLibraryMath
 		{
