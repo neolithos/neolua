@@ -41,8 +41,9 @@ namespace Neo.IronLua
 		private sealed class LuaCommandGlobal : LuaGlobal
 		{
 			public LuaCommandGlobal(Lua lua)
-				:base(lua)
+				: base(lua)
 			{
+				this.LuaPackage.path += ";" + LuaLibraryPackage.ExecutingDirectoryPathVariable;
 			} // ctor
 
 			[LuaMember("read")]

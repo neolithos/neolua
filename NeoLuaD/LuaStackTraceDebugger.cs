@@ -99,6 +99,7 @@ namespace Neo.IronLua
 			private LuaStackTraceDebugger debug;
 			private TypeBuilder type;
 
+			private bool lFirstLambdaDone = false;
 			private Dictionary<object, FieldDefine> fields;
 
 			#region -- Ctor/Dtor ------------------------------------------------------------
@@ -192,6 +193,33 @@ namespace Neo.IronLua
 			} // func VisitDynamic
 
 			#endregion
+
+			protected override Expression VisitLambda<T>(Expression<T> node)
+			{
+				if (!lFirstLambdaDone)
+				{
+					lFirstLambdaDone = true;
+					ParameterExpression exceptionE = Expression.Parameter(typeof(Exception), "e");
+					return Visit(
+						Expression.Lambda<T>(
+							Expression.TryCatch(
+								node.Body,
+								Expression.Catch(exceptionE,
+									Expression.Block(
+										Expression.Call(LuaExceptionDataGetDataMethodInfo, exceptionE),
+										Expression.Throw(null, node.Body.Type)
+									)
+								)
+							),
+							node.Name,
+							node.TailCall,
+							node.Parameters
+						)
+					);
+				}
+				else
+					return base.VisitLambda<T>(node);
+			} // func VisitLambda
 
 			public void InitMethods(Type typeFinished)
 			{
@@ -382,6 +410,14 @@ namespace Neo.IronLua
 		private static object luaDynamicNameLock = new object();
 		private static AssemblyName luaDynamicName = null;
 		private static ILuaDebug stackTraceDebugger = new LuaStackTraceDebugger();
+
+		private static MethodInfo LuaExceptionDataGetDataMethodInfo;
+
+		static LuaStackTraceDebugger()
+		{
+			var tiLuaExceptionData = typeof(LuaExceptionData).GetTypeInfo();
+			LuaExceptionDataGetDataMethodInfo = tiLuaExceptionData.FindDeclaredMethod("GetData", ReflectionFlag.Static | ReflectionFlag.NoArguments);
+		} // ctor
 
 		private static AssemblyName GetLuaDynamicName()
 		{

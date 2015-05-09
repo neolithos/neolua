@@ -1507,8 +1507,8 @@ namespace Neo.IronLua
 
 			if (members == null || members.Length == 0)
 				throw new LuaEmitException(LuaEmitException.MemberNotFound, type.Name, sMemberName);
-			else if (members.Length > 1)
-				throw new LuaEmitException(LuaEmitException.MemberNotUnique, type.Name, sMemberName);
+			//else if (members.Length > 1)
+			//	throw new LuaEmitException(LuaEmitException.MemberNotUnique, type.Name, sMemberName);
 			else
 			{
 				if (members[0] is PropertyInfo)

@@ -1,9 +1,159 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 
 namespace Neo.IronLua
 {
+	#region -- class LuaLibraryPackage ------------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary></summary>
+	public sealed class LuaLibraryPackage
+	{
+		/// <summary></summary>
+		public const string CurrentDirectoryPathVariable = "%currentdirectory%";
+		/// <summary></summary>
+		public const string ExecutingDirectoryPathVariable = "%executingdirectory%";
+
+		#region -- class LuaLoadedTable ---------------------------------------------------
+
+		private class LuaLoadedTable : LuaTable
+		{
+			private LuaGlobal global;
+
+			public LuaLoadedTable(LuaGlobal global)
+			{
+				this.global = global;
+			} // ctor
+
+			protected override object OnIndex(object key)
+			{
+				object value;
+				if (global.loaded != null && global.loaded.TryGetValue(key, out value))
+					return value;
+				return base.OnIndex(key);
+			} // func OnIndex
+		} // class LuaLoadedTable
+
+		#endregion
+
+		private object packageLock = new object();
+		private Dictionary<string, WeakReference> loadedModuls = null;
+
+		private string[] paths;
+		private LuaCompileOptions compileOptions = null;
+
+		public LuaLibraryPackage(LuaGlobal global)
+		{
+			this.loaded = new LuaLoadedTable(global);
+			this.path = CurrentDirectoryPathVariable;
+		} // ctor
+
+		internal LuaChunk LuaRequire(LuaGlobal global, string sModName)
+		{
+			if (String.IsNullOrEmpty(sModName))
+				return null;
+
+			string sFileName;
+			DateTime dtStamp;
+			if (LuaRequireFindFile(sModName, out sFileName, out dtStamp))
+			{
+				lock (packageLock)
+				{
+					WeakReference rc;
+					LuaChunk c;
+					string sCacheId = sFileName + ";" + dtStamp.ToString("o");
+
+					// is the modul loaded
+					if (loadedModuls == null ||
+						!loadedModuls.TryGetValue(sCacheId, out rc) ||
+						!rc.IsAlive)
+					{
+						// compile the modul
+						c = global.Lua.CompileChunk(sFileName, compileOptions);
+
+						// Update Cache
+						if (loadedModuls == null)
+							loadedModuls = new Dictionary<string, WeakReference>();
+						loadedModuls[sCacheId] = new WeakReference(c);
+					}
+					else
+						c = (LuaChunk)rc.Target;
+
+					return c;
+				}
+			}
+			else
+				return null;
+		} // func LuaRequire
+
+		private bool LuaRequireCheckFile(ref string sFileName, ref DateTime dtStamp)
+		{
+			try
+			{
+				// replace variables
+				if (sFileName.Contains(CurrentDirectoryPathVariable))
+					sFileName = sFileName.Replace(CurrentDirectoryPathVariable, Environment.CurrentDirectory);
+				if (sFileName.Contains(ExecutingDirectoryPathVariable))
+					sFileName = sFileName.Replace(ExecutingDirectoryPathVariable, System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+
+				// check if the file exists
+				if (!File.Exists(sFileName))
+					return false;
+
+				// get the time stamp
+				dtStamp = File.GetLastWriteTime(sFileName);
+				return true;
+			}
+			catch (IOException)
+			{
+				return false;
+			}
+		} // func LuaRequireCheckFile
+
+		internal bool LuaRequireFindFile(string sModName, out string sFileName, out DateTime dtStamp)
+		{
+			dtStamp = DateTime.MinValue;
+			sFileName = null;
+
+			foreach (string c in paths)
+			{
+				if (String.IsNullOrEmpty(c))
+					continue;
+				else
+				{
+					sFileName = System.IO.Path.Combine(c, sModName + ".lua");
+					return LuaRequireCheckFile(ref sFileName, ref dtStamp);
+				}
+			}
+
+			return false;
+		} // func LuaRequireFindFile
+
+		public LuaTable loaded { get; private set; }
+		public string path
+		{
+			get
+			{
+				return String.Join(";", paths);
+			}
+			set
+			{
+				if (String.IsNullOrEmpty(value))
+					paths = null;
+				else
+					paths = value.Split(';');
+			}
+		} // prop Path
+
+		public string[] Path { get { return paths; } }
+		public LuaCompileOptions CompileOptions { get { return compileOptions; } set { compileOptions = value; } }
+	} // class LuaLibraryPackage
+
+	#endregion
+
 	#region -- Operating System Facilities ----------------------------------------------
 
 	///////////////////////////////////////////////////////////////////////////////
