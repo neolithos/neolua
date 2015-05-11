@@ -45,6 +45,8 @@ namespace Neo.IronLua
 		private string[] paths;
 		private LuaCompileOptions compileOptions = null;
 
+		/// <summary></summary>
+		/// <param name="global"></param>
 		public LuaLibraryPackage(LuaGlobal global)
 		{
 			this.loaded = new LuaLoadedTable(global);
@@ -132,7 +134,9 @@ namespace Neo.IronLua
 			return false;
 		} // func LuaRequireFindFile
 
+		/// <summary></summary>
 		public LuaTable loaded { get; private set; }
+		/// <summary></summary>
 		public string path
 		{
 			get
@@ -148,7 +152,9 @@ namespace Neo.IronLua
 			}
 		} // prop Path
 
+		/// <summary></summary>
 		public string[] Path { get { return paths; } }
+		/// <summary></summary>
 		public LuaCompileOptions CompileOptions { get { return compileOptions; } set { compileOptions = value; } }
 	} // class LuaLibraryPackage
 

@@ -24,9 +24,10 @@
 		</frameworkAssemblies>
 	</metadata>
   <files>
-		<file src="..\NeoLua\bin\Release\Neo.Lua.dll" target="lib\portable-windows8+net45" />
-		<file src="..\NeoLua\bin\Release\Neo.Lua.pdb" target="lib\portable-windows8+net45" />
-		<file src="..\NeoLua\bin\Release\Neo.Lua.xml" target="lib\portable-windows8+net45" />
+		<!-- Profile111 = .NET Portable Subset (.NET Framework 4.5, Windows 8, Windows Phone 8.1) -->
+		<file src="..\NeoLua\bin\Release\Neo.Lua.dll" target="lib\portable-net45+netcore45+wpa81+MonoAndroid1+MonoTouch1" />
+		<file src="..\NeoLua\bin\Release\Neo.Lua.pdb" target="lib\portable-net45+netcore45+wpa81+MonoAndroid1+MonoTouch1" />
+		<file src="..\NeoLua\bin\Release\Neo.Lua.xml" target="lib\portable-net45+netcore45+wpa81+MonoAndroid1+MonoTouch1" />
 		<file src="..\NeoLua\bin\Release\Neo.Lua.dll" target="lib\net45" />
 		<file src="..\NeoLua\bin\Release\Neo.Lua.pdb" target="lib\net45" />
 		<file src="..\NeoLua\bin\Release\Neo.Lua.xml" target="lib\net45" />
