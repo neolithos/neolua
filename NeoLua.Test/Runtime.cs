@@ -174,13 +174,13 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TestRuntimeLua11()
     {
-      TestCode(GetLines("Lua.Runtime11.lua"), 4);
+      TestCode(GetLines("Lua.Runtime11.lua"), 4, "helloworldfromLua");
     } // proc TestRuntimeLua11
 
     [TestMethod]
     public void TestRuntimeLua12()
     {
-      TestCode(GetLines("Lua.Runtime12.lua"), 2);
+			TestCode(GetLines("Lua.Runtime12.lua"), 2, "fromworldtoLua");
     } // proc TestRuntimeLua12
 
     [TestMethod]
