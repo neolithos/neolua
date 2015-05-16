@@ -1,0 +1,679 @@
+<ul class="download">
+    <li><a href="NeoLua-0.8.18.zip">Download NeoLua-0.8.18.zip - 236.8 KB</a></li>
+    <li><a href="NeoCmd-0.8.18.zip">Download NeoCmd-0.8.18.zip - 100.3 KB</a></li>
+    <li><a href="NeoSpeed.zip">Download NeoSpeed.zip - 205.5 KB</a></li>
+</ul>
+
+<h2>Introduction</h2>
+
+<p>NeoLua is an implementation of the Lua language that totally started from scratch. Currently, the implementation is on the level of Lua 5.2 (<a href="http://www.lua.org/manual/5.2/manual.html" target="_blank">http://www.lua.org/manual/5.2/manual.html</a>) with many parts of Lua 5.3. The goal is to follow the reference of the C-Lua implementation and combine this with the full .NET Framework support. That means it should be easy to call .NET functions/classes/interfaces/events from Lua and it should be easy to access variables and functions of Lua from a .NET language (e.g. C#, VB.NET, ...).</p>
+
+<p>NeoLua is implemented in C# and uses the <a href="https://dlr.codeplex.com/">Dynamic Language Runtime</a>. At the time, NeoLua has only one dependency to the .NET framework 4 and it also works under the current mono framework.</p>
+
+<h2>Background</h2>
+
+<p>The idea of NeoLua was born because I needed Lua as a scripting language in a service application. In the first release, I used LuaInterface. But it turned out that it is really hard to use LuaInterface as a bridge between .NET and C-Lua correctly.</p>
+
+<p>I got a lot of memory leaks! During debugging, I discovered that I did not de-reference the Lua variables correctly and learned that to do this right is really hard.</p>
+
+<h2>Principles</h2>
+
+<h3>What NeoLua is Useful For</h3>
+
+<ul>
+    <li>Outsource the logic of your application into scripts</li>
+    <li>Structuring of logic</li>
+    <li>Build a dynamic configuration system, with functions and variables</li>
+    <li>As a formula parser</li>
+    <li>...</li>
+</ul>
+
+<p>So, this could be reliable partner for your compiled .NET application or engine (e.g. Game Engines).</p>
+
+<h3>What I Did Not Have In Mind</h3>
+
+<ul>
+    <li>Compiling libraries</li>
+    <li>Standalone applications</li>
+</ul>
+
+<h3>Advantages of NeoLua</h3>
+
+<ul>
+    <li>Dynamic access between Lua script and the host application/.NET framework and vice-versa.</li>
+    <li>NeoLua is based on the DLR. So you get compiled code that is collectable and well-optimized.</li>
+    <li>It is possible to write strict scripts. Runtime speed is like e.g. C#.</li>
+    <li>It is compatible with the .NET world (e.g. C#, VB.NET, IronPython, ...).</li>
+    <li>Full and easy access to the .NET framework or your own libraries (with no stub code).</li>
+    <li>A .NET Framework Garbage Collector that is well-tested and very fast.</li>
+    <li>Pure IL (x86,x64 support)</li>
+</ul>
+
+<h3>Drawbacks of NeoLua</h3>
+
+<ul>
+    <li>It is <a href="https://github.com/neolithos/neolua/blob/master/doc/06_std.md">not 100% compatible</a> with Lua.</li>
+    <li>No deployment of precompiled scripts.</li>
+</ul>
+
+<h3>Drawbacks of Bridges to C-lua, that are Solved with NeoLua</h3>
+
+<ul>
+    <li>With C-Lua, you have to deal with two memory managers and so you have to marshal all data between these two worlds. That takes time and there are a lot of pitfalls to get memory leaks.</li>
+    <li>C-Lua interprets its own bytecode. The code is not compiled to machine code.</li>
+</ul>
+
+<h2>Hello World</h2>
+
+<p>
+    To get started with NeoLua is very easy. At first, you have to add a reference to the Neo.Lua-Assembly. There are two ways to get NeoLua. First, download it from <a href="neolua.codeplex.com" target="_blank">neolua.codeplex.com</a> or download the zip-file from this site.<br />
+    The second way is to use the <a href="https://www.nuget.org/packages/NeoLua/">nuget package</a>.
+</p>
+
+<p>Next, create an instance of the <code>Neo.IronLua.Lua</code> (called Lua-Script-Engine) and get a fresh environment to execute Lua code.</p>
+
+<p>Here is an example that prints &quot;<code>Hello World!</code>&quot; in the debug output:</p>
+
+<pre lang="cs">
+using Neo.IronLua;
+namespace Test
+{
+  public static class Program
+  {
+    public static void Main(string[] args)
+    {
+      // Create the Lua script engine
+      using (Lua l = new Lua())
+      {
+        // create a Lua script environment (global)
+        var g = l.CreateEnvironment();
+        // run a chunk, first the code, than the name of the code
+        g.DoChunk(&quot;print(&#39;Hello World!&#39;);&quot;, &quot;test.lua&quot;);
+      }
+    }
+  }
+}</pre>
+
+<h2>Playing with NeoLua</h2>
+
+<p><img align="bottom" border="0" height="306" hspace="0" src="Image.png" vspace="0" width="640" /></p>
+
+<p>LuaCmd is a interactive program to test NeoLua. Check it out. Just write Lua code and execute it with a empty line.</p>
+
+<h2>Running Lua-Snippets</h2>
+
+<p>To run a small snippet, just execute it via <code>DoChunk</code>. Scripts can have parameters, like in example <code>a</code> and <code>b</code>. Every script can return values. The return value of scripts are always <code>LuaResult</code> of objects, because in Lua, it is possible to return more than one result.</p>
+
+<pre lang="cs">
+using (Lua l = new Lua())
+{
+    var g = l.CreateEnvironment();
+    var r = g.DoChunk(&quot;return a + b&quot;, &quot;test.lua&quot;,
+      new KeyValuePair&lt;string, object&gt;(&quot;a&quot;, 2),
+      new KeyValuePair&lt;string, object&gt;(&quot;b&quot;, 4));
+    Console.WriteLine(r[0]);
+}</pre>
+
+<p>Because NeoLua is a dynamic language, there is also a way to do it dynamically. Also <code>LuaResult</code> has a dynamic interface.</p>
+
+<pre lang="cs">
+using (Lua l = new Lua())
+{
+    dynamic g = l.CreateEnvironment();
+    dynamic dr = dg.dochunk(&quot;return a + b&quot;, &quot;test.lua&quot;, &quot;a&quot;, 2, &quot;b&quot;, 4);
+    Console.WriteLine((int)dr);
+}</pre>
+
+<h2>Values and Types</h2>
+
+<p>NeoLua is not a dynamically typed language, it just looks like it is. Variables always have a type (at least <code>System.Object</code>).</p>
+
+<p>NeoLua supports all CLR types. If there is type conversion necessary, it is done automatically. Dynamic types are also supported.</p>
+
+<pre lang="cs">
+local a = &quot;5&quot;; -- a string is assigned to a local variable of the type object
+local b = {}; -- object assigned with an empty table 
+b.c = a + 8; -- the variable &quot;a&quot; is converted into an integer and assigned to the dynamic member of a table
+</pre>
+
+<p>A nice feature of NeoLua is strict typing. But more in a later section.</p>
+
+<h2>Working with Globals</h2>
+
+<p>The environment is a special Lua table. Set or get the variables on the environment and they are accessible in the script-code as global variables.</p>
+
+<pre lang="cs">
+using (Lua l = new Lua())
+{
+    var g = l.CreateEnvironment();
+    dynamic dg = g;
+    
+    dg.a = 2; // dynamic way to set a variable
+    g[&quot;b&quot;] = 4; // second way to access variable
+    g.DoChunk(&quot;c = a + b&quot;, &quot;test.lua&quot;);
+    Console.WriteLine(dg.c);
+    Console.WriteLine(g[&quot;c&quot;]);
+}</pre>
+
+<h2>Working with LuaTables</h2>
+
+<p>The implementation of NeoLua supports the dynamic class <code>LuaTable</code>. This class is used by the script-code as it is. The next examples hopefully show the idea.</p>
+
+<h3>Member</h3>
+
+<pre lang="cs">
+using (Lua l = new Lua())
+{
+  dynamic dg = l.CreateEnvironment();
+  dg.t = new LuaTable();
+  dg.t.a = 2;
+  dg.t.b = 4;
+  dg.dochunk(&quot;t.c = t.a + t.b&quot;, &quot;test.lua&quot;);
+  Console.WriteLine(dg.t.c);
+}
+</pre>
+
+<h3>Index Access</h3>
+
+<pre lang="cs">
+using (Lua l = new Lua())
+{
+  dynamic dg = l.CreateEnvironment();
+  dg.t = new LuaTable();
+  dg.t[0] = 2;
+  dg.t[1] = 4;
+  dg.dochunk(&quot;t[2] = t[0] + t[1]&quot;, &quot;test.lua&quot;);
+  Console.WriteLine(dg.t[2]);
+}</pre>
+
+<h3>Functions</h3>
+
+<p>Defining a function feels natural. It is basically a delegate that is assigned to a member.</p>
+
+<pre lang="cs">
+using (Lua l = new Lua())
+{
+  dynamic dg = l.CreateEnvironment();
+  dg.myadd = new Func&lt;int, int, int&gt;((a, b) =&gt; a + b); // define a new function in c#
+  dg.dochunk(&quot;function Add(a, b) return myadd(a, b) end;&quot;, &quot;test.lua&quot;); // define a new function in lua that calls the C# function
+  Console.WriteLine((int)dg.Add(2, 4)); //call the Lua function
+  var f = (Func&lt;object,&gt;)dg.Add;// get the Lua function
+  Console.WriteLine(f(2, 4).ToInt32());
+}</pre>
+
+<h3>Methods (Host Application)</h3>
+
+<p>The next example defines three members.</p>
+
+<p><code>a </code>, <code>b</code> are members, they are holding an ordinary integer. And <code>add</code> is holding a function, but this definition is not a method. Because if you try to call the function like a method in e.g. C#, it will throw a <code>NullReferenceException</code>. You must always pass the table as a first parameter to it. To declare a real method, you have to call the explicit method <code>DefineMethod</code>. Lua does not care about the difference, but C# or VB.NET do.</p>
+
+<p>&nbsp;</p>
+
+<pre lang="cs">
+using (Lua l = new Lua())
+{
+  dynamic dg = l.CreateEnvironment();
+  dg.t = new LuaTable();
+  dg.t.a = 2;
+  dg.t.b = 4;
+  
+  dg.t.add = new Func&lt;dynamic, int&gt;(self =&gt; 
+    {
+      return self.a + self.b;
+    });
+  ((LuaTable)dg.t).DefineMethod(&quot;add2&quot;, (Delegate)dg.t.add);
+  Console.WriteLine(dg.dochunk(&quot;return t:add()&quot;, &quot;test.lua&quot;)[0]);
+  Console.WriteLine(dg.dochunk(&quot;return t:add2()&quot;, &quot;test.lua&quot;)[0]);
+  Console.WriteLine(dg.t.add(dg.t));
+  Console.WriteLine(dg.t.add2());
+}</pre>
+
+<h3>Methods (Lua)</h3>
+
+<ul>
+    <li><code>add</code> is a normal function, created from a delegate.</li>
+    <li><code>add1</code> is declared as a function.</li>
+    <li><code>add2</code> is a method, that is created from a delegate. Be aware that a delegate definition doesn&#39;t know anything about the concept of methods, so you have to declare the self parameter.</li>
+    <li><code>add3</code> shows a method declaration.</li>
+</ul>
+
+<pre lang="cs">
+using (Lua l = new Lua())
+{
+  dynamic dg = l.CreateEnvironment();
+  LuaResult r = dg.dochunk(&quot;t = { a = 2, b = 4 };&quot; +
+    &quot;t.add = function(self)&quot; +
+    &quot;  return self.a + self.b;&quot; +
+    &quot;end;&quot; +
+    &quot;function t.add1(self)&quot; +
+    &quot;  return self.a + self.b;&quot; +
+    &quot;end;&quot; +
+    &quot;t:add2 = function (self)&quot; +
+    &quot;  return self.a + self.b;&quot; +
+    &quot;end;&quot; +
+    &quot;function t:add3()&quot; +
+    &quot;  return self.a + self.b;&quot; +
+    &quot;end;&quot; +
+    &quot;return t:add(), t:add2(), t:add3(), t.add(t), t.add2(t), t.add3(t);&quot;, 
+    &quot;test.lua&quot;);
+  Console.WriteLine(r[0]);
+  Console.WriteLine(r[1]);
+  Console.WriteLine(r[2]);
+  Console.WriteLine(r[3]);
+  Console.WriteLine(r[4]);
+  Console.WriteLine(r[5]);
+  Console.WriteLine(dg.t.add(dg.t)[0]);
+  Console.WriteLine(dg.t.add2()[0]);
+  Console.WriteLine(dg.t.add3()[0]);
+}</pre>
+
+<h3>Metatables</h3>
+
+<p>If you define a metatable on a table, you can also use this in the host language like C#.</p>
+
+<pre lang="cs">
+using (Lua l = new Lua())
+{
+  dynamic g = l.CreateEnvironment();
+  dynamic r = g.dochunk(String.Join(Environment.NewLine,
+    &quot;tm = {};&quot;,
+    &quot;tm.__add = function (t, a) return t.n + a; end;&quot;,
+    &quot;t = { __metatable = tm, n = 4 };&quot;,
+    &quot;return t + 2&quot;));
+  LuaTable t = g.t;
+  Console.WriteLine((int)r);
+  Console.WriteLine(t + 2);
+}</pre>
+
+<p>And vice versa.</p>
+
+<pre lang="cs">
+using (Lua l = new Lua())
+{
+  dynamic g = l.CreateEnvironment();
+  LuaTable t = new LuaTable();
+  t[&quot;n&quot;] = 4;
+  t.MetaTable = new LuaTable();
+  t.MetaTable[&quot;__add&quot;] = new Func&lt;LuaTable, int, int&gt;((_t, a) =&gt; (int)(_t[&quot;n&quot;]) + a);
+  g.t = t;
+  dynamic r = g.dochunk(&quot;return t + 2&quot;);
+  Console.WriteLine((int)r);
+  Console.WriteLine(t + 2);
+}</pre>
+
+<p>NeoLua does not support setting metatables on userdata, because there is no definition of userdata. But NeoLua uses the operator definitions of a type. That is the same result.</p>
+
+<pre lang="cs">
+public class ClrClass
+{
+  private int n = 4;
+  public static int operator +(ClrClass c, int a)
+  {
+    return c.n + a;
+  }
+}
+using (Lua l = new Lua())
+{
+  dynamic g = l.CreateEnvironment();
+  g.c = new ClrClass();
+  Console.WriteLine((int)g.dochunk(&quot;return c + 2;&quot;));
+}</pre>
+
+<h3>Classes/Objects</h3>
+
+<p>To create a class, you have to write a function that creates a new object. The function is by definition the class and the result of the function is the object.</p>
+
+<pre lang="cs">
+using (Lua l = new Lua())
+{
+  dynamic dg = l.CreateEnvironment();
+  dg.dochunk(&quot;function classA()&quot; +
+    &quot;  local c = { sum = 0 };&quot; +
+    &quot;  function c:add(a)&quot; +
+    &quot;    self.sum = self.sum + a;&quot; +
+    &quot;  end;&quot; +
+    &quot;  return c;&quot; +
+    &quot;end;&quot;, &quot;classA.lua&quot;);
+  dynamic o = dg.classA()[0];
+  o.add(1);
+  o.add(2);
+  o.add(3);
+  Console.WriteLine(o.sum);
+}</pre>
+
+<h2>Explicit Typing</h2>
+
+<p>A nice feature of NeoLua is its use of strict typing. That means you can give your local variables or parameters a strict type (like in C#). A big advantage of this feature is that the parser can do a lot of stuff during compile time. This will short-cut a lot of the dynamic parts they are normally in a NeoLua script (so the script should run pretty fast).</p>
+
+<p><code>Globals</code> and <code>Tables</code> cannot have typed dynamic members, they are by implementation always of the type <code>object</code>. One exception is the explicit declarion in a .net class that is inherited from <code>LuaTable</code>.</p>
+
+<p>Example without explicit type:</p>
+
+<pre lang="cs">
+// create a new instance of StringBuilder
+local sb = clr.System.Text.StringBuilder();
+sb:Append(&#39;Hello &#39;):Append(&#39;World!&#39;);
+return sb:ToString();</pre>
+
+<p>The script will be translated to something like this:</p>
+
+<pre lang="cs">
+object sb = InvokeConstructor(clr[&quot;System&quot;]
+[&quot;Text&quot;][&quot;StringBuilder&quot;], new object[0]);
+InvokeMethod(InvokeMethod(sb, &quot;Append&quot;, new string[]
+{ &quot;Hello &quot; }), &quot;Append&quot;, new string[]{ &quot;World!&quot;});
+return InvokeMethod(sb, &quot;ToString&quot;, new object[0]);</pre>
+
+<p>The code is not the exact code that gets executed, in reality it is a litte bit more complicated, but way more efficient (e.g. <code>Append</code> will only resolve once during runtime, not twice like in this example). If you are interested in how this is done, I can recommend reading the documentation of the <a href="https://dlr.codeplex.com/wikipage?title=Docs%20and%20specs&amp;referringTitle=Documentation">DLR</a>.</p>
+
+<p>Same example with strict type:</p>
+
+<pre lang="cs">
+// define a shortcut to a type, this line is only seen by the parser
+const StringBuilder typeof clr.System.Text.StringBuilder;
+// create a new instance of StringBuilder
+local sb : StringBuilder = StringBuilder();
+sb:Append(&#39;Hello &#39;):Append(&#39;World!&#39;);
+return sb:ToString();</pre>
+
+<p>This script is compiled like it will be done from e.g. C#:</p>
+
+<pre lang="cs">
+StringBuilder sb = new StringBuilder();
+sb.Append((&quot;Hello (&quot;).Append((&quot;World!(&quot;);
+return sb.ToString();</pre>
+
+<p>Types are very useful to create functions with a strict signature.</p>
+
+<pre lang="cs">
+using (Lua l = new Lua())
+{
+  dynamic dg = l.CreateEnvironment();
+  dg.dochunk(&quot;function Add(a : int, b : int) : int return a + b; end;&quot;, &quot;test.lua&quot;);
+  Console.WriteLine((int)dg.Add(2, 4)); // the cast is needed because of the dynamic call
+  var f = (Func&lt;int,int,int&gt;)dg.Add;
+  Console.WriteLine(f(2, 4));
+}</pre>
+
+<h2>Compiled Code</h2>
+
+<p>Executing a script in NeoLua always means that it will be compiled and the result will be executed. If the result e.g. is a function and you call the function, it is not interpreted.</p>
+
+<p>If you want to use a script multiple times, pre-compile the script-code with <code>CompileChunk </code>and run it on different environments. That saves compile time and memory.</p>
+
+<pre lang="cs">
+using (Lua l = new Lua())
+{
+    LuaChunk c = l.CompileChunk(&quot;return a;&quot;, &quot;test.lua&quot;, false);
+    var g1 = l.CreateEnvironment();
+    var g2 = l.CreateEnvironment();
+    g1[&quot;a&quot;] = 2;
+    g2[&quot;a&quot;] = 4;
+    Console.WriteLine((int)(g1.DoChunk(c)[0]) + (int)(g2.DoChunk(c)[0]));
+}</pre>
+
+<p>The third parameter of the <code>CompileChunk</code> function decides if NeoLua should create a Dynamic-Function (<code>false</code>) or Runtime-Function (<code>true</code>). Dynamic functions are available for garbage collection, but they are not debuggable. They are the most efficient choice for small code blocks. A runtime function is compiled in a dynamic assembly in a dynamic type. The assembly/type/function is discarded when the script engine (Lua-Class) is disposed. Runtime-Functions are a good choice for scripts - they are big, often used and need debug information.</p>
+
+<h2>Lambda Support</h2>
+
+<p>A delegate that is generated by this function has no debug information and no environment. It is not allowed to use global variables or Lua functions/libraries in the code. Only the CLR package is useable. It is always compiled as a dynamic function.</p>
+
+<pre lang="cs">
+using (Lua l = new Lua())
+{
+  var f = l.CreateLambda&lt;Func&lt;double, double&gt;&gt;(&quot;f&quot;, &quot;return clr.System.Math:Abs(x) * 2&quot;, &quot;x&quot;);
+  Console.WriteLine(&quot;f({0}) = {1}&quot;, 2, f(2));
+  Console.WriteLine(&quot;f({0}) = {1}&quot;, 2, f(-2));
+}</pre>
+
+<h2>.NET</h2>
+
+<p>To access the .NET Framework classes, there is a package that is called <code>clr</code>. This package references namespaces and classes.</p>
+
+<p>This example shows how to call the <code>static String.Concat</code> function:</p>
+
+<pre lang="text">
+function a()
+  return &#39;Hello &#39;, &#39;World&#39;, &#39;!&#39;;
+end;
+return clr.System.String:Concat(a());</pre>
+
+<p>Behind <code>clr</code> is the class <code>LuaType</code>, that tries to give access to classes, interfaces, methods, events and members in the most efficient way.</p>
+
+<pre lang="cs">
+-- Load Forms
+clr.System.Reflection.Assembly:Load(&quot;System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089&quot;);
+local Forms = clr.System.Windows.Forms; -- create a local variable with a namespace
+local iClicked : int = 0;
+Forms.Application:EnableVisualStyles(); -- call a static method
+do (frm, cmd = Forms.Form(), Forms.Button()) -- create a from and button in a using block
+    frm.Text = &#39;Hallo Welt!&#39;;
+    cmd.Text = &#39;Click&#39;;
+    cmd.Left = 16;
+    cmd.Top = 16;
+    cmd.Click:add( -- add a event the counter part is &#39;remove&#39;
+        function (sender, e) : void
+          iClicked = iClicked + 1;
+      Forms.MessageBox:Show(frm, clr.System.String:Format(&#39;Clicked {0:N0} times!&#39;, iClicked), &#39;Lua&#39;, Forms.MessageBoxButtons.OK, Forms.MessageBoxIcon.Information);
+        end);
+    frm.Controls:Add(cmd);
+    Forms.Application:Run(frm);
+end;</pre>
+
+<p>A nice example of what is possible:</p>
+
+<pre lang="cs">
+local writeLine = clr.System.Console.WriteLine;
+writeLine(&#39;Calc:&#39;);
+writeLine(&#39;{0} + {1} = {2}&#39;, 2, 4, 6);
+writeLine();</pre>
+
+<p>But it is more efficient to use the member call <code>clr.System.Console:WriteLine()</code>. That&#39;s because NeoLua creates an instance of the <code>LuaOverloadedMethod</code>-Class to manage the methods behind in the example above.</p>
+
+<p>This is a point you should always have in mind when you use <code>getmember (.) </code>on none .NET members. Classes, interfaces return <code>LuaType</code>. Methods/functions return <code>LuaOverloadedMethod</code> or <code>LuaMethod</code>. And events return <code>LuaEvent</code>.</p>
+
+<h2>Complex Example</h2>
+
+<p>This example reads Lua script files and executes them once. The example shows how to compile a script and catch exceptions and how to retrieve the stack trace. The stack trace can only be retrieved if the script is compiled with debug information. To turn this switch on, set the second parameter of <code>CompileChunk </code> to <code>true</code>.</p>
+
+<pre lang="cs">
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Reflection;
+using System.Threading;
+namespace Neo.IronLua
+{
+  public static class Program
+  {
+    public static void Main(string[] args)
+    {
+      using (Lua l = new Lua())
+      {
+        // create an environment that is associated with the Lua scripts
+        dynamic g = l.CreateEnvironment();
+        // register new functions
+        g.print = new Action&lt;object[]&gt;(Print);
+        g.read = new Func&lt;string,&gt;(Read);
+        foreach (string c in args)
+        {
+          using (LuaChunk chunk = l.CompileChunk(c, true)) // compile the script with 
+          // debug information which is needed for a complete stack trace
+            try
+            {
+              object[] r = g.dochunk(chunk); // execute the chunk
+              if (r != null &amp;&amp; r.Length &gt; 0)
+              {
+                Console.WriteLine(new string(&#39;=&#39;, 79));
+                for (int i = 0; i &lt; r.Length; i++)
+                  Console.WriteLine(&quot;[{0}] = {1}&quot;, i, r[i]);
+              }
+            }
+            catch (TargetInvocationException e)
+            {
+              Console.ForegroundColor = ConsoleColor.DarkRed;
+              Console.WriteLine(&quot;Exception: {0}&quot;, e.InnerException.Message);
+              LuaExceptionData d = LuaExceptionData.GetData(e.InnerException); // get stack trace
+              Console.WriteLine(&quot;StackTrace: {0}&quot;, d.GetStackTrace(0, false));
+              Console.ForegroundColor = ConsoleColor.Gray;
+            }
+        }
+      }
+    } // Main
+    private static void Print(object[] texts)
+    {
+      foreach (object o in texts)
+        Console.Write(o);
+      Console.WriteLine();
+    } // proc Print
+    private static string Read(string sLabel)
+    {
+      Console.Write(sLabel);
+      Console.Write(&quot;: &quot;);
+      return Console.ReadLine();
+    } // func Read
+  }
+}</pre>
+
+<p>The Lua-script is as follows:</p>
+
+<pre lang="text">
+local a, b = tonumber(read(&quot;a&quot;)), tonumber(read(&quot;b&quot;));
+function PrintResult(o, op)
+    print(o .. &#39; = &#39; .. a .. op .. b);
+end;
+PrintResult(a + b, &quot; + &quot;);
+PrintResult(a - b, &quot; - &quot;);
+PrintResult(a * b, &quot; * &quot;);
+PrintResult(a / b, &quot; / &quot;);</pre>
+
+<h2>Performance</h2>
+
+<p>I compared the performance to the <code>LuaInterface </code>project.</p>
+
+<p>Not pre-compiled:</p>
+
+<pre lang="text">
+Empty               : LuaInterface    1,8 ms    NeoLua    0,4 ms   4,268
+Sum                 : LuaInterface    0,0 ms    NeoLua    1,4 ms   0,021
+Sum_strict          : LuaInterface    0,0 ms    NeoLua    1,1 ms   0,019
+Sum_echo            : LuaInterface    2,2 ms    NeoLua    3,2 ms   0,697
+String              : LuaInterface    1,6 ms    NeoLua    1,2 ms   1,376
+String_echo         : LuaInterface    4,2 ms    NeoLua    3,0 ms   1,404
+Delegate            : LuaInterface    2,0 ms    NeoLua    2,0 ms   1,005
+StringBuilder       : LuaInterface    3,2 ms    NeoLua    4,3 ms   0,727</pre>
+
+<p>What this table shows is that they are more complex and more often you have to interact with the .NET Framework NeoLua gains a benefit over the compile overhead.</p>
+
+<p>The next table shows the results with pre-compiled scripts.</p>
+
+<p>Pre compiled:</p>
+
+<pre lang="text">
+Empty               : LuaInterface    0,0 ms    NeoLua    0,0 ms     NaN
+Sum                 : LuaInterface    0,0 ms    NeoLua    0,0 ms   1,000
+Sum_strict          : LuaInterface    0,0 ms    NeoLua    0,0 ms     NaN
+Sum_echo            : LuaInterface    1,6 ms    NeoLua    0,1 ms  18,111
+String              : LuaInterface    1,2 ms    NeoLua    0,4 ms   2,951
+String_echo         : LuaInterface    3,8 ms    NeoLua    0,4 ms   8,884
+Delegate            : LuaInterface    1,5 ms    NeoLua    0,1 ms  25,000
+StringBuilder       : LuaInterface    2,4 ms    NeoLua    0,1 ms  48,000</pre>
+
+<p>Pre compiled (debug):</p>
+
+<pre lang="text">
+Empty               : LuaInterface    0,0 ms    NeoLua    0,0 ms     NaN
+Sum                 : LuaInterface    0,0 ms    NeoLua    0,0 ms   0,667
+Sum_strict          : LuaInterface    0,0 ms    NeoLua    0,0 ms     NaN
+Sum_echo            : LuaInterface    1,6 ms    NeoLua    0,1 ms  15,500
+String              : LuaInterface    1,2 ms    NeoLua    0,4 ms   3,132
+String_echo         : LuaInterface    3,6 ms    NeoLua    0,5 ms   7,160
+Delegate            : LuaInterface    1,5 ms    NeoLua    0,1 ms  16,444
+StringBuilder       : LuaInterface    2,5 ms    NeoLua    0,1 ms  35,000</pre>
+
+<p>These values show that NeoLua is strong in repetitive tasks and interacting with the framework. E.g. in game engines or service application, these attributes should be interesting.</p>
+
+<h2>Parts That Are Not Implemented</h2>
+
+<p>Not all Lua functionality is implemented yet, and some parts may be never be implemented. However, most parts of the Lua reference work just fine.</p>
+
+<p>Things that might be implemented in the future:</p>
+
+<ul>
+    <li><s>Hex representation for <code>double</code>s</s></li>
+    <li>Missing runtime parts</li>
+    <li><s>Debugging (hard)</s></li>
+</ul>
+
+<p>Things that most likely will never be implemented:</p>
+
+<ul>
+    <li><s>Working with upvalues</s></li>
+    <li>Lua-Byte-Code support</li>
+</ul>
+
+<h2>Resources</h2>
+
+<p>NeoLua is hosted on CodePlex: <a href="https://neolua.codeplex.com/">neolua.codeplex.com</a>. There you can find the releases and a forum there.</p>
+
+<p>The source is hosted on GitHub: <a href="https://github.com/neolithos/neolua">https://github.com/neolithos/neolua</a></p>
+
+<h2>Changes</h2>
+
+<p>0.9.9:</p>
+
+<ul>
+    <li>New: Manipulating closures/upvalues</li>
+    <li>New: TraceLine debugging</li>
+    <li>New: Array initializer</li>
+    <li>New: Late bind of dynamic global members</li>
+    <li>Chg: chunks can run on LuaTable&#39;s</li>
+    <li>Chg: total rewrite of lua table (speed, size, combatiblity)</li>
+    <li>Chg: Redesign for the operators</li>
+    <li>Chg: RtInvoke can invoke all what is callable, now</li>
+    <li>Chg: Correction of the arithmetic (it is not full compatible to Lua, but compatible to .net)</li>
+    <li>Chg: Class part for lua table</li>
+</ul>
+
+<p>0.8.18:</p>
+
+<ul>
+    <li>New: rewrite of table package</li>
+    <li>New: Lexer is public, now</li>
+    <li>Bug fixing</li>
+</ul>
+
+<p>0.8.17:</p>
+
+<ul>
+    <li>Added: require</li>
+    <li>Bug fixing</li>
+</ul>
+
+<p>0.8.12:</p>
+
+<ul>
+    <li>Bug fixing</li>
+</ul>
+
+<p>0.8.9:</p>
+
+<ul>
+    <li>Changed: Redesign type system (<code>LuaType</code>, <code>LuaMethod</code>, <code>LuaEvent</code>)</li>
+    <li>Added: Strict parsing, when it is possible</li>
+    <li>Added: Operator support</li>
+    <li>Added: Metatable support</li>
+    <li>Added: More units tests</li>
+    <li>Bug fixing</li>
+</ul>
+
+<p>0.8.2:</p>
+
+<ul>
+    <li>Add: coroutine package</li>
+    <li>Add: io package</li>
+</ul>
+
+<h2>Next Steps</h2>
+
+<p>In the next months, I will stabilize the language before I introduce new features. I hope I get a lot of bug reports. After this, I will investigate debugging/tracing for NeoLua, maybe with the support of the debug package.</p>
