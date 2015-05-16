@@ -475,12 +475,24 @@ namespace Neo.IronLua
 		{
 			if (m.Success)
 			{
-				object[] result = new object[m.Captures.Count];
+				if (m.Groups.Count > 1) // the expression uses groups, return the groups
+				{
+					object[] result = new object[m.Groups.Count - 1];
 
-				for (int i = 0; i < m.Captures.Count; i++)
-					result[i] = m.Captures[i].Value;
+					for (int i = 1; i < m.Groups.Count; i++)
+						result[i - 1] = m.Groups[i].Value;
 
-				return result;
+					return result;
+				}
+				else // no groups, return the captures
+				{
+					object[] result = new object[m.Captures.Count];
+
+					for (int i = 0; i < m.Captures.Count; i++)
+						result[i] = m.Captures[i].Value;
+
+					return result;
+				}
 			}
 			else
 				return LuaResult.Empty;
