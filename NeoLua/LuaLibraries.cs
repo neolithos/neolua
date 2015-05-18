@@ -66,32 +66,71 @@ namespace Neo.IronLua
 							case 'a': // all letters
 								sb.Append("\\p{L}");
 								break;
+							case 'A': // all Non letters
+								sb.Append("\\P{L}");
+								break;
+							
 							case 's': // all space characters
 								sb.Append("\\s");
 								break;
+							case 'S': // all NON space characters
+								sb.Append("\\S");
+								break;
+							
 							case 'd': // all digits
 								sb.Append("\\d");
 								break;
+							case 'D': // all NON digits
+								sb.Append("\\D");
+								break;
+							
 							case 'w': // all alphanumeric characters
 								sb.Append("\\w");
 								break;
+							case 'W': // all NON alphanumeric characters
+								sb.Append("\\W");
+								break;
+							
 							case 'c': // all control characters
-								sb.Append("\\p{P}");
+								sb.Append("\\p{C}");
 								break;
+							case 'C': // all NON control characters
+								sb.Append("[\\P{C}]");
+								break;
+							
 							case 'g': // all printable characters except space
-								sb.Append("[^\\p{P}]");
+								sb.Append("[^\\p{C}\\s]");
 								break;
+							case 'G': // all NON printable characters including space
+								sb.Append("[\\p{C}\\s]");
+								break;
+							
 							case 'p': // all punctuation characters
 								sb.Append("\\p{P}");
 								break;
-							case 'l': // all lowercase letters
-								sb.Append("\\p{Li}");
+							case 'P': // all NON punctuation characters
+								sb.Append("\\P{P}");
 								break;
+							
+							case 'l': // all lowercase letters
+								sb.Append("\\p{Ll}");
+								break;
+							case 'L': // all NON lowercase letters
+								sb.Append("\\P{Ll}");
+								break;
+							
 							case 'u': // all uppercase letters
 								sb.Append("\\p{Lu}");
 								break;
+							case 'U': // all NON uppercase letters
+								sb.Append("\\P{Lu}");
+								break;
+							
 							case 'x': // all hexadecimal digits
-								sb.Append("\\[0-9A-Fa-f]");
+								sb.Append("[0-9A-Fa-f]");
+								break;
+							case 'X': // all NON hexadecimal digits
+								sb.Append("[^0-9A-Fa-f]");
 								break;
 
 							//case 'b': does not work

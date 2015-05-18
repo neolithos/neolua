@@ -1811,6 +1811,7 @@ namespace Neo.IronLua
 			int iCurParameterLength = 0;    // Length of the arguments of the current match
 			int iCurMatchCount = -1;        // How many arguments match of this list
 			int iCurMatchExactCount = -1;   // How many arguments match exact of this list
+			bool lLastArgumentIsArray = arguments.Length > 0 && getType(arguments[arguments.Length - 1]).IsArray;
 
 			// Get the max. list of arguments we want to consume
 			if (arguments.Length > 0)
@@ -1835,7 +1836,7 @@ namespace Neo.IronLua
 
 					// How many parameters we have
 					int iParametersLength = parameters.Length;
-					if (iParametersLength > 0 && !getType(arguments[arguments.Length - 1]).IsArray && parameters[iParametersLength - 1].ParameterType.IsArray)
+					if (iParametersLength > 0 && !lLastArgumentIsArray && parameters[iParametersLength - 1].ParameterType.IsArray)
 						iParametersLength = Int32.MaxValue;
 
 					// We have already a match, is the new one better
