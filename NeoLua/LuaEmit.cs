@@ -1731,7 +1731,7 @@ namespace Neo.IronLua
 
 					// How many parameters we have
 					int iParametersLength = parameters.Length;
-					if (iParametersLength > 0 && parameters[iParametersLength - 1].ParameterType.IsArray)
+					if (iParametersLength > 0 && !getType(arguments[arguments.Length - 1]).IsArray && parameters[iParametersLength - 1].ParameterType.IsArray)
 						iParametersLength = Int32.MaxValue;
 
 					// We have already a match, is the new one better
