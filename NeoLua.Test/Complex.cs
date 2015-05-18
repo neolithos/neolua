@@ -79,5 +79,41 @@ namespace LuaDLR.Test
     {
       TestCode(GetLines("Lua.Coroutines01.lua"));
     }
-  } // class ComplexStructures
+
+		[TestMethod]
+		public void StringFormat01()
+		{
+			object[] values = new object[] { 1.1, 2.2, 3.3, 4.4 };
+			
+			using (Lua l = new Lua())
+			{
+				l.PrintExpressionTree =Console.Out;
+				var g = l.CreateEnvironment();
+
+				g.SetMemberValue("values", values);
+
+				TestResult(g.DoChunk("return clr.System.String:Format(\"{0}\", values[0]);", "test0.lua"), values[0].ToString());
+				TestResult(g.DoChunk("return clr.System.String:Format(\"{0}; {1}; {2}; {3}\", values);", "test1.lua"), String.Format("{0}; {1}; {2}; {3}", values));
+				TestResult(g.DoChunk("return clr.System.String:Format(clr.System.Globalization.CultureInfo.InvariantCulture, \"{0}; {1}; {2}; {3}\", values);", "test2.lua"), "1.1; 2.2; 3.3; 4.4");
+			}
+		}
+
+		[TestMethod]
+		public void NumberToString01()
+		{
+			object[] values = new object[] { 1.1 };
+			
+			using (Lua l = new Lua())
+			{
+				l.PrintExpressionTree = Console.Out;
+				var g = l.CreateEnvironment();
+
+				g.SetMemberValue("values", values);
+
+				TestResult(g.DoChunk("return values[0]:ToString();", "test0.lua"), values[0].ToString());
+				TestResult(g.DoChunk("return values[0]:ToString(\"G\");", "test0.lua"), ((double)values[0]).ToString("G"));
+				TestResult(g.DoChunk("return values[0]:ToString(\"G\", clr.System.Globalization.CultureInfo.InvariantCulture);", "test0.lua"), ((double)values[0]).ToString("G", System.Globalization.CultureInfo.InvariantCulture));
+			}
+		}
+	} // class ComplexStructures
 }
