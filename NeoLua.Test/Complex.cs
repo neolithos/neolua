@@ -87,7 +87,7 @@ namespace LuaDLR.Test
 			
 			using (Lua l = new Lua())
 			{
-				l.PrintExpressionTree =Console.Out;
+				l.PrintExpressionTree = true;
 				var g = l.CreateEnvironment();
 
 				g.SetMemberValue("values", values);
@@ -105,7 +105,7 @@ namespace LuaDLR.Test
 			
 			using (Lua l = new Lua())
 			{
-				l.PrintExpressionTree = Console.Out;
+				l.PrintExpressionTree = true;
 				var g = l.CreateEnvironment();
 
 				g.SetMemberValue("values", values);
