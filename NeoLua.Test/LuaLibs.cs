@@ -60,5 +60,47 @@ namespace LuaDLR.Test
 			);
 			TestCode(sCode);
 		}
+
+		[TestMethod]
+		public void TestRegEx01()
+		{
+			TestCode(
+				Lines(
+					"s = [[",
+					"(Standard)",
+					"(() Double Brackets ())",
+					"( Across Lines",
+					")",
+					"(()  Double Brackets Across Lines",
+					"())",
+					"(2 in) (A Line)",
+					"Before(Inside)After",
+					"MissMatch (found))",
+					")Not Matched(",
+					"MissMatch2 ((found2)",
+					"]]",
+					"local t = '';",
+					"for k in string.gmatch(s,'%b()') do",
+					"  print(k)",
+					"  t = t .. k .. '\\n'",
+					"end",
+					"return t"
+				),
+				String.Join("\n",
+					"(Standard)",
+					"(() Double Brackets ())",
+					"( Across Lines",
+					")",
+					"(()  Double Brackets Across Lines",
+					"())",
+					"(2 in)",
+					"(A Line)",
+					"(Inside)",
+					"(found)",
+					"(found2)", 
+					""
+				)
+			);
+		} 
 	}
 }

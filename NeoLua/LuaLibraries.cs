@@ -69,63 +69,63 @@ namespace Neo.IronLua
 							case 'A': // all Non letters
 								sb.Append("\\P{L}");
 								break;
-							
+
 							case 's': // all space characters
 								sb.Append("\\s");
 								break;
 							case 'S': // all NON space characters
 								sb.Append("\\S");
 								break;
-							
+
 							case 'd': // all digits
 								sb.Append("\\d");
 								break;
 							case 'D': // all NON digits
 								sb.Append("\\D");
 								break;
-							
+
 							case 'w': // all alphanumeric characters
 								sb.Append("\\w");
 								break;
 							case 'W': // all NON alphanumeric characters
 								sb.Append("\\W");
 								break;
-							
+
 							case 'c': // all control characters
 								sb.Append("\\p{C}");
 								break;
 							case 'C': // all NON control characters
 								sb.Append("[\\P{C}]");
 								break;
-							
+
 							case 'g': // all printable characters except space
 								sb.Append("[^\\p{C}\\s]");
 								break;
 							case 'G': // all NON printable characters including space
 								sb.Append("[\\p{C}\\s]");
 								break;
-							
+
 							case 'p': // all punctuation characters
 								sb.Append("\\p{P}");
 								break;
 							case 'P': // all NON punctuation characters
 								sb.Append("\\P{P}");
 								break;
-							
+
 							case 'l': // all lowercase letters
 								sb.Append("\\p{Ll}");
 								break;
 							case 'L': // all NON lowercase letters
 								sb.Append("\\P{Ll}");
 								break;
-							
+
 							case 'u': // all uppercase letters
 								sb.Append("\\p{Lu}");
 								break;
 							case 'U': // all NON uppercase letters
 								sb.Append("\\P{Lu}");
 								break;
-							
+
 							case 'x': // all hexadecimal digits
 								sb.Append("[0-9A-Fa-f]");
 								break;
@@ -133,21 +133,32 @@ namespace Neo.IronLua
 								sb.Append("[^0-9A-Fa-f]");
 								break;
 
-							//case 'b': does not work
-							//	if (i < sRegEx.Length - 2)
-							//	{
-							//		char c1 = sRegEx[i + 1];
-							//		char c2 = sRegEx[i + 2];
-							//		sb.Append("\\").Append(c1)
-							//			.Append("(?:[^").Append(c1).Append(c2).Append("]")
-							//				.Append("|(?<open> \\").Append(c1).Append(" )")
-							//				.Append("|(?<-open> \\").Append(c2).Append(" )")
-							//			.Append(")*")
-							//			.Append("\\").Append(c2);
-							//	}
-							//	else
-							//		throw new ArgumentOutOfRangeException();
-							//	break;
+							case 'b': // github #12
+								if (i < sRegEx.Length - 2)
+								{
+									char c1 = sRegEx[i + 1];
+									char c2 = sRegEx[i + 2];
+									//Example for %b()
+									//(\((?>(?<n>\()|(?<-n>\))|(?:[^\(\)]*))*\)(?(n)(?!)))
+									//Example for %bab
+									//(a(?>(?<n>a)|(?<-n>b)|(?:[^ab]*))*b(?(n)(?!)))
+									sb.Append("(");
+									sb.Append(Regex.Escape(c1.ToString()));
+									sb.Append("(?>(?<n>");
+									sb.Append(Regex.Escape(c1.ToString()));
+									sb.Append(")|(?<-n>");
+									sb.Append(Regex.Escape(c2.ToString()));
+									sb.Append(")|(?:[^");
+									sb.Append(Regex.Escape(c1.ToString()));
+									sb.Append(Regex.Escape(c2.ToString()));
+									sb.Append("]*))*");
+									sb.Append(Regex.Escape(c2.ToString()));
+									sb.Append("(?(n)(?!)))");
+									i += 2;
+								}
+								else
+									throw new ArgumentOutOfRangeException();
+								break;
 
 							default:
 								sb.Append('\\');
