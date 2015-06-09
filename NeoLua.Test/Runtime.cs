@@ -26,6 +26,9 @@ namespace LuaDLR.Test
         Console.WriteLine(sText);
         return 3;
       }
+
+			[LuaMember("BoolProperty")]
+			public bool BoolProperty { get; set; }
     }
 
     public class SubClass
@@ -259,5 +262,17 @@ namespace LuaDLR.Test
         g.dochunk("t={};t.year = 2001; print(os.time(t))");
       }
     }
+
+		[TestMethod]
+		public void TestGlobalProperty01()
+		{
+			using (Lua l = new Lua())
+			{
+				var g = l.CreateEnvironment<LuaGlobalNew>();
+
+				g.DoChunk("BoolProperty = true", "test1.lua");
+				TestResult(g.DoChunk("return BoolProperty", "test2.lua"), true);
+			}
+		}
   } // class Runtime
 }

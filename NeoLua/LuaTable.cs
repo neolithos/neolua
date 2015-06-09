@@ -455,7 +455,7 @@ namespace Neo.IronLua
 							break;
 						case LuaTableDefineMode.Direct:
 							exprMember = GetDirectMemberAccess(iEntryIndex, (LuaTablePropertyDefine)define, true, ref restrictions);
-							expr = Expression.Assign(exprMember, CreateSetExpresion(binder, value, exprMember.Type, ref restrictions));
+							expr = Lua.EnsureType(Expression.Assign(exprMember, CreateSetExpresion(binder, value, exprMember.Type, ref restrictions)), typeof(object));
 							break;
 						default:
 							throw new ArgumentOutOfRangeException();
