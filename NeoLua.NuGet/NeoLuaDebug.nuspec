@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+		<id>NeoLuaDebug</id>
+		<version>$version$</version>
+		<title>NeoLua - Debug</title>
+		<authors>Neolithos</authors>
+		<projectUrl>https://neolua.codeplex.com/</projectUrl>
+		<licenseUrl>https://neolua.codeplex.com/license</licenseUrl>
+		<requireLicenseAcceptance>false</requireLicenseAcceptance>
+		<description>A Lua implementation for the Dynamic Language Runtime (DLR). Debug-Extension.</description>
+		<summary>
+			A Lua implementation for the Dynamic Language Runtime (DLR).
+
+			NeoLua is an implementation of the Lua language. Currently the implementation is on the level of Lua 5.3 (http://www.lua.org/manual/5.3/manual.html). The goal is to match the reference of the C-Lua implementation and combine this with full .net framework support.
+
+			NeoLua is implemented in C# and uses the Dynamic Language Runtime. It therefore integrates very well with the .net framework.
+
+			This library contains the desktop parts of the lua implementation.
+		</summary>
+		<tags>Lua C# .net DLR Dynamic Language</tags>
+		<frameworkAssemblies>
+			<frameworkAssembly assemblyName="System" targetFramework="net45" />
+		</frameworkAssemblies>
+		<dependencies>
+			<dependency id="DynamicLanguageRuntime" />
+			<dependency id="NeoLua" />
+		</dependencies>
+	</metadata>
+  <files>
+		<file src="..\NeoLua.Dbg\bin\Release\Neo.Lua.Dbg.dll" target="lib\net45" />
+		<file src="..\NeoLua.Dbg\bin\Release\Neo.Lua.Dbg.pdb" target="lib\net45" />
+		<file src="..\NeoLua.Dbg\bin\Release\Neo.Lua.Dbg.xml" target="lib\net45" />
+	</files>
+</package>

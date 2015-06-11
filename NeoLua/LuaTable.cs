@@ -7,13 +7,37 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Text;
 
 namespace Neo.IronLua
 {
+	#region -- class LuaMemberAttribute -------------------------------------------------
+
 	///////////////////////////////////////////////////////////////////////////////
-	/// <summary></summary>
-  public class LuaTable : IDynamicMetaObjectProvider, INotifyPropertyChanged, IDictionary<string, object>, IList<object>, IDictionary<object, object>, ITypedList
+	/// <summary>Marks a function or a GET property for the global namespace.</summary>
+	[AttributeUsage(AttributeTargets.Property | AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
+	public sealed class LuaMemberAttribute : Attribute
+	{
+		private string sName;
+
+		/// <summary>Marks global Members, they act normally as library</summary>
+		/// <param name="sName"></param>
+		public LuaMemberAttribute(string sName)
+		{
+			this.sName = sName;
+		} // ctor
+
+		/// <summary>Global name of the function.</summary>
+		public string Name { get { return sName; } }
+	} // class LuaLibraryAttribute
+
+	#endregion
+
+	#region -- class LuaTable -----------------------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary>Implementation of a the lua table. A lua table is a combination 
+	/// of a hash dictionary, a string dictionary and a array list.</summary>
+	public class LuaTable : IDynamicMetaObjectProvider, INotifyPropertyChanged, IDictionary<object, object>
 	{
 		/// <summary>Member name of the metatable</summary>
 		public const string csMetaTable = "__metatable";
@@ -378,7 +402,7 @@ namespace Neo.IronLua
 			private Expression GetDirectMemberAccess(int iEntryIndex, LuaTablePropertyDefine pd, bool lGenerateRestriction, ref BindingRestrictions restrictions)
 			{
 				// static property
-				bool lStatic = pd.PropertyInfo.GetGetMethod().IsStatic;
+				bool lStatic = pd.PropertyInfo.GetMethod.IsStatic;
 
 				// generate restriction
 				if (lGenerateRestriction)
@@ -431,7 +455,7 @@ namespace Neo.IronLua
 							break;
 						case LuaTableDefineMode.Direct:
 							exprMember = GetDirectMemberAccess(iEntryIndex, (LuaTablePropertyDefine)define, true, ref restrictions);
-							expr = Expression.Assign(exprMember, CreateSetExpresion(binder, value, exprMember.Type, ref restrictions));
+							expr = Lua.EnsureType(Expression.Assign(exprMember, CreateSetExpresion(binder, value, exprMember.Type, ref restrictions)), typeof(object));
 							break;
 						default:
 							throw new ArgumentOutOfRangeException();
@@ -558,7 +582,7 @@ namespace Neo.IronLua
 					for (int i = 0; i < args.Length; i++)
 						exprArgs[i + 1] = args[i].Expression;
 
-					Expression exprCallMember = Expression.Dynamic(t.GetInvokeBinder(binder.CallInfo), typeof(object), exprArgs);
+					Expression exprCallMember = DynamicExpression.Dynamic(t.GetInvokeBinder(binder.CallInfo), typeof(object), exprArgs);
 
 					// Method Call
 					exprArgs = new Expression[args.Length + 2];
@@ -567,7 +591,7 @@ namespace Neo.IronLua
 					for (int i = 0; i < args.Length; i++)
 						exprArgs[i + 2] = args[i].Expression;
 
-					Expression exprCallMethod = Expression.Dynamic(t.GetInvokeBinder(new CallInfo(binder.CallInfo.ArgumentCount + 1)), typeof(object), exprArgs);
+					Expression exprCallMethod = DynamicExpression.Dynamic(t.GetInvokeBinder(new CallInfo(binder.CallInfo.ArgumentCount + 1)), typeof(object), exprArgs);
 
 					// Get Member
 					Expression expr = Expression.Block(new ParameterExpression[] { exprIsMethod, exprDelegate },
@@ -596,7 +620,8 @@ namespace Neo.IronLua
 			public override DynamicMetaObject BindConvert(ConvertBinder binder)
 			{
 				// Automatic convert to a special type, only for classes and structure
-				if (Type.GetTypeCode(binder.Type) == TypeCode.Object && !binder.Type.IsAssignableFrom(Value.GetType()))
+				var typeInfo = binder.Type.GetTypeInfo();
+				if (!typeInfo.IsPrimitive && !typeInfo.IsAssignableFrom(Value.GetType().GetTypeInfo()))
 				{
 					return new DynamicMetaObject(
 						Lua.EnsureType(
@@ -616,6 +641,381 @@ namespace Neo.IronLua
 				return ((IDictionary<string, object>)Value).Keys;
 			} // func GetDynamicMemberNames
 		} // class LuaTableMetaObject
+
+		#endregion
+
+		#region -- class ArrayImplementation ----------------------------------------------
+
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary>Proxy for a interface to the array part of a table.</summary>
+		private sealed class ArrayImplementation : IList<object>, IList, IReadOnlyList<object>
+		{
+			private LuaTable table;
+
+			#region -- Ctor/Dtor ------------------------------------------------------------
+
+			public ArrayImplementation(LuaTable table)
+			{
+				this.table = table;
+			} // ctor
+
+			#endregion
+
+			#region -- IList<object>, IList, ICollection<object>, ICollection ---------------
+
+			public int Add(object value)
+			{
+				return table.ArrayOnlyAdd(value);
+			} // func IList.Add
+
+			void ICollection<object>.Add(object item)
+			{
+				table.ArrayOnlyAdd(item);
+			} // proc ICollection<object>.Add
+
+			public void Insert(int index, object item)
+			{
+				table.ArrayOnlyInsert(index, item);
+			} // proc Insert
+
+			public bool Remove(object item)
+			{
+				return table.ArrayOnlyRemove(item);
+			} // func Remove
+
+			void IList.Remove(object value)
+			{
+				table.ArrayOnlyRemove(value);
+			} // func IList.Remove
+
+			public void RemoveAt(int index)
+			{
+				table.ArrayOnlyRemoveAt(index);
+			} // proc RemoveAt
+
+			public void Clear()
+			{
+				table.ArrayOnlyClear();
+			} // proc Clear
+
+			public bool Contains(object item)
+			{
+				return table.ArrayOnlyIndexOf(item) >= 0;
+			} // func Contains
+
+			public int IndexOf(object item)
+			{
+				return table.ArrayOnlyIndexOf(item);
+			} // func IndexOf
+
+			public void CopyTo(Array array, int index)
+			{
+				table.ArrayOnlyCopyTo(array, index);
+			} // func CopyTo
+
+			public void CopyTo(object[] array, int arrayIndex)
+			{
+				table.ArrayOnlyCopyTo(array, arrayIndex);
+			} // proc CopyTo
+
+			public int Count { get { return table.iArrayLength; } }
+			public bool IsReadOnly { get { return true; } }
+			public bool IsSynchronized { get { return false; } }
+			public bool IsFixedSize { get { return false; } }
+			public object SyncRoot { get { return null; } }
+
+			public object this[int iIndex] { get { return table.ArrayOnlyGetIndex(iIndex); } set { table.ArrayOnlySetIndex(iIndex, value); } }
+
+			#endregion
+
+			#region -- IEnumerable<object> --------------------------------------------------
+
+			public IEnumerator<object> GetEnumerator()
+			{
+				return table.ArrayOnlyGetEnumerator();
+			} // func GetEnumerator
+
+			IEnumerator IEnumerable.GetEnumerator()
+			{
+				return table.ArrayOnlyGetEnumerator();
+			} // func IEnumerable.GetEnumerator
+
+			#endregion
+		} // class ArrayImplementation
+
+		#endregion
+
+		#region -- class MemberImplementation ---------------------------------------------
+
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary>Proxy for a interface to the members of a table.</summary>
+		private sealed class MemberImplementation : IDictionary<string, object>
+		{
+			private LuaTable table;
+
+			#region -- Ctor/Dtor ------------------------------------------------------------
+
+			public MemberImplementation(LuaTable table)
+			{
+				this.table = table;
+			} // ctor
+
+			#endregion
+
+			#region -- IDictionary<string, object> members ----------------------------------
+
+			#region -- class LuaTableStringKeyCollection ------------------------------------
+
+			///////////////////////////////////////////////////////////////////////////////
+			/// <summary></summary>
+			public class LuaTableStringKeyCollection : ICollection<string>
+			{
+				private LuaTable t;
+
+				internal LuaTableStringKeyCollection(LuaTable t)
+				{
+					this.t = t;
+				} // ctor
+
+				/// <summary></summary>
+				/// <param name="item"></param>
+				/// <returns></returns>
+				public bool Contains(string item)
+				{
+					return t.ContainsMember(item);
+				} // func Contains
+
+				/// <summary></summary>
+				/// <param name="array"></param>
+				/// <param name="arrayIndex"></param>
+				public void CopyTo(string[] array, int arrayIndex)
+				{
+					if (arrayIndex < 0 || arrayIndex + Count > array.Length)
+						throw new ArgumentOutOfRangeException();
+
+					for (int i = HiddenMemberCount; i < t.entries.Length; i++)
+					{
+						object key = t.entries[i].key;
+						if (key is string)
+							array[arrayIndex++] = (string)key;
+					}
+				} // proc CopyTo
+
+				/// <summary></summary>
+				/// <returns></returns>
+				public IEnumerator<string> GetEnumerator()
+				{
+					int iVersion = t.iVersion;
+					for (int i = HiddenMemberCount; i < t.entries.Length; i++)
+					{
+						if (iVersion != t.iVersion)
+							throw new InvalidOperationException("table changed");
+						object key = t.entries[i].key;
+						if (key is string)
+							yield return (string)key;
+					}
+				} // func GetEnumerator
+
+				IEnumerator IEnumerable.GetEnumerator()
+				{
+					return GetEnumerator();
+				} // func IEnumerable.GetEnumerator
+
+				void ICollection<string>.Add(string item) { throw new NotSupportedException(); }
+				bool ICollection<string>.Remove(string item) { throw new NotSupportedException(); }
+				void ICollection<string>.Clear() { throw new NotSupportedException(); }
+
+				/// <summary></summary>
+				public int Count { get { return t.iMemberCount - HiddenMemberCount; } }
+				/// <summary>Always true</summary>
+				public bool IsReadOnly { get { return true; } }
+			} // class LuaTableStringKeyCollection
+
+			#endregion
+
+			#region -- class LuaTableStringValueCollection ----------------------------------
+
+			///////////////////////////////////////////////////////////////////////////////
+			/// <summary></summary>
+			public class LuaTableStringValueCollection : ICollection<object>
+			{
+				private LuaTable t;
+
+				internal LuaTableStringValueCollection(LuaTable t)
+				{
+					this.t = t;
+				} // ctor
+
+				/// <summary></summary>
+				/// <param name="value"></param>
+				/// <returns></returns>
+				public bool Contains(object value)
+				{
+					for (int i = 0; i < t.entries.Length; i++)
+					{
+						if (comparerObject.Equals(t.entries[i].value))
+							return true;
+					}
+					return false;
+				} // func Contains
+
+				/// <summary></summary>
+				/// <param name="array"></param>
+				/// <param name="arrayIndex"></param>
+				public void CopyTo(object[] array, int arrayIndex)
+				{
+					if (arrayIndex < 0 || arrayIndex + Count > array.Length)
+						throw new ArgumentOutOfRangeException();
+
+					for (int i = HiddenMemberCount; i < t.entries.Length; i++)
+					{
+						if (t.entries[i].key is string)
+							array[arrayIndex++] = t.entries[i].value;
+					}
+				} // proc CopyTo
+
+				/// <summary></summary>
+				/// <returns></returns>
+				public IEnumerator<object> GetEnumerator()
+				{
+					int iVersion = t.iVersion;
+					for (int i = HiddenMemberCount; i < t.entries.Length; i++)
+					{
+						if (iVersion != t.iVersion)
+							throw new InvalidOperationException("table changed");
+
+						if (t.entries[i].key is string)
+							yield return t.entries[i].value;
+					}
+				} // func GetEnumerator
+
+				IEnumerator IEnumerable.GetEnumerator()
+				{
+					return GetEnumerator();
+				} // func IEnumerable.GetEnumerator
+
+				void ICollection<object>.Add(object item) { throw new NotSupportedException(); }
+				bool ICollection<object>.Remove(object item) { throw new NotSupportedException(); }
+				void ICollection<object>.Clear() { throw new NotSupportedException(); }
+
+				/// <summary></summary>
+				public int Count { get { return t.iMemberCount - HiddenMemberCount; } }
+				/// <summary>Always true</summary>
+				public bool IsReadOnly { get { return true; } }
+			} // class LuaTableStringValueCollection
+
+			#endregion
+
+			private LuaTableStringKeyCollection stringKeyCollection = null;
+			private LuaTableStringValueCollection stringValueCollection = null;
+
+			public void Add(string key, object value)
+			{
+				table.SetMemberValue(key, value, false, true);
+			} // proc Add
+
+			public bool TryGetValue(string key, out object value)
+			{
+				return (value = table.GetMemberValue(key, false, true)) != null;
+			} // func TryGetValue
+
+			public bool ContainsKey(string key)
+			{
+				return table.ContainsMember(key, false);
+			} // func ContainsKey
+
+			public bool Remove(string key)
+			{
+				if (key == null)
+					throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
+
+				return table.SetMemberValueIntern(key, null, false, true, false, false) == RemovedIndex;
+			} // func Remove
+
+			public ICollection<string> Keys
+			{
+				get
+				{
+					if (stringKeyCollection == null)
+						stringKeyCollection = new LuaTableStringKeyCollection(table);
+					return stringKeyCollection;
+				}
+			} // prop Keys
+
+			public ICollection<object> Values
+			{
+				get
+				{
+					if (stringValueCollection == null)
+						stringValueCollection = new LuaTableStringValueCollection(table);
+					return stringValueCollection;
+				}
+			} // prop Values
+
+			public object this[string key]
+			{
+				get { return table.GetMemberValue(key, false, true); }
+				set { table.SetMemberValue(key, value, false, true); }
+			} // prop this
+
+			#endregion
+
+			#region -- ICollection<KeyValuePair<string, object>> members --------------------
+
+			public void Add(KeyValuePair<string, object> item)
+			{
+				if (item.Key == null)
+					throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
+
+				table.SetMemberValueIntern(item.Key, item.Value, false, false, true, false);
+			} // proc Add
+
+			public bool Remove(KeyValuePair<string, object> item)
+			{
+				if (item.Key == null)
+					throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
+
+				return table.SetMemberValueIntern(item.Key, null, false, true, false, false) == RemovedIndex;
+			} // func Remove
+
+			public void Clear()
+			{
+				table.ClearMembers();
+			} // proc Clear
+
+			public bool Contains(KeyValuePair<string, object> item)
+			{
+				return table.ContainsMember(item.Key);
+			} // func Contains
+
+			public void CopyTo(KeyValuePair<string, object>[] array, int arrayIndex)
+			{
+				table.MembersCopyTo(array, arrayIndex);
+			} // proc CopyTo
+
+			public int Count
+			{
+				get { return table.iMemberCount - HiddenMemberCount; }
+			} // func Count
+
+			public bool IsReadOnly { get { return false; } }
+
+			#endregion
+
+			#region -- IEnumerator<KeyValuePair<string, object>> members --------------------
+
+			public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
+			{
+				return table.MembersGetEnumerator();
+			} // func GetEnumerator
+
+			IEnumerator IEnumerable.GetEnumerator()
+			{
+				return table.MembersGetEnumerator();
+			} // func IEnumerable.GetEnumerator
+
+			#endregion
+		} // MemberImplementation
 
 		#endregion
 
@@ -674,7 +1074,6 @@ namespace Neo.IronLua
 			public Action<LuaTable, object> setValue;
 
 			private LuaMemberAttribute info;
-      private PropertyDescriptor descriptor;
 
 			protected LuaTableDefine(LuaMemberAttribute info)
 			{
@@ -691,22 +1090,8 @@ namespace Neo.IronLua
 
 			protected abstract void CollectMember(List<LuaCollectedMember> collected, LuaMemberAttribute info);
 
-      protected abstract PropertyDescriptor CreatePropertyDescriptor(int iIndex);
-
-      public PropertyDescriptor GetPropertyDescriptor(int iIndex)
-      {
-        lock (this)
-          if (descriptor == null)
-          {
-            descriptor = CreatePropertyDescriptor(iIndex);
-            if (descriptor == null)
-              throw new ArgumentNullException("descriptor", "no descriptor created");
-          }
-        return descriptor;
-      } // func GetPropertyDescriptor
-
 			public string MemberName { get { return info.Name; } }
-      public abstract Type DeclaredType { get; }
+			public abstract Type DeclaredType { get; }
 		} // class LuaTableDefine
 
 		#endregion
@@ -726,8 +1111,8 @@ namespace Neo.IronLua
 			{
 				this.pi = pi;
 
-				MethodInfo miGet = pi.GetGetMethod(true);
-				MethodInfo miSet = pi.GetSetMethod(false);
+				MethodInfo miGet = pi.GetMethod;
+				MethodInfo miSet = pi.SetMethod;
 
 				if (miGet == null) // invalid property
 					throw new InvalidOperationException("No get property.");
@@ -775,7 +1160,7 @@ namespace Neo.IronLua
 			{
 				if (mode == LuaTableDefineMode.Init)
 				{
-					return pi.GetGetMethod(true).IsStatic ?
+					return pi.GetMethod.IsStatic ?
 						GetPropertyStaticValue(table) :
 						GetPropertyInstanceValue(table);
 				}
@@ -805,20 +1190,8 @@ namespace Neo.IronLua
 
 			#endregion
 
-      #region -- CreatePropertyDescriptor ---------------------------------------------
-
-      protected override PropertyDescriptor CreatePropertyDescriptor(int iIndex)
-      {
-        if (mode == LuaTableDefineMode.Direct)
-          return TypeDescriptor.GetProperties(pi.DeclaringType, null, true)[pi.Name];
-        else
-          return new LuaTableClassPropertyDescriptor(this, iIndex);
-      } // func CreatePropertyDescriptor
-
-      #endregion
-
 			public PropertyInfo PropertyInfo { get { return pi; } }
-      public override Type DeclaredType { get { return pi.DeclaringType; } }
+			public override Type DeclaredType { get { return pi.DeclaringType; } }
 		} // class LuaTablePropertyDefine
 
 		#endregion
@@ -854,27 +1227,26 @@ namespace Neo.IronLua
 
 			protected override void CollectMember(List<LuaCollectedMember> collected, LuaMemberAttribute info)
 			{
-				Array.ForEach(methods, c => collected.Add(new LuaCollectedMember { Define = this, Info = info, Member = c }));
+				foreach (var mi in methods)
+					collected.Add(new LuaCollectedMember { Define = this, Info = info, Member = mi });
 			} // proc CollectMember
-
-      protected override PropertyDescriptor CreatePropertyDescriptor(int iIndex)
-      {
-        return new LuaTableClassPropertyDescriptor(this, iIndex);
-      } // func CreatePropertyDescriptor
 
 			public MethodInfo[] Methods { get { return methods; } }
 
-      public override Type DeclaredType
-      {
-        get
-        {
-          Type type = methods[0].DeclaringType;
-          for (int i = 1; i < methods.Length; i++)
-            if (type.IsSubclassOf(methods[i].DeclaringType))
-              type = methods[i].DeclaringType;
-          return type;
-        }
-      } // prop DeclaredType
+			public override Type DeclaredType
+			{
+				get
+				{
+					Type type = methods[0].DeclaringType;
+					TypeInfo typeInfo = type.GetTypeInfo();
+					for (int i = 1; i < methods.Length; i++)
+					{
+						if (typeInfo.IsSubclassOf(methods[i].DeclaringType))
+							type = methods[i].DeclaringType;
+					}
+					return type;
+				}
+			} // prop DeclaredType
 		} // class LuaTableMethodDefine
 
 		#endregion
@@ -937,21 +1309,28 @@ namespace Neo.IronLua
 			private void Collect(Type type, List<LuaCollectedMember> collected)
 			{
 				// is the type collected
-
-				if (type.BaseType != typeof(object))
+				TypeInfo ti = type.GetTypeInfo();
+				if (ti.BaseType != typeof(object))
 				{
-					LuaTableClass baseClass = GetClass(type.BaseType);  // collect recursive
-					Array.ForEach(baseClass.defines, d => d.CollectMember(collected)); // dump current defines
+					LuaTableClass baseClass = GetClass(ti.BaseType);  // collect recursive
+
+					// dump current defines
+					for (int i = 0; i < baseClass.defines.Length; i++)
+						baseClass.defines[i].CollectMember(collected);
 				}
 
 				// collect current level
-				foreach (MemberInfo mi in type.GetMembers(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.InvokeMethod | BindingFlags.GetProperty | BindingFlags.DeclaredOnly))
+				foreach (var mi in ti.DeclaredMembers)
 				{
-					LuaMemberAttribute[] info = (LuaMemberAttribute[])Attribute.GetCustomAttributes(mi, typeof(LuaMemberAttribute));
+					MethodInfo method = mi as MethodInfo;
+					PropertyInfo property = mi as PropertyInfo;
 
-					for (int i = 0; i < info.Length; i++)
+					if (property == null && method == null) // test on properties and methods
+						continue;
+
+					foreach (var info in mi.GetCustomAttributes<LuaMemberAttribute>())
 					{
-						if (info[i].Name == null) // remove all member
+						if (info.Name == null) // remove all member
 						{
 							for (int j = 0; j < collected.Count - 1; j++)
 								if (IsOverrideOf(mi, collected[j].Member))
@@ -962,32 +1341,32 @@ namespace Neo.IronLua
 						}
 						else
 						{
-							int iStartIndex = FindMember(collected, info[i].Name);
+							int iStartIndex = FindMember(collected, info.Name);
 							if (iStartIndex == -1)
 							{
-								collected.Add(new LuaCollectedMember { Info = info[i], Member = mi, Define = null });
+								collected.Add(new LuaCollectedMember { Info = info, Member = mi, Define = null });
 							}
 							else
 							{
 								// count the overloaded elements
 								int iNextIndex = iStartIndex;
-								while (iNextIndex < collected.Count && collected[iNextIndex].Info.Name == info[i].Name)
+								while (iNextIndex < collected.Count && collected[iNextIndex].Info.Name == info.Name)
 									iNextIndex++;
 
 								// properties it can only exists one property
-								if (mi.MemberType == MemberTypes.Property)
+								if (property != null)
 								{
 									collected.RemoveRange(iStartIndex, iNextIndex - iStartIndex);
-									collected.Add(new LuaCollectedMember { Info = info[i], Member = mi });
+									collected.Add(new LuaCollectedMember { Info = info, Member = property });
 								}
-								else // generate overload list
+								else if (method != null) // generate overload list
 								{
 									RemoveUseLessOverloads(collected, (MethodInfo)mi, iStartIndex, ref iNextIndex);
-									collected.Insert(iNextIndex, new LuaCollectedMember { Info = info[i], Member = mi });
+									collected.Insert(iNextIndex, new LuaCollectedMember { Info = info, Member = method });
 								}
 							}
 						}
-					} // for info
+					} // foreach info
 				} // for member
 			} // proc Collect
 
@@ -1012,9 +1391,9 @@ namespace Neo.IronLua
 			{
 				if (mi.GetType() == miTest.GetType() && mi.Name == miTest.Name)
 				{
-					if (mi.MemberType == MemberTypes.Property)
+					if (mi is PropertyInfo)
 						return IsOverridePropertyOf((PropertyInfo)mi, (PropertyInfo)miTest);
-					else if (mi.MemberType == MemberTypes.Method)
+					else if (mi is MethodInfo)
 						return IsOverrideMethodOf((MethodInfo)mi, (MethodInfo)miTest);
 					else
 						return false;
@@ -1025,7 +1404,7 @@ namespace Neo.IronLua
 
 			private bool IsOverridePropertyOf(PropertyInfo pi, PropertyInfo piTest)
 			{
-				return IsOverrideMethodOf(pi.GetGetMethod(true), piTest.GetGetMethod(true));
+				return IsOverrideMethodOf(pi.GetMethod, piTest.GetMethod);
 			} // func IsOverridePropertyOf
 
 			private bool IsOverrideMethodOf(MethodInfo mi, MethodInfo miTest)
@@ -1035,9 +1414,9 @@ namespace Neo.IronLua
 				{
 					if (miCur == miTest)
 						return true;
-					else if (miCur == miCur.GetBaseDefinition())
+					else if (miCur == miCur.GetRuntimeBaseDefinition())
 						return false;
-					miCur = miCur.GetBaseDefinition();
+					miCur = miCur.GetRuntimeBaseDefinition();
 				}
 			} // func IsOverrideMethodOf
 
@@ -1092,9 +1471,9 @@ namespace Neo.IronLua
 						else
 						{
 							MemberInfo mi = collected[iStart].Member;
-							if (mi.MemberType == MemberTypes.Property)
+							if (mi is PropertyInfo)
 								defineList.Add(new LuaTablePropertyDefine(collected[iStart].Info, (PropertyInfo)mi));
-							else if (mi.MemberType == MemberTypes.Method)
+							else if (mi is MethodInfo)
 								defineList.Add(new LuaTableMethodDefine(collected[iStart].Info, new MethodInfo[] { (MethodInfo)mi }));
 							else
 								throw new ArgumentException();
@@ -1112,7 +1491,7 @@ namespace Neo.IronLua
 						for (int j = 1; j < methods.Length; j++)
 						{
 							if (methods[0].IsStatic != methods[j].IsStatic)
-                throw new ArgumentException(String.Format(Properties.Resources.rsMethodStaticMix, methods[0]));
+								throw new ArgumentException(String.Format(Properties.Resources.rsMethodStaticMix, methods[0]));
 
 							if (!lCreateNewDefine && collected[iStart].Define != collected[iStart + j].Define)
 							{
@@ -1169,183 +1548,6 @@ namespace Neo.IronLua
 		} // class LuaTableClass
 
 		#endregion
-
-    #region -- class LuaTablePropertyDescriptor ---------------------------------------
-
-    private abstract class LuaTablePropertyDescriptor : PropertyDescriptor
-    {
-      private Dictionary<object, int> attachedHandler = null;
-
-      protected LuaTablePropertyDescriptor(MemberDescriptor member)
-        : base(member)
-      {
-      } // ctor
-
-      protected LuaTablePropertyDescriptor(string sName, Attribute[] attrs)
-        : base(sName, attrs)
-      {
-      } // ctor
-
-      public override void AddValueChanged(object component, EventHandler handler)
-      {
-        if (component == null)
-          throw new ArgumentNullException("component");
-        if (handler == null)
-          throw new ArgumentNullException("handler");
-
-        if (attachedHandler == null)
-          attachedHandler = new Dictionary<object, int>();
-
-        int iAttachedReferences;
-        if (attachedHandler.TryGetValue(component, out iAttachedReferences))
-          iAttachedReferences++;
-        else
-        {
-          attachedHandler[component] = 1;
-          Lua.NotifyPropertyChangedEventInfo.AddEventHandler(component, new PropertyChangedEventHandler(OnPropertyChanged));
-        }
-
-        base.AddValueChanged(component, handler);
-      } // proc AddValueChanged
-
-      public override void RemoveValueChanged(object component, EventHandler handler)
-      {
-        if (component == null)
-          throw new ArgumentNullException("component");
-        if (handler == null)
-          throw new ArgumentNullException("handler");
-
-        if (attachedHandler != null)
-        {
-          int iRef = attachedHandler[component];
-          if (iRef == 1)
-          {
-            Lua.NotifyPropertyChangedEventInfo.RemoveEventHandler(component, handler);
-            attachedHandler.Remove(component);
-          }
-          else
-            attachedHandler[component] = iRef - 1;
-        }
-        base.RemoveValueChanged(component, handler);
-      } // proc RemoveValueChanged
-
-      private void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
-      {
-        if (!String.IsNullOrEmpty(e.PropertyName) && String.Compare(e.PropertyName, Name, true) == 0)
-          OnValueChanged(sender, e);
-      } // proc OnPropertyChanged
-
-      public override Type ComponentType { get { return typeof(LuaTable); } }
-    } // class LuaTablePropertyDescriptor
-
-    #endregion
-
-    #region -- class LuaTableClassPropertyDescriptor ----------------------------------
-
-    private sealed class LuaTableClassPropertyDescriptor : LuaTablePropertyDescriptor
-    {
-      private LuaTableDefine define;
-      private int iIndex;
-
-      public LuaTableClassPropertyDescriptor(LuaTableDefine define, int iIndex)
-        : base(define.MemberName, null)
-      {
-        if (define.mode == LuaTableDefineMode.Direct)
-          throw new ArgumentException("is not allowed");
-
-        this.define = define;
-        this.iIndex = iIndex;
-      } // ctor
-
-      public override bool CanResetValue(object component)
-      {
-        return true;
-      } // func CanResetValue
-
-      public override void ResetValue(object component)
-      {
-        SetValue(component, define.GetInitialValue((LuaTable)component));
-      } // proc ResetValue
-
-      public override bool ShouldSerializeValue(object component)
-      {
-        LuaTable t = (LuaTable)component;
-        return !comparerObject.Equals(t.GetClassMemberValue(iIndex, true), define.GetInitialValue(t));
-      } // func ShouldSerializeValue
-
-      public override object GetValue(object component)
-      {
-        return ((LuaTable)component).GetClassMemberValue(iIndex, false);
-      } // func GetValue
-
-      public override void SetValue(object component, object value)
-      {
-        ((LuaTable)component).SetClassMemberValue(iIndex, value);
-      } // proc SetValue
-
-      public override bool IsReadOnly { get { return false; } }
-      public override Type ComponentType { get { return define.DeclaredType; } }
-      public override Type PropertyType { get { return typeof(object); } }
-    } // class LuaTableClassPropertyDescriptor
-
-    #endregion
-
-    #region -- class LuaTableValuePropertyDescriptor ----------------------------------
-
-    private sealed class LuaTableValuePropertyDescriptor : LuaTablePropertyDescriptor
-    {
-      public LuaTableValuePropertyDescriptor(string sMemberName)
-        : base(sMemberName, null)
-      {
-      } // ctor
-
-      public override bool CanResetValue(object component)
-      {
-        return true;
-      } // func CanResetValue
-
-      public override bool ShouldSerializeValue(object component)
-      {
-        return GetValue(component) != null;
-      } // func ShouldSerializeValue
-
-      public override void ResetValue(object component)
-      {
-        SetValue(component, null);
-      } // func ResetValue
-
-      public override object GetValue(object component)
-      {
-        return ((LuaTable)component).GetMemberValue(this.Name, false, false);
-      } // func GetValue
-
-      public override void SetValue(object component, object value)
-      {
-        ((LuaTable)component).SetMemberValue(Name, value, false, false);
-      } // proc SetValue
-
-      public override bool IsReadOnly { get { return false; } }
-      public override Type PropertyType { get { return typeof(object); } }
-
-      // -- Static ------------------------------------------------------------
-
-      private static Dictionary<string, PropertyDescriptor> descriptorCache = new Dictionary<string, PropertyDescriptor>();
-
-      public static PropertyDescriptor Get(string sMemberName)
-      {
-        PropertyDescriptor descriptor;
-        lock (descriptorCache)
-          if (descriptorCache.TryGetValue(sMemberName, out descriptor))
-            return descriptor;
-          else
-          {
-            descriptorCache[sMemberName] = descriptor = new LuaTableValuePropertyDescriptor(sMemberName);
-            return descriptor;
-          }
-      } // func Get
-    } // class LuaTableValuePropertyDescriptor
-
-    #endregion
 
 		/// <summary>Value has changed.</summary>
 		public event PropertyChangedEventHandler PropertyChanged;
@@ -1675,7 +1877,7 @@ namespace Neo.IronLua
 
 		/// <summary>Notify property changed</summary>
 		/// <param name="sPropertyName">Name of property</param>
-		protected void OnPropertyChanged(string sPropertyName)
+		protected virtual void OnPropertyChanged(string sPropertyName)
 		{
 			if (PropertyChanged != null)
 				PropertyChanged(this, new PropertyChangedEventArgs(sPropertyName));
@@ -1757,12 +1959,12 @@ namespace Neo.IronLua
 				return IndexNotFound;
 		} // func SetMemberValueIntern
 
-    private void SetClassMemberValue(int iEntryIndex, object value)
-    {
-      object key = entries[iEntryIndex].key;
-      if (SetClassMemberValue(iEntryIndex, key, value, false))
-        OnPropertyChanged((string)key);
-    } // proc SetClassMemberValue
+		private void SetClassMemberValue(int iEntryIndex, object value)
+		{
+			object key = entries[iEntryIndex].key;
+			if (SetClassMemberValue(iEntryIndex, key, value, false))
+				OnPropertyChanged((string)key);
+		} // proc SetClassMemberValue
 
 		private bool SetClassMemberValue(int iEntryIndex, object key, object value, bool lMarkAsMethod)
 		{
@@ -1771,8 +1973,8 @@ namespace Neo.IronLua
 				case LuaTableDefineMode.Default:
 					return entries[iEntryIndex].SetValue(value, lMarkAsMethod);
 				case LuaTableDefineMode.Direct:
-          classDefinition[iEntryIndex].setValue(this, value); // direct properties have to handle OnPropertyChanged on her own
-						return false;
+					classDefinition[iEntryIndex].setValue(this, value); // direct properties have to handle OnPropertyChanged on her own
+					return false;
 				default:
 					if (key == null || entries[iEntryIndex].value != null || !OnNewIndex(key, value))
 					{
@@ -1811,10 +2013,10 @@ namespace Neo.IronLua
 				return entries[iEntryIndex].value;
 		} // func GetMemberValue
 
-    private object GetClassMemberValue(int iEntryIndex, bool lRawGet)
-    {
-      return GetClassMemberValue(iEntryIndex, entries[iEntryIndex].key, lRawGet);
-    } // func GetClassMemberValue
+		private object GetClassMemberValue(int iEntryIndex, bool lRawGet)
+		{
+			return GetClassMemberValue(iEntryIndex, entries[iEntryIndex].key, lRawGet);
+		} // func GetClassMemberValue
 
 		private object GetClassMemberValue(int iEntryIndex, object key, bool lRawGet)
 		{
@@ -2040,7 +2242,48 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- High level Array functions ---------------------------------------------
+		#region -- High level Array/Member functions --------------------------------------
+
+		private void MembersCopyTo(KeyValuePair<string, object>[] array, int arrayIndex)
+		{
+			if (arrayIndex < 0 || arrayIndex + iMemberCount - HiddenMemberCount > array.Length)
+				throw new ArgumentOutOfRangeException();
+
+			for (int i = HiddenMemberCount; i < entries.Length; i++)
+			{
+				object key = entries[i].key;
+				if (key is string)
+					array[arrayIndex++] = new KeyValuePair<string, object>((string)key, entries[i].value);
+			}
+		} // proc MembersCopyTo
+
+		private IEnumerator<KeyValuePair<string, object>> MembersGetEnumerator()
+		{
+			int iVersion = this.iVersion;
+			for (int i = HiddenMemberCount; i < entries.Length; i++)
+			{
+				if (iVersion != this.iVersion)
+					throw new InvalidOperationException();
+
+				object key = entries[i].key;
+				if (key is string)
+					yield return new KeyValuePair<string, object>((string)key, entries[i].value);
+			}
+		} // func MembersGetEnumerator
+
+		private void ClearMembers()
+		{
+			for (int i = HiddenMemberCount; i < entries.Length; i++)
+			{
+				if (i < classDefinition.Count)
+					if (classDefinition[i].mode == LuaTableDefineMode.Init)
+						SetClassMemberValue(i, null, classDefinition[i].GetInitialValue(this), false);
+					else
+						SetClassMemberValue(i, null, null, false);
+				else if (entries[i].hashCode != -1 && entries[i].key is string)
+					RemoveValue(i);
+			}
+		} // proc ClearMembers
 
 		/// <summary>zero based</summary>
 		/// <param name="value"></param>
@@ -2049,6 +2292,13 @@ namespace Neo.IronLua
 		{
 			return Array.IndexOf(arrayList, value, 0, iArrayLength);
 		} // func ArrayOnlyIndexOf
+
+		private int ArrayOnlyAdd(object value)
+		{
+			int iTmp = iArrayLength;
+			SetArrayValue(iArrayLength + 1, value, true);
+			return iTmp;
+		} // func ArrayOnlyAdd
 
 		/// <summary>zero based</summary>
 		/// <param name="iIndex"></param>
@@ -2072,6 +2322,21 @@ namespace Neo.IronLua
 			SetArrayValue(iArrayLength + 1, last, true);
 		} // proc ArrayOnlyInsert 
 
+		private void ArrayOnlyCopyTo(Array array, int arrayIndex)
+		{
+			if (arrayIndex + iArrayLength > array.Length)
+				throw new ArgumentOutOfRangeException();
+
+			Array.Copy(arrayList, 0, array, arrayIndex, iArrayLength);
+		} // proc ArrayOnlyCopyTo
+
+		private void ArrayOnlyClear()
+		{
+			Array.Clear(arrayList, 0, iArrayLength);
+			iArrayLength = 0;
+			iVersion++;
+		} // ArrayOnlyClear
+
 		/// <summary>zero based</summary>
 		/// <param name="iIndex"></param>
 		private void ArrayOnlyRemoveAt(int iIndex)
@@ -2085,6 +2350,44 @@ namespace Neo.IronLua
 			iVersion++;
 		} // func ArrayOnlyRemoveAt
 
+		private bool ArrayOnlyRemove(object value)
+		{
+			int iIndex = ArrayOnlyIndexOf(value);
+			if (iIndex >= 0)
+			{
+				ArrayOnlyRemoveAt(iIndex);
+				return true;
+			}
+			else
+				return false;
+		} // func ArrayOnlyRemove
+
+		private IEnumerator<object> ArrayOnlyGetEnumerator()
+		{
+			int iVersion = this.iVersion;
+			for (int i = 0; i < iArrayLength; i++)
+			{
+				if (iVersion != this.iVersion)
+					throw new InvalidOperationException();
+
+				yield return arrayList[i];
+			}
+		} // func ArrayOnlyGetEnumerator
+
+		private object ArrayOnlyGetIndex(int iIndex)
+		{
+			if (iIndex >= 0 && iIndex >= iArrayLength)
+				throw new ArgumentOutOfRangeException();
+			return arrayList[iIndex];
+		} // func ArrayOnlyGetIndex
+
+		private void ArrayOnlySetIndex(int iIndex, object value)
+		{
+			if (iIndex >= 0 && iIndex >= iArrayLength)
+				throw new ArgumentOutOfRangeException();
+			arrayList[iIndex] = value;
+		} // proc ArrayOnlySetIndex
+
 		#endregion
 
 		#region -- Simple Set/GetValue/Contains -------------------------------------------
@@ -2094,31 +2397,31 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		internal static bool IsIndexKey(Type type)
 		{
-			TypeCode tc = Type.GetTypeCode(type);
-			return tc >= TypeCode.SByte && tc <= TypeCode.Int32;
+			var tc = LuaEmit.GetTypeCode(type);
+			return tc >= LuaEmitTypeCode.SByte && tc <= LuaEmitTypeCode.Int32;
 		} // func IsIndexKey
 
 		private static bool IsIndexKey(object item, out int iIndex)
 		{
 			#region -- IsIndexKey --
-			switch (Type.GetTypeCode(item.GetType()))
+			switch (LuaEmit.GetTypeCode(item.GetType()))
 			{
-				case TypeCode.Int32:
+				case LuaEmitTypeCode.Int32:
 					iIndex = (int)item;
 					return true;
-				case TypeCode.Byte:
+				case LuaEmitTypeCode.Byte:
 					iIndex = (byte)item;
 					return true;
-				case TypeCode.SByte:
+				case LuaEmitTypeCode.SByte:
 					iIndex = (sbyte)item;
 					return true;
-				case TypeCode.UInt16:
+				case LuaEmitTypeCode.UInt16:
 					iIndex = (ushort)item;
 					return true;
-				case TypeCode.Int16:
+				case LuaEmitTypeCode.Int16:
 					iIndex = (short)item;
 					return true;
-				case TypeCode.UInt32:
+				case LuaEmitTypeCode.UInt32:
 					unchecked
 					{
 						uint t = (uint)item;
@@ -2133,7 +2436,7 @@ namespace Neo.IronLua
 							return false;
 						}
 					}
-				case TypeCode.Int64:
+				case LuaEmitTypeCode.Int64:
 					unchecked
 					{
 						long t = (uint)item;
@@ -2148,7 +2451,7 @@ namespace Neo.IronLua
 							return false;
 						}
 					}
-				case TypeCode.UInt64:
+				case LuaEmitTypeCode.UInt64:
 					unchecked
 					{
 						ulong t = (uint)item;
@@ -2163,7 +2466,7 @@ namespace Neo.IronLua
 							return false;
 						}
 					}
-				case TypeCode.Single:
+				case LuaEmitTypeCode.Single:
 					{
 						float f = (float)item;
 						if (f % 1 == 0 && f >= 1 && f <= Int32.MaxValue)
@@ -2177,7 +2480,7 @@ namespace Neo.IronLua
 							return false;
 						}
 					}
-				case TypeCode.Double:
+				case LuaEmitTypeCode.Double:
 					{
 						double f = (double)item;
 						if (f % 1 == 0 && f >= 1 && f <= Int32.MaxValue)
@@ -2191,7 +2494,7 @@ namespace Neo.IronLua
 							return false;
 						}
 					}
-				case TypeCode.Decimal:
+				case LuaEmitTypeCode.Decimal:
 					{
 						decimal f = (decimal)item;
 						if (f % 1 == 0 && f >= 1 && f <= Int32.MaxValue)
@@ -2405,8 +2708,8 @@ namespace Neo.IronLua
 			if (method == null)
 				throw new ArgumentNullException("method");
 
-			Type typeFirstParameter = method.Method.GetParameters()[0].ParameterType;
-			if (!typeFirstParameter.IsAssignableFrom(typeof(LuaTable)))
+			Type typeFirstParameter = method.GetMethodInfo().GetParameters()[0].ParameterType;
+			if (!typeFirstParameter.GetTypeInfo().IsAssignableFrom(typeof(LuaTable).GetTypeInfo()))
 				throw new ArgumentException(String.Format(Properties.Resources.rsTableMethodExpected, sMethodName));
 
 			SetMemberValueIntern(sMethodName, method, lIgnoreCase, false, false, true);
@@ -2588,7 +2891,7 @@ namespace Neo.IronLua
 			Type type = obj.GetType();
 
 			// set all fields
-			foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.SetField))
+			foreach (FieldInfo field in type.GetRuntimeFields().Where(fi => fi.IsPublic && !fi.IsStatic && !fi.IsInitOnly))
 			{
 				int iEntryIndex = FindKey(field.Name, GetMemberHashCode(field.Name), compareString);
 				if (iEntryIndex >= 0)
@@ -2596,7 +2899,7 @@ namespace Neo.IronLua
 			}
 
 			// set all properties
-			foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.SetProperty))
+			foreach (PropertyInfo property in type.GetRuntimeProperties().Where(pi => pi.SetMethod != null && pi.SetMethod.IsPublic && !pi.SetMethod.IsStatic))
 			{
 				int iEntryIndex = FindKey(property.Name, GetMemberHashCode(property.Name), compareString);
 				if (iEntryIndex >= 0)
@@ -2617,7 +2920,7 @@ namespace Neo.IronLua
 				object o = metaTable[sKey];
 				if (o != null)
 				{
-					if (Lua.IsCallable(o))
+					if (Lua.RtInvokeable(o))
 					{
 						r = (TRETURN)Lua.RtConvertValue(RtInvokeSite(o, args), typeof(TRETURN));
 						return true;
@@ -2829,7 +3132,7 @@ namespace Neo.IronLua
 
 			if ((t = index as LuaTable) != null) // default table
 				return t.GetValue(key, false);
-			else if (Lua.IsCallable(index)) // default function
+			else if (Lua.RtInvokeable(index)) // default function
 				return new LuaResult(RtInvokeSite(index, this, key))[0];
 			else
 				return null;
@@ -2845,7 +3148,7 @@ namespace Neo.IronLua
 				return false;
 
 			object o = metaTable["__newindex"];
-			if (Lua.IsCallable(o))
+			if (Lua.RtInvokeable(o))
 			{
 				RtInvokeSite(o, this, key, value);
 				return true;
@@ -2874,378 +3177,6 @@ namespace Neo.IronLua
 				return o;
 			}
 		} // func OnCall
-
-		#endregion
-
-		#region -- IDictionary<string, object> members ------------------------------------
-
-		#region -- class LuaTableStringKeyCollection --------------------------------------
-
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
-		public class LuaTableStringKeyCollection : ICollection<string>
-		{
-			private LuaTable t;
-
-			internal LuaTableStringKeyCollection(LuaTable t)
-			{
-				this.t = t;
-			} // ctor
-
-			/// <summary></summary>
-			/// <param name="item"></param>
-			/// <returns></returns>
-			public bool Contains(string item)
-			{
-				return t.ContainsMember(item);
-			} // func Contains
-
-			/// <summary></summary>
-			/// <param name="array"></param>
-			/// <param name="arrayIndex"></param>
-			public void CopyTo(string[] array, int arrayIndex)
-			{
-				if (arrayIndex < 0 || arrayIndex + Count > array.Length)
-					throw new ArgumentOutOfRangeException();
-
-				for (int i = HiddenMemberCount; i < t.entries.Length; i++)
-				{
-					object key = t.entries[i].key;
-					if (key is string)
-						array[arrayIndex++] = (string)key;
-				}
-			} // proc CopyTo
-
-			/// <summary></summary>
-			/// <returns></returns>
-			public IEnumerator<string> GetEnumerator()
-			{
-				int iVersion = t.iVersion;
-				for (int i = HiddenMemberCount; i < t.entries.Length; i++)
-				{
-					if (iVersion != t.iVersion)
-						throw new InvalidOperationException("table changed");
-					object key = t.entries[i].key;
-					if (key is string)
-						yield return (string)key;
-				}
-			} // func GetEnumerator
-
-			IEnumerator IEnumerable.GetEnumerator()
-			{
-				return GetEnumerator();
-			} // func IEnumerable.GetEnumerator
-
-			void ICollection<string>.Add(string item) { throw new NotSupportedException(); }
-			bool ICollection<string>.Remove(string item) { throw new NotSupportedException(); }
-			void ICollection<string>.Clear() { throw new NotSupportedException(); }
-
-			/// <summary></summary>
-			public int Count { get { return t.iMemberCount - HiddenMemberCount; } }
-			/// <summary>Always true</summary>
-			public bool IsReadOnly { get { return true; } }
-		} // class LuaTableStringKeyCollection
-
-		#endregion
-
-		#region -- class LuaTableStringValueCollection ------------------------------------
-
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
-		public class LuaTableStringValueCollection : ICollection<object>
-		{
-			private LuaTable t;
-
-			internal LuaTableStringValueCollection(LuaTable t)
-			{
-				this.t = t;
-			} // ctor
-
-			/// <summary></summary>
-			/// <param name="value"></param>
-			/// <returns></returns>
-			public bool Contains(object value)
-			{
-				for (int i = 0; i < t.entries.Length; i++)
-				{
-					if (comparerObject.Equals(t.entries[i].value))
-						return true;
-				}
-				return false;
-			} // func Contains
-
-			/// <summary></summary>
-			/// <param name="array"></param>
-			/// <param name="arrayIndex"></param>
-			public void CopyTo(object[] array, int arrayIndex)
-			{
-				if (arrayIndex < 0 || arrayIndex + Count > array.Length)
-					throw new ArgumentOutOfRangeException();
-
-				for (int i = HiddenMemberCount; i < t.entries.Length; i++)
-				{
-					if (t.entries[i].key is string)
-						array[arrayIndex++] = t.entries[i].value;
-				}
-			} // proc CopyTo
-
-			/// <summary></summary>
-			/// <returns></returns>
-			public IEnumerator<object> GetEnumerator()
-			{
-				int iVersion = t.iVersion;
-				for (int i = HiddenMemberCount; i < t.entries.Length; i++)
-				{
-					if (iVersion != t.iVersion)
-						throw new InvalidOperationException("table changed");
-
-					if (t.entries[i].key is string)
-						yield return t.entries[i].value;
-				}
-			} // func GetEnumerator
-
-			IEnumerator IEnumerable.GetEnumerator()
-			{
-				return GetEnumerator();
-			} // func IEnumerable.GetEnumerator
-
-			void ICollection<object>.Add(object item) { throw new NotSupportedException(); }
-			bool ICollection<object>.Remove(object item) { throw new NotSupportedException(); }
-			void ICollection<object>.Clear() { throw new NotSupportedException(); }
-
-			/// <summary></summary>
-			public int Count { get { return t.iMemberCount - HiddenMemberCount; } }
-			/// <summary>Always true</summary>
-			public bool IsReadOnly { get { return true; } }
-		} // class LuaTableStringValueCollection
-
-		#endregion
-
-		private LuaTableStringKeyCollection stringKeyCollection = null;
-		private LuaTableStringValueCollection stringValueCollection = null;
-
-		void IDictionary<string, object>.Add(string key, object value)
-		{
-			SetMemberValue(key, value, false, true);
-		} // proc IDictionary<string, object>.Add
-
-		bool IDictionary<string, object>.TryGetValue(string key, out object value)
-		{
-			return (value = GetMemberValue(key, false, true)) != null;
-		} // func IDictionary<string, object>.TryGetValue
-
-		bool IDictionary<string, object>.ContainsKey(string key)
-		{
-			return ContainsMember(key, false);
-		} // func IDictionary<string, object>.ContainsKey
-
-		bool IDictionary<string, object>.Remove(string key)
-		{
-			if (key == null)
-				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
-
-			return SetMemberValueIntern(key, null, false, true, false, false) == RemovedIndex;
-		} // func IDictionary<string, object>.Remove
-
-		ICollection<string> IDictionary<string, object>.Keys
-		{
-			get
-			{
-				if (stringKeyCollection == null)
-					stringKeyCollection = new LuaTableStringKeyCollection(this);
-				return stringKeyCollection;
-			}
-		} // prop IDictionary<string, object>.Keys
-
-		ICollection<object> IDictionary<string, object>.Values
-		{
-			get
-			{
-				if (stringValueCollection == null)
-					stringValueCollection = new LuaTableStringValueCollection(this);
-				return stringValueCollection;
-			}
-		} // prop IDictionary<string, object>.Values
-
-		object IDictionary<string, object>.this[string key]
-		{
-			get { return GetMemberValue(key, false, true); }
-			set { SetMemberValue(key, value, false, true); }
-		} // prop IDictionary<string, object>.this
-
-		#endregion
-
-		#region -- ICollection<KeyValuePair<string, object>> members ----------------------
-
-		void ICollection<KeyValuePair<string, object>>.Add(KeyValuePair<string, object> item)
-		{
-			if (item.Key == null)
-				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
-
-			SetMemberValueIntern(item.Key, item.Value, false, false, true, false);
-		} // proc ICollection<KeyValuePair<string, object>>.Add
-
-		bool ICollection<KeyValuePair<string, object>>.Remove(KeyValuePair<string, object> item)
-		{
-			if (item.Key == null)
-				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
-
-			return SetMemberValueIntern(item.Key, null, false, true, false, false) == RemovedIndex;
-		} // func ICollection<KeyValuePair<string, object>>.Remove
-
-		void ICollection<KeyValuePair<string, object>>.Clear()
-		{
-			// remove the values
-			for (int i = HiddenMemberCount; i < entries.Length; i++)
-			{
-				if (i < classDefinition.Count)
-					if (classDefinition[i].mode == LuaTableDefineMode.Init)
-						SetClassMemberValue(i, null, classDefinition[i].GetInitialValue(this), false);
-					else
-						SetClassMemberValue(i, null, null, false);
-				else if (entries[i].hashCode != -1)
-					RemoveValue(i);
-			}
-		} // proc ICollection<KeyValuePair<string, object>>.Clear
-
-		bool ICollection<KeyValuePair<string, object>>.Contains(KeyValuePair<string, object> item)
-		{
-			return ContainsMember(item.Key);
-		} // func ICollection<KeyValuePair<string, object>>.Contains
-
-		void ICollection<KeyValuePair<string, object>>.CopyTo(KeyValuePair<string, object>[] array, int arrayIndex)
-		{
-			if (arrayIndex < 0 || arrayIndex + iMemberCount - HiddenMemberCount > array.Length)
-				throw new ArgumentOutOfRangeException();
-
-			for (int i = HiddenMemberCount; i < entries.Length; i++)
-			{
-				object key = entries[i].key;
-				if (key is string)
-					array[arrayIndex++] = new KeyValuePair<string, object>((string)key, entries[i].value);
-			}
-		} // proc ICollection<KeyValuePair<string, object>>.CopyTo
-
-		int ICollection<KeyValuePair<string, object>>.Count
-		{
-			get { return iMemberCount - HiddenMemberCount; }
-		} // func ICollection<KeyValuePair<string, object>>.Count
-
-		bool ICollection<KeyValuePair<string, object>>.IsReadOnly { get { return false; } }
-
-		#endregion
-
-		#region -- IEnumerator<KeyValuePair<string, object>> members ----------------------
-
-		IEnumerator<KeyValuePair<string, object>> IEnumerable<KeyValuePair<string, object>>.GetEnumerator()
-		{
-			int iVersion = this.iVersion;
-			for (int i = HiddenMemberCount; i < entries.Length; i++)
-			{
-				if (iVersion != this.iVersion)
-					throw new InvalidOperationException();
-
-				object key = entries[i].key;
-				if (key is string)
-					yield return new KeyValuePair<string, object>((string)key, entries[i].value);
-			}
-		} // func IEnumerable<KeyValuePair<string, object>>.GetEnumerator
-
-		#endregion
-
-		#region -- IList<object> members --------------------------------------------------
-
-		int IList<object>.IndexOf(object item)
-		{
-			return ArrayOnlyIndexOf(item);
-		} // func IList<object>.IndexOf
-
-		void IList<object>.Insert(int index, object item)
-		{
-			ArrayOnlyInsert(index, item);
-		} // proc IList<object>.Insert
-
-		void IList<object>.RemoveAt(int index)
-		{
-			ArrayOnlyRemoveAt(index);
-		} // proc IList<object>.RemoveAt
-
-		object IList<object>.this[int iIndex]
-		{
-			get
-			{
-				if (iIndex >= 0 && iIndex >= iArrayLength)
-					throw new ArgumentOutOfRangeException();
-				return arrayList[iIndex];
-			}
-			set
-			{
-				if (iIndex >= 0 && iIndex >= iArrayLength)
-					throw new ArgumentOutOfRangeException();
-				arrayList[iIndex] = value;
-			}
-		} // prop IList<object>.this
-
-		#endregion
-
-		#region -- ICollection<object> ----------------------------------------------------
-
-		void ICollection<object>.Add(object item)
-		{
-			ArrayOnlyInsert(iArrayLength, item);
-		} // proc ICollection<object>.Add
-
-		bool ICollection<object>.Remove(object item)
-		{
-			int iIndex = ArrayOnlyIndexOf(item);
-			if (iIndex >= 0)
-			{
-				ArrayOnlyRemoveAt(iIndex);
-				return true;
-			}
-			else
-				return false;
-		} // func ICollection<object>.Remove
-
-		void ICollection<object>.Clear()
-		{
-			Array.Clear(arrayList, 0, iArrayLength);
-			iArrayLength = 0;
-			iVersion++;
-		} // proc ICollection<object>.Clear
-
-		bool ICollection<object>.Contains(object item)
-		{
-			return ArrayOnlyIndexOf(item) >= 0;
-		} // func ICollection<object>.Contains
-
-		void ICollection<object>.CopyTo(object[] array, int arrayIndex)
-		{
-			if (arrayIndex + iArrayLength > array.Length)
-				throw new ArgumentOutOfRangeException();
-
-			Array.Copy(arrayList, 0, array, arrayIndex, iArrayLength);
-		} // proc ICollection<object>.CopyTo
-
-		int ICollection<object>.Count { get { return iArrayLength; } }
-
-		bool ICollection<object>.IsReadOnly { get { return true; } }
-
-		#endregion
-
-		#region -- IEnumerable<object> ----------------------------------------------------
-
-		IEnumerator<object> IEnumerable<object>.GetEnumerator()
-		{
-			int iVersion = this.iVersion;
-			for (int i = 0; i < iArrayLength; i++)
-			{
-				if (iVersion != this.iVersion)
-					throw new InvalidOperationException();
-
-				yield return arrayList[i];
-			}
-		} // func IEnumerable<object>.GetEnumerator
 
 		#endregion
 
@@ -3656,91 +3587,6 @@ namespace Neo.IronLua
 			return GetEnumerator();
 		} // func System.Collections.IEnumerable.GetEnumerator
 
-    #endregion
-
-    #region -- ITypedList.GetItemProperties members -----------------------------------
-
-    private T FindTypeList<T>(LuaTable current, PropertyDescriptor[] listAccessors, int iIndex, Func<LuaTable, PropertyDescriptor, T> action, Func<ITypedList, PropertyDescriptor[], T> continueAction)
-    {
-      if (iIndex < listAccessors.Length)
-      {
-        object newCurrent = listAccessors[iIndex].GetValue(current);
-        if (newCurrent is LuaTable)
-          return FindTypeList((LuaTable)newCurrent, listAccessors, iIndex + 1, action, continueAction);
-        else if (newCurrent is ITypedList)
-        {
-          if (iIndex < listAccessors.Length - 1)
-          {
-            PropertyDescriptor[] newListAccessors = new PropertyDescriptor[listAccessors.Length - iIndex - 1];
-            Array.Copy(listAccessors, iIndex + 1, newListAccessors, 0, newListAccessors.Length);
-            return continueAction((ITypedList)newCurrent, newListAccessors);
-          }
-          else
-            return continueAction((ITypedList)newCurrent, null);
-        }
-        else
-          return default(T);
-      }
-      else
-        return action(current, listAccessors[iIndex - 1]);
-    } // func FindTypeList
-
-    PropertyDescriptorCollection ITypedList.GetItemProperties(PropertyDescriptor[] listAccessors)
-    {
-      return FindTypeList<PropertyDescriptorCollection>(this, listAccessors, 0, GetItemProperties, (t, la) => t.GetItemProperties(la));
-    } /// func ITypedList.GetItemProperties
-
-    string ITypedList.GetListName(PropertyDescriptor[] listAccessors)
-    {
-      if (listAccessors == null || listAccessors.Length == 0)
-        return String.Empty;
-
-      return FindTypeList<string>(this, listAccessors, 0, (t, p) => p.Name, (t, la) => t.GetListName(la));
-    } // func ITypedList.GetListName 
-
-    private static PropertyDescriptorCollection GetItemProperties(LuaTable table, PropertyDescriptor p)
-    {
-      return table.GetItemProperties();
-    } // func PropertyDescriptorCollection
-
-    /// <summary>Returns the current property table.</summary>
-    /// <param name="properties">Properties, that must be in the list.</param>
-    /// <returns>PropertyCollection</returns>
-    public PropertyDescriptorCollection GetItemProperties(params string[] properties)
-    {
-      PropertyDescriptorCollection c = new PropertyDescriptorCollection(null, false);
-
-      // Return the class properties
-      for (int i = 0; i < classDefinition.Count; i++)
-        c.Add(classDefinition[i].GetPropertyDescriptor(i));
-
-      // Return the dynamic properties
-      for (int i = classDefinition.Count; i < entries.Length; i++)
-      {
-        if (entries[i].key is string)
-          c.Add(LuaTableValuePropertyDescriptor.Get((string)entries[i].key));
-      }
-
-      // Return extra properties
-      for (int i = 0; i < properties.Length; i++)
-        if (c.Find(properties[i], true) == null)
-          c.Add(LuaTableValuePropertyDescriptor.Get(properties[i]));
-
-      return c;
-    } // func GetItemProperties
-
-    /// <summary>Returns the property descriptor for exact one member</summary>
-    /// <param name="sMemberName">Name of the member</param>
-    /// <returns>Descriptor, for the property. Every memberName gets only one instance</returns>
-    public PropertyDescriptor GetItemProperty(string sMemberName)
-    {
-      int iEntryIndex = FindKey(sMemberName, GetMemberHashCode(sMemberName), compareStringIgnoreCase);
-      if (iEntryIndex < classDefinition.Count)
-        return classDefinition[iEntryIndex].GetPropertyDescriptor(iEntryIndex);
-      else
-        return LuaTableValuePropertyDescriptor.Get(sMemberName);
-    } // proc GetItemProperty
-
 		#endregion
 
 		/// <summary>Returns or sets an value in the lua-table.</summary>
@@ -3761,19 +3607,16 @@ namespace Neo.IronLua
 		public object this[params object[] keyList] { get { return GetValue(keyList, false); } set { SetValue(keyList, value, false); } }
 
 		/// <summary>Access to the array part</summary>
-		public IList<object> ArrayList { get { return this; } }
+		public IList<object> ArrayList { get { return new ArrayImplementation(this); } }
 		/// <summary>Access to all members</summary>
-		public IDictionary<string, object> Members { get { return this; } }
+		public IDictionary<string, object> Members { get { return new MemberImplementation(this); } }
 		/// <summary>Access to all values.</summary>
 		public IDictionary<object, object> Values { get { return this; } }
 
 		/// <summary>Length if it is an array.</summary>
 		public int Length { get { return iArrayLength; } }
 		/// <summary>Access to the __metatable</summary>
-    [
-    LuaMember(csMetaTable),
-    Browsable(false),
-    ]
+		[LuaMember(csMetaTable)]
 		public LuaTable MetaTable { get { return metaTable; } set { metaTable = value; } }
 
 		// -- Static --------------------------------------------------------------
@@ -3954,7 +3797,7 @@ namespace Neo.IronLua
 			public int Compare(object x, object y)
 			{
 				if (compare == null)
-					return Comparer.Default.Compare(x, y);
+					return Comparer<object>.Default.Compare(x, y);
 				else
 				{
 					// Call the comparer
@@ -3967,7 +3810,7 @@ namespace Neo.IronLua
 						return (int)r;
 					else if ((bool)Lua.RtConvertValue(r, typeof(bool)))
 						return -1;
-					else if (Comparer.Default.Compare(x, y) == 0)
+					else if (Comparer<object>.Default.Compare(x, y) == 0)
 						return 0;
 					else
 						return 1;
@@ -4035,7 +3878,6 @@ namespace Neo.IronLua
 		#endregion
 
 		#region -- collect --
-
 
 		/// <summary>Returns the elements from the given table as a sequence.</summary>
 		/// <param name="t"></param>
@@ -4303,4 +4145,6 @@ namespace Neo.IronLua
 
 		#endregion
 	} // class LuaTable
+
+	#endregion
 }

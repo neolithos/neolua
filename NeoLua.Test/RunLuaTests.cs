@@ -38,7 +38,7 @@ namespace LuaDLR.Test
 				Console.WriteLine();
 				try
 				{
-					g.DoChunk(l.CompileChunk(sr, sScript, Lua.DefaultDebugEngine));
+					g.DoChunk(l.CompileChunk(sr, sScript, LuaDeskop.StackTraceCompileOptions));
 				}
 				catch (Exception e)
 				{
@@ -56,7 +56,7 @@ namespace LuaDLR.Test
 		{
 			using (Lua l = new Lua())
 			{
-				var g = l.CreateEnvironment();
+				var g = l.CreateEnvironment<LuaGlobal>();
 				dynamic dg = g;
 
 				dg.math.randomseed(0);
@@ -111,6 +111,12 @@ namespace LuaDLR.Test
 				"a = assert(load(read1(x), 'modname', 't', _G))",
 				"return a(), _G.x;"
 				), "\0", 33);
+		}
+
+		[TestMethod]
+		public void TestSingle05()
+		{
+			TestCode("return tonumber('0ffffFFFF', 16) + 1", (long)4294967296);
 		}
 	}
 }

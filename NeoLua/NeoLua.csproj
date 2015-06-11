@@ -1,7 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <Import Project="..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets" Condition="Exists('..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -10,13 +9,15 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Neo.IronLua</RootNamespace>
     <AssemblyName>Neo.Lua</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <TargetFrameworkProfile>Profile111</TargetFrameworkProfile>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <TargetFrameworkProfile>Client</TargetFrameworkProfile>
     <SccProjectName>SAK</SccProjectName>
     <SccLocalPath>SAK</SccLocalPath>
     <SccAuxPath>SAK</SccAuxPath>
     <SccProvider>SAK</SccProvider>
+    <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -46,25 +47,22 @@
     <AssemblyOriginatorKeyFile>NeoLua.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System" />
-  </ItemGroup>
-  <ItemGroup>
     <Compile Include="Exceptions.cs" />
     <Compile Include="Extern\printf.cs" />
     <Compile Include="Lexer.cs" />
     <Compile Include="Lua.Binder.cs" />
     <Compile Include="Lua.cs" />
-    <Compile Include="Lua.Libraries.cs" />
     <Compile Include="Lua.Runtime.cs" />
     <Compile Include="LuaDebug.cs" />
     <Compile Include="LuaEmit.cs" />
-    <Compile Include="LuaResult.cs" />
-    <Compile Include="LuaType.cs" />
     <Compile Include="LuaFile.cs" />
-    <Compile Include="LuaGlobal.cs" />
+    <Compile Include="LuaGlobalPortable.cs" />
+    <Compile Include="LuaLibraries.cs" />
+    <Compile Include="LuaResult.cs" />
+    <Compile Include="LuaThread.cs" />
+    <Compile Include="LuaType.cs" />
     <Compile Include="LuaChunk.cs" />
     <Compile Include="LuaTable.cs" />
-    <Compile Include="LuaThread.cs" />
     <Compile Include="Parser.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\AssemblyInfoGlobal.cs" />
@@ -88,56 +86,7 @@
     <EmbeddedResource Include="NeoLua.snk" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\packages\NuGet.Manifest.Schema.2.0.4\Content\nuspec.2010.7.xsd">
-      <Link>nuspec.2010.7.xsd</Link>
-      <SubType>Designer</SubType>
-    </None>
-    <None Include="..\packages\NuGet.Manifest.Schema.2.0.4\Content\nuspec.2011.8.xsd">
-      <Link>nuspec.2011.8.xsd</Link>
-      <SubType>Designer</SubType>
-    </None>
-    <None Include="NeoLua.nuspec" />
-  </ItemGroup>
-  <ItemGroup>
     <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
   </ItemGroup>
-  <Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
-    <CreateItem Include="$(TargetDir)\Neo.Lua.*;$(TargetDir)\de\*">
-      <Output ItemName="ZipFile" TaskParameter="Include" />
-    </CreateItem>
-    <Zip Files="@(ZipFile)" WorkingDirectory="$(TargetDir)" ZipFileName="$(TargetDir)\NeoLua-$(Version).zip" />
-  </Target>
-  <Target Name="NuGet" Condition=" '$(Configuration)' == 'Release' ">
-    <Exec Command="c:\Projects\Bin\NuGet.exe pack NeoLua.nuspec -OutputDirectory $(TargetDir) -Version $(Version)" />
-    <Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir)NeoLua.$(Version).nupkg" />
-  </Target>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.-->
-  <Target Name="BeforeBuild">
-    <ReadLinesFromFile File="Properties\AssemblyInfo.cs">
-      <Output TaskParameter="Lines" ItemName="AssemblyInfoContent" />
-    </ReadLinesFromFile>
-    <ReadLinesFromFile File="Properties\AssemblyInfoGlobal.cs">
-      <Output TaskParameter="Lines" ItemName="AssemblyInfoGlobalContent" />
-    </ReadLinesFromFile>
-    <PropertyGroup>
-      <AssemblyInfoLines>@(AssemblyInfoContent)</AssemblyInfoLines>
-      <AssemblyInfoGlobalLines>@(AssemblyInfoGlobalContent)</AssemblyInfoGlobalLines>
-    </PropertyGroup>
-    <PropertyGroup>
-      <Pattern2>\[assembly: AssemblyConfiguration\(.(\w*)</Pattern2>
-      <AssemblyConfig>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyInfoLines), $(Pattern2)))</AssemblyConfig>
-      <VersionAdd>$(AssemblyConfig.Remove(0, 34))</VersionAdd>
-    </PropertyGroup>
-    <PropertyGroup>
-      <Pattern1>\[assembly: AssemblyFileVersion\(.(\d+)\.(\d+)\.(\d+)</Pattern1>
-      <AssemblyVersionLine>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyInfoGlobalLines), $(Pattern1)))</AssemblyVersionLine>
-      <Version Condition="'$(VersionAdd)' != ''">$(AssemblyVersionLine.Remove(0, 32))-$(VersionAdd)</Version>
-      <Version Condition="'$(VersionAdd)' == ''">$(AssemblyVersionLine.Remove(0, 32))</Version>
-    </PropertyGroup>
-    <Message Text="Version: $(Version)" />
-  </Target>
-  <Target Name="AfterBuild" DependsOnTargets="ZipLua;NuGet">
-  </Target>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
 </Project>

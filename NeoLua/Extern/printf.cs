@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using Neo.IronLua;
 #endregion
 
 // source: http://www.codeproject.com/Articles/19274/A-printf-implementation-in-C
@@ -48,31 +49,31 @@ namespace AT.MIN
     /// </returns>
     public static bool IsPositive(object Value, bool ZeroIsPositive)
     {
-      switch (Type.GetTypeCode(Value.GetType()))
+      switch (LuaEmit.GetTypeCode(Value.GetType()))
       {
-        case TypeCode.SByte:
+				case LuaEmitTypeCode.SByte:
           return (ZeroIsPositive ? (sbyte)Value >= 0 : (sbyte)Value > 0);
-        case TypeCode.Int16:
+				case LuaEmitTypeCode.Int16:
           return (ZeroIsPositive ? (short)Value >= 0 : (short)Value > 0);
-        case TypeCode.Int32:
+				case LuaEmitTypeCode.Int32:
           return (ZeroIsPositive ? (int)Value >= 0 : (int)Value > 0);
-        case TypeCode.Int64:
+				case LuaEmitTypeCode.Int64:
           return (ZeroIsPositive ? (long)Value >= 0 : (long)Value > 0);
-        case TypeCode.Single:
+				case LuaEmitTypeCode.Single:
           return (ZeroIsPositive ? (float)Value >= 0 : (float)Value > 0);
-        case TypeCode.Double:
+				case LuaEmitTypeCode.Double:
           return (ZeroIsPositive ? (double)Value >= 0 : (double)Value > 0);
-        case TypeCode.Decimal:
+				case LuaEmitTypeCode.Decimal:
           return (ZeroIsPositive ? (decimal)Value >= 0 : (decimal)Value > 0);
-        case TypeCode.Byte:
+				case LuaEmitTypeCode.Byte:
           return (ZeroIsPositive ? true : (byte)Value > 0);
-        case TypeCode.UInt16:
+				case LuaEmitTypeCode.UInt16:
           return (ZeroIsPositive ? true : (ushort)Value > 0);
-        case TypeCode.UInt32:
+				case LuaEmitTypeCode.UInt32:
           return (ZeroIsPositive ? true : (uint)Value > 0);
-        case TypeCode.UInt64:
+				case LuaEmitTypeCode.UInt64:
           return (ZeroIsPositive ? true : (ulong)Value > 0);
-        case TypeCode.Char:
+				case LuaEmitTypeCode.Char:
           return (ZeroIsPositive ? true : (char)Value != '\0');
         default:
           return false;
@@ -88,31 +89,31 @@ namespace AT.MIN
     /// <returns>A boxed numeric object whos type is unsigned.</returns>
     public static object ToUnsigned(object Value)
     {
-      switch (Type.GetTypeCode(Value.GetType()))
+      switch (LuaEmit.GetTypeCode(Value.GetType()))
       {
-        case TypeCode.SByte:
+				case LuaEmitTypeCode.SByte:
           return (byte)((sbyte)Value);
-        case TypeCode.Int16:
+				case LuaEmitTypeCode.Int16:
           return (ushort)((short)Value);
-        case TypeCode.Int32:
+				case LuaEmitTypeCode.Int32:
           return (uint)((int)Value);
-        case TypeCode.Int64:
+				case LuaEmitTypeCode.Int64:
           return (ulong)((long)Value);
 
-        case TypeCode.Byte:
+				case LuaEmitTypeCode.Byte:
           return Value;
-        case TypeCode.UInt16:
+				case LuaEmitTypeCode.UInt16:
           return Value;
-        case TypeCode.UInt32:
+				case LuaEmitTypeCode.UInt32:
           return Value;
-        case TypeCode.UInt64:
+				case LuaEmitTypeCode.UInt64:
           return Value;
 
-        case TypeCode.Single:
+				case LuaEmitTypeCode.Single:
           return (UInt32)((float)Value);
-        case TypeCode.Double:
+				case LuaEmitTypeCode.Double:
           return (ulong)((double)Value);
-        case TypeCode.Decimal:
+				case LuaEmitTypeCode.Decimal:
           return (ulong)((decimal)Value);
 
         default:
@@ -130,31 +131,31 @@ namespace AT.MIN
     /// <returns>A boxed numeric object whos type is an integer type.</returns>
     public static object ToInteger(object Value, bool Round)
     {
-      switch (Type.GetTypeCode(Value.GetType()))
+      switch (LuaEmit.GetTypeCode(Value.GetType()))
       {
-        case TypeCode.SByte:
+				case LuaEmitTypeCode.SByte:
           return Value;
-        case TypeCode.Int16:
+				case LuaEmitTypeCode.Int16:
           return Value;
-        case TypeCode.Int32:
+				case LuaEmitTypeCode.Int32:
           return Value;
-        case TypeCode.Int64:
-          return Value;
-
-        case TypeCode.Byte:
-          return Value;
-        case TypeCode.UInt16:
-          return Value;
-        case TypeCode.UInt32:
-          return Value;
-        case TypeCode.UInt64:
+				case LuaEmitTypeCode.Int64:
           return Value;
 
-        case TypeCode.Single:
+				case LuaEmitTypeCode.Byte:
+          return Value;
+				case LuaEmitTypeCode.UInt16:
+          return Value;
+				case LuaEmitTypeCode.UInt32:
+          return Value;
+				case LuaEmitTypeCode.UInt64:
+          return Value;
+
+				case LuaEmitTypeCode.Single:
           return (Round ? (int)Math.Round((float)Value) : (int)((float)Value));
-        case TypeCode.Double:
+				case LuaEmitTypeCode.Double:
           return (Round ? (long)Math.Round((double)Value) : (long)((double)Value));
-        case TypeCode.Decimal:
+				case LuaEmitTypeCode.Decimal:
           return (Round ? Math.Round((decimal)Value) : (decimal)Value);
 
         default:
@@ -165,31 +166,31 @@ namespace AT.MIN
     #region UnboxToLong
     public static long UnboxToLong(object Value, bool Round)
     {
-      switch (Type.GetTypeCode(Value.GetType()))
+      switch (LuaEmit.GetTypeCode(Value.GetType()))
       {
-        case TypeCode.SByte:
+				case LuaEmitTypeCode.SByte:
           return (long)((sbyte)Value);
-        case TypeCode.Int16:
+				case LuaEmitTypeCode.Int16:
           return (long)((short)Value);
-        case TypeCode.Int32:
+				case LuaEmitTypeCode.Int32:
           return (long)((int)Value);
-        case TypeCode.Int64:
+				case LuaEmitTypeCode.Int64:
           return (long)Value;
 
-        case TypeCode.Byte:
+				case LuaEmitTypeCode.Byte:
           return (long)((byte)Value);
-        case TypeCode.UInt16:
+				case LuaEmitTypeCode.UInt16:
           return (long)((ushort)Value);
-        case TypeCode.UInt32:
+				case LuaEmitTypeCode.UInt32:
           return (long)((uint)Value);
-        case TypeCode.UInt64:
+				case LuaEmitTypeCode.UInt64:
           return (long)((ulong)Value);
 
-        case TypeCode.Single:
+				case LuaEmitTypeCode.Single:
           return (Round ? (long)Math.Round((float)Value) : (long)((float)Value));
-        case TypeCode.Double:
+				case LuaEmitTypeCode.Double:
           return (Round ? (long)Math.Round((double)Value) : (long)((double)Value));
-        case TypeCode.Decimal:
+				case LuaEmitTypeCode.Decimal:
           return (Round ? (long)Math.Round((decimal)Value) : (long)((decimal)Value));
 
         default:
@@ -241,12 +242,6 @@ namespace AT.MIN
             return m.Groups[2].Value;
         }
       }
-    }
-    #endregion
-    #region printf
-    public static void printf(string Format, params object[] Parameters)
-    {
-      Console.Write(Tools.sprintf(Format, Parameters));
     }
     #endregion
     #region fprintf

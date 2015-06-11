@@ -9,9 +9,81 @@ using System.Text;
 
 namespace Neo.IronLua
 {
-  #region -- class LuaType ------------------------------------------------------------
+	#region -- interface ILuaTypeResolver -----------------------------------------------
 
-  ///////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary>Interface to the logic, that resolves the types.</summary>
+	public interface ILuaTypeResolver
+	{
+		/// <summary>Gets called before the resolve of a assembly.</summary>
+		void Refresh();
+		/// <summary>Resolves the type.</summary>
+		/// <param name="sTypeName">Name of the type.</param>
+		/// <returns></returns>
+		Type GetType(string sTypeName);
+		/// <summary>Versioninformation for the re-resolve of types.</summary>
+		int Version { get; }
+	} // interface ILuaTypeResolver
+
+	#endregion
+
+	#region -- class LuaSimpleTypeResolver ----------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary>Simple resolver, that iterates over a list of static assemblies.</summary>
+	public class LuaSimpleTypeResolver : ILuaTypeResolver
+	{
+		private List<Assembly> assemblies = new List<Assembly>();
+
+		/// <summary>Creates a simple type resolver.</summary>
+		public LuaSimpleTypeResolver()
+		{
+			Add(typeof(string).GetTypeInfo().Assembly);
+			Add(GetType().GetTypeInfo().Assembly);
+		} // ctor
+
+		/// <summary>Appends a new assembly for the search.</summary>
+		/// <param name="assembly">Assembly</param>
+		public void Add(Assembly assembly)
+		{
+			lock (assemblies)
+			{
+				if (assemblies.IndexOf(assembly) == -1)
+					assemblies.Add(assembly);
+			}
+		} // proc Add
+
+		void ILuaTypeResolver.Refresh() { }
+
+		Type ILuaTypeResolver.GetType(string sTypeName)
+		{
+			lock(assemblies)
+			{
+				foreach (var assembly in assemblies)
+				{
+					var type = assembly.ExportedTypes.FirstOrDefault(c => c.FullName == sTypeName);
+					if (type != null)
+						return type;
+				}
+				return null;
+			}
+		} // func ILuaTypeResolver.GetType
+
+		int ILuaTypeResolver.Version
+		{
+			get
+			{
+				lock (assemblies)
+					return assemblies.Count;
+			}
+		} // prop Version
+	} // class LuaSimpleTypeResolver
+
+	#endregion
+
+	#region -- class LuaType ------------------------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
   /// <summary>Base class for the Type-Wrapper.</summary>
   public sealed class LuaType : IDynamicMetaObjectProvider
   {
@@ -188,15 +260,20 @@ namespace Neo.IronLua
         {
           try
           {
-            MethodInfo mi = LuaEmit.FindMethod((MethodInfo[])type.GetMember(binder.Name, MemberTypes.Method, Lua.GetBindingFlags(false, binder.IgnoreCase)), args, mo => mo.LimitType, false);
+						MethodInfo mi = LuaEmit.FindMethod(
+							type.GetRuntimeMethods().Where(
+								c => String.Compare(binder.Name, c.Name, binder.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) == 0 && c.IsStatic
+							), args, mo => mo.LimitType, false
+						);
             if (mi == null)
             {
-              if (args.Length == 0 && String.Compare(binder.Name, "GetType", binder.IgnoreCase) == 0)
+							var stringComparison = binder.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+							if (args.Length == 0 && String.Compare(binder.Name, "GetType", stringComparison) == 0)
               {
                 restrictions = BindingRestrictions.GetInstanceRestriction(Expression, Value);
                 expr = Lua.EnsureType(Expression.Property(Lua.EnsureType(Expression, typeof(LuaType)), Lua.TypeTypePropertyInfo), binder.ReturnType);
               }
-              else if (String.Compare(binder.Name, "ctor", binder.IgnoreCase) == 0)
+							else if (String.Compare(binder.Name, "ctor", stringComparison) == 0)
               {
                 return BindNewObject(type, args, binder.ReturnType);
               }
@@ -299,13 +376,14 @@ namespace Neo.IronLua
         Expression expr;
         try
         {
-          ConstructorInfo ci = 
-            typeNew.IsValueType && args.Length == 0 ?  // value-types with zero arguments always constructable
-              null :
-              LuaEmit.FindMember(typeNew.GetConstructors(BindingFlags.Public | BindingFlags.CreateInstance | BindingFlags.Instance), args, mo => mo.LimitType);
+					var typeinfoNew=typeNew.GetTypeInfo();
+					ConstructorInfo ci =
+						typeinfoNew.IsValueType && args.Length == 0 ?  // value-types with zero arguments always constructable
+							null :
+							LuaEmit.FindMember(typeNew.GetTypeInfo().DeclaredConstructors.Where(c => c.IsPublic), args, mo => mo.LimitType);
 
           // ctor not found for a class
-          if(ci == null && !typeNew.IsValueType)
+					if (ci == null && !typeinfoNew.IsValueType)
             expr = Lua.ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, typeNew.Name, "ctor"), returnType);
 
           // create the object
@@ -367,258 +445,13 @@ namespace Neo.IronLua
 
     #endregion
 
-		#region -- class AssemblyCacheItem ------------------------------------------------
-
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
-		private sealed class AssemblyCacheList : IEnumerable<Assembly>
-		{
-			#region -- CacheItem ------------------------------------------------------------
-
-			///////////////////////////////////////////////////////////////////////////////
-			/// <summary></summary>
-			private class CacheItem
-			{
-				private AssemblyName assemblyName;
-				public Assembly assembly = null;			// Reference to the loaded assembly
-				public Assembly reflected = null;			// Reflected assembly
-				public CacheItem next = null;					// Next item
-				public CacheItem prev = null;					// Prev item
-
-				public CacheItem(AssemblyName assemblyName)
-				{
-					this.assemblyName = assemblyName;
-				} // ctor
-
-				public override string ToString()
-				{
-					return assemblyName.Name;
-				} // func ToString
-
-				public AssemblyName Name { get { return assemblyName; } }
-			} // class AssemblyCacheItem
-
-			#endregion
-
-			#region -- AssemblyCacheEnumerator ----------------------------------------------
-
-			private sealed class AssemblyCacheEnumerator : IEnumerator<Assembly>
-			{
-				private AssemblyCacheList owner;
-				private Assembly currentAssembly = null;
-				private CacheItem current = null;
-
-				public AssemblyCacheEnumerator(AssemblyCacheList owner)
-				{
-					this.owner = owner;
-					Reset();
-				} // ctor
-
-				public void Dispose()
-				{
-				} // proc Dispose
-
-				public bool MoveNext()
-				{
-					if (current == null)
-						current = owner.first;
-					else
-						current = current.next;
-
-				Retry:
-					if (current == null)
-						return false;
-					else
-					{
-						lock (current)
-						{
-							currentAssembly = current.assembly ?? current.reflected;
-
-							if (currentAssembly == null && LookupReferencedAssemblies)
-							{
-								try
-								{
-									currentAssembly =
-										current.reflected =
-										Assembly.ReflectionOnlyLoad(current.Name.FullName);
-								}
-								catch
-								{
-									// current reflect load failed, try next
-									var t = current;
-									current = current.next;
-									owner.RemoveAssembly(t);
-
-									goto Retry;
-								}
-							}
-
-							return currentAssembly != null;
-						}
-					}
-				} // func MoveNext
-
-				public void Reset()
-				{
-					currentAssembly = null;
-					current = null;
-				} // proc Reset
-
-				public Assembly Current { get { return currentAssembly; } }
-				object System.Collections.IEnumerator.Current { get { return Current; } }
-			} // class AssemblyCacheEnumerator
-
-			#endregion
-
-			private Dictionary<string, CacheItem> cache = new Dictionary<string, CacheItem>(StringComparer.OrdinalIgnoreCase);
-			private CacheItem first = null;
-			private CacheItem lastLoaded = null;
-			private CacheItem lastReflected = null;
-
-			private int iAssemblyCount = 0;
-
-			public AssemblyCacheList()
-			{
-				AssemblyName assemblyName = typeof(string).Assembly.GetName(); // mscorlib is always first
-				cache[assemblyName.Name] = 
-					first =
-					lastReflected =
-					lastLoaded = new CacheItem(assemblyName);
-			} // ctor
-
-			public void Refresh()
-			{
-				lock (this)
-				{
-					Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
-
-					if (iAssemblyCount < assemblies.Length) // New assemblies loaded 
-					{
-						for (int i = iAssemblyCount; i < assemblies.Length; i++) // add the new assemblies
-						{
-							Assembly asm = assemblies[i];
-
-							// check if the assembly is in the list, if not create the item
-							CacheItem item;
-							AssemblyName assemblyName = asm.GetName();
-							if (!cache.TryGetValue(assemblyName.Name, out item))
-								item = AddCacheItem(assemblyName, true);
-							else if (lastLoaded != item)
-							{
-								// Remove item
-								RemoveAssembly(item);
-
-								InsertLoaded(item);
-							}
-
-							UpdateLoadedAssembly(item, asm);
-						}
-
-						// Update the assembly count
-						iAssemblyCount = assemblies.Length;
-					}
-				}
-			} // proc Refresh
-
-			private void UpdateLoadedAssembly(CacheItem item, Assembly assembly)
-			{
-				if (item.assembly == assembly)
-					return;
-
-				// update the assembly
-				lock (item)
-				{
-					item.assembly = assembly;
-					item.reflected = null;
-				}
-
-				// add direct referenced assemblies
-				foreach (var r in assembly.GetReferencedAssemblies())
-				{
-					if (!cache.ContainsKey(r.Name))
-						AddCacheItem(r, false);
-				}
-			} // proc UpdateLoadedAssembly
-
-			private CacheItem AddCacheItem(AssemblyName assemblyName, bool lLastLoaded)
-			{
-				lock (this)
-				{
-					var n = new CacheItem(assemblyName);
-
-					// add the item to the list
-					if (lLastLoaded)
-						InsertLoaded(n);
-					else
-					{
-						n.prev = lastReflected;
-						lastReflected.next = n;
-						lastReflected = n;
-					}
-
-					// add the item to the cache
-					cache[assemblyName.Name] = n;
-
-					return n;
-				}
-			} // proc AddCacheItem
-
-			private void InsertLoaded(CacheItem n)
-			{
-				// Insert after last loaded
-				var after = lastLoaded.next;
-
-				n.prev = lastLoaded;
-				n.next = after;
-
-				lastLoaded.next = n;
-				lastLoaded = n;
-
-				if (after != null)
-					after.prev = n;
-				else
-					lastReflected = lastLoaded;
-			} // proc InsertLoaded
-
-			private void RemoveAssembly(CacheItem item)
-			{
-				lock (this)
-				{
-					if (item.prev != null)
-						item.prev.next = item.next;
-					if (item.next == null)
-						lastReflected = item.prev;
-					else
-						item.next.prev = item.prev;
-
-					item.next = null;
-					item.prev = null;
-				}
-			} // proc RemoveAssembly
-
-			public IEnumerator<Assembly> GetEnumerator()
-			{
-				return new AssemblyCacheEnumerator(this);
-			} // func GetEnumerator
-
-			System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-			{
-				return new AssemblyCacheEnumerator(this);
-			} // func System.Collections.IEnumerable.GetEnumerator
-
-			/// <summary>Number of loaded assemblies</summary>
-			public int AssemblyCount { get { return iAssemblyCount; } }
-		} // class AssemblyCacheList
-
-		#endregion
-
 		private LuaType parent;           // Access to parent type or namespace
 		private LuaType baseType;					// If the type is inherited, then this points to the base type
     private Type type;                // Type that is represented, null if it is not resolved until now
 
     private string sName;             // Name of the unresolved type or namespace
 		private string sAliasName = null; // Current alias name
-    private int iAssemblyCount;       // Number of loaded assemblies or -1 if the type is resolved as a namespace
+    private int iResolverVersion;     // Number of loaded assemblies or -1 if the type is resolved as a namespace
 
     private Dictionary<string, int> index = null; // Index to speed up the search in big namespaces
 		private List<MethodInfo> extensionMethods = null; // Liste with extension methods
@@ -631,7 +464,7 @@ namespace Neo.IronLua
 			this.SetType(null, false);
 			this.baseType = null;
       this.sName = null;
-      this.iAssemblyCount = -2;
+			this.iResolverVersion = -2;
     } // ctor
 
     private LuaType(LuaType parent, string sName, Type type)
@@ -642,7 +475,7 @@ namespace Neo.IronLua
       this.parent = parent;
 			this.SetType(type, false);
 			this.sName = sName;
-      this.iAssemblyCount = 0;
+			this.iResolverVersion = 0;
     } // ctor
 
     private LuaType(LuaType parent, string sName)
@@ -653,7 +486,7 @@ namespace Neo.IronLua
       this.parent = parent;
 			this.SetType(null, false);
 			this.sName = sName;
-      this.iAssemblyCount = 0;
+			this.iResolverVersion = 0;
     } // ctor
 		
     /// <summary></summary>
@@ -678,31 +511,20 @@ namespace Neo.IronLua
     private void ResolveType()
     {
       if (parent != null && // the root has no type
-          iAssemblyCount >= 0) // Namespace, there is no type
+					iResolverVersion >= 0) // Namespace, there is no type
       {
         string sTypeName = FullName;
 
-        // new assembly loaded?
-				assemblyList.Refresh();
-				if (iAssemblyCount != assemblyList.AssemblyCount)
+				iResolverVersion = 1;
+
+				// new assembly loaded?
+				typeResolver.Refresh();
+				if (iResolverVersion != typeResolver.Version)
 				{
-					foreach (Assembly asm in assemblyList)
-					{
-						// Search the type in the assembly
-						Type t = asm.GetType(sTypeName, false);
-						
-						if (t != null)
-						{
-							// the type is reflected, load the assembly and get the type
-							if (asm.ReflectionOnly)
-								t = Type.GetType(t.AssemblyQualifiedName);
-
-							if (SetType(t, true))
-								break;
-						}
-					}
-
-					iAssemblyCount = assemblyList.AssemblyCount;
+					// Set the resolved assembly
+					SetType(typeResolver.GetType(sTypeName), true);
+					// Update the resolver version
+					iResolverVersion = typeResolver.Version;
 				}
 			}
     } // func GetItemType
@@ -717,7 +539,8 @@ namespace Neo.IronLua
 				this.type = type;
 
 				// update the base type
-				baseType = type.BaseType != null ? LuaType.GetType(type.BaseType) : null;
+				var tmp = type.GetTypeInfo().BaseType;
+				baseType = tmp != null ? LuaType.GetType(tmp) : null;
 
 				// update the known types
 				if (lUpdateKnownTypes)
@@ -766,27 +589,27 @@ namespace Neo.IronLua
 			}
 		} // proc RegisterExtension
 
-		internal MethodInfo[] GetInstanceMethods(BindingFlags flags, string sName)
+		internal MethodInfo[] GetInstanceMethods(string sName, bool lIgnoreCase)
 		{
-			flags = (flags | BindingFlags.Instance | BindingFlags.InvokeMethod) & ~BindingFlags.Static;
+			var stringComparison = lIgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
 			// Collect all extension methods
 			List<MethodInfo> methods = null;
 			CollectExtensions(
 				ref methods,
-				(flags & BindingFlags.IgnoreCase) != 0 ?
-					new Predicate<MethodInfo>(mi => String.Compare(mi.Name, sName, true) == 0) :
-					new Predicate<MethodInfo>(mi => String.Compare(mi.Name, sName, false) == 0),
-				(flags & BindingFlags.DeclaredOnly) == 0);
+				mi => String.Compare(mi.Name, sName, stringComparison) == 0,
+				true
+			);
 
 			// Return the methods
+			var typeMethods = (from mi in type.GetRuntimeMethods() where mi.IsPublic && String.Compare(mi.Name, sName, stringComparison) == 0 select mi).ToArray();
 			if (methods != null)
 			{
-				methods.InsertRange(0, (MethodInfo[])type.GetMember(sName, MemberTypes.Method, flags));
+				methods.InsertRange(0, typeMethods);
 				return methods.ToArray();
 			}
 			else
-				return (MethodInfo[])type.GetMember(sName, MemberTypes.Method, flags);
+				return typeMethods;
 		} // func GetInstanceMethods
 
 		private void CollectExtensions(ref List<MethodInfo> methods, Predicate<MethodInfo> compare, bool lRecursive)
@@ -836,12 +659,12 @@ namespace Neo.IronLua
       }
 
       // No type for this level, but sub-items -> it is a namespace
-      if (iAssemblyCount >= 0 && GetType(iIndex).Type != null && Type == null)
+      if (iResolverVersion >= 0 && GetType(iIndex).Type != null && Type == null)
       {
         LuaType c = this;
-        while (c.parent != null && c.iAssemblyCount >= 0)
+				while (c.parent != null && c.iResolverVersion >= 0)
         {
-          c.iAssemblyCount = -1;
+					c.iResolverVersion = -1;
           c = c.parent;
         }
       }
@@ -856,17 +679,19 @@ namespace Neo.IronLua
       {
         if (!index.TryGetValue(sName, out iIndex))
         {
-          if (lIgnoreCase)
-            foreach (var k in index)
-            {
-              if (String.Compare(sName, k.Key, lIgnoreCase) == 0)
-              {
-                iIndex = k.Value;
-                break;
-              }
-            }
-          else
-            iIndex = -1;
+					if (lIgnoreCase)
+					{
+						foreach (var k in index)
+						{
+							if (String.Compare(sName, k.Key, StringComparison.OrdinalIgnoreCase) == 0)
+							{
+								iIndex = k.Value;
+								break;
+							}
+						}
+					}
+					else
+						iIndex = -1;
         }
       }
       return iIndex;
@@ -941,7 +766,7 @@ namespace Neo.IronLua
     } // prop Type
 
     /// <summary>Is the LuaType only a namespace at the time.</summary>
-    public bool IsNamespace { get { return iAssemblyCount == -1 || type == null && iAssemblyCount >= 0; } }
+		public bool IsNamespace { get { return iResolverVersion == -1 || type == null && iResolverVersion >= 0; } }
 
     #endregion
 
@@ -950,11 +775,25 @@ namespace Neo.IronLua
     private static LuaType clr = new LuaType();                 // root type
     private static List<LuaType> types = new List<LuaType>();   // SubItems of this type
     private static Dictionary<string, int> knownTypes = new Dictionary<string, int>(); // index for well known types
-		private static bool lLookupReferencedAssemblies = false;		// reference search for types
-		private static AssemblyCacheList assemblyList = new AssemblyCacheList();
+		private static ILuaTypeResolver typeResolver;
 
 		static LuaType()
 		{
+			// Find type resolver
+			PropertyInfo piLookupReferencedAssemblies = null;
+			var typeLuaDesktop = Type.GetType("Neo.IronLua.LuaDeskop, Neo.Lua.Desktop, Version=5.3.0.0, Culture=neutral, PublicKeyToken=fdb0cd4fe8a6e3b2", false);
+			if (typeLuaDesktop != null)
+			{
+				piLookupReferencedAssemblies = typeLuaDesktop.GetRuntimeProperty("LookupReferencedAssemblies");
+				var r = typeLuaDesktop.GetRuntimeProperty("LuaTypeResolver");
+				if (r != null)
+					typeResolver = r.GetValue(null) as ILuaTypeResolver;
+			}
+
+			if (typeResolver == null)
+				typeResolver = new LuaSimpleTypeResolver();
+
+			// Register basic types
 			RegisterTypeAlias("byte", typeof(byte));
 			RegisterTypeAlias("sbyte", typeof(sbyte));
 			RegisterTypeAlias("short", typeof(short));
@@ -980,7 +819,8 @@ namespace Neo.IronLua
 
 			RegisterTypeExtension(typeof(LuaLibraryString));
 
-			lLookupReferencedAssemblies = true;
+			if (piLookupReferencedAssemblies != null)
+				piLookupReferencedAssemblies.SetValue(null, true);
 		} // /sctor
 
     #region -- Operator ---------------------------------------------------------------
@@ -1174,13 +1014,14 @@ namespace Neo.IronLua
 		/// <param name="type"></param>
 		public static void RegisterTypeExtension(Type type)
 		{
-			if (type.IsSealed && type.IsAbstract)
+			var typeInfo = type.GetTypeInfo();
+			if (typeInfo.IsSealed && typeInfo.IsAbstract)
 			{
 				// Enum all methods and register the extension methods
 				LuaType lastType = null;
-				foreach (MethodInfo mi in type.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly))
+				foreach (MethodInfo mi in typeInfo.DeclaredMethods)
 				{
-					if (Attribute.GetCustomAttribute(mi, typeof(ExtensionAttribute)) != null && mi.GetParameters().Length > 0)
+					if (mi.GetCustomAttribute(typeof(ExtensionAttribute)) != null && mi.GetParameters().Length > 0)
 					{
 						// Get the lua type
 						Type currentType = mi.GetParameters()[0].ParameterType;
@@ -1212,7 +1053,7 @@ namespace Neo.IronLua
     {
       if (a.LimitType == typeof(LuaType))
         return Expression.Convert(a.Expression, typeof(LuaType));
-      else if (typeof(Type).IsAssignableFrom(a.LimitType))
+			else if (typeof(Type).GetTypeInfo().IsAssignableFrom(a.LimitType.GetTypeInfo()))
         return Expression.Convert(Expression.Call(Lua.TypeGetTypeMethodInfoArgType, Expression.Convert(a.Expression, typeof(Type))), typeof(object));
       else
         throw new ArgumentException();
@@ -1222,7 +1063,7 @@ namespace Neo.IronLua
     {
       if (a.LimitType == typeof(LuaType))
         return Expression.Convert(Expression.Property(Expression.Convert(a.Expression, typeof(LuaType)), Lua.TypeTypePropertyInfo), typeof(Type));
-      else if (typeof(Type).IsAssignableFrom(a.LimitType))
+			else if (typeof(Type).GetTypeInfo().IsAssignableFrom(a.LimitType.GetTypeInfo()))
         return Expression.Convert(a.Expression, typeof(Type));
       else
         throw new ArgumentException();
@@ -1230,8 +1071,8 @@ namespace Neo.IronLua
 
     /// <summary>Root for all clr-types.</summary>
     public static LuaType Clr { get { return clr; } }
-		/// <summary>Should the type resolve also scan references assemblies.</summary>
-		public static bool LookupReferencedAssemblies { get { return lLookupReferencedAssemblies; } set { lLookupReferencedAssemblies = value; } }
+		/// <summary>Resolver for types.</summary>
+		public static ILuaTypeResolver Resolver { get { return typeResolver; } set { typeResolver = value; } }
   } // class LuaType
 
   #endregion
@@ -1277,19 +1118,19 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject BindConvert(ConvertBinder binder)
       {
-        if (typeof(Delegate).IsAssignableFrom(binder.Type)) // we expect a delegate
+				if (typeof(Delegate).GetTypeInfo().IsAssignableFrom(binder.Type.GetTypeInfo())) // we expect a delegate
         {
           LuaMethod val = (LuaMethod)Value;
           return CreateDelegate(Expression, val, binder.Type, val.method, binder.ReturnType); 
         }
-        else if (typeof(MethodInfo).IsAssignableFrom(binder.Type))
+				else if (typeof(MethodInfo).GetTypeInfo().IsAssignableFrom(binder.Type.GetTypeInfo()))
         {
           return new DynamicMetaObject(
             Expression.Property(Lua.EnsureType(Expression, typeof(LuaMethod)), Lua.MethodMethodPropertyInfo),
             BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaMethod))
           );
         }
-        else if (typeof(Type).IsAssignableFrom(binder.Type))
+				else if (typeof(Type).GetTypeInfo().IsAssignableFrom(binder.Type.GetTypeInfo()))
         {
           return ConvertToType(Expression, binder.ReturnType);
         }
@@ -1336,7 +1177,7 @@ namespace Neo.IronLua
     /// <returns></returns>
     public Delegate CreateDelegate(Type typeDelegate)
     {
-      return Delegate.CreateDelegate(typeDelegate, instance, method);
+			return method.CreateDelegate(typeDelegate, instance);
     } // func CreateDelegate
 
     /// <summary>Name of the member.</summary>
@@ -1371,7 +1212,7 @@ namespace Neo.IronLua
 
     internal static DynamicMetaObject CreateDelegate(Expression methodExpression, ILuaMethod methodValue, Type typeDelegate, MethodInfo miTarget, Type typeReturn)
     {
-      if (typeDelegate.BaseType != typeof(MulticastDelegate))
+      if (typeDelegate.GetTypeInfo().BaseType != typeof(MulticastDelegate))
       {
         ParameterInfo[] pis = miTarget.GetParameters();
         Type[] parameters = new Type[pis.Length + 1];
@@ -1381,17 +1222,18 @@ namespace Neo.IronLua
 
         typeDelegate = Expression.GetDelegateType(parameters);
       }
-
-      return new DynamicMetaObject(
-        Lua.EnsureType(
-          Expression.Call(Lua.CreateDelegateMethodInfo,
-            Expression.Constant(typeDelegate),
-            GetInstance(methodExpression, methodValue, typeof(object)) ?? Expression.Default(typeof(object)),
-            Expression.Constant(miTarget)
-          ), typeReturn
-        ),
-        BindInvokeRestrictions(methodExpression, methodValue)
-      );
+			
+			return new DynamicMetaObject(
+				Lua.EnsureType(
+					Expression.Call(
+						Expression.Constant(miTarget),
+						Lua.MethodInfoCreateDelegateMethodInfo,
+						Expression.Constant(typeDelegate),
+						GetInstance(methodExpression, methodValue, typeof(object)) ?? Expression.Default(typeof(object))
+					), typeReturn
+				),
+				BindInvokeRestrictions(methodExpression, methodValue)
+			);
     } // func CreateDelegate
 
     internal static BindingRestrictions BindInvokeRestrictions(Expression methodExpression, ILuaMethod methodValue)
@@ -1455,7 +1297,7 @@ namespace Neo.IronLua
           return binder.FallbackGetIndex(this, indexes);
 
         // check, only types are allowed
-        if (indexes.Any(c => c.LimitType != typeof(LuaType) && !typeof(Type).IsAssignableFrom(c.LimitType)))
+        if (indexes.Any(c => c.LimitType != typeof(LuaType) && !typeof(Type).GetTypeInfo().IsAssignableFrom(c.LimitType.GetTypeInfo())))
         {
           return new DynamicMetaObject(
             Lua.ThrowExpression(String.Format(Properties.Resources.rsClrGenericTypeExpected)),
@@ -1489,10 +1331,10 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject BindConvert(ConvertBinder binder)
       {
-        if (typeof(Delegate).IsAssignableFrom(binder.Type))
+        if (typeof(Delegate).GetTypeInfo().IsAssignableFrom(binder.Type.GetTypeInfo()))
         {
           // get the parameters from the invoke method
-          MethodInfo miInvoke = binder.Type.GetMethod("Invoke", BindingFlags.Public | BindingFlags.Instance | BindingFlags.InvokeMethod);
+					MethodInfo miInvoke = binder.Type.GetRuntimeMethods().Where(c => c.IsPublic && !c.IsStatic && c.Name == "Invoke").FirstOrDefault();
           if (miInvoke == null)
             return base.BindConvert(binder);
           else
@@ -1502,7 +1344,7 @@ namespace Neo.IronLua
             return LuaMethod.CreateDelegate(Expression, val, binder.Type, miTarget, binder.ReturnType);
           }
         }
-        else if (typeof(Type).IsAssignableFrom(binder.Type))
+				else if (typeof(Type).GetTypeInfo().IsAssignableFrom(binder.Type.GetTypeInfo()))
           return LuaMethod.ConvertToType(Expression, binder.ReturnType);
         else
           return base.BindConvert(binder);
@@ -1666,13 +1508,13 @@ namespace Neo.IronLua
       private DynamicMetaObject BindAddMethod(DynamicMetaObjectBinder binder, DynamicMetaObject[] args)
       {
         LuaEvent value = (LuaEvent)Value;
-        return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, value, value.eventInfo.GetAddMethod(), args, binder.ReturnType);
+        return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, value, value.eventInfo.AddMethod, args, binder.ReturnType);
       } // func BindAddMethod
 
       private DynamicMetaObject BindRemoveMethod(DynamicMetaObjectBinder binder, DynamicMetaObject[] args)
       {
         LuaEvent value = (LuaEvent)Value;
-        return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, value, value.eventInfo.GetRemoveMethod(), args, binder.ReturnType);
+        return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, value, value.eventInfo.RemoveMethod, args, binder.ReturnType);
       } // func BindRemoveMethod
 
       private DynamicMetaObject BindGetMember(DynamicMetaObjectBinder binder, PropertyInfo piMethodGet)
@@ -1706,12 +1548,13 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
       {
-        if (String.Compare(binder.Name, csAdd, binder.IgnoreCase) == 0)
+				var stringComparison = binder.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+				if (String.Compare(binder.Name, csAdd, stringComparison) == 0)
         {
           return BindGetMember(binder, Lua.AddMethodInfoPropertyInfo);
         }
-        else if (String.Compare(binder.Name, csDel, binder.IgnoreCase) == 0 ||
-          String.Compare(binder.Name, csRemove, binder.IgnoreCase) == 0)
+				else if (String.Compare(binder.Name, csDel, stringComparison) == 0 ||
+					String.Compare(binder.Name, csRemove, stringComparison) == 0)
         {
           return BindGetMember(binder, Lua.RemoveMethodInfoPropertyInfo);
         }
@@ -1721,12 +1564,13 @@ namespace Neo.IronLua
 
       public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
       {
-        if (String.Compare(binder.Name, csAdd, binder.IgnoreCase) == 0)
+				var stringComparison = binder.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+				if (String.Compare(binder.Name, csAdd, stringComparison) == 0)
         {
           return BindAddMethod(binder, args);
         }
-        else if (String.Compare(binder.Name, csDel, binder.IgnoreCase) == 0 ||
-          String.Compare(binder.Name, csRemove, binder.IgnoreCase) == 0)
+				else if (String.Compare(binder.Name, csDel, stringComparison) == 0 ||
+					String.Compare(binder.Name, csRemove, stringComparison) == 0)
         {
           return BindRemoveMethod(binder, args);
         }
@@ -1777,9 +1621,9 @@ namespace Neo.IronLua
     /// <summary>Instance, that belongs to the member.</summary>
     public object Instance { get { return instance; } }
 
-    internal MethodInfo AddMethodInfo { get { return eventInfo.GetAddMethod(); } }
-    internal MethodInfo RemoveMethodInfo { get { return eventInfo.GetRemoveMethod(); } }
-    internal MethodInfo RaiseMethodInfo { get { return eventInfo.GetRaiseMethod(); } }
+    internal MethodInfo AddMethodInfo { get { return eventInfo.AddMethod; } }
+    internal MethodInfo RemoveMethodInfo { get { return eventInfo.RemoveMethod; } }
+    internal MethodInfo RaiseMethodInfo { get { return eventInfo.RaiseMethod; } }
   } // class LuaEvent
 
   #endregion

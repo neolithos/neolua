@@ -41,8 +41,9 @@ namespace Neo.IronLua
 		private sealed class LuaCommandGlobal : LuaGlobal
 		{
 			public LuaCommandGlobal(Lua lua)
-				:base(lua)
+				: base(lua)
 			{
+				this.LuaPackage.path += ";" + LuaLibraryPackage.ExecutingDirectoryPathVariable;
 			} // ctor
 
 			[LuaMember("read")]
@@ -187,7 +188,7 @@ namespace Neo.IronLua
 
     private static Lua lua = new Lua(); // create lua script compiler
     private static LuaGlobal global;
-    private static ILuaDebug debugEngine = Lua.DefaultDebugEngine.DebugEngine;
+    private static ILuaDebug debugEngine = LuaStackTraceDebugger.Default;
     private static ILuaDebug debugConsole = new LuaTraceLineConsoleDebugger();
 
     private static void WriteText(ConsoleColor textColor, string sText)
@@ -548,7 +549,7 @@ namespace Neo.IronLua
            else if (sLine == Boolean.TrueString)
             {
               WriteText(ConsoleColor.DarkYellow, "Compile emits stack trace information and runtime functions, now."); Console.WriteLine();
-							debugEngine = Lua.DefaultDebugEngine.DebugEngine;
+							debugEngine = LuaStackTraceDebugger.Default;
             }
             else
             {
@@ -563,7 +564,7 @@ namespace Neo.IronLua
             global = lua.CreateEnvironment<LuaCommandGlobal>();
             break;
 					case Commands.Cache:
-						lua.DumpRuleCaches(sLine);
+						lua.DumpRuleCaches(Console.Out);
 				    Console.WriteLine();
 						break;
           case Commands.Help:

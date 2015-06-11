@@ -26,6 +26,9 @@ namespace LuaDLR.Test
         Console.WriteLine(sText);
         return 3;
       }
+
+			[LuaMember("BoolProperty")]
+			public bool BoolProperty { get; set; }
     }
 
     public class SubClass
@@ -195,7 +198,7 @@ namespace LuaDLR.Test
       using (Lua l = new Lua())
       {
         var g = l.CreateEnvironment();
-        l.PrintExpressionTree = true;
+        l.PrintExpressionTree = Console.Out;
         g.RegisterPackage("debug", typeof(System.Diagnostics.Debug));
         g.DoChunk("debug:Print('Hallo World!');", "test.lua");
       }
@@ -225,7 +228,7 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        dynamic g = l.CreateEnvironment();
+        dynamic g = l.CreateEnvironment<LuaGlobal>();
 
         g.dochunk("print(os.date('Today is %A, in %B'))");
 
@@ -259,5 +262,17 @@ namespace LuaDLR.Test
         g.dochunk("t={};t.year = 2001; print(os.time(t))");
       }
     }
+
+		[TestMethod]
+		public void TestGlobalProperty01()
+		{
+			using (Lua l = new Lua())
+			{
+				var g = l.CreateEnvironment<LuaGlobalNew>();
+
+				g.DoChunk("BoolProperty = true", "test1.lua");
+				TestResult(g.DoChunk("return BoolProperty", "test2.lua"), true);
+			}
+		}
   } // class Runtime
 }

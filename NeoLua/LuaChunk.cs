@@ -1,13 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Dynamic;
-using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
-using System.Reflection.Emit;
-using System.Runtime.CompilerServices;
-using System.Text;
 
 namespace Neo.IronLua
 {
@@ -69,7 +61,6 @@ namespace Neo.IronLua
 			}
 			catch (TargetInvocationException e)
 			{
-				LuaExceptionData.GetData(e.InnerException); // secure the stacktrace
 				throw e.InnerException; // rethrow with new stackstrace
 			}
 		} // proc Run
@@ -88,7 +79,7 @@ namespace Neo.IronLua
 		public virtual bool HasDebugInfo { get { return false; } }
 
     /// <summary>Returns the declaration of the compiled chunk.</summary>
-    public MethodInfo Method { get { return chunk == null ? null : chunk.Method; } }
+    public MethodInfo Method { get { return chunk == null ? null : chunk.GetMethodInfo(); } }
 
     /// <summary>Get the IL-Size</summary>
     public virtual int Size
@@ -99,19 +90,19 @@ namespace Neo.IronLua
 					return 0;
 
 				// Gib den Type zurück
-				Type typeMethod = chunk.Method.GetType();
-				if (typeMethod.FullName == "System.Reflection.RuntimeMethodInfo")
-					return chunk.Method.GetMethodBody().GetILAsByteArray().Length;
-				else if (typeMethod.FullName == "System.Reflection.Emit.DynamicMethod+RTDynamicMethod")
+				MethodInfo miChunk = chunk.GetMethodInfo();
+				Type typeMethod = miChunk.GetType();
+				if (typeMethod == RuntimeMethodInfoType)
 				{
-					if (fiOwner == null)
-					{
-						fiOwner = typeMethod.GetField("m_owner", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetField);
-						if (fiOwner == null)
-							throw new InvalidOperationException("RTDynamicMethod:m_owner not found");
-					}
-					DynamicMethod dyn = (DynamicMethod)fiOwner.GetValue(chunk.Method);
-					return dyn.GetILGenerator().ILOffset;
+					dynamic methodBody = ((dynamic)miChunk).GetMethodBody();
+					return methodBody.GetILAsByteArray().Length;
+				}
+				else if (typeMethod == RtDynamicMethodType)
+				{
+					dynamic dynamicMethod = RtDynamicMethodOwnerFieldInfo.GetValue(miChunk);
+					if (dynamicMethod == null)
+						return -1;
+					return dynamicMethod.GetILGenerator().ILOffset;
 				}
 				else
 					return -1;
@@ -120,7 +111,24 @@ namespace Neo.IronLua
 
 		// -- Static --------------------------------------------------------------
 
-		private static FieldInfo fiOwner = null; // m_owner
+		private static readonly Type RuntimeMethodInfoType = Type.GetType("System.Reflection.RuntimeMethodInfo");
+		private static readonly Type DynamicMethodType = Type.GetType("System.Reflection.Emit.DynamicMethod");
+		private static readonly Type RtDynamicMethodType = Type.GetType("System.Reflection.Emit.DynamicMethod+RTDynamicMethod");
+		private static readonly FieldInfo RtDynamicMethodOwnerFieldInfo;
+
+		static LuaChunk()
+		{
+			if (RtDynamicMethodType != null)
+			{
+				RtDynamicMethodOwnerFieldInfo = RtDynamicMethodType.GetTypeInfo().FindDeclaredField("m_owner", ReflectionFlag.NonPublic);
+				if (RtDynamicMethodOwnerFieldInfo == null)
+					throw new InvalidOperationException("RTDynamicMethod:m_owner not found");
+			}
+			else
+			{
+				RtDynamicMethodOwnerFieldInfo = null;
+			}
+		} // sctor
   } // class LuaChunk
 
   #endregion

@@ -45,7 +45,7 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        l.PrintExpressionTree = true;
+        l.PrintExpressionTree = Console.Out;
         TestDelegate dlg = l.CreateLambda<TestDelegate>("Test", "return value:ToString();");
         string sR = dlg(3);
         Assert.IsTrue(sR == "3");
@@ -57,7 +57,7 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        l.PrintExpressionTree = true;
+        l.PrintExpressionTree = Console.Out;
         var dlg = l.CreateLambda<Func<int, int, int>>("Test", "return arg1 + arg2");
         Assert.IsTrue(dlg(1, 2) == 3);
       }
@@ -68,7 +68,7 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        l.PrintExpressionTree = true;
+        l.PrintExpressionTree = Console.Out;
         var dlg = l.CreateLambda<Func<int, int, int>>("Test", "return a + b", "a", "b");
         Assert.IsTrue(dlg(1, 2) == 3);
       }
@@ -87,7 +87,7 @@ namespace LuaDLR.Test
 			
 			using (Lua l = new Lua())
 			{
-				l.PrintExpressionTree = true;
+				l.PrintExpressionTree =Console.Out;
 				var g = l.CreateEnvironment();
 
 				g.SetMemberValue("values", values);
@@ -105,7 +105,7 @@ namespace LuaDLR.Test
 			
 			using (Lua l = new Lua())
 			{
-				l.PrintExpressionTree = true;
+				l.PrintExpressionTree = Console.Out;
 				var g = l.CreateEnvironment();
 
 				g.SetMemberValue("values", values);

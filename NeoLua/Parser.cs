@@ -1,13 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Dynamic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Neo.IronLua
@@ -913,7 +910,10 @@ namespace Neo.IronLua
 
 			// register the variables
 			if (registerLocals != null)
-				registerLocals.ForEach(c => scope.RegisterVariable(c));
+			{
+				for (int i = 0; i < registerLocals.Count; i++)
+					scope.RegisterVariable(registerLocals[i]);
+			}
 		} // proc ParseExpressionStatement
 
 		private static ParameterExpression ParseExpressionStatementExchangeToTempVar(List<ParameterExpression> assignTempVars, List<Expression> assignExprs, Expression expr)
@@ -1688,7 +1688,7 @@ namespace Neo.IronLua
 					from c in outerScope.Variables
 					select Expression.IfThen(
 						Expression.TypeIs(c, typeof(IDisposable)),
-						Expression.Call(Expression.Convert(c, typeof(IDisposable)), typeof(IDisposable).GetMethod("Dispose"))
+						Expression.Call(Expression.Convert(c, typeof(IDisposable)), Lua.DisposeDisposeMethodInfo)
 					)).ToArray();
 
 				FetchToken(LuaToken.BracketClose, code);
@@ -1857,12 +1857,7 @@ namespace Neo.IronLua
 			ParseBlock(loopScope, code);
 			FetchToken(LuaToken.KwEnd, code);
 
-			Type typeEnumerator = typeof(System.Collections.IEnumerator);
-			var miGetEnumerator = typeof(System.Collections.IEnumerable).GetMethod("GetEnumerator");
-			var miMoveNext = typeEnumerator.GetMethod("MoveNext");
-			var piCurrent = typeEnumerator.GetProperty("Current", BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance);
-
-			loopScope.InsertExpression(0, Expression.Assign(loopVar, ConvertExpression(scope.Runtime, tLoopVar, Expression.Property(varEnumerator, piCurrent), loopVar.Type)));
+			loopScope.InsertExpression(0, Expression.Assign(loopVar, ConvertExpression(scope.Runtime, tLoopVar, Expression.Property(varEnumerator, Lua.EnumeratorCurrentPropertyInfo), loopVar.Type)));
 			scope.AddExpression(
 				Expression.Block(new ParameterExpression[] { varEnumerable, varEnumerator, loopVar },
 				// local enumerable = exprEnum as IEnumerator
@@ -1872,11 +1867,11 @@ namespace Neo.IronLua
 				Expression.IfThen(Expression.Equal(varEnumerable, Expression.Constant(null, typeof(object))), Lua.ThrowExpression(Properties.Resources.rsExpressionNotEnumerable)),
 
 				// local enum = exprEnum.GetEnumerator()
-				Expression.Assign(varEnumerator, Expression.Call(varEnumerable, miGetEnumerator)),
+				Expression.Assign(varEnumerator, Expression.Call(varEnumerable, Lua.EnumerableGetEnumeratorMethodInfo)),
 
 				// while enum.MoveNext() do
 				Expression.Label(loopScope.ContinueLabel),
-				Expression.IfThenElse(Expression.Call(varEnumerator, miMoveNext), Expression.Empty(), Expression.Goto(loopScope.BreakLabel)),
+				Expression.IfThenElse(Expression.Call(varEnumerator, Lua.EnumeratorMoveNextMethodInfo), Expression.Empty(), Expression.Goto(loopScope.BreakLabel)),
 
 				//   loopVar = enum.Current
 				loopScope.ExpressionBlock,
@@ -1938,7 +1933,7 @@ namespace Neo.IronLua
 			const string csVar = "#var";
 
 			ParameterExpression varTmp = Expression.Variable(typeof(LuaResult), "#tmp");
-			ParameterExpression varFunc = Expression.Variable(explist.Length > 0 && typeof(Delegate).IsAssignableFrom(explist[0].Type) ? explist[0].Type : typeof(object), csFunc);
+			ParameterExpression varFunc = Expression.Variable(explist.Length > 0 && typeof(Delegate).GetTypeInfo().IsAssignableFrom(explist[0].Type.GetTypeInfo()) ? explist[0].Type : typeof(object), csFunc);
 			ParameterExpression varState = Expression.Variable(typeof(object), csState);
 			ParameterExpression varVar = Expression.Variable(typeof(object), csVar);
 
@@ -2282,7 +2277,7 @@ namespace Neo.IronLua
 		public static string ExpressionToString(Expression expr)
 		{
 			if (propertyDebugView == null)
-				propertyDebugView = typeof(Expression).GetProperty("DebugView", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.GetProperty, null, typeof(string), new Type[0], null);
+				propertyDebugView = typeof(Expression).GetTypeInfo().FindDeclaredProperty("DebugView", ReflectionFlag.NoException | ReflectionFlag.NonPublic | ReflectionFlag.Instance);
 
 			return (string)propertyDebugView.GetValue(expr, null);
 		} // func ExpressionToString

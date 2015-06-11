@@ -1,14 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Dynamic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Reflection.Emit;
-using System.Runtime.CompilerServices;
-using System.Text;
 
 namespace Neo.IronLua
 {
@@ -121,11 +116,7 @@ namespace Neo.IronLua
 	/// binder cache between the compiled scripts.</summary>
 	public partial class Lua : IDisposable
 	{
-		private bool lPrintExpressionTree = false;
-
-		private object packageLock = new object();
-		private Dictionary<string, WeakReference> loadedModuls = null;
-		private string[] standardPackagePaths = null;
+		private TextWriter printExpressionTree = null;
 
 		private int iNumberType = (int)LuaIntegerType.Int32 | (int)LuaFloatType.Double;
 
@@ -172,17 +163,27 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Compile ----------------------------------------------------------------
+		#region -- CreateEnvironment ------------------------------------------------------
 
-		/// <summary>Erzeugt ein Delegate aus dem Code, ohne ihn auszuführen.</summary>
-		/// <param name="sFileName">Dateiname die gelesen werden soll.</param>
-		/// <param name="options">Options for the compile process.</param>
-		/// <param name="args">Parameter für den Codeblock</param>
-		/// <returns>Compiled chunk.</returns>
-		public LuaChunk CompileChunk(string sFileName, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
+		/// <summary>Creates a Environment</summary>
+		/// <returns></returns>
+		public LuaGlobalPortable CreateEnvironment()
 		{
-			return CompileChunk(sFileName, options, new StreamReader(sFileName), args);
-		} // func CompileChunk
+			return new LuaGlobalPortable(this);
+		} // func CreateEnvironment
+
+		/// <summary>Create an empty environment</summary>
+		/// <typeparam name="T"></typeparam>
+		/// <returns></returns>
+		public T CreateEnvironment<T>()
+			where T : LuaTable
+		{
+			return (T)Activator.CreateInstance(typeof(T), this);
+		} // func CreateEnvironment
+
+		#endregion
+
+		#region -- Compile ----------------------------------------------------------------
 
 		/// <summary>Erzeugt ein Delegate aus dem Code, ohne ihn auszuführen.</summary>
 		/// <param name="tr">Inhalt</param>
@@ -222,10 +223,10 @@ namespace Neo.IronLua
 				{
 					LambdaExpression expr = Parser.ParseChunk(this, options, true, l, null, typeof(LuaResult), args);
 
-					if (lPrintExpressionTree)
+					if (printExpressionTree != null)
 					{
-						Console.WriteLine(Parser.ExpressionToString(expr));
-						Console.WriteLine(new string('=', 79));
+						printExpressionTree.WriteLine(Parser.ExpressionToString(expr));
+						printExpressionTree.WriteLine(new string('=', 79));
 					}
 
 					// compile the chunk
@@ -255,10 +256,10 @@ namespace Neo.IronLua
 			{
 				LambdaExpression expr = Parser.ParseChunk(this, new LuaCompileOptions(), false, l, typeDelegate, returnType, arguments);
 
-				if (lPrintExpressionTree)
+				if (printExpressionTree != null)
 				{
-					Console.WriteLine(Parser.ExpressionToString(expr));
-					Console.WriteLine(new string('=', 79));
+					printExpressionTree.WriteLine(Parser.ExpressionToString(expr));
+					printExpressionTree.WriteLine(new string('=', 79));
 				}
 
 				return expr.Compile();
@@ -274,7 +275,7 @@ namespace Neo.IronLua
 			where T : class
 		{
 			Type typeDelegate = typeof(T);
-			MethodInfo mi = typeDelegate.GetMethod("Invoke");
+			MethodInfo mi = typeDelegate.GetTypeInfo().FindDeclaredMethod("Invoke", ReflectionFlag.Instance | ReflectionFlag.NoArguments);
 			ParameterInfo[] parameters = mi.GetParameters();
 			KeyValuePair<string, Type>[] arguments = new KeyValuePair<string, Type>[parameters.Length];
 
@@ -293,68 +294,6 @@ namespace Neo.IronLua
 
 			return (T)(object)CreateLambda(sName, sCode, typeDelegate, mi.ReturnParameter.ParameterType, arguments);
 		} // func CreateLambda
-
-		#endregion
-
-		#region -- Require ----------------------------------------------------------------
-
-		internal LuaChunk LuaRequire(LuaGlobal global, object modname)
-		{
-			if (modname is string)
-			{
-				string sModName = (string)modname;
-				string sFileName;
-				DateTime dtStamp;
-				if (global.LuaRequireFindFile(sModName, out sFileName, out dtStamp))
-				{
-					lock (packageLock)
-					{
-						WeakReference rc;
-						LuaChunk c;
-						string sCacheId = sFileName + ";" + dtStamp.ToString("o");
-
-						// is the modul loaded
-						if (loadedModuls == null ||
-							!loadedModuls.TryGetValue(sCacheId, out rc) ||
-							!rc.IsAlive)
-						{
-							// compile the modul
-							c = CompileChunk(sFileName, null);
-
-							// Update Cache
-							if (loadedModuls == null)
-								loadedModuls = new Dictionary<string, WeakReference>();
-							loadedModuls[sCacheId] = new WeakReference(c);
-						}
-						else
-							c = (LuaChunk)rc.Target;
-
-						return c;
-					}
-				}
-			}
-			return null;
-		} // func LuaRequire
-
-		#endregion
-
-		#region -- CreateEnvironment ------------------------------------------------------
-
-		/// <summary>Creates an empty environment.</summary>
-		/// <returns>Initialized environment</returns>
-		public virtual LuaGlobal CreateEnvironment()
-		{
-			return new LuaGlobal(this);
-		} // func CreateEnvironment
-
-		/// <summary>Create an empty environment</summary>
-		/// <typeparam name="T"></typeparam>
-		/// <returns></returns>
-		public T CreateEnvironment<T>()
-			where T : LuaGlobal
-		{
-			return (T)Activator.CreateInstance(typeof(T), this);
-		} // func CreateEnvironment
 
 		#endregion
 
@@ -438,44 +377,11 @@ namespace Neo.IronLua
 
 		#endregion
 
-		internal bool PrintExpressionTree { get { return lPrintExpressionTree; } set { lPrintExpressionTree = value; } }
-
-		/// <summary>Default path for the package loader</summary>
-		public string[] StandardPackagesPaths
-		{
-			get
-			{
-				if (standardPackagePaths == null)
-				{
-					string sExecutingDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-					standardPackagePaths = new string[]
-					{
-						"%currentdirectory%",
-						sExecutingDirectory,
-						Path.Combine(sExecutingDirectory, "lua")
-					};
-				}
-				return standardPackagePaths;
-			}
-		} // prop StandardPackagesPaths
-
-		/// <summary>Default path for the package loader</summary>
-		public string StandardPackagesPath
-		{
-			get { return String.Join(";", StandardPackagesPaths); }
-			set
-			{
-				if (String.IsNullOrEmpty(value))
-					standardPackagePaths = null;
-				else
-					standardPackagePaths = value.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
-			}
-		} // prop StandardPackagesPath
+		internal TextWriter PrintExpressionTree { get { return printExpressionTree; } set { printExpressionTree = value; } }
 
     // -- Static --------------------------------------------------------------
 
-    private static object lockDefaultDebugEngine = new object();
-		private static LuaCompileOptions defaultDebugEngine = null;
+		private static Version versionInfo = null;
 
 		private static int iRegisteredChunkLock = 0;
 		private static Dictionary<string, WeakReference> registeredChunks = new Dictionary<string, WeakReference>();
@@ -564,25 +470,17 @@ namespace Neo.IronLua
 
 		#endregion
 
-		/// <summary>Returns a default StackTrace-Debug Engine</summary>
-		public static LuaCompileOptions DefaultDebugEngine
-		{
-			get
-			{
-				lock (lockDefaultDebugEngine)
-					if (defaultDebugEngine == null)
-						defaultDebugEngine = new LuaCompileOptions() { DebugEngine = new LuaStackTraceDebugger() };
-				return defaultDebugEngine;
-			}
-		} // prop DefaultDebugEngine
-
-		/// <summary>Returns the Version of the assembly</summary>
+		/// <summary>Returns the version of lua.</summary>
 		public static Version Version
 		{
 			get
 			{
-				AssemblyFileVersionAttribute attr = (AssemblyFileVersionAttribute)Attribute.GetCustomAttribute(typeof(Lua).Assembly, typeof(AssemblyFileVersionAttribute));
-				return attr == null ? new Version() : new Version(attr.Version);
+				if (versionInfo == null)
+				{
+					var versionAttribute = typeof(Lua).GetTypeInfo().Assembly.GetCustomAttribute<AssemblyFileVersionAttribute>();
+					versionInfo = versionAttribute == null ? new Version(0, 0) : new Version(versionAttribute.Version);
+				}
+				return versionInfo;
 			}
 		} // prop Version
 	} // class Lua

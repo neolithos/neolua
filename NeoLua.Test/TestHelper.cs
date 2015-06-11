@@ -28,19 +28,19 @@ namespace LuaDLR.Test
 
     public void TestCode(string sCode, params object[] expectedResult)
     {
-      using (Lua l = new Lua())
-      {
-        l.PrintExpressionTree = PrintExpressionTree;
-        var g = l.CreateEnvironment();
-        Console.WriteLine("Test: {0}", sCode);
-        Console.WriteLine(new string('=', 66));
-        Stopwatch sw = new Stopwatch();
-        sw.Start();
-        TestResult(g.DoChunk(sCode, "test.lua"), expectedResult);
-        Console.WriteLine("  Dauer: {0}ms", sw.ElapsedMilliseconds);
-        Console.WriteLine();
-        Console.WriteLine();
-      }
+			using (Lua l = new Lua())
+			{
+				l.PrintExpressionTree = PrintExpressionTree ? Console.Out : null;
+				var g = l.CreateEnvironment<LuaGlobal>();
+				Console.WriteLine("Test: {0}", sCode);
+				Console.WriteLine(new string('=', 66));
+				Stopwatch sw = new Stopwatch();
+				sw.Start();
+				TestResult(g.DoChunk(sCode, "test.lua"), expectedResult);
+				Console.WriteLine("  Dauer: {0}ms", sw.ElapsedMilliseconds);
+				Console.WriteLine();
+				Console.WriteLine();
+			}
     } // proc TestCode
 
     public void TestExpr(string sExpression, params object[] expectedResult)

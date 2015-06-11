@@ -4,7 +4,7 @@ using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Text;
+using System.Runtime.CompilerServices;
 
 namespace Neo.IronLua
 {
@@ -61,6 +61,38 @@ namespace Neo.IronLua
 
 	#endregion
 
+	#region -- enum LuaEmitTypeCode -----------------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary>Translates type definitions to codes, that are easier to compare</summary>
+	internal enum LuaEmitTypeCode
+	{
+		Object = 0,
+		Boolean = 0x10,
+		Char = 0x20,
+		String = 0x30,
+
+		SByte = 0x41,
+		Byte = 0x53,
+		Int16 = 0x61,
+		UInt16 = 0x73,
+		Int32 = 0x81,
+		UInt32 = 0x93,
+		Int64 = 0xA1,
+		UInt64 = 0xB3,
+
+		Single = 0xC0,
+		Double = 0xD0,
+
+		Decimal = 0xE0,
+		DateTime = 0xF0,
+
+		IntegerFlag = 0x01,
+		UnsignedFlag = 0x02
+	} // enum LuaEmitTypeCode
+
+	#endregion
+
 	#region -- class LuaEmit ------------------------------------------------------------
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -70,58 +102,120 @@ namespace Neo.IronLua
 		public const string csImplicit = "op_Implicit";
 		public const string csExplicit = "op_Explicit";
 
+		private static readonly TypeInfo DynamicMetaObjectProviderTypeInfo = typeof(IDynamicMetaObjectProvider).GetTypeInfo();
+
 		#region -- IsDynamic, IsArithmetic, ... -------------------------------------------
 
 		public static bool IsDynamicType(Type type)
 		{
-			return type == typeof(object) || typeof(IDynamicMetaObjectProvider).IsAssignableFrom(type);
+			return type == typeof(object) || DynamicMetaObjectProviderTypeInfo.IsAssignableFrom(type.GetTypeInfo());
 		} // func IsDynamicType
 
-		private static Type UnpackType(Type type)
+		private static TypeInfo UnpackTypeInfo(Type type)
 		{
-			if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
-				type = type.GetGenericArguments()[0];
-			if (type.IsEnum)
-				type = type.GetEnumUnderlyingType();
-			return type;
+			var ti = type.GetTypeInfo();
+			if (ti.IsGenericType && ti.GetGenericTypeDefinition() == typeof(Nullable<>))
+				ti = ti.GenericTypeArguments[0].GetTypeInfo();
+			if (ti.IsEnum)
+				ti = Enum.GetUnderlyingType(ti.AsType()).GetTypeInfo();
+			return ti;
 		} // func UnpackType
 
-		public static TypeCode GetTypeCode(Type type)
+		public static LuaEmitTypeCode GetTypeCode(Type type)
 		{
-			if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
-				type = type.GetGenericArguments()[0];
-			return Type.GetTypeCode(type);
+			return GetTypeCode(UnpackTypeInfo(type));
+		} // func GetTypeCode
+
+		private static LuaEmitTypeCode GetTypeCode(TypeInfo ti)
+		{
+			Type type = ti.AsType();
+			switch (type.Name[0])
+			{
+				case 'B':
+					if (type == typeof(Boolean))
+						return LuaEmitTypeCode.Boolean;
+					else if (type == typeof(Byte))
+						return LuaEmitTypeCode.Byte;
+					else
+						return LuaEmitTypeCode.Object;
+				case 'C':
+					return type == typeof(Char) ? LuaEmitTypeCode.Char : LuaEmitTypeCode.Object;
+				case 'D':
+					if (type == typeof(Double))
+						return LuaEmitTypeCode.Double;
+					else if (type == typeof(Decimal))
+						return LuaEmitTypeCode.Decimal;
+					else if (type == typeof(DateTime))
+						return LuaEmitTypeCode.DateTime;
+					else
+						return LuaEmitTypeCode.Object;
+				case 'I':
+					if (type == typeof(Int32))
+						return LuaEmitTypeCode.Int32;
+					else if (type == typeof(Int16))
+						return LuaEmitTypeCode.Int16;
+					else if (type == typeof(Int64))
+						return LuaEmitTypeCode.Int64;
+					else
+						return LuaEmitTypeCode.Object;
+				case 'S':
+					if (type == typeof(String))
+						return LuaEmitTypeCode.String;
+					else if (type == typeof(SByte))
+						return LuaEmitTypeCode.SByte;
+					else if (type == typeof(Single))
+						return LuaEmitTypeCode.Single;
+					else
+						return LuaEmitTypeCode.Object;
+				case 'U':
+					if (type == typeof(UInt32))
+						return LuaEmitTypeCode.UInt32;
+					else if (type == typeof(UInt16))
+						return LuaEmitTypeCode.UInt16;
+					else if (type == typeof(UInt64))
+						return LuaEmitTypeCode.UInt64;
+					else
+						return LuaEmitTypeCode.Object;
+				default:
+					return LuaEmitTypeCode.Object;
+			}
 		} // func GetTypeCode
 
 		internal static bool TypesMatch(Type typeTo, Type typeFrom, out bool lExact)
 		{
-			typeTo = UnpackType(typeTo);
-			typeFrom = UnpackType(typeFrom);
-
 			if (typeTo == typeFrom)
 			{
 				lExact = true;
 				return true;
 			}
-			else if (typeTo.IsAssignableFrom(typeFrom))
+
+			var tiTo = UnpackTypeInfo(typeTo);
+			var tiFrom = UnpackTypeInfo(typeFrom);
+
+			if (tiTo == tiFrom)
+			{
+				lExact = true;
+				return true;
+			}
+			else if (tiTo.IsAssignableFrom(tiFrom))
 			{
 				lExact = false;
 				return true;
 			}
 			else
 			{
-				TypeCode tcTo = Type.GetTypeCode(typeTo);
-				TypeCode tcFrom = Type.GetTypeCode(typeFrom);
+				var tcTo = GetTypeCode(tiTo);
+				var tcFrom = GetTypeCode(tiFrom);
 
 				lExact = false;
 
-				if (tcTo == TypeCode.String)
+				if (tcTo == LuaEmitTypeCode.String)
 					return true;
-				else if (tcTo >= TypeCode.SByte && tcTo <= TypeCode.Double &&
-							(tcFrom >= TypeCode.SByte && tcFrom <= tcTo || tcTo == TypeCode.Single && tcFrom == TypeCode.Double)) // exception for single -> double
+				else if (tcTo >= LuaEmitTypeCode.SByte && tcTo <= LuaEmitTypeCode.Double &&
+							(tcFrom >= LuaEmitTypeCode.SByte && tcFrom <= tcTo || tcTo == LuaEmitTypeCode.Single && tcFrom == LuaEmitTypeCode.Double)) // exception for single -> double
 					return true;
-				else if (tcFrom == TypeCode.String &&
-					tcTo >= TypeCode.SByte && tcTo <= TypeCode.Double)
+				else if (tcFrom == LuaEmitTypeCode.String &&
+					tcTo >= LuaEmitTypeCode.SByte && tcTo <= LuaEmitTypeCode.Double)
 					return true;
 
 				return false;
@@ -133,40 +227,38 @@ namespace Neo.IronLua
 			return IsArithmeticType(GetTypeCode(type));
 		} // func IsArithmeticType
 
-		private static bool IsArithmeticType(TypeCode typeCode)
+
+		private static bool IsArithmeticType(TypeInfo ti)
+		{
+			return IsArithmeticType(GetTypeCode(ti));
+		} // func IsArithmeticType
+
+		private static bool IsArithmeticType(LuaEmitTypeCode typeCode)
 		{
 			return IsIntegerType(typeCode) || IsFloatType(typeCode);
 		} // func IsArithmeticType
 
-		public static bool IsIntegerType(TypeCode typeCode)
+		public static bool IsIntegerType(LuaEmitTypeCode typeCode)
 		{
-			switch (typeCode)
-			{
-				case TypeCode.Byte:
-				case TypeCode.Int16:
-				case TypeCode.Int32:
-				case TypeCode.Int64:
-				case TypeCode.SByte:
-				case TypeCode.UInt16:
-				case TypeCode.UInt32:
-				case TypeCode.UInt64:
-					return true;
-				default:
-					return false;
-			}
+			return (LuaEmitTypeCode.IntegerFlag & typeCode) != 0;
 		} // func IsIntegerType
 
-		private static bool IsFloatType(TypeCode typeCode)
+		private static bool IsFloatType(LuaEmitTypeCode typeCode)
 		{
 			switch (typeCode)
 			{
-				case TypeCode.Double:
-				case TypeCode.Single:
+				case LuaEmitTypeCode.Double:
+				case LuaEmitTypeCode.Single:
 					return true;
 				default:
 					return false;
 			}
 		} // func IsFloatType
+
+		private static bool IsConvertOperator(MethodInfo methodInfo)
+		{
+			return methodInfo.IsPublic && methodInfo.IsStatic && methodInfo.IsSpecialName && (methodInfo.Name == csImplicit || methodInfo.Name == csExplicit);
+		} // func IsConvertOperator
 
 		private static bool TryConvertType(Lua runtime, Type typeTo, ref Expression expr, ref Type exprType)
 		{
@@ -179,17 +271,20 @@ namespace Neo.IronLua
 			}
 
 			// search for conversion operator
+			TypeInfo tiTo = typeTo.GetTypeInfo();
+			TypeInfo tiExpr = exprType.GetTypeInfo();
+
 			bool lExactTo = false;
 			bool lExactFrom = false;
 			bool lImplicit = false;
 			MethodInfo miConvert = FindConvertMethod(
-				typeTo.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod),
+				tiTo.DeclaredMethods.Where(IsConvertOperator),
 				exprType, typeTo,
 				ref lImplicit, ref lExactFrom, ref lExactTo);
 
 			if (!lImplicit || !lExactFrom || !lExactTo)
 				miConvert = FindConvertMethod(
-					exprType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod),
+					tiExpr.DeclaredMethods.Where(IsConvertOperator),
 					exprType, typeTo,
 					ref lImplicit, ref lExactFrom, ref lExactTo);
 
@@ -214,12 +309,11 @@ namespace Neo.IronLua
 			}
 		} // func TryConvertType
 
-		public static MethodInfo FindConvertMethod(MethodInfo[] methods, Type typeFrom, Type typeTo, ref bool lImplicit, ref bool lExactFrom, ref bool lExactTo)
+		public static MethodInfo FindConvertMethod(IEnumerable<MethodInfo> methods, Type typeFrom, Type typeTo, ref bool lImplicit, ref bool lExactFrom, ref bool lExactTo)
 		{
 			MethodInfo miCurrent = null;
-			for (int i = 0; i < methods.Length; i++)
+			foreach(var mi in methods)
 			{
-				MethodInfo mi = methods[i];
 				ParameterInfo[] parameters = mi.GetParameters();
 
 				bool lTestImplicit;
@@ -355,18 +449,6 @@ namespace Neo.IronLua
 			return dynArgs;
 		} // func CreateDynamicArgs
 
-		private static BindingFlags GetBindingFlags(bool lInstance, bool lIgnoreCase)
-		{
-			BindingFlags flags = BindingFlags.Public;
-			if (lInstance)
-				flags |= BindingFlags.Instance;
-			else
-				flags |= BindingFlags.Static;
-			if (lIgnoreCase)
-				flags |= BindingFlags.IgnoreCase;
-			return flags;
-		} // func GetBindingFlags
-
 		#endregion
 
 		#region -- Emit Convert -----------------------------------------------------------
@@ -384,7 +466,7 @@ namespace Neo.IronLua
 					{
 						expr = exprDynamic.Arguments.First();
 						if (expr.Type == toType) // repack to an object convert, because we do not want to let out the convert
-							expr = Expression.Dynamic(runtime.GetConvertBinder(toType), toType, Convert(runtime, expr, expr.Type, typeof(object), false));
+							expr = DynamicExpression.Dynamic(runtime.GetConvertBinder(toType), toType, Convert(runtime, expr, expr.Type, typeof(object), false));
 						fromType = expr.Type;
 					}
 				}
@@ -421,71 +503,73 @@ namespace Neo.IronLua
 			}
 			else if (runtime != null && lParse && IsDynamicType(fromType)) // dynamic type -> dynamic convert
 			{
-				return Expression.Dynamic(runtime.GetConvertBinder(toType), toType, Convert(null, expr, fromType, typeof(object), false));
-			}
-			else if (toType == typeof(object) || toType.IsAssignableFrom(fromType)) // Type is assignable
-			{
-				return Expression.Convert(expr, toType);
-			}
-			else if (toType == typeof(bool)) // we need a true or false
-			{
-				if (fromType.IsValueType)
-					return Expression.Constant(true);
-				else
-					return BinaryOperationExpression(runtime, ExpressionType.NotEqual, expr, fromType, Expression.Constant(null, fromType), fromType, lParse);
-			}
-			else if (toType == typeof(string)) // convert to a string
-			{
-				if (fromType == typeof(bool))
-					return Expression.Condition(expr, Expression.Constant("true"), Expression.Constant("false"));
-				else
-				{
-					// try find a conversion
-					foreach (MethodInfo mi in fromType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod))
-					{
-						if ((mi.Name == csExplicit || mi.Name == csImplicit) &&
-							mi.ReturnType == typeof(string))
-							return Expression.Convert(expr, toType, mi);
-					}
-
-					// call convert to string
-					return Expression.Call(Lua.ConvertToStringMethodInfo,
-						Convert(runtime, expr, fromType, typeof(object), false),
-						Expression.Property(null, Lua.CultureInvariantPropertyInfo)
-					);
-				}
-			}
-			else if (fromType == typeof(string) && IsArithmeticType(toType)) // we expect a string and have a number
-			{
-				return Convert(runtime, ParseNumberExpression(runtime, expr, fromType), typeof(object), toType, true); // allow dynamic converts
-			}
-			else if (fromType == typeof(string) && toType == typeof(char))
-			{
-				return Expression.Property(Convert(runtime, expr, fromType, fromType, false), Lua.StringItemPropertyInfo, Expression.Constant(0));
-			}
-			else if (toType.BaseType == typeof(MulticastDelegate) && toType.BaseType == fromType.BaseType)
-			{
-				return Expression.Convert(
-					Expression.Call(Lua.ConvertDelegateMethodInfo,
-						Expression.Constant(toType, typeof(Type)),
-						Convert(runtime, expr, fromType, typeof(Delegate), lParse)
-					),
-					toType
-				);
-			}
-			else if (fromType.IsArray && toType.IsArray)
-			{
-				return Expression.Convert(Expression.Call(Lua.ConvertArrayMethodInfo, Convert(runtime, expr, fromType, typeof(Array), lParse), Expression.Constant(toType.GetElementType())), toType);
+				return DynamicExpression.Dynamic(runtime.GetConvertBinder(toType), toType, Convert(null, expr, fromType, typeof(object), false));
 			}
 			else
-				try
+			{
+				TypeInfo fromTypeInfo = fromType.GetTypeInfo();
+				TypeInfo toTypeInfo = toType.GetTypeInfo();
+				if (toType == typeof(object) || toTypeInfo.IsAssignableFrom(fromTypeInfo)) // Type is assignable
 				{
 					return Expression.Convert(expr, toType);
 				}
-				catch
+				else if (toType == typeof(bool)) // we need a true or false
 				{
-					throw new LuaEmitException(LuaEmitException.ConversationNotDefined, fromType.Name, toType.Name);
+					if (fromType.GetTypeInfo().IsValueType)
+						return Expression.Constant(true);
+					else
+						return BinaryOperationExpression(runtime, ExpressionType.NotEqual, expr, fromType, Expression.Constant(null, fromType), fromType, lParse);
 				}
+				else if (toType == typeof(string)) // convert to a string
+				{
+					if (fromType == typeof(bool))
+						return Expression.Condition(expr, Expression.Constant("true"), Expression.Constant("false"));
+					else
+					{
+						// try find a conversion
+						var convertMethod = (from mi in fromTypeInfo.DeclaredMethods where IsConvertOperator(mi) && mi.ReturnType == typeof(string) select mi).FirstOrDefault();
+						if (convertMethod != null)
+							return Expression.Convert(expr, toType, convertMethod);
+
+						// call convert to string
+						return Expression.Call(Lua.ConvertToStringMethodInfo,
+							Convert(runtime, expr, fromType, typeof(object), false),
+							Expression.Property(null, Lua.CultureInvariantPropertyInfo)
+						);
+					}
+				}
+				else if (fromType == typeof(string) && IsArithmeticType(toType)) // we expect a string and have a number
+				{
+					return Convert(runtime, ParseNumberExpression(runtime, expr, fromType), typeof(object), toType, true); // allow dynamic converts
+				}
+				else if (fromType == typeof(string) && toType == typeof(char))
+				{
+					return Expression.Property(Convert(runtime, expr, fromType, fromType, false), Lua.StringItemPropertyInfo, Expression.Constant(0));
+				}
+				else if (toTypeInfo.BaseType == typeof(MulticastDelegate) && toTypeInfo.BaseType == fromTypeInfo.BaseType)
+				{
+					return Expression.Convert(
+						Expression.Call(Lua.ConvertDelegateMethodInfo,
+							Expression.Constant(toType, typeof(Type)),
+							Convert(runtime, expr, fromType, typeof(Delegate), lParse)
+						),
+						toType
+					);
+				}
+				else if (fromType.IsArray && toType.IsArray)
+				{
+					return Expression.Convert(Expression.Call(Lua.ConvertArrayMethodInfo, Convert(runtime, expr, fromType, typeof(Array), lParse), Expression.Constant(toType.GetElementType())), toType);
+				}
+				else
+					try
+					{
+						return Expression.Convert(expr, toType);
+					}
+					catch
+					{
+						throw new LuaEmitException(LuaEmitException.ConversationNotDefined, fromType.Name, toType.Name);
+					}
+			}
 		} // func Convert
 
 		private static Expression ParseNumberExpression(Lua runtime, Expression expr1, Type type1)
@@ -529,7 +613,7 @@ namespace Neo.IronLua
 					return Expression.Call(Lua.RuntimeLengthMethodInfo, Convert(runtime, expr, type, typeof(object), lParse));
 			}
 			else if (lParse && IsDynamicType(type))
-				return Expression.Dynamic(runtime.GetUnaryOperationBinary(op), typeof(object), Convert(runtime, expr, type, typeof(object), lParse));
+				return DynamicExpression.Dynamic(runtime.GetUnaryOperationBinary(op), typeof(object), Convert(runtime, expr, type, typeof(object), lParse));
 			else
 			{
 				switch (op)
@@ -573,7 +657,7 @@ namespace Neo.IronLua
 
 		private static Expression BinaryOperationDynamicExpression(Lua runtime, ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2)
 		{
-			return Expression.Dynamic(runtime.GetBinaryOperationBinder(op), typeof(object),
+			return DynamicExpression.Dynamic(runtime.GetBinaryOperationBinder(op), typeof(object),
 				Convert(runtime, expr1, type1, typeof(object), false),
 				Convert(runtime, expr2, type2, typeof(object), false));
 		} // func BinaryOperationDynamicExpression
@@ -634,9 +718,26 @@ namespace Neo.IronLua
 
 		#region -- Emit Binary Compare Equalable helper -----------------------------------
 
+		private static bool TestParameter(ParameterInfo[] parameters, params Type[] args)
+		{
+			if (parameters.Length != args.Length)
+				return false;
+
+			for (int i = 0; i < parameters.Length; i++)
+				if (parameters[i].ParameterType != args[i])
+					return false;
+			
+			return true;
+		} // func TestParameter
+
 		private static Expression BinaryOperationCompareToExpression(Lua runtime, Type compareInterface, ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2, bool lParse)
 		{
-			MethodInfo miMethod = compareInterface.GetMethod("CompareTo", BindingFlags.Public | BindingFlags.Instance | BindingFlags.InvokeMethod);
+			MethodInfo miMethod = (
+				from mi in compareInterface.GetTypeInfo().DeclaredMethods 
+				where mi.IsPublic && !mi.IsStatic && mi.Name =="CompareTo" && mi.ReturnType == typeof(int) 
+				select mi
+			).FirstOrDefault();
+
 			return Expression.MakeBinary(op,
 				Expression.Call(
 					Convert(runtime, expr1, type1, compareInterface, false),
@@ -648,8 +749,15 @@ namespace Neo.IronLua
 
 		private static Expression BinaryOperationEqualableToExpression(Lua runtime, Type equalableInterface, ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2, bool lParse)
 		{
-			Type typeParam = equalableInterface.GetGenericArguments()[0];
-			MethodInfo miMethod = equalableInterface.GetMethod("Equals", BindingFlags.Public | BindingFlags.Instance | BindingFlags.InvokeMethod, null, new Type[] { typeParam }, null);
+			TypeInfo equalableInterfaceTypeInfo = equalableInterface.GetTypeInfo();
+			Type typeParam = equalableInterfaceTypeInfo.GenericTypeArguments[0];
+			
+			MethodInfo miMethod = (
+				from mi in equalableInterfaceTypeInfo.DeclaredMethods 
+				where mi.IsPublic && !mi.IsStatic && mi.Name=="Equals" && TestParameter( mi.GetParameters(), typeParam) 
+				select mi
+			).FirstOrDefault();
+			
 			Expression expr = Expression.Call(
 				Convert(runtime, expr1, type1, equalableInterface, false),
 				miMethod,
@@ -661,13 +769,13 @@ namespace Neo.IronLua
 		private static Type GetComparableInterface(Type type1, Type Type2, ref bool lExact)
 		{
 			Type compareInterface = null;
-			foreach (Type typeTest in type1.GetInterfaces())
+			foreach (Type typeTest in type1.GetTypeInfo().ImplementedInterfaces)
 			{
 				if (compareInterface == null && typeTest == typeof(IComparable) && TypesMatch(type1, Type2, out lExact))
 					return typeTest;
 				else if (!lExact && IsGenericCompare(typeTest))
 				{
-					Type p = typeTest.GetGenericArguments()[0];
+					Type p = typeTest.GenericTypeArguments[0];
 					if (TypesMatch(p, Type2, out lExact))
 					{
 						compareInterface = typeTest;
@@ -681,17 +789,17 @@ namespace Neo.IronLua
 
 		private static bool IsGenericCompare(Type type)
 		{
-			return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IComparable<>);
+			return type.IsConstructedGenericType && type.GetGenericTypeDefinition() == typeof(IComparable<>);
 		} // func IsGenericCompare
 
 		private static Type GetEqualableInterface(Type type1, Type Type2, ref bool lExact)
 		{
 			Type equalableInterface = null;
-			foreach (Type typeTest in type1.GetInterfaces())
+			foreach (Type typeTest in type1.GetTypeInfo().ImplementedInterfaces)
 			{
-				if (!lExact && typeTest.IsGenericType && typeTest.GetGenericTypeDefinition() == typeof(IEquatable<>))
+				if (!lExact && typeTest.IsConstructedGenericType && typeTest.GetGenericTypeDefinition() == typeof(IEquatable<>))
 				{
-					Type p = typeTest.GetGenericArguments()[0];
+					Type p = typeTest.GenericTypeArguments[0];
 					if (TypesMatch(p, Type2, out lExact))
 					{
 						equalableInterface = typeTest;
@@ -709,7 +817,7 @@ namespace Neo.IronLua
 
 		private static Expression UnaryOperationComplementExpression(Lua runtime, Expression expr, Type type, bool lParse)
 		{
-			TypeCode tc = GetTypeCode(type);
+			var tc = GetTypeCode(type);
 			bool lIsArithmetic = IsArithmeticType(tc);
 
 			if (lIsArithmetic) // simple arithmetic complement
@@ -717,19 +825,18 @@ namespace Neo.IronLua
 				#region -- simple arithmetic --
 				Type typeOp = type;
 				Type typeEnum = null;
-				if (type.IsEnum)
+				if (type.GetTypeInfo().IsEnum)
 				{
 					typeEnum = type;
-					typeOp = type.GetEnumUnderlyingType();
-					tc = GetTypeCode(typeOp);
+					typeOp = Enum.GetUnderlyingType(type);
 				}
-
+				
 				switch (tc)
 				{
-					case TypeCode.Double:
+					case LuaEmitTypeCode.Double:
 						typeOp = typeof(long);
 						break;
-					case TypeCode.Single:
+					case LuaEmitTypeCode.Single:
 						typeOp = typeof(int);
 						break;
 				}
@@ -744,15 +851,15 @@ namespace Neo.IronLua
 			}
 
 			#region -- find operator --
-			MemberInfo[] operators = type.GetMember(GetOperationMethodName(ExpressionType.OnesComplement), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod);
-			MethodInfo miOperator = FindMethod(Array.ConvertAll(operators, o => (MethodInfo)o), new Type[] { type }, t => t, false);
+			var operators = type.GetRuntimeMethods().Where(mi => mi.Name == GetOperationMethodName(ExpressionType.OnesComplement) && mi.IsStatic);
+			MethodInfo miOperator = FindMethod(operators, new Type[] { type }, t => t, false);
 			if (miOperator != null)
 				return Expression.OnesComplement(Convert(runtime, expr, type, miOperator.GetParameters()[0].ParameterType, lParse), miOperator);
 			#endregion
 
 			#region -- inject convert --
 			if (type == typeof(string))
-				return Expression.Dynamic(runtime.GetUnaryOperationBinary(ExpressionType.OnesComplement), typeof(object), ParseNumberExpression(runtime, expr, type));
+				return DynamicExpression.Dynamic(runtime.GetUnaryOperationBinary(ExpressionType.OnesComplement), typeof(object), ParseNumberExpression(runtime, expr, type));
 			#endregion
 
 			#region -- try convert to integer --
@@ -765,7 +872,7 @@ namespace Neo.IronLua
 
 		private static Expression UnaryOperationNegateExpression(Lua runtime, Expression expr, Type type, bool lParse)
 		{
-			TypeCode tc = GetTypeCode(type);
+			var tc = GetTypeCode(type);
 			bool lIsArithmetic = IsArithmeticType(tc);
 
 			if (lIsArithmetic) // simple arithmetic complement
@@ -773,10 +880,10 @@ namespace Neo.IronLua
 				#region -- simple arithmetic --
 				Type typeOp = type;
 				Type typeEnum = null;
-				if (type.IsEnum)
+				if (type.GetTypeInfo().IsEnum)
 				{
 					typeEnum = type;
-					typeOp = type.GetEnumUnderlyingType();
+					typeOp = Enum.GetUnderlyingType(type);
 					tc = GetTypeCode(typeOp);
 				}
 
@@ -791,15 +898,15 @@ namespace Neo.IronLua
 
 			#region -- find operator --
 
-			MemberInfo[] operators = type.GetMember(GetOperationMethodName(ExpressionType.Negate), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod);
-			MethodInfo miOperator = FindMethod(Array.ConvertAll(operators, o => (MethodInfo)o), new Type[] { type }, t => t, false);
+			var operators = type.GetRuntimeMethods().Where(mi => mi.Name == GetOperationMethodName(ExpressionType.Negate) && mi.IsStatic);
+			MethodInfo miOperator = FindMethod(operators, new Type[] { type }, t => t, false);
 			if (miOperator != null)
 				return Expression.Negate(Convert(runtime, expr, type, miOperator.GetParameters()[0].ParameterType, lParse), miOperator);
 			#endregion
 
 			#region -- inject convert --
 			if (type == typeof(string))
-				return Expression.Dynamic(runtime.GetUnaryOperationBinary(ExpressionType.Negate), typeof(object), ParseNumberExpression(runtime, expr, type));
+				return DynamicExpression.Dynamic(runtime.GetUnaryOperationBinary(ExpressionType.Negate), typeof(object), ParseNumberExpression(runtime, expr, type));
 			#endregion
 
 			#region -- try convert to integer --
@@ -818,10 +925,10 @@ namespace Neo.IronLua
 				#region -- simple arithmetic --
 
 				Type typeEnum = null;
-				if (type.IsEnum)
+				if (type.GetTypeInfo().IsEnum)
 				{
 					typeEnum = type; // save enum
-					type = type.GetEnumUnderlyingType();
+					type = Enum.GetUnderlyingType(type);
 				}
 
 				if (op == ExpressionType.OnesComplement)
@@ -831,22 +938,22 @@ namespace Neo.IronLua
 				}
 				else if (op == ExpressionType.Negate)
 				{
-					TypeCode tc = GetTypeCode(type);
+					var tc = GetTypeCode(type);
 					switch (tc)
 					{
-						case TypeCode.Byte:
+						case LuaEmitTypeCode.Byte:
 							expr = Convert(runtime, expr, type, typeof(short), lParse);
 							type = expr.Type;
 							break;
-						case TypeCode.UInt16:
+						case LuaEmitTypeCode.UInt16:
 							expr = Convert(runtime, expr, type, typeof(int), lParse);
 							type = expr.Type;
 							break;
-						case TypeCode.UInt32:
+						case LuaEmitTypeCode.UInt32:
 							expr = Convert(runtime, expr, type, typeof(long), lParse);
 							type = expr.Type;
 							break;
-						case TypeCode.UInt64:
+						case LuaEmitTypeCode.UInt64:
 							expr = Convert(runtime, expr, type, typeof(double), lParse);
 							type = expr.Type;
 							break;
@@ -870,11 +977,9 @@ namespace Neo.IronLua
 				throw new InvalidOperationException(String.Format("Method for Operator {0} not defined.", op));
 #endif
 			#region -- find operator --
-			BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod;
 
 			// try to find a exact match for the operation
-
-			miOperation = type.GetMethod(sMethodName, bindingFlags, null, new Type[] { type }, null);
+			miOperation = type.GetRuntimeMethods().Where(mi => mi.IsStatic && mi.Name == sMethodName && CheckArguments(mi.GetParameters(), new Type[] { type })).FirstOrDefault();
 
 			// can we inject a string conversation --> create a dynamic operation, that results in a simple arithmetic operation
 			if (miOperation == null && type == typeof(string))
@@ -883,7 +988,7 @@ namespace Neo.IronLua
 				expr = ParseNumberExpression(runtime, expr, type);
 				type = typeof(object);
 
-				return Expression.Dynamic(runtime.GetUnaryOperationBinary(op), typeof(object),
+				return DynamicExpression.Dynamic(runtime.GetUnaryOperationBinary(op), typeof(object),
 					Convert(runtime, expr, type, typeof(object), true)
 				);
 				#endregion
@@ -901,7 +1006,7 @@ namespace Neo.IronLua
 					bool lExactFrom = false;
 					bool lExactTo = false;
 					Type typeInt = LiftIntegerType(runtime, type);
-					MethodInfo miConvert = FindConvertMethod(type.GetMethods(bindingFlags), type, typeInt, ref lImplicit, ref lExactFrom, ref lExactTo);
+					MethodInfo miConvert = FindConvertMethod(type.GetRuntimeMethods().Where(mi => mi.IsStatic), type, typeInt, ref lImplicit, ref lExactFrom, ref lExactTo);
 					if (lExactTo)
 					{
 						if (expr.Type != type)
@@ -926,8 +1031,8 @@ namespace Neo.IronLua
 
 		private static Expression BinaryOperationArithmeticExpression(Lua runtime, ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2, bool lParse)
 		{
-			TypeCode tc1 = GetTypeCode(type1);
-			TypeCode tc2 = GetTypeCode(type2);
+			var tc1 = GetTypeCode(type1);
+			var tc2 = GetTypeCode(type2);
 			bool lIsArithmetic1 = IsArithmeticType(tc1);
 			bool lIsArithmetic2 = IsArithmeticType(tc2);
 
@@ -961,8 +1066,8 @@ namespace Neo.IronLua
 						typeOp = LiftType(type1, tc1, type2, tc2, false);
 						switch (GetTypeCode(typeOp))
 						{
-							case TypeCode.SByte:
-							case TypeCode.Byte:
+							case LuaEmitTypeCode.SByte:
+							case LuaEmitTypeCode.Byte:
 								typeOp = LiftTypeNext(runtime, typeOp);
 								break;
 						}
@@ -986,8 +1091,8 @@ namespace Neo.IronLua
 						typeOp = LiftIntegerType(runtime, LiftType(type1, tc1, type2, tc2, false));
 						switch (GetTypeCode(typeOp))
 						{
-							case TypeCode.SByte:
-							case TypeCode.Byte:
+							case LuaEmitTypeCode.SByte:
+							case LuaEmitTypeCode.Byte:
 								typeOp = LiftTypeNext(runtime, typeOp);
 								break;
 						}
@@ -1010,11 +1115,11 @@ namespace Neo.IronLua
 
 				#region -- simple enum safe operation --
 				Type typeEnum = null;
-				if (typeOp.IsEnum)
+				if (typeOp.GetTypeInfo().IsEnum)
 				{
-					if (type1.IsEnum && type2.IsEnum)
+					if (type1.GetTypeInfo().IsEnum && type2.GetTypeInfo().IsEnum)
 						typeEnum = typeOp; // save enum
-					typeOp = typeOp.GetEnumUnderlyingType();
+					typeOp = Enum.GetUnderlyingType(typeOp);
 				}
 
 				Expression expr = Expression.MakeBinary(op,
@@ -1032,14 +1137,13 @@ namespace Neo.IronLua
 
 			#region -- Find the the binary operator --
 			Type[] parameterTypes = new Type[] { type1, type2 };
-			BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.InvokeMethod;
 			string sOperationName = GetOperationMethodName(op);
 			if (!String.IsNullOrEmpty(sOperationName))
 			{
 				// create a list of all operators
-				MemberInfo[] members1 = type1.GetMember(sOperationName, bindingFlags);
-				MemberInfo[] members2 = type2.GetMember(sOperationName, bindingFlags);
-				MethodInfo[] members3 = new MethodInfo[members1.Length + members2.Length];
+				var members1 = type1.GetRuntimeMethods().Where(mi => mi.IsStatic && mi.Name == sOperationName).ToArray();
+				var members2 = type2.GetRuntimeMethods().Where(mi => mi.IsStatic && mi.Name == sOperationName).ToArray();
+				var members3 = new MethodInfo[members1.Length + members2.Length];
 				if (members3.Length > 0)
 				{
 					Array.Copy(members1, 0, members3, 0, members1.Length);
@@ -1093,21 +1197,21 @@ namespace Neo.IronLua
 				case ExpressionType.Modulo:
 					if (lIsArithmetic1 && type2 == typeof(string))
 					{
-						return Expression.Dynamic(runtime.GetBinaryOperationBinder(op), typeof(object),
+						return DynamicExpression.Dynamic(runtime.GetBinaryOperationBinder(op), typeof(object),
 							Convert(runtime, expr1, type1, typeof(object), false),
 							ParseNumberExpression(runtime, expr2, type2)
 						);
 					}
 					else if (type1 == typeof(string) && lIsArithmetic2)
 					{
-						return Expression.Dynamic(runtime.GetBinaryOperationBinder(op), typeof(object),
+						return DynamicExpression.Dynamic(runtime.GetBinaryOperationBinder(op), typeof(object),
 							ParseNumberExpression(runtime, expr1, type1),
 							Convert(runtime, expr2, type2, typeof(object), false)
 						);
 					}
 					else if (type1 == typeof(string) && type2 == typeof(string))
 					{
-						return Expression.Dynamic(runtime.GetBinaryOperationBinder(op), typeof(object),
+						return DynamicExpression.Dynamic(runtime.GetBinaryOperationBinder(op), typeof(object),
 							ParseNumberExpression(runtime, expr1, type1),
 							ParseNumberExpression(runtime, expr2, type2)
 						);
@@ -1216,8 +1320,8 @@ namespace Neo.IronLua
 			if (type1 == type2)
 				return type1;
 
-			TypeCode tc1 = Type.GetTypeCode(type1);
-			TypeCode tc2 = Type.GetTypeCode(type2);
+			var tc1 = GetTypeCode(type1);
+			var tc2 = GetTypeCode(type2);
 
 			if (IsArithmeticType(tc1) && IsArithmeticType(tc2)) // process only arithmetic types
 				return LiftType(type1, tc1, type2, tc2, lSigned);
@@ -1225,7 +1329,7 @@ namespace Neo.IronLua
 				return typeof(object);
 		} // func LiftType
 
-		private static Type LiftType(Type type1, TypeCode tc1, Type type2, TypeCode tc2, bool lSigned)
+		private static Type LiftType(Type type1, LuaEmitTypeCode tc1, Type type2, LuaEmitTypeCode tc2, bool lSigned)
 		{
 			// Achtung: this code depends on the numeric representation of TypeCode
 
@@ -1236,16 +1340,17 @@ namespace Neo.IronLua
 			else if (IsFloatType(tc2)) // the second one is a float, the other one is a integer
 				return type2; // -> use the float
 
-			else if ((((int)tc1) & 1) == 1 && (((int)tc2) & 1) == 1) // both types are signed integers
+			else if ((tc1 & LuaEmitTypeCode.UnsignedFlag) != LuaEmitTypeCode.UnsignedFlag &&
+							 (tc2 & LuaEmitTypeCode.UnsignedFlag) != LuaEmitTypeCode.UnsignedFlag) // both types are signed integers
 				return tc1 < tc2 ? type2 : type1; // -> use the highest
-			else if ((((int)tc1) & 1) == 1) // the first one is signed integer
+			else if ((tc1 & LuaEmitTypeCode.UnsignedFlag) != LuaEmitTypeCode.UnsignedFlag) // the first one is signed integer
 			{
 				if (tc1 > tc2) // the unsigned is lower then the signed
 					return type1; // -> use the signed
 				else // -> we need a higher signed integer
 					return LiftTypeSigned(tc1, tc2);
 			}
-			else if ((((int)tc2) & 1) == 1)
+			else if ((tc2 & LuaEmitTypeCode.UnsignedFlag) != LuaEmitTypeCode.UnsignedFlag)
 			{
 				if (tc2 > tc1)
 					return type2;
@@ -1263,17 +1368,17 @@ namespace Neo.IronLua
 				return tc1 < tc2 ? type2 : type1; // -> use the highest
 		} // func LiftType
 
-		private static Type LiftTypeSigned(TypeCode tc1, TypeCode tc2)
+		private static Type LiftTypeSigned(LuaEmitTypeCode tc1, LuaEmitTypeCode tc2)
 		{
 			switch (tc2)
 			{
-				case TypeCode.Byte:
+				case LuaEmitTypeCode.Byte:
 					return typeof(short);
-				case TypeCode.UInt16:
+				case LuaEmitTypeCode.UInt16:
 					return typeof(int);
-				case TypeCode.UInt32:
+				case LuaEmitTypeCode.UInt32:
 					return typeof(long);
-				case TypeCode.UInt64:
+				case LuaEmitTypeCode.UInt64:
 					return typeof(double);
 				default:
 					throw new InvalidOperationException(String.Format("Internal error in lift type ({0} vs. {1})", tc1, tc2));
@@ -1282,19 +1387,19 @@ namespace Neo.IronLua
 
 		private static Type LiftTypeNext(Lua runtime, Type type)
 		{
-			switch (Type.GetTypeCode(type))
+			switch (GetTypeCode(type))
 			{
-				case TypeCode.SByte:
+				case LuaEmitTypeCode.SByte:
 					return typeof(short);
-				case TypeCode.Byte:
+				case LuaEmitTypeCode.Byte:
 					return typeof(ushort);
-				case TypeCode.Int16:
+				case LuaEmitTypeCode.Int16:
 					return typeof(int);
-				case TypeCode.UInt16:
+				case LuaEmitTypeCode.UInt16:
 					return typeof(uint);
-				case TypeCode.Int32:
+				case LuaEmitTypeCode.Int32:
 					return typeof(long);
-				case TypeCode.UInt32:
+				case LuaEmitTypeCode.UInt32:
 					return typeof(ulong);
 				default:
 					if (runtime == null)
@@ -1308,18 +1413,18 @@ namespace Neo.IronLua
 		{
 			switch (GetTypeCode(type))
 			{
-				case TypeCode.SByte:
-				case TypeCode.Byte:
-				case TypeCode.Int16:
-				case TypeCode.UInt16:
-				case TypeCode.Int32:
-				case TypeCode.UInt32:
-				case TypeCode.Int64:
-				case TypeCode.UInt64:
+				case LuaEmitTypeCode.SByte:
+				case LuaEmitTypeCode.Byte:
+				case LuaEmitTypeCode.Int16:
+				case LuaEmitTypeCode.UInt16:
+				case LuaEmitTypeCode.Int32:
+				case LuaEmitTypeCode.UInt32:
+				case LuaEmitTypeCode.Int64:
+				case LuaEmitTypeCode.UInt64:
 					return type;
-				case TypeCode.Single:
+				case LuaEmitTypeCode.Single:
 					return typeof(int);
-				case TypeCode.Double:
+				case LuaEmitTypeCode.Double:
 					return typeof(long);
 				default:
 					return runtime == null ? typeof(int) : Lua.GetIntegerType(runtime.NumberType);
@@ -1334,16 +1439,16 @@ namespace Neo.IronLua
 		{
 			MemberInfo[] members =
 				lParse && IsDynamicType(type) ? null :  // dynamic type --> resolve later
-					type.GetMember(sMemberName, GetBindingFlags(instance != null, lIgnoreCase)); // get the current members
+					GetRuntimeMembers(type.GetTypeInfo(), sMemberName, instance == null, lIgnoreCase).ToArray(); // get the current members
 
 			if (members == null || members.Length == 0) // no member found, try later again
 			{
 				if (lParse)
-					return Expression.Dynamic(runtime.GetGetMemberBinder(sMemberName), typeof(object), Convert(runtime, instance, type, typeof(object), false));
+					return DynamicExpression.Dynamic(runtime.GetGetMemberBinder(sMemberName), typeof(object), Convert(runtime, instance, type, typeof(object), false));
 				else
 					return Expression.Default(typeof(object));
 			}
-			else if (members.Length > 1 && members[0].MemberType == MemberTypes.Method) // multiple member
+			else if (members.Length > 1 && members[0] is MethodInfo) // multiple member
 			{
 				return Expression.New(Lua.OverloadedMethodConstructorInfo, instance == null ? Expression.Default(typeof(object)) : instance, Expression.Constant(Lua.RtConvertArray(members, typeof(MethodInfo)), typeof(MethodInfo[])));
 			}
@@ -1354,11 +1459,11 @@ namespace Neo.IronLua
 				if (instance != null)
 					instance = Convert(runtime, instance, type, type, false);
 
-				if (member.MemberType == MemberTypes.Field)
+				if (member is FieldInfo)
 				{
 					return Expression.MakeMemberAccess(instance, member);
 				}
-				else if (member.MemberType == MemberTypes.Property)
+				else if (member is PropertyInfo)
 				{
 					PropertyInfo pi = (PropertyInfo)member;
 					if (!pi.CanRead)
@@ -1366,17 +1471,17 @@ namespace Neo.IronLua
 
 					return Expression.MakeMemberAccess(instance, member);
 				}
-				else if (member.MemberType == MemberTypes.Method)
+				else if (member is MethodInfo)
 				{
 					return Expression.New(Lua.MethodConstructorInfo, instance == null ? Expression.Default(typeof(object)) : instance, Expression.Constant(member, typeof(MethodInfo)));
 				}
-				else if (member.MemberType == MemberTypes.Event)
+				else if (member is EventInfo)
 				{
 					return Expression.New(Lua.EventConstructorInfo, instance == null ? Expression.Default(typeof(object)) : instance, Expression.Constant((EventInfo)member));
 				}
-				else if (member.MemberType == MemberTypes.NestedType)
+				else if (member is TypeInfo)
 				{
-					return Expression.Call(Lua.TypeGetTypeMethodInfoArgType, Expression.Constant((Type)member));
+					return Expression.Call(Lua.TypeGetTypeMethodInfoArgType, Expression.Constant(((TypeInfo)member).AsType()));
 				}
 				else
 					throw new LuaEmitException(LuaEmitException.CanNotReadMember, type.Name, sMemberName);
@@ -1391,29 +1496,29 @@ namespace Neo.IronLua
 		{
 			if (lParse && IsDynamicType(type))
 			{
-				return Expression.Dynamic(runtime.GetSetMemberBinder(sMemberName), typeof(object),
+				return DynamicExpression.Dynamic(runtime.GetSetMemberBinder(sMemberName), typeof(object),
 					Convert(runtime, instance, type, typeof(object), false),
 					Convert(runtime, set, typeSet, typeof(object), false)
 				);
 			}
 
-			MemberInfo[] members = type.GetMember(sMemberName, GetBindingFlags(instance != null, lIgnoreCase));
+			MemberInfo[] members = type.GetTypeInfo().GetRuntimeMembers(sMemberName, instance == null, lIgnoreCase).ToArray();
 			instance = instance == null ? null : Convert(runtime, instance, type, type, lParse);
 
 			if (members == null || members.Length == 0)
 				throw new LuaEmitException(LuaEmitException.MemberNotFound, type.Name, sMemberName);
-			else if (members.Length > 1)
-				throw new LuaEmitException(LuaEmitException.MemberNotUnique, type.Name, sMemberName);
+			//else if (members.Length > 1)
+			//	throw new LuaEmitException(LuaEmitException.MemberNotUnique, type.Name, sMemberName);
 			else
 			{
-				if (members[0].MemberType == MemberTypes.Property)
+				if (members[0] is PropertyInfo)
 				{
 					PropertyInfo pi = (PropertyInfo)members[0];
 					if (!pi.CanWrite)
 						throw new LuaEmitException(LuaEmitException.CanNotWriteMember, type.Name, sMemberName);
 					return Expression.Assign(Expression.Property(instance, pi), Convert(runtime, set, typeSet, pi.PropertyType, lParse));
 				}
-				else if (members[0].MemberType == MemberTypes.Field)
+				else if (members[0] is FieldInfo)
 				{
 					FieldInfo fi = (FieldInfo)members[0];
 					return Expression.Assign(Expression.Field(instance, fi), Convert(runtime, set, typeSet, fi.FieldType, lParse));
@@ -1433,7 +1538,7 @@ namespace Neo.IronLua
 			Type instanceType = getType(instance);
 			if (lParse && IsDynamicType(instanceType))
 			{
-				return Expression.Dynamic(runtime.GetGetIndexMember(new CallInfo(arguments.Length)), typeof(object),
+				return DynamicExpression.Dynamic(runtime.GetGetIndexMember(new CallInfo(arguments.Length)), typeof(object),
 					CreateDynamicArgs(runtime, getExpr(instance), instanceType, arguments, getExpr, getType)
 				);
 			}
@@ -1447,7 +1552,7 @@ namespace Neo.IronLua
 			Type instanceType = getType(instance);
 			if (lParse && IsDynamicType(instanceType))
 			{
-				return Expression.Dynamic(runtime.GetSetIndexMember(new CallInfo(arguments.Length)), typeof(object),
+				return DynamicExpression.Dynamic(runtime.GetSetIndexMember(new CallInfo(arguments.Length)), typeof(object),
 					CreateDynamicArgs<TARG>(runtime, getExpr(instance), instanceType, arguments, setTo, getExpr, getType)
 				);
 			}
@@ -1460,7 +1565,7 @@ namespace Neo.IronLua
 		private static Expression GetIndexAccess<TARG>(Lua runtime, Expression instance, Type instanceType, TARG[] arguments, Func<TARG, Expression> getExpr, Func<TARG, Type> getType, bool lParse)
 			where TARG : class
 		{
-			if (typeof(Array).IsAssignableFrom(instanceType)) // type is an array
+			if (typeof(Array).GetTypeInfo().IsAssignableFrom(instanceType.GetTypeInfo())) // type is an array
 			{
 				// create index as integers
 				Expression[] indexes = new Expression[arguments.Length];
@@ -1473,9 +1578,9 @@ namespace Neo.IronLua
 			{
 				PropertyInfo[] properties =
 					(
-						from m in instanceType.GetMembers(GetBindingFlags(instance != null, false) | BindingFlags.GetProperty)
-						where m is PropertyInfo && ((PropertyInfo)m).GetIndexParameters().Length > 0
-						select (PropertyInfo)m
+						from pi in instanceType.GetRuntimeProperties()
+						where pi.GetMethod.IsStatic == (instance == null) && pi.GetIndexParameters().Length > 0
+						select pi
 					).ToArray();
 
 				PropertyInfo piIndex = FindMember(properties, arguments, getType);
@@ -1685,7 +1790,7 @@ namespace Neo.IronLua
 
 		#region -- FindMember -------------------------------------------------------------
 
-		public static MethodInfo FindMethod<TARG>(MethodInfo[] members, TARG[] arguments, Func<TARG, Type> getType, bool lExtension)
+		public static MethodInfo FindMethod<TARG>(IEnumerable<MethodInfo> members, TARG[] arguments, Func<TARG, Type> getType, bool lExtension)
 			where TARG : class
 		{
 			MethodInfo mi = (MethodInfo)FindMember(members, arguments, getType, lExtension);
@@ -1697,7 +1802,7 @@ namespace Neo.IronLua
 			return mi;
 		} // func FindMethod
 
-		public static TMEMBERTYPE FindMember<TMEMBERTYPE, TARG>(TMEMBERTYPE[] members, TARG[] arguments, Func<TARG, Type> getType, bool lExtension = false)
+		public static TMEMBERTYPE FindMember<TMEMBERTYPE, TARG>(IEnumerable<TMEMBERTYPE> members, TARG[] arguments, Func<TARG, Type> getType, bool lExtension = false)
 			where TMEMBERTYPE : MemberInfo
 			where TARG : class
 		{
@@ -1717,9 +1822,8 @@ namespace Neo.IronLua
 					arguments.Length;
 			}
 
-			for (int i = 0; i < members.Length; i++)
+			foreach (var miCur in members)
 			{
-				TMEMBERTYPE miCur = members[i];
 				if (miCur != null)
 				{
 					// do not test methods with __arglist
@@ -1837,7 +1941,9 @@ namespace Neo.IronLua
 			if (j < parameters.Length && j < arguments.Length)
 			{
 				Type type1 = parameters[j].ParameterType;
+				TypeInfo typeInfo1 = type1.GetTypeInfo();
 				Type type2 = getType(arguments[j]);
+				TypeInfo typeInfo2 = type2.GetTypeInfo();
 
 				if (type1 == type2) // exact equal types
 				{
@@ -1847,23 +1953,23 @@ namespace Neo.IronLua
 				else if (type1.IsGenericParameter) // the parameter is a generic type
 				{
 					#region -- check generic --
-					Type[] typeConstraints = type1.GetGenericParameterConstraints();
+					Type[] typeConstraints = typeInfo1.GetGenericParameterConstraints();
 
 					lExact = false;
 
 					// check "class"
-					if ((type1.GenericParameterAttributes & GenericParameterAttributes.ReferenceTypeConstraint) != 0 && type2.IsValueType)
+					if ((typeInfo1.GenericParameterAttributes & GenericParameterAttributes.ReferenceTypeConstraint) != 0 && typeInfo2.IsValueType)
 						return false;
 
 					// check struct
-					if ((type1.GenericParameterAttributes & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0 && !type2.IsValueType)
+					if ((typeInfo1.GenericParameterAttributes & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0 && !typeInfo2.IsValueType)
 						return false;
 
 					// check new()
-					if ((type1.GenericParameterAttributes & GenericParameterAttributes.DefaultConstructorConstraint) != 0)
+					if ((typeInfo1.GenericParameterAttributes & GenericParameterAttributes.DefaultConstructorConstraint) != 0)
 					{
 						// check default ctor
-						if (type2.GetConstructor(new Type[0]) == null)
+						if (typeInfo2.FindDeclaredConstructor(ReflectionFlag.Public | ReflectionFlag.Instance, new Type[0]) == null)
 							return false;
 					}
 
@@ -1880,7 +1986,7 @@ namespace Neo.IronLua
 							lExact = true;
 							return true;
 						}
-						else if (typeConstraints[i].IsAssignableFrom(type2))
+						else if (typeConstraints[i].GetTypeInfo().IsAssignableFrom(typeInfo2))
 							lNoneExactMatch = true;
 					}
 
@@ -1934,13 +2040,153 @@ namespace Neo.IronLua
 		{
 			if (t == null)
 				return type;
-			else if (t.IsAssignableFrom(type))
+			else if (t.GetTypeInfo().IsAssignableFrom(type.GetTypeInfo()))
 				return t;
-			else if (type.IsAssignableFrom(t))
+			else if (type.GetTypeInfo().IsAssignableFrom(t.GetTypeInfo()))
 				return type;
 			else
 				return typeof(object);
 		} // func CombineType
+
+		#endregion
+
+		#region -- Reflection Helper ------------------------------------------------------
+
+		private static bool CheckArguments(ParameterInfo[] args, Type[] arguments)
+		{
+			if (args.Length != arguments.Length)
+				return false;
+			else
+			{
+				for (int i = 0; i < args.Length; i++)
+					if (args[i].ParameterType != arguments[i])
+						return false;
+			}
+			return true;
+		} // func CheckArguments
+
+		private static IEnumerable<T> FilterName<T>(IEnumerable<T> list, string sName, ReflectionFlag flags)
+			where T : MemberInfo
+		{
+			StringComparison stringComparison = (flags & ReflectionFlag.IgnoreCase) != 0 ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+			return list.Where(mi => String.Compare(mi.Name, sName, stringComparison) == 0);
+		} // func FilterName
+
+		private static IEnumerable<T> FilterNeeded<T>(IEnumerable<T> list, ReflectionFlag flags, ReflectionFlag mask, Func<IEnumerable<T>, ReflectionFlag, IEnumerable<T>> filter)
+			where T : MemberInfo
+		{
+			var test = (flags & mask);
+			if (test != 0 && test != mask)
+				return filter(list, flags);
+			else
+				return list;
+		} // func FilterNeeded
+
+		private static T GetOneResult<T>(TypeInfo ti, string sName, ReflectionFlag flags, IEnumerable<T> list, [CallerMemberName] string sCaller = null)
+		{
+			if ((flags & ReflectionFlag.NoException) != 0)
+				return list.FirstOrDefault();
+			else
+			{
+				var e = list.GetEnumerator();
+				if (e.MoveNext()) // first element for return
+				{
+					var miFind = e.Current;
+					if (e.MoveNext())
+						throw new ArgumentException(String.Format("{0} for {1}.{2}, is not unique.", sCaller, ti.Name, sName));
+					return miFind;
+				}
+				else
+					throw new ArgumentException(String.Format("{0} failed for {1}.{2}.", sCaller, ti.Name, sName));
+			}
+		} // func GetOneResult
+
+		public static FieldInfo FindDeclaredField(this TypeInfo ti, string sName, ReflectionFlag flags)
+		{
+			var fields = FilterName(ti.DeclaredFields, sName, flags);
+
+			// Static member?
+			fields = FilterNeeded(fields, flags, ReflectionFlag.Instance | ReflectionFlag.Static, (l, f) => (f & ReflectionFlag.Static) != 0 ? l.Where(fi => fi.IsStatic) : l.Where(fi => !fi.IsStatic));
+			// Public
+			fields = FilterNeeded(fields, flags, ReflectionFlag.Public | ReflectionFlag.NonPublic, (l, f) => (f & ReflectionFlag.Public) != 0 ? l.Where(fi => fi.IsPublic) : l.Where(fi => !fi.IsPublic));
+
+			return GetOneResult(ti, sName, flags, fields);
+		} // func FindDeclaredField
+
+		public static PropertyInfo FindDeclaredProperty(this TypeInfo ti, string sName, ReflectionFlag flags, params Type[] arguments)
+		{
+			var properties = FilterName(ti.DeclaredProperties, sName, flags);
+
+			// Static member?
+			properties = FilterNeeded(properties, flags, ReflectionFlag.Instance | ReflectionFlag.Static, (l, f) => (f & ReflectionFlag.Static) != 0 ? l.Where(pi => pi.GetMethod.IsStatic) : l.Where(pi => !pi.GetMethod.IsStatic));
+			// Public
+			properties = FilterNeeded(properties, flags, ReflectionFlag.Public | ReflectionFlag.NonPublic, (l, f) => (f & ReflectionFlag.Public) != 0 ? l.Where(pi => pi.GetMethod.IsPublic) : l.Where(pi => !pi.GetMethod.IsPublic));
+
+			// Arguments
+			if (arguments.Length > 0)
+				properties = properties.Where(pi => CheckArguments(pi.GetIndexParameters(), arguments));
+
+			return GetOneResult(ti, sName, flags, properties);
+		} // func FindDeclaredProperty
+
+		public static ConstructorInfo FindDeclaredConstructor(this TypeInfo ti, ReflectionFlag flags, params Type[] arguments)
+		{
+			var constructors = ti.DeclaredConstructors;
+
+			// Public
+			constructors = FilterNeeded(constructors, flags, ReflectionFlag.Public | ReflectionFlag.NonPublic, (l, f) => (f & ReflectionFlag.Public) != 0 ? l.Where(ci => ci.IsPublic) : l.Where(ci => !ci.IsPublic));
+
+			// Arguments
+			if ((flags & ReflectionFlag.NoArguments) == 0)
+				constructors = constructors.Where(ci => CheckArguments(ci.GetParameters(), arguments));
+
+			return GetOneResult(ti, "ctor", flags, constructors);
+		} // func FindDeclaredConstructor
+
+		public static MethodInfo FindDeclaredMethod(this TypeInfo ti, string sName, ReflectionFlag flags, params Type[] arguments)
+		{
+			var methods = FilterName(ti.DeclaredMethods, sName, flags);
+
+			// Static member?
+			methods = FilterNeeded(methods, flags, ReflectionFlag.Instance | ReflectionFlag.Static, (l, f) => (f & ReflectionFlag.Static) != 0 ? l.Where(mi => mi.IsStatic) : l.Where(mi => !mi.IsStatic));
+			// Public
+			methods = FilterNeeded(methods, flags, ReflectionFlag.Public | ReflectionFlag.NonPublic, (l, f) => (f & ReflectionFlag.Public) != 0 ? l.Where(mi => mi.IsPublic) : l.Where(mi => !mi.IsPublic));
+			// Arguments
+			if ((flags & ReflectionFlag.NoArguments) == 0)
+				methods = methods.Where(mi => CheckArguments(mi.GetParameters(), arguments));
+
+			return GetOneResult(ti, sName, flags, methods);
+		} // func FindDeclaredMethod
+
+		public static IEnumerable<MemberInfo> GetRuntimeMembers(TypeInfo typeInfo, string sMemberName, bool lStatic, StringComparison stringComparison)
+		{
+			// Current
+			foreach (var member in typeInfo.DeclaredMembers)
+				if (String.Compare(sMemberName, member.Name, stringComparison) == 0)
+				{
+					if (member is MethodBase && ((MethodBase)member).IsStatic != lStatic)
+						continue;
+					else if (member is PropertyInfo && ((PropertyInfo)member).GetMethod.IsStatic != lStatic)
+						continue;
+					else if (member is FieldInfo && ((FieldInfo)member).IsStatic != lStatic)
+						continue;
+					else if (member is EventInfo && ((EventInfo)member).AddMethod.IsStatic != lStatic)
+						continue;
+					
+					yield return member;
+				}
+			// Base type
+			if (typeInfo.BaseType != null)
+			{
+				foreach (var member in GetRuntimeMembers(typeInfo.BaseType.GetTypeInfo(), sMemberName, lStatic, stringComparison))
+					yield return member;
+			}
+		} // func GetRuntimeMembers
+
+		public static IEnumerable<MemberInfo> GetRuntimeMembers(this TypeInfo typeInfo, string sMemberName, bool lStatic, bool lIgnoreCase)
+		{
+			return GetRuntimeMembers(typeInfo, sMemberName, lStatic, lIgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+		} // func GetRuntimeMembers
 
 		#endregion
 	} // class LuaEmit

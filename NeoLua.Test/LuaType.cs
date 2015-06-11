@@ -128,25 +128,24 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TypeTest02()
     {
-
       using (Lua l = new Lua())
       {
-        dynamic g = l.CreateEnvironment();
+				dynamic g = l.CreateEnvironment();
 
-        Type t = typeof(SubClass);
-        LuaType tl = LuaType.GetType(t);
-        TestResult(g.dochunk("return clr.LuaDLR.Test.LuaTypeTests.SubClass"), tl);
-        TestResult(g.dochunk("return clr.LuaDLR.Test.LuaTypeTests.SubClass:GetType()"), t);
+				Type t = typeof(SubClass);
+				LuaType tl = LuaType.GetType(t);
+				TestResult(g.dochunk("return clr.LuaDLR.Test.LuaTypeTests.SubClass"), tl);
+				TestResult(g.dochunk("return clr.LuaDLR.Test.LuaTypeTests.SubClass:GetType()"), t);
 
-        TestResult(g.dochunk("return clr.System.IO.Stream"), LuaType.GetType(typeof(Stream)));
+				TestResult(g.dochunk("return clr.System.IO.Stream"), LuaType.GetType(typeof(Stream)));
 
-        LuaType tNull = g.dochunk("return clr.System.Test.Test");
-        Assert.IsTrue(tNull.Type == null);
+				LuaType tNull = g.dochunk("return clr.System.Test.Test");
+				Assert.IsTrue(tNull.Type == null);
 
-        tl = g.dochunk("return clr.System.Collections.Generic.List[clr.System.String]", "test");
-        TestResult(new LuaResult(tl.Type), typeof(List<string>));
-        tl = g.dochunk("return clr.System.String[]", "test");
-        TestResult(new LuaResult(tl.Type), typeof(string[]));
+				tl = g.dochunk("return clr.System.Collections.Generic.List[clr.System.String]", "test");
+				TestResult(new LuaResult(tl.Type), typeof(List<string>));
+				tl = g.dochunk("return clr.System.String[]", "test");
+				TestResult(new LuaResult(tl.Type), typeof(string[]));
       }
     }
 
@@ -155,13 +154,13 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        dynamic g = l.CreateEnvironment();
+				dynamic g = l.CreateEnvironment();
 
-        g.dochunk("return cast(System.IO.Stream, null);");
-        g.dochunk("return cast(LuaDLR.Test.LuaTypeTests.SubClass, null);");
-        g.dochunk("return cast(System.Collections.Generic.List[string[]], null);");
-        g.dochunk("return cast(System.String[], null);");
-        g.dochunk("return cast(string[], null);");
+				g.dochunk("return cast(System.IO.Stream, null);");
+				g.dochunk("return cast(LuaDLR.Test.LuaTypeTests.SubClass, null);");
+				g.dochunk("return cast(System.Collections.Generic.List[string[]], null);");
+				g.dochunk("return cast(System.String[], null);");
+				g.dochunk("return cast(string[], null);");
       }
     }
 
@@ -217,20 +216,20 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        dynamic g = l.CreateEnvironment();
-        g.console = LuaType.GetType(typeof(Console));
-        g.dochunk("console.WriteLine('Hallo!');", "test");
-        dynamic wl = g.console.WriteLine;
-        Assert.IsTrue(wl.GetType() == typeof(LuaOverloadedMethod));
-        int iCount = wl.Count;
-        Assert.IsTrue(iCount == 19);
-        for (int i = 0; i < wl.Count; i++)
-        {
-          if (i == 17)
-            Console.WriteLine("VarArgs NotImplemented.");
-          else
-            Console.WriteLine("{0}: {1}", i, wl[i].GetType().Name);
-        }
+				dynamic g = l.CreateEnvironment();
+				g.console = LuaType.GetType(typeof(Console));
+				g.dochunk("console.WriteLine('Hallo!');", "test");
+				dynamic wl = g.console.WriteLine;
+				Assert.IsTrue(wl.GetType() == typeof(LuaOverloadedMethod));
+				int iCount = wl.Count;
+				Assert.IsTrue(iCount == 19);
+				for (int i = 0; i < wl.Count; i++)
+				{
+					if (i == 17)
+						Console.WriteLine("VarArgs NotImplemented.");
+					else
+						Console.WriteLine("{0}: {1}", i, wl[i].GetType().Name);
+				}
       }
     }
 
@@ -239,15 +238,15 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        dynamic g = l.CreateEnvironment();
-        g.console = LuaType.GetType(typeof(Console));
-        g.dochunk("console.WriteLine('Hallo!');", "test");
-        dynamic wl = g.console.WriteLine;
-        Delegate dlg1 = wl[LuaType.GetType(typeof(string))];
-        Delegate dlg2 = g.dochunk("return console.WriteLine[clr.System.String]");
-        Delegate dlg3 = g.dochunk("return console.WriteLine[]");
-        Assert.IsTrue(dlg1 == dlg2);
-        Assert.IsTrue(dlg3 != null);
+				dynamic g = l.CreateEnvironment();
+				g.console = LuaType.GetType(typeof(Console));
+				g.dochunk("console.WriteLine('Hallo!');", "test");
+				dynamic wl = g.console.WriteLine;
+				Delegate dlg1 = wl[LuaType.GetType(typeof(string))];
+				Delegate dlg2 = g.dochunk("return console.WriteLine[clr.System.String]");
+				Delegate dlg3 = g.dochunk("return console.WriteLine[]");
+				Assert.IsTrue(dlg1 == dlg2);
+				Assert.IsTrue(dlg3 != null);
       }
     }
 
@@ -256,14 +255,14 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        l.PrintExpressionTree = true;
-        dynamic g = l.CreateEnvironment();
-        g.console = LuaType.GetType(typeof(Console));
-        g.dochunk("console.WriteLine('Hallo!');", "test");
-        g.dochunk("c = console.WriteLine[clr.System.String];");
-        //g.c = g.console.WriteLine[typeof(string)];
-        g.c("Hallo");
-        g.dochunk("c('Hallo!')");
+        l.PrintExpressionTree = Console.Out;
+				dynamic g = l.CreateEnvironment();
+				g.console = LuaType.GetType(typeof(Console));
+				g.dochunk("console.WriteLine('Hallo!');", "test");
+				g.dochunk("c = console.WriteLine[clr.System.String];");
+				//g.c = g.console.WriteLine[typeof(string)];
+				g.c("Hallo");
+				g.dochunk("c('Hallo!')");
       }
     }
 
@@ -272,16 +271,16 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        l.PrintExpressionTree = true;
-        var g = l.CreateEnvironment();
-        dynamic m = g.DoChunk("return clr.LuaDLR.Test.LuaTypeTests.Test", "dummy");
-        MethodInfo mi = m;
-        Action action = m;
-        Delegate dlg = m;
-        m();
-        Assert.IsTrue(mi != null);
-        Assert.IsTrue(action != null);
-        Assert.IsTrue(dlg != null);
+        l.PrintExpressionTree = Console.Out;
+				var g = l.CreateEnvironment();
+				dynamic m = g.DoChunk("return clr.LuaDLR.Test.LuaTypeTests.Test", "dummy");
+				MethodInfo mi = m;
+				Action action = m;
+				Delegate dlg = m;
+				m();
+				Assert.IsTrue(mi != null);
+				Assert.IsTrue(action != null);
+				Assert.IsTrue(dlg != null);
       }
     }
 
@@ -290,16 +289,16 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        dynamic g = l.CreateEnvironment();
-        dynamic r = g.dochunk(Lines(
-          new string[] {
-            "local c = clr.LuaDLR.Test.LuaTypeTests.SubClass()",
-            "c.Test('Test');",
-            "return c.Test;"
-          }));
+				dynamic g = l.CreateEnvironment();
+				dynamic r = g.dochunk(Lines(
+					new string[] {
+						"local c = clr.LuaDLR.Test.LuaTypeTests.SubClass()",
+						"c.Test('Test');",
+						"return c.Test;"
+					}));
 
-        foreach (var c in r[0])
-          Console.WriteLine(c.GetType().Name);
+				foreach (var c in r[0])
+					Console.WriteLine(c.GetType().Name);
       }
     }
 
@@ -342,13 +341,13 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        var g = l.CreateEnvironment();
-        var c = l.CompileChunk(Lines(
-          "local a : System.EventHandler = function(a, b) : void",
-          "  print('Hallo');",
-          "end;",
-					"a()"), "dummy", Lua.DefaultDebugEngine);
-        g.DoChunk(c);
+				var g = l.CreateEnvironment();
+				var c = l.CompileChunk(Lines(
+					"local a : System.EventHandler = function(a, b) : void",
+					"  print('Hallo');",
+					"end;",
+					"a()"), "dummy", LuaDeskop.StackTraceCompileOptions);
+				g.DoChunk(c);
       }
     }
 
@@ -357,14 +356,14 @@ namespace LuaDLR.Test
     {
       using (Lua l = new Lua())
       {
-        l.PrintExpressionTree = true;
-        var g = l.CreateEnvironment();
-        var c = l.CompileChunk(Lines(
-          "local a : System.EventHandler = function(a, b) : void",
-          "  print('Hallo');",
-          "end;",
-          "a();"), "dummy", null);
-        g.DoChunk(c);
+        l.PrintExpressionTree = Console.Out;
+				var g = l.CreateEnvironment();
+				var c = l.CompileChunk(Lines(
+					"local a : System.EventHandler = function(a, b) : void",
+					"  print('Hallo');",
+					"end;",
+					"a();"), "dummy", null);
+				g.DoChunk(c);
       }
     }
 
@@ -487,7 +486,7 @@ namespace LuaDLR.Test
 					"c.WriteLine('Hallo Welt!');"));
 				Assert.Fail();
 			}
-			catch (LuaRuntimeException e)
+			catch (LuaRuntimeException)
 			{
 				Console.WriteLine("Failed...");
 			}

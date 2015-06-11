@@ -23,7 +23,7 @@ namespace LuaDLR.Test
 				var g = l.CreateEnvironment();
 				try
 				{
-					g.DoChunk(l.CompileChunk("\nNull(a, a);", "test.lua", Lua.DefaultDebugEngine, new KeyValuePair<string, Type>("a", typeof(int))), 1);
+					g.DoChunk(l.CompileChunk("\nNull(a, a);", "test.lua", LuaDeskop.StackTraceCompileOptions, new KeyValuePair<string, Type>("a", typeof(int))), 1);
 				}
 				catch (Exception e)
 				{
@@ -41,7 +41,7 @@ namespace LuaDLR.Test
 				var g = l.CreateEnvironment();
 				try
 				{
-					g.DoChunk(l.CompileChunk("math.abs(-1 / a).A();", "test.lua", Lua.DefaultDebugEngine, new KeyValuePair<string, Type>("a", typeof(int))), 1);
+					g.DoChunk(l.CompileChunk("math.abs(-1 / a).A();", "test.lua", LuaDeskop.StackTraceCompileOptions, new KeyValuePair<string, Type>("a", typeof(int))), 1);
 				}
 				catch (Exception e)
 				{

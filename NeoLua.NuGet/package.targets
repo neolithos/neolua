@@ -1,0 +1,74 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<PropertyGroup>
+		<TargetDir>$(MSBuildProjectDirectory)\bin</TargetDir>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ZipFile Include="$(MSBuildProjectDirectory)\..\NeoLuaD\bin\Release\Neo.Lua.*" />
+		<ZipFile Include="$(MSBuildProjectDirectory)\..\NeoLuaD\bin\Release\de\*" />
+		
+		<ZipFileDbg Include="$(MSBuildProjectDirectory)\..\NeoLua.Dbg\bin\Release\Neo.Lua.Dbg.*" />
+
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\NeoCmd.exe" />
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Neo.Lua.dll" />
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Neo.Lua.Dbg.dll" />
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Microsoft.Dynamic.dll" />
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Microsoft.Scripting.dll" />
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Microsoft.Scripting.Metadata.dll" />
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\de\*" />
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Samples\*.lua" />
+	</ItemGroup>
+	
+	<Target Name="PrepareVersion">
+		<ReadLinesFromFile File="$(MSBuildProjectDirectory)\..\NeoLua\Properties\AssemblyInfoGlobal.cs">
+			<Output TaskParameter="Lines" ItemName="AssemblyInfoGlobalContent" />
+		</ReadLinesFromFile>
+		<PropertyGroup>
+			<AssemblyInfoGlobalLines>@(AssemblyInfoGlobalContent)</AssemblyInfoGlobalLines>
+		</PropertyGroup>
+		<PropertyGroup>
+			<Pattern2>\[assembly: AssemblyConfiguration\(.(\w*)</Pattern2>
+			<AssemblyConfig>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyInfoGlobalLines), $(Pattern2)))</AssemblyConfig>
+			<VersionAdd>$(AssemblyConfig.Remove(0, 34))</VersionAdd>
+		</PropertyGroup>
+		<PropertyGroup>
+			<Pattern1>\[assembly: AssemblyFileVersion\(.(\d+)\.(\d+)\.(\d+)</Pattern1>
+			<AssemblyVersionLine>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyInfoGlobalLines), $(Pattern1)))</AssemblyVersionLine>
+			<Version Condition="'$(VersionAdd)' != ''">$(AssemblyVersionLine.Remove(0, 32))-$(VersionAdd)</Version>
+			<Version Condition="'$(VersionAdd)' == ''">$(AssemblyVersionLine.Remove(0, 32))</Version>
+		</PropertyGroup>
+		<Message Text="Version: $(Version)" />
+	</Target>
+
+	<Target Name="CleanCore">
+
+	</Target>
+	<Target Name="BuildCore" DependsOnTargets="PrepareVersion" Condition=" '$(Configuration)' == 'Release' ">
+		<!-- Create Directory -->
+		<MakeDir Directories="$(TargetDir)\$(Version)" />
+		
+		<!-- Zip -->
+		<Zip Files="@(ZipFile)" WorkingDirectory="$(MSBuildProjectDirectory)\..\NeoLuaD\bin\Release" ZipFileName="$(TargetDir)\$(Version)\NeoLua-$(Version).zip" />
+		<Zip Files="@(ZipFileDbg)" WorkingDirectory="$(MSBuildProjectDirectory)\..\NeoLua.Dbg\bin\Release" ZipFileName="$(TargetDir)\$(Version)\NeoLuaDbg-$(Version).zip" />
+		<Zip Files="@(ZipFileCmd)" WorkingDirectory="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release" ZipFileName="$(TargetDir)\$(Version)\NeoLuaCmd-$(Version).zip" />
+
+		<!-- Create NuGet Package -->
+		<Exec Command="c:\Projects\Bin\NuGet.exe pack NeoLua.nuspec -OutputDirectory $(TargetDir)\$(Version) -Version $(Version)" />
+		<Exec Command="c:\Projects\Bin\NuGet.exe pack NeoLuaDebug.nuspec -OutputDirectory $(TargetDir)\$(Version) -Version $(Version)" />
+		<Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir)\$(Version)\NeoLua.$(Version).nupkg" />
+		<Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir)\$(Version)\NeoLuaDebug.$(Version).nupkg" />
+	</Target>
+</Project>
+<!--<Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
+    <CreateItem Include="$(TargetDir)\Neo.Lua.MSBuild.dll;$(TargetDir)\Neo.Lua.dll;$(TargetDir)\de\*">
+      <Output ItemName="ZipFile" TaskParameter="Include" />
+    </CreateItem>
+    <Zip Files="@(ZipFile)" WorkingDirectory="$(TargetDir)" ZipFileName="$(TargetDir)\NeoLuaMSBuild-$(Version).zip" />
+  </Target>
+  <Target Name="NuGet" Condition=" '$(Configuration)' == 'Release' ">
+    <Exec Command="c:\Projects\Bin\NuGet.exe pack NeoLuaMSBuild.nuspec -OutputDirectory $(TargetDir) -Version $(Version)" />
+    -->
+<!--<Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir)NeoLuaMSBuild.$(Version).nupkg" />-->
+<!--
+  </Target>-->

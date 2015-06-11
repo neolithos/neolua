@@ -10,13 +10,14 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Neo.IronLua</RootNamespace>
     <AssemblyName>NeoCmd</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SccProjectName>SAK</SccProjectName>
     <SccLocalPath>SAK</SccLocalPath>
     <SccAuxPath>SAK</SccAuxPath>
     <SccProvider>SAK</SccProvider>
-    <TargetFrameworkProfile>Client</TargetFrameworkProfile>
+    <TargetFrameworkProfile>
+    </TargetFrameworkProfile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>x86</PlatformTarget>
@@ -27,6 +28,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -36,6 +38,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup>
     <SignAssembly>false</SignAssembly>
@@ -79,6 +82,10 @@
       <Project>{64e0e32c-0bc4-413e-832e-1574506e4088}</Project>
       <Name>NeoLua.Dbg</Name>
     </ProjectReference>
+    <ProjectReference Include="..\NeoLuaD\NeoLuaD.csproj">
+      <Project>{2fb491e8-65af-4c0d-a13e-4af73419ae0c}</Project>
+      <Name>NeoLuaD</Name>
+    </ProjectReference>
     <ProjectReference Include="..\NeoLua\NeoLua.csproj">
       <Project>{09aebb35-719e-4e32-9836-f57d7d6f1607}</Project>
       <Name>NeoLua</Name>
@@ -91,24 +98,8 @@
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   -->
-  <Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
-    <CreateItem Include="$(TargetDir)\NeoCmd.exe;$(TargetDir)\Neo.Lua.dll;$(TargetDir)\Neo.Lua.Dbg.dll;$(TargetDir)\Microsoft.Dynamic.dll;$(TargetDir)\Microsoft.Scripting.dll;$(TargetDir)\Microsoft.Scripting.Metadata.dll;$(TargetDir)\de\*;Samples\*.lua">
-      <Output ItemName="ZipFile" TaskParameter="Include" />
-    </CreateItem>
-    <Zip Files="@(ZipFile)" WorkingDirectory="$(TargetDir)" ZipFileName="$(TargetDir)\NeoCmd-$(Version).zip" />
-  </Target>
   <Target Name="BeforeBuild">
-    <ReadLinesFromFile File="..\NeoLua\Properties\AssemblyInfoGlobal.cs">
-      <Output TaskParameter="Lines" ItemName="AssemblyVersionContent" />
-    </ReadLinesFromFile>
-    <PropertyGroup>
-      <Pattern>\[assembly: AssemblyFileVersion\(.(\d+)\.(\d+)\.(\d+)</Pattern>
-      <AssemblyVersionLines>@(AssemblyVersionContent)</AssemblyVersionLines>
-      <AssemblyVersionLine>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyVersionLines), $(Pattern)))</AssemblyVersionLine>
-      <Version>$(AssemblyVersionLine.Remove(0, 32))</Version>
-    </PropertyGroup>
-    <Message Text="Version: $(Version)" />
   </Target>
-  <Target Name="AfterBuild" DependsOnTargets="ZipLua">
+  <Target Name="AfterBuild">
   </Target>
 </Project>
