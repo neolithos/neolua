@@ -22,7 +22,7 @@ You can play and test the language with the tool NeoCmd.
 
 Or there are two easy ways to use NeoLua in your project.
 
-* Download the Neo.Lua.dll and add the reference.
+* Download the Neo.Lua.dll and add the reference. For full desktop support also a reference to Neo.Lua.Desktop.dll is useful.
 * Install the [NuGet-Package](http://www.nuget.org/packages/NeoLua/) of NeoLua.
 
 
@@ -38,7 +38,14 @@ using (Lua l = new Lua()) // create the lua script engine
 }
 ```
 
-NeoLua is a .net 4.0 assembly (IL). There is will be no support for .net frameworks lower than 4.0. 
+NeoLua is a .net portable assembly (IL) for 
+* .net framework 4.5.1
+* Windows Phone 8.1
+* Windows Store Apps 8.1
+* Xamarin.Android
+* Xamarin.iOS.
+
+There will be no support for .net frameworks lower than 4.5. 
 
 ### What NeoLua is useful for
 
@@ -67,7 +74,7 @@ So, this could be reliable partner for your compiled .NET application or engine 
 
 ### Drawbacks of NeoLua
 
-* It is not [100% compatible](http://todo) to Lua. But I will try very hard.
+* It is not [100% compatible](doc/06_std.md) to Lua. But I will try very hard.
 * No deployment of precompiled scripts.
 
 ### Drawbacks of bridges to c-lua, that are solved with NeoLua
