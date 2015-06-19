@@ -12,6 +12,7 @@
 
 		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\NeoCmd.exe" />
 		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Neo.Lua.dll" />
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Neo.Lua.Desktop.dll" />
 		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Neo.Lua.Dbg.dll" />
 		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Microsoft.Dynamic.dll" />
 		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Microsoft.Scripting.dll" />
