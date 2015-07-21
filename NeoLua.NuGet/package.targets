@@ -7,7 +7,10 @@
 	<ItemGroup>
 		<ZipFile Include="$(MSBuildProjectDirectory)\..\NeoLuaD\bin\Release\Neo.Lua.*" />
 		<ZipFile Include="$(MSBuildProjectDirectory)\..\NeoLuaD\bin\Release\de\*" />
-		
+
+		<ZipFileDbg Include="$(MSBuildProjectDirectory)\..\NeoLua.Dbg\bin\Release\Microsoft.Dynamic.dll" />
+		<ZipFileDbg Include="$(MSBuildProjectDirectory)\..\NeoLua.Dbg\bin\Release\Microsoft.Scripting.dll" />
+		<ZipFileDbg Include="$(MSBuildProjectDirectory)\..\NeoLua.Dbg\bin\Release\Microsoft.Scripting.Metadata.dll" />
 		<ZipFileDbg Include="$(MSBuildProjectDirectory)\..\NeoLua.Dbg\bin\Release\Neo.Lua.Dbg.*" />
 
 		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\NeoCmd.exe" />
@@ -18,7 +21,7 @@
 		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Microsoft.Scripting.dll" />
 		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Microsoft.Scripting.Metadata.dll" />
 		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\de\*" />
-		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Samples\*.lua" />
+		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\Samples\*.lua" />
 	</ItemGroup>
 	
 	<Target Name="PrepareVersion">
