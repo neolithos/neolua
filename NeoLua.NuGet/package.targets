@@ -13,6 +13,11 @@
 		<ZipFileDbg Include="$(MSBuildProjectDirectory)\..\NeoLua.Dbg\bin\Release\Microsoft.Scripting.Metadata.dll" />
 		<ZipFileDbg Include="$(MSBuildProjectDirectory)\..\NeoLua.Dbg\bin\Release\Neo.Lua.Dbg.*" />
 
+		<ZipFileMSB Include="$(MSBuildProjectDirectory)\..\NeoLua.MSBuild\bin\Release\de\*" />
+		<ZipFileMSB Include="$(MSBuildProjectDirectory)\..\NeoLua.MSBuild\bin\Release\Neo.Lua.dll" />
+		<ZipFileMSB Include="$(MSBuildProjectDirectory)\..\NeoLua.MSBuild\bin\Release\Neo.Lua.Desktop.dll" />
+		<ZipFileMSB Include="$(MSBuildProjectDirectory)\..\NeoLua.MSBuild\bin\Release\Neo.Lua.MSBuild.dll" />
+
 		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\NeoCmd.exe" />
 		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Neo.Lua.dll" />
 		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\Neo.Lua.Desktop.dll" />
@@ -54,6 +59,7 @@
 		
 		<!-- Zip -->
 		<Zip Files="@(ZipFile)" WorkingDirectory="$(MSBuildProjectDirectory)\..\NeoLuaD\bin\Release" ZipFileName="$(TargetDir)\$(Version)\NeoLua-$(Version).zip" />
+		<Zip Files="@(ZipFileMSB)" WorkingDirectory="$(MSBuildProjectDirectory)\..\NeoLua.MSBuild\bin\Release" ZipFileName="$(TargetDir)\$(Version)\NeoLuaMSBuild-$(Version).zip" />
 		<Zip Files="@(ZipFileDbg)" WorkingDirectory="$(MSBuildProjectDirectory)\..\NeoLua.Dbg\bin\Release" ZipFileName="$(TargetDir)\$(Version)\NeoLuaDbg-$(Version).zip" />
 		<Zip Files="@(ZipFileCmd)" WorkingDirectory="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release" ZipFileName="$(TargetDir)\$(Version)\NeoLuaCmd-$(Version).zip" />
 

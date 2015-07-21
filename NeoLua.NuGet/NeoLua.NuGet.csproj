@@ -67,9 +67,17 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\NeoCmd\NeoCmd.csproj">
+      <Project>{afdb9919-9fed-45e9-8843-a731f822b98a}</Project>
+      <Name>NeoCmd</Name>
+    </ProjectReference>
     <ProjectReference Include="..\NeoLua.Dbg\NeoLua.Dbg.csproj">
       <Project>{64e0e32c-0bc4-413e-832e-1574506e4088}</Project>
       <Name>NeoLua.Dbg</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\NeoLua.MSBuild\NeoLua.MSBuild.csproj">
+      <Project>{b7a49c98-073d-498c-8fd8-69e0468df6d5}</Project>
+      <Name>NeoLua.MSBuild</Name>
     </ProjectReference>
     <ProjectReference Include="..\NeoLuaD\NeoLuaD.csproj">
       <Project>{2fb491e8-65af-4c0d-a13e-4af73419ae0c}</Project>
