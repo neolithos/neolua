@@ -228,6 +228,9 @@
   <data name="rsParseExpressionNotAssignable" xml:space="preserve">
     <value>Expression is not assignable.</value>
   </data>
+  <data name="rsParseInvalidArgList" xml:space="preserve">
+    <value>Named arguments specifications must appear after all fixed arguments have been specified.</value>
+  </data>
   <data name="rsParseInvalidChar" xml:space="preserve">
     <value>Unexpected char.</value>
   </data>

@@ -228,6 +228,9 @@
   <data name="rsParseExpressionNotAssignable" xml:space="preserve">
     <value>Ausdruck kann nichts zugewiesen werden.</value>
   </data>
+  <data name="rsParseInvalidArgList" xml:space="preserve">
+    <value>Benannte Argumente können erst festgelegt werden, wenn alle positionierten Argumente angegeben wurden.</value>
+  </data>
   <data name="rsParseInvalidChar" xml:space="preserve">
     <value>Unerwartetes Zeichen.</value>
   </data>

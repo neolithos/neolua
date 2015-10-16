@@ -263,7 +263,7 @@ namespace Neo.IronLua
 						MethodInfo mi = LuaEmit.FindMethod(
 							type.GetRuntimeMethods().Where(
 								c => String.Compare(binder.Name, c.Name, binder.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) == 0 && c.IsStatic
-							), args, mo => mo.LimitType, false
+							), binder.CallInfo, args, mo => mo.LimitType, false
 						);
 						if (mi == null)
 						{
@@ -275,7 +275,7 @@ namespace Neo.IronLua
 							}
 							else if (String.Compare(binder.Name, "ctor", stringComparison) == 0)
 							{
-								return BindNewObject(type, args, binder.ReturnType);
+								return BindNewObject(type, binder.CallInfo, args, binder.ReturnType);
 							}
 							else
 							{
@@ -289,6 +289,7 @@ namespace Neo.IronLua
 							expr = Lua.EnsureType(LuaEmit.BindParameter(Lua.GetRuntime(binder),
 								a => Expression.Call(null, mi, a),
 								mi.GetParameters(),
+								binder.CallInfo,
 								args,
 								mo => mo.Expression, mo => mo.LimitType, false), binder.ReturnType, true);
 						}
@@ -339,7 +340,7 @@ namespace Neo.IronLua
 						return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(Expression, Value).Merge(Lua.GetMethodSignatureRestriction(null, args)));
 					}
 					else // call the constructor
-						return BindNewObject(type, args, binder.ReturnType);
+						return BindNewObject(type, binder.CallInfo, args, binder.ReturnType);
 				}
 				else
 				{
@@ -371,7 +372,7 @@ namespace Neo.IronLua
 
 			#endregion
 
-			private DynamicMetaObject BindNewObject(Type typeNew, DynamicMetaObject[] args, Type returnType)
+			private DynamicMetaObject BindNewObject(Type typeNew, CallInfo callInfo, DynamicMetaObject[] args, Type returnType)
 			{
 				Expression expr;
 				try
@@ -380,7 +381,7 @@ namespace Neo.IronLua
 					ConstructorInfo ci =
 						typeinfoNew.IsValueType && args.Length == 0 ?  // value-types with zero arguments always constructable
 							null :
-							LuaEmit.FindMember(typeNew.GetTypeInfo().DeclaredConstructors.Where(c => c.IsPublic), args, mo => mo.LimitType);
+							LuaEmit.FindMember(typeNew.GetTypeInfo().DeclaredConstructors.Where(c => c.IsPublic), callInfo, args, mo => mo.LimitType);
 
 					// ctor not found for a class
 					if (ci == null && !typeinfoNew.IsValueType)
@@ -391,6 +392,7 @@ namespace Neo.IronLua
 						LuaEmit.BindParameter(null,
 							a => ci == null ? Expression.New(typeNew) : Expression.New(ci, a),
 							ci == null ? new ParameterInfo[0] : ci.GetParameters(),
+							callInfo,
 							args,
 							mo => mo.Expression, mo => mo.LimitType, false),
 						returnType, true
@@ -1122,7 +1124,7 @@ namespace Neo.IronLua
 			public override DynamicMetaObject BindInvoke(InvokeBinder binder, DynamicMetaObject[] args)
 			{
 				LuaMethod val = (LuaMethod)Value;
-				return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, val, val.method, args, binder.ReturnType);
+				return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, val, val.method, binder.CallInfo, args, binder.ReturnType);
 			} // proc BindInvoke
 
 			public override DynamicMetaObject BindConvert(ConvertBinder binder)
@@ -1202,12 +1204,13 @@ namespace Neo.IronLua
 
 		// -- Static --------------------------------------------------------------
 
-		internal static DynamicMetaObject BindInvoke(Lua runtime, Expression methodExpression, ILuaMethod methodValue, MethodInfo mi, DynamicMetaObject[] args, Type typeReturn)
+		internal static DynamicMetaObject BindInvoke(Lua runtime, Expression methodExpression, ILuaMethod methodValue, MethodInfo mi, CallInfo callInfo, DynamicMetaObject[] args, Type typeReturn)
 		{
 			// create the call expression
 			Expression expr = Lua.EnsureType(LuaEmit.BindParameter(runtime,
 				a => Expression.Call(mi.IsStatic ? null : GetInstance(methodExpression, methodValue, methodValue.Type), mi, a),
 				mi.GetParameters(),
+				callInfo,
 				args,
 				mo => mo.Expression, mo => mo.LimitType, true), typeReturn, true);
 
@@ -1328,14 +1331,14 @@ namespace Neo.IronLua
 			public override DynamicMetaObject BindInvoke(InvokeBinder binder, DynamicMetaObject[] args)
 			{
 				LuaOverloadedMethod val = (LuaOverloadedMethod)Value;
-				MethodInfo mi = LuaEmit.FindMethod(val.methods, args, mo => mo.LimitType, false);
+				MethodInfo mi = LuaEmit.FindMethod(val.methods, binder.CallInfo, args, mo => mo.LimitType, false);
 				if (mi == null)
 					return new DynamicMetaObject(
 						Lua.ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, val.Type, val.Name)),
 						LuaMethod.BindInvokeRestrictions(Expression, val).Merge(Lua.GetMethodSignatureRestriction(null, args))
 					);
 				else
-					return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, val, mi, args, binder.ReturnType);
+					return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, val, mi, binder.CallInfo, args, binder.ReturnType);
 			} // proc BindInvoke
 
 			public override DynamicMetaObject BindConvert(ConvertBinder binder)
@@ -1343,13 +1346,14 @@ namespace Neo.IronLua
 				if (typeof(Delegate).GetTypeInfo().IsAssignableFrom(binder.Type.GetTypeInfo()))
 				{
 					// get the parameters from the invoke method
-					MethodInfo miInvoke = binder.Type.GetRuntimeMethods().Where(c => c.IsPublic && !c.IsStatic && c.Name == "Invoke").FirstOrDefault();
+					var miInvoke = binder.Type.GetRuntimeMethods().Where(c => c.IsPublic && !c.IsStatic && c.Name == "Invoke").FirstOrDefault();
 					if (miInvoke == null)
 						return base.BindConvert(binder);
 					else
 					{
-						LuaOverloadedMethod val = (LuaOverloadedMethod)Value;
-						MethodInfo miTarget = LuaEmit.FindMethod(val.methods, miInvoke.GetParameters(), p => p.ParameterType, false);
+						var val = (LuaOverloadedMethod)Value;
+						var parameterInfo = miInvoke.GetParameters();
+            var miTarget = LuaEmit.FindMethod(val.methods, new CallInfo(parameterInfo.Length), parameterInfo, p => p.ParameterType, false);
 						return LuaMethod.CreateDelegate(Expression, val, binder.Type, miTarget, binder.ReturnType);
 					}
 				}
@@ -1517,13 +1521,13 @@ namespace Neo.IronLua
 			private DynamicMetaObject BindAddMethod(DynamicMetaObjectBinder binder, DynamicMetaObject[] args)
 			{
 				LuaEvent value = (LuaEvent)Value;
-				return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, value, value.eventInfo.AddMethod, args, binder.ReturnType);
+				return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, value, value.eventInfo.AddMethod, new CallInfo(args.Length), args, binder.ReturnType);
 			} // func BindAddMethod
 
 			private DynamicMetaObject BindRemoveMethod(DynamicMetaObjectBinder binder, DynamicMetaObject[] args)
 			{
 				LuaEvent value = (LuaEvent)Value;
-				return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, value, value.eventInfo.RemoveMethod, args, binder.ReturnType);
+				return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, value, value.eventInfo.RemoveMethod, new CallInfo(args.Length), args, binder.ReturnType);
 			} // func BindRemoveMethod
 
 			private DynamicMetaObject BindGetMember(DynamicMetaObjectBinder binder, PropertyInfo piMethodGet)

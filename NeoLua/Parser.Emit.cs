@@ -281,19 +281,19 @@ namespace Neo.IronLua
 				return SafeExpression(() => LuaEmit.SetIndex(runtime, instance, indexes, set, getExpressionFunction, getExpressionTypeFunction, true), tStart);
 		} // func IndexSetExpression
 
-		private static Expression InvokeExpression(Scope scope, Token tStart, Expression instance, InvokeResult result, Expression[] arguments, bool lParse)
+		private static Expression InvokeExpression(Scope scope, Token tStart, Expression instance, InvokeResult result, ArgumentsList arguments, bool lParse)
 		{
 			MethodInfo mi;
 			ConstantExpression constInstance = instance as ConstantExpression;
 			LuaType t;
 			if (constInstance != null && (t = constInstance.Value as LuaType) != null && t.Type != null) // we have a type, bind the ctor
 			{
-				Type type = t.Type;
-				TypeInfo typeInfo = type.GetTypeInfo();
-				ConstructorInfo ci =
-					typeInfo.IsValueType && arguments.Length == 0 ?
+				var type = t.Type;
+				var typeInfo = type.GetTypeInfo();
+				var ci =
+					typeInfo.IsValueType && arguments.Count == 0 ?
 						null :
-						LuaEmit.FindMember(typeInfo.DeclaredConstructors.Where(c => c.IsPublic), arguments, getExpressionTypeFunction);
+						LuaEmit.FindMember(typeInfo.DeclaredConstructors.Where(c => c.IsPublic), arguments.CallInfo, arguments.Expressions, getExpressionTypeFunction);
 
 				if (ci == null && !typeInfo.IsValueType)
 					throw ParseError(tStart, String.Format(Properties.Resources.rsMemberNotResolved, type.Name, "ctor"));
@@ -301,17 +301,18 @@ namespace Neo.IronLua
 				return SafeExpression(() => LuaEmit.BindParameter(scope.Runtime,
 					args => ci == null ? Expression.New(type) : Expression.New(ci, args),
 					ci == null ? new ParameterInfo[0] : ci.GetParameters(),
-					arguments,
+					arguments.CallInfo,
+					arguments.Expressions,
 					getExpressionFunction, getExpressionTypeFunction, true), tStart);
 			}
 			else if (LuaEmit.IsDynamicType(instance.Type))
 			{
 				// fallback is a dynamic call
 				return EnsureInvokeResult(scope, tStart,
-					DynamicExpression.Dynamic(scope.Runtime.GetInvokeBinder(new CallInfo(arguments.Length)),
+					DynamicExpression.Dynamic(scope.Runtime.GetInvokeBinder(arguments.CallInfo),
 						typeof(object),
 						new Expression[] { ConvertExpression(scope.Runtime, tStart, instance, typeof(object)) }.Concat(
-							from c in arguments select Lua.EnsureType(c, typeof(object))
+							from c in arguments.Expressions select Lua.EnsureType(c, typeof(object))
 						)
 					),
 					result, instance, null
@@ -325,7 +326,8 @@ namespace Neo.IronLua
 						scope.Runtime,
 						args => Expression.Invoke(instance, args),
 						mi.GetParameters(),
-						arguments,
+						arguments.CallInfo,
+						arguments.Expressions,
 						getExpressionFunction, getExpressionTypeFunction, true), tStart),
 					result, instance, null
 				);
@@ -334,14 +336,14 @@ namespace Neo.IronLua
 				throw ParseError(tStart, LuaEmitException.GetMessageText(LuaEmitException.InvokeNoDelegate, instance.Type.Name));
 		}  // func InvokeExpression
 
-		private static Expression InvokeMemberExpression(Scope scope, Token tStart, Expression instance, string sMember, InvokeResult result, Expression[] arguments)
+		private static Expression InvokeMemberExpression(Scope scope, Token tStart, Expression instance, string sMember, InvokeResult result, ArgumentsList arguments)
 		{
 			if (LuaEmit.IsDynamicType(instance.Type))
 			{
 				return EnsureInvokeResult(scope, tStart,
-					DynamicExpression.Dynamic(scope.Runtime.GetInvokeMemberBinder(sMember, new CallInfo(arguments.Length)), typeof(object),
+					DynamicExpression.Dynamic(scope.Runtime.GetInvokeMemberBinder(sMember, arguments.CallInfo), typeof(object),
 						new Expression[] { ConvertExpression(scope.Runtime, tStart, instance, typeof(object)) }.Concat(
-							from c in arguments select Lua.EnsureType(c, typeof(object))
+							from c in arguments.Expressions select Lua.EnsureType(c, typeof(object))
 						).ToArray()
 					),
 					result, instance, sMember
@@ -352,7 +354,8 @@ namespace Neo.IronLua
 				// look up the method
 				MethodInfo method = LuaEmit.FindMethod(
 					LuaType.GetType(instance.Type).GetInstanceMethods(sMember, false),
-					arguments,
+					arguments.CallInfo,
+					arguments.Expressions,
 					getExpressionTypeFunction,
 					true);
 
@@ -363,15 +366,16 @@ namespace Neo.IronLua
 			}
 		} // func InvokeMemberExpression
 
-		private static Expression InvokeMemberExpressionBind(MethodInfo method, Lua runtime, Expression instance, Expression[] arguments)
+		private static Expression InvokeMemberExpressionBind(MethodInfo method, Lua runtime, Expression instance, ArgumentsList arguments)
 		{
 			if (method.IsStatic)
 			{
 				return LuaEmit.BindParameter(runtime,
 					args => Expression.Call(null, method, args),
 					method.GetParameters(),
+					arguments.CallInfo,
 					new Expression[] { instance }.Concat(
-						from a in arguments select Lua.EnsureType(a, typeof(object))
+						from a in arguments.Expressions select Lua.EnsureType(a, typeof(object))
 					).ToArray(),
 					getExpressionFunction, getExpressionTypeFunction, true);
 			}
@@ -380,16 +384,17 @@ namespace Neo.IronLua
 				return LuaEmit.BindParameter(runtime,
 					args => Expression.Call(instance, method, args),
 					method.GetParameters(),
-					arguments,
+					arguments.CallInfo,
+					arguments.Expressions,
 					getExpressionFunction, getExpressionTypeFunction, true);
 			}
 		} // func InvokeMemberExpressionBind
 
-		private static Expression InvokeMemberExpressionDynamic(Scope scope, Token tStart, Expression instance, string sMember, InvokeResult result, Expression[] arguments)
+		private static Expression InvokeMemberExpressionDynamic(Scope scope, Token tStart, Expression instance, string sMember, InvokeResult result, ArgumentsList arguments)
 		{
 			return EnsureInvokeResult(scope, tStart,
-				DynamicExpression.Dynamic(scope.Runtime.GetInvokeMemberBinder(sMember, new CallInfo(arguments.Length)), typeof(object),
-					new Expression[] { ConvertExpression(scope.Runtime, tStart, instance, typeof(object)) }.Concat(from a in arguments select Lua.EnsureType(a, typeof(object))).ToArray()
+				DynamicExpression.Dynamic(scope.Runtime.GetInvokeMemberBinder(sMember, arguments.CallInfo), typeof(object),
+					new Expression[] { ConvertExpression(scope.Runtime, tStart, instance, typeof(object)) }.Concat(from a in arguments.Expressions select Lua.EnsureType(a, typeof(object))).ToArray()
 				),
 				result, instance, sMember
 			 );

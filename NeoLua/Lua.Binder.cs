@@ -312,6 +312,7 @@ namespace Neo.IronLua
                   LuaEmit.BindParameter(lua,
                     _args => Expression.Invoke(EnsureType(target.Expression, target.LimitType), _args),
                     parameters,
+										CallInfo,
                     args,
                     mo => mo.Expression, mo => mo.LimitType, false),
                   typeof(object), true);
@@ -370,7 +371,8 @@ namespace Neo.IronLua
           MethodInfo method =
             LuaEmit.FindMethod(
               LuaType.GetType(target.LimitType).GetInstanceMethods(Name, IgnoreCase),
-              args,
+              CallInfo,
+							args,
               mo => mo.LimitType,
 							true);
 
@@ -389,6 +391,7 @@ namespace Neo.IronLua
 							expr = LuaEmit.BindParameter(lua,
 								a => Expression.Call(null, method, a),
 								method.GetParameters(),
+								CallInfo,
 								(new DynamicMetaObject[] { target }).Concat(args).ToArray(),
 								mo => mo.Expression, mo => mo.LimitType, false);
 						}
@@ -397,6 +400,7 @@ namespace Neo.IronLua
 							expr = LuaEmit.BindParameter(lua,
                     a => Expression.Call(EnsureType(target.Expression, target.LimitType), method, a),
                     method.GetParameters(),
+										CallInfo,
                     args,
 								mo => mo.Expression, mo => mo.LimitType, false);
 						}

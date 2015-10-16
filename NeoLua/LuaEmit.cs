@@ -852,7 +852,7 @@ namespace Neo.IronLua
 
 			#region -- find operator --
 			var operators = type.GetRuntimeMethods().Where(mi => mi.Name == GetOperationMethodName(ExpressionType.OnesComplement) && mi.IsStatic);
-			MethodInfo miOperator = FindMethod(operators, new Type[] { type }, t => t, false);
+			MethodInfo miOperator = FindMethod(operators, new CallInfo(1), new Type[] { type }, t => t, false);
 			if (miOperator != null)
 				return Expression.OnesComplement(Convert(runtime, expr, type, miOperator.GetParameters()[0].ParameterType, lParse), miOperator);
 			#endregion
@@ -899,7 +899,7 @@ namespace Neo.IronLua
 			#region -- find operator --
 
 			var operators = type.GetRuntimeMethods().Where(mi => mi.Name == GetOperationMethodName(ExpressionType.Negate) && mi.IsStatic);
-			MethodInfo miOperator = FindMethod(operators, new Type[] { type }, t => t, false);
+			MethodInfo miOperator = FindMethod(operators, new CallInfo(1), new Type[] { type }, t => t, false);
 			if (miOperator != null)
 				return Expression.Negate(Convert(runtime, expr, type, miOperator.GetParameters()[0].ParameterType, lParse), miOperator);
 			#endregion
@@ -1150,7 +1150,7 @@ namespace Neo.IronLua
 					Array.Copy(members2, 0, members3, members1.Length, members2.Length);
 
 					// Find the correct method
-					MethodInfo miOperator = FindMethod(members3, parameterTypes, t => t, false);
+					MethodInfo miOperator = FindMethod(members3, new CallInfo(2), parameterTypes, t => t, false);
 					if (miOperator != null)
 					{
 						// Get the argumentslist
@@ -1576,14 +1576,15 @@ namespace Neo.IronLua
 			}
 			else // try find a property
 			{
-				PropertyInfo[] properties =
+				var properties =
 					(
 						from pi in instanceType.GetRuntimeProperties()
 						where pi.GetMethod.IsStatic == (instance == null) && pi.GetIndexParameters().Length > 0
 						select pi
 					).ToArray();
 
-				PropertyInfo piIndex = FindMember(properties, arguments, getType);
+				var callInfo = new CallInfo(arguments.Length);
+        var piIndex = FindMember(properties, callInfo, arguments, getType);
 
 				if (piIndex == null)
 					throw new LuaEmitException(LuaEmitException.IndexNotFound, instanceType.Name);
@@ -1591,6 +1592,7 @@ namespace Neo.IronLua
 					return BindParameter(runtime,
 						args => Expression.MakeIndex(Convert(runtime, instance, instanceType, instanceType, lParse), piIndex, args),
 						piIndex.GetIndexParameters(),
+						callInfo,
 						arguments,
 						getExpr, getType, lParse);
 			}
@@ -1600,7 +1602,7 @@ namespace Neo.IronLua
 
 		#region -- BindParameter ----------------------------------------------------------
 
-		public static Expression BindParameter<T>(Lua runtime, Func<Expression[], Expression> emitCall, ParameterInfo[] parameters, T[] arguments, Func<T, Expression> getExpr, Func<T, Type> getType, bool lParse)
+		public static Expression BindParameter<T>(Lua runtime, Func<Expression[], Expression> emitCall, ParameterInfo[] parameters, CallInfo callInfo, T[] arguments, Func<T, Expression> getExpr, Func<T, Type> getType, bool lParse)
 		{
 			Expression[] exprPara = new Expression[parameters.Length]; // Parameters for the function
 			int iParameterIndex = 0;                  // Index of the parameter that is processed
@@ -1790,10 +1792,10 @@ namespace Neo.IronLua
 
 		#region -- FindMember -------------------------------------------------------------
 
-		public static MethodInfo FindMethod<TARG>(IEnumerable<MethodInfo> members, TARG[] arguments, Func<TARG, Type> getType, bool lExtension)
+		public static MethodInfo FindMethod<TARG>(IEnumerable<MethodInfo> members, CallInfo callInfo, TARG[] arguments, Func<TARG, Type> getType, bool lExtension)
 			where TARG : class
 		{
-			MethodInfo mi = (MethodInfo)FindMember(members, arguments, getType, lExtension);
+			MethodInfo mi = (MethodInfo)FindMember(members, callInfo, arguments, getType, lExtension);
 
 			// create a non generic version
 			if (mi != null && mi.ContainsGenericParameters)
@@ -1802,7 +1804,7 @@ namespace Neo.IronLua
 			return mi;
 		} // func FindMethod
 
-		public static TMEMBERTYPE FindMember<TMEMBERTYPE, TARG>(IEnumerable<TMEMBERTYPE> members, TARG[] arguments, Func<TARG, Type> getType, bool lExtension = false)
+		public static TMEMBERTYPE FindMember<TMEMBERTYPE, TARG>(IEnumerable<TMEMBERTYPE> members, CallInfo callInfo, TARG[] arguments, Func<TARG, Type> getType, bool lExtension = false)
 			where TMEMBERTYPE : MemberInfo
 			where TARG : class
 		{
