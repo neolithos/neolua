@@ -94,7 +94,7 @@ So, this could be reliable partner for your compiled .NET application or engine 
     2. [Script engine](doc/04_02_engine.md)
     3. [Chunks](doc/04_03_chunk.md)
     4. [Table's](doc/04_04_table.md)
-5. The Auxilary Library
+5. The Auxiliary Library
     1. [clr library](doc/05_01_clr.md)
     2. [Extent lua table](doc/05_02_extent.md)
     3. [Debugging](doc/05_03_debug.md)
