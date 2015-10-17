@@ -293,7 +293,7 @@ namespace Neo.IronLua
 				var ci =
 					typeInfo.IsValueType && arguments.Count == 0 ?
 						null :
-						LuaEmit.FindMember(typeInfo.DeclaredConstructors.Where(c => c.IsPublic), arguments.CallInfo, arguments.Expressions, getExpressionTypeFunction);
+						LuaEmit.FindMember(typeInfo.DeclaredConstructors.Where(c => c.IsPublic), arguments.CallInfo, arguments.Expressions, getExpressionTypeFunction, false);
 
 				if (ci == null && !typeInfo.IsValueType)
 					throw ParseError(tStart, String.Format(Properties.Resources.rsMemberNotResolved, type.Name, "ctor"));

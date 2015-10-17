@@ -1584,7 +1584,7 @@ namespace Neo.IronLua
 					).ToArray();
 
 				var callInfo = new CallInfo(arguments.Length);
-        var piIndex = FindMember(properties, callInfo, arguments, getType);
+        var piIndex = FindMember(properties, callInfo, arguments, getType, false);
 
 				if (piIndex == null)
 					throw new LuaEmitException(LuaEmitException.IndexNotFound, instanceType.Name);
@@ -1792,10 +1792,277 @@ namespace Neo.IronLua
 
 		#region -- FindMember -------------------------------------------------------------
 
-		public static MethodInfo FindMethod<TARG>(IEnumerable<MethodInfo> members, CallInfo callInfo, TARG[] arguments, Func<TARG, Type> getType, bool lExtension)
+		#region -- enum MemberMatchValue --------------------------------------------------
+
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary></summary>
+		private enum MemberMatchValue
+		{
+			None,
+			Exact,
+			Implicit,
+			Explicit
+		} // enum MemberMatchValue
+
+		#endregion
+
+		#region -- class MemberMatchInfo --------------------------------------------------
+
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary></summary>
+		private sealed class MemberMatchInfo<TMEMBERTYPE>
+			where TMEMBERTYPE : MemberInfo
+		{
+			private readonly int argumentsLength;
+			private int matchesOnBeginning;
+			private int exactMatches;
+			private int implicitMatches;
+			internal int explicitMatches;
+
+			private TMEMBERTYPE currentMember;
+			private int currentParameterLength;
+
+			public MemberMatchInfo(int argumentsLength)
+			{
+				this.argumentsLength = argumentsLength;
+			} // ctor
+
+			public void Reset(TMEMBERTYPE member, ParameterInfo[] parameter)
+			{
+				this.matchesOnBeginning = 0;
+				this.exactMatches = 0;
+				this.implicitMatches = 0;
+				this.explicitMatches = 0;
+				this.currentMember = member;
+
+				// get the parameter length
+				this.currentParameterLength = parameter.Length > 0 ?
+						parameter[parameter.Length - 1].ParameterType.IsArray ? 
+							Int32.MaxValue : 
+							parameter.Length :
+					0;
+			} // proc Reset
+
+			public void SetMatch(MemberMatchValue value, bool positional)
+			{
+				switch (value)
+				{
+					case MemberMatchValue.Exact:
+						if (positional && explicitMatches == 0)
+							matchesOnBeginning++;
+						exactMatches++;
+						break;
+					case MemberMatchValue.Implicit:
+						if (positional && explicitMatches == 0)
+							matchesOnBeginning++;
+						implicitMatches++;
+						break;
+					case MemberMatchValue.Explicit:
+						explicitMatches++;
+						break;
+					default:
+						throw new InvalidOperationException();
+				}
+			} // proc SetMatch
+			
+			public bool IsBetter(MemberMatchInfo<TMEMBERTYPE> other) // is the this better than other
+			{
+				if (other.IsPerfect)
+					return true;
+
+				if (matchesOnBeginning > other.matchesOnBeginning ||
+					exactMatches > other.exactMatches ||
+					implicitMatches > other.implicitMatches) // good matches
+				{
+					return explicitMatches < other.explicitMatches ||
+						NoneMatches < other.NoneMatches; // too much bad machtes, so it might be not better
+				}
+				else if (explicitMatches > other.explicitMatches)
+				{
+					return NoneMatches < other.NoneMatches;
+				}
+				else
+					return false;
+			} // func IsBetter
+
+			public TMEMBERTYPE CurrentMember => currentMember;
+
+			public bool IsPerfect => currentParameterLength == argumentsLength && exactMatches == argumentsLength;
+			public int NoneMatches => argumentsLength - explicitMatches - implicitMatches - exactMatches;
+		} // class MemberMatchInfo
+
+		#endregion
+
+		#region -- class MemberMatch ------------------------------------------------------
+
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary></summary>
+		private sealed class MemberMatch<TMEMBERTYPE, TARG>
+			where TMEMBERTYPE : MemberInfo
 			where TARG : class
 		{
-			MethodInfo mi = (MethodInfo)FindMember(members, callInfo, arguments, getType, lExtension);
+			private readonly CallInfo callInfo;
+			private readonly int positionalArguments;
+			private readonly TARG[] arguments;
+			private readonly bool lastIsExpandable;
+			private readonly Func<TARG, Type> getType;
+			private readonly Action<ParameterInfo[], MemberMatchInfo<TMEMBERTYPE>> resetAlgorithm;
+
+			public MemberMatch(CallInfo callInfo, TARG[] arguments, Func<TARG, Type> getType)
+			{
+				// init reset parameter
+				this.callInfo = callInfo;
+				this.positionalArguments = callInfo.ArgumentCount - callInfo.ArgumentNames.Count; // number of positional arguments
+				this.arguments = arguments;
+				this.getType = getType;
+				this.lastIsExpandable = arguments.Length > 0 && getType(arguments[arguments.Length - 1]) == typeof(LuaResult);
+
+				// choose the algorithm
+				if (arguments.Length == 0 || positionalArguments == callInfo.ArgumentCount)
+				{
+					if (lastIsExpandable)
+						resetAlgorithm = ResetPositionalMax;
+					else
+						resetAlgorithm = ResetPositional;
+				}
+				else
+					resetAlgorithm = ResetNamed;
+			} // ctor
+
+			public void Reset(TMEMBERTYPE member, bool isMemberCall, MemberMatchInfo<TMEMBERTYPE> target)
+			{
+				var parameterInfo = GetMemberParameter(member, isMemberCall);
+				target.Reset(member, parameterInfo);
+				resetAlgorithm(parameterInfo, target);
+			} // proc Reset
+
+			private static ParameterInfo[] GetMemberParameter(TMEMBERTYPE mi, bool isMemberCall)
+			{
+				var mb = mi as MethodBase;
+				if (mb != null)
+				{
+					return isMemberCall && mb.IsStatic ?
+						mb.GetParameters().Skip(1).ToArray() :
+						mb.GetParameters();
+				}
+				else
+				{
+					var pi = mi as PropertyInfo;
+					if (pi != null)
+					{
+						return pi.GetIndexParameters();
+					}
+					else
+						throw new ArgumentException();
+				}
+			} // func GetMemberParameter
+
+			private void ResetPositional(ParameterInfo[] parameterInfo, MemberMatchInfo<TMEMBERTYPE> target)
+			{
+				var length = Math.Min(parameterInfo.Length, arguments.Length);
+				ResetPositionalPart(parameterInfo, length, target);
+			} // proc ResetPositional
+
+			private void ResetPositionalPart(ParameterInfo[] parameterInfo, int length, MemberMatchInfo<TMEMBERTYPE> target)
+			{
+				for (var i = 0; i < length; i++)
+					target.SetMatch(GetParameterMatch(parameterInfo[i].ParameterType.GetTypeInfo(), getType(arguments[i]).GetTypeInfo()), true);
+			} // proc ResetPositionalPart
+
+			private void ResetPositionalMax(ParameterInfo[] parameterInfo, MemberMatchInfo<TMEMBERTYPE> target)
+			{
+				var checkArguments = arguments.Length - 1;
+				if (checkArguments >= parameterInfo.Length)
+					ResetPositionalPart(parameterInfo, parameterInfo.Length, target);
+				else
+				{
+					// check the positional part
+					ResetPositionalPart(parameterInfo, checkArguments, target);
+
+					// the last part will match
+					target.explicitMatches += parameterInfo.Length - checkArguments;
+				}
+			} // proc ResetPositionalMax
+
+			private void ResetNamed(ParameterInfo[] parameterInfo, MemberMatchInfo<TMEMBERTYPE> target)
+			{
+				// check the positional part
+				ResetPositionalPart(parameterInfo, Math.Min(parameterInfo.Length, positionalArguments), target);
+
+				// check the named
+				if (positionalArguments < parameterInfo.Length)
+				{
+					var i = positionalArguments;
+					foreach (var cur in callInfo.ArgumentNames)
+					{
+						var index = Array.FindIndex(parameterInfo, positionalArguments, c => c.Name == cur);
+						if (index == -1)
+							target.SetMatch(GetParameterMatch(parameterInfo[index].ParameterType.GetTypeInfo(), getType(arguments[i++]).GetTypeInfo()), false);
+					}
+				}
+			} // proc ResetNamed
+
+			private MemberMatchValue GetParameterMatch(TypeInfo parameterType, TypeInfo argumentType)
+			{
+				bool exact;
+				if (parameterType == argumentType || parameterType.IsAssignableFrom(argumentType))
+					return MemberMatchValue.Exact;
+				else if (parameterType.IsGenericParameter) // special checks for generic parameter
+				{
+					#region -- check generic --
+					var typeConstraints = parameterType.GetGenericParameterConstraints();
+
+					exact = false;
+
+					// check "class"
+					if ((parameterType.GenericParameterAttributes & GenericParameterAttributes.ReferenceTypeConstraint) != 0 && argumentType.IsValueType)
+						return MemberMatchValue.Explicit;
+
+					// check struct
+					if ((parameterType.GenericParameterAttributes & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0 && !argumentType.IsValueType)
+						return MemberMatchValue.Explicit;
+
+					// check new()
+					if ((parameterType.GenericParameterAttributes & GenericParameterAttributes.DefaultConstructorConstraint) != 0)
+					{
+						// check default ctor
+						if (argumentType.FindDeclaredConstructor(ReflectionFlag.Public | ReflectionFlag.Instance, new Type[0]) == null)
+							return MemberMatchValue.Explicit;
+					}
+
+					// no contraints, all is allowed
+					if (typeConstraints.Length == 0)
+						return MemberMatchValue.Implicit;
+
+					// search for the constraint
+					var noneExactMatch = false;
+					var t = argumentType.AsType();
+					for (int i = 0; i < typeConstraints.Length; i++)
+					{
+						if (typeConstraints[i] == t)
+							return MemberMatchValue.Exact;
+						else if (typeConstraints[i].GetTypeInfo().IsAssignableFrom(argumentType))
+							noneExactMatch = true;
+					}
+
+					return noneExactMatch ? MemberMatchValue.Implicit : MemberMatchValue.Explicit;
+					#endregion
+				}
+				else if (TypesMatch(parameterType.AsType(), argumentType.AsType(), out exact)) // is at least assignable
+				{
+					return exact ? MemberMatchValue.Exact : MemberMatchValue.Implicit;
+				}
+				else
+					return MemberMatchValue.Explicit;
+			} // func GetParameterMatch
+		} // class MemberMatch
+
+			#endregion
+
+			public static MethodInfo FindMethod<TARG>(IEnumerable<MethodInfo> members, CallInfo callInfo, TARG[] arguments, Func<TARG, Type> getType, bool lExtension)
+		where TARG : class
+		{
+			var mi = FindMember(members, callInfo, arguments, getType, lExtension);
 
 			// create a non generic version
 			if (mi != null && mi.ContainsGenericParameters)
@@ -1804,226 +2071,65 @@ namespace Neo.IronLua
 			return mi;
 		} // func FindMethod
 
-		public static TMEMBERTYPE FindMember<TMEMBERTYPE, TARG>(IEnumerable<TMEMBERTYPE> members, CallInfo callInfo, TARG[] arguments, Func<TARG, Type> getType, bool lExtension = false)
+		public static TMEMBERTYPE FindMember<TMEMBERTYPE, TARG>(IEnumerable<TMEMBERTYPE> members, CallInfo callInfo, TARG[] arguments, Func<TARG, Type> getType, bool isMemberCall)
 			where TMEMBERTYPE : MemberInfo
 			where TARG : class
 		{
-			int iMaxParameterLength = 0;    // Max length of the argument list, can also MaxInt for variable argument length
-			TMEMBERTYPE miBind = null;      // Member that matches best
-			int iCurParameterLength = 0;    // Length of the arguments of the current match
-			int iCurMatchCount = -1;        // How many arguments match of this list
-			int iCurMatchExactCount = -1;   // How many arguments match exact of this list
-			bool lLastArgumentIsArray = arguments.Length > 0 && getType(arguments[arguments.Length - 1]).IsArray;
+			var memberMatch = new MemberMatch<TMEMBERTYPE, TARG>(callInfo, arguments, getType);
+      var memberMatchBind = new MemberMatchInfo<TMEMBERTYPE>(arguments.Length);
+			
+			// get argument list
+			var memberEnum = members.Where(CanCallMember).GetEnumerator();
 
-			// Get the max. list of arguments we want to consume
-			if (arguments.Length > 0)
-			{
-				iMaxParameterLength =
-					getType(arguments[arguments.Length - 1]) == typeof(LuaResult) ?
-					Int32.MaxValue :
-					arguments.Length;
-			}
-
-			foreach (var miCur in members)
-			{
-				if (miCur != null)
-				{
-					// do not test methods with __arglist
-					MethodInfo methodInfo = miCur as MethodInfo;
-					if (methodInfo != null && (methodInfo.CallingConvention & CallingConventions.VarArgs) != 0)
-						continue;
-
-					// Get the Parameters
-					ParameterInfo[] parameters = GetMemberParameter(miCur, lExtension);
-
-					// How many parameters we have
-					int iParametersLength = parameters.Length;
-					if (iParametersLength > 0 && !lLastArgumentIsArray && parameters[iParametersLength - 1].ParameterType.IsArray)
-						iParametersLength = Int32.MaxValue;
-
-					// We have already a match, is the new one better
-					if (miBind != null)
-					{
-						if (iParametersLength == iMaxParameterLength && iCurParameterLength == iMaxParameterLength)
-						{
-							// Get the parameter of the current match
-							ParameterInfo[] curParameters = iCurMatchCount == -1 ? GetMemberParameter(miBind, lExtension) : null;
-							int iNewMatchCount = 0;
-							int iNewMatchExactCount = 0;
-							int iCount;
-
-							// Count the parameters of the current match, because they are not collected
-							if (curParameters != null)
-							{
-								iCurMatchCount = 0;
-								iCurMatchExactCount = 0;
-							}
-
-							// Max length of the parameters
-							if (iCurParameterLength == Int32.MaxValue)
-							{
-								iCount = parameters.Length;
-								if (curParameters != null && iCount < curParameters.Length)
-									iCount = curParameters.Length;
-							}
-							else
-								iCount = iCurParameterLength;
-
-							// Check the matches
-							for (int j = 0; j < iCount; j++)
-							{
-								bool lExact;
-								if (curParameters != null && IsMatchParameter(j, curParameters, arguments, getType, out lExact))
-								{
-									iCurMatchCount++;
-									if (lExact)
-										iCurMatchExactCount++;
-								}
-								if (IsMatchParameter(j, parameters, arguments, getType, out lExact))
-								{
-									iNewMatchCount++;
-									if (lExact)
-										iNewMatchExactCount++;
-								}
-							}
-							if (iNewMatchCount > iCurMatchCount ||
-								iNewMatchCount == iCurMatchCount && iNewMatchExactCount > iCurMatchExactCount)
-							{
-								miBind = miCur;
-								iCurParameterLength = iParametersLength;
-								iCurMatchCount = iNewMatchCount;
-								iCurMatchExactCount = iNewMatchExactCount;
-							}
-						}
-						else if (iMaxParameterLength == iParametersLength && iCurParameterLength != iMaxParameterLength ||
-							iMaxParameterLength != iCurParameterLength && iCurParameterLength < iParametersLength)
-						{
-							// if the new parameter length is greater then the old one, it matches best
-							miBind = miCur;
-							iCurParameterLength = iParametersLength;
-							iCurMatchCount = -1;
-							iCurMatchExactCount = -1;
-						}
-					}
-					else
-					{
-						// First match, take it
-						miBind = miCur;
-						iCurParameterLength = iParametersLength;
-						iCurMatchCount = -1;
-						iCurMatchExactCount = -1;
-					}
-				}
-			}
-
-			return miBind;
-		} // func FindMember
-
-		private static ParameterInfo[] GetMemberParameter<TMEMBERTYPE>(TMEMBERTYPE mi, bool lExtensions)
-			where TMEMBERTYPE : MemberInfo
-		{
-			MethodBase mb = mi as MethodBase;
-			PropertyInfo pi = mi as PropertyInfo;
-
-			if (mb != null)
-			{
-				if (lExtensions && mb.IsStatic)
-					return mb.GetParameters().Skip(1).ToArray();
-				else
-					return mb.GetParameters();
-			}
-			else if (pi != null)
-				return pi.GetIndexParameters();
+			// reset the result with the first one
+			if (memberEnum.MoveNext())
+				memberMatch.Reset(memberEnum.Current, isMemberCall, memberMatchBind);
 			else
-				throw new ArgumentException();
-		} // func GetMemberParameter
+				return null;
 
-		private static bool IsMatchParameter<TARG>(int j, ParameterInfo[] parameters, TARG[] arguments, Func<TARG, Type> getType, out bool lExact)
-		{
-			if (j < parameters.Length && j < arguments.Length)
+			// text the rest if there is better one
+			if (memberEnum.MoveNext() && !memberMatchBind.IsPerfect)
 			{
-				Type type1 = parameters[j].ParameterType;
-				TypeInfo typeInfo1 = type1.GetTypeInfo();
-				Type type2 = getType(arguments[j]);
-				TypeInfo typeInfo2 = type2.GetTypeInfo();
+				var memberMatchCurrent = new MemberMatchInfo<TMEMBERTYPE>(arguments.Length);
 
-				if (type1 == type2) // exact equal types
+				// test
+				memberMatch.Reset(memberEnum.Current, isMemberCall, memberMatchCurrent);
+				if (memberMatchCurrent.IsBetter(memberMatchBind))
+					memberMatchBind = memberMatchCurrent;
+
+				while (memberEnum.MoveNext() && !memberMatchBind.IsPerfect)
 				{
-					lExact = true;
-					return true;
-				}
-				else if (type1.IsGenericParameter) // the parameter is a generic type
-				{
-					#region -- check generic --
-					Type[] typeConstraints = typeInfo1.GetGenericParameterConstraints();
-
-					lExact = false;
-
-					// check "class"
-					if ((typeInfo1.GenericParameterAttributes & GenericParameterAttributes.ReferenceTypeConstraint) != 0 && typeInfo2.IsValueType)
-						return false;
-
-					// check struct
-					if ((typeInfo1.GenericParameterAttributes & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0 && !typeInfo2.IsValueType)
-						return false;
-
-					// check new()
-					if ((typeInfo1.GenericParameterAttributes & GenericParameterAttributes.DefaultConstructorConstraint) != 0)
-					{
-						// check default ctor
-						if (typeInfo2.FindDeclaredConstructor(ReflectionFlag.Public | ReflectionFlag.Instance, new Type[0]) == null)
-							return false;
-					}
-
-					// no contraints, all is allowed
-					if (typeConstraints.Length == 0)
-						return true;
-
-					// search for the constraint
-					bool lNoneExactMatch = false;
-					for (int i = 0; i < typeConstraints.Length; i++)
-					{
-						if (typeConstraints[i] == type2)
-						{
-							lExact = true;
-							return true;
-						}
-						else if (typeConstraints[i].GetTypeInfo().IsAssignableFrom(typeInfo2))
-							lNoneExactMatch = true;
-					}
-
-					if (lNoneExactMatch)
-					{
-						lExact = false;
-						return true;
-					}
-					#endregion
-				}
-				else if (TypesMatch(type1, type2, out lExact)) // is at least assignable
-				{
-					return true;
+					// test
+					memberMatch.Reset(memberEnum.Current, isMemberCall, memberMatchCurrent);
+					if (memberMatchCurrent.IsBetter(memberMatchBind))
+						memberMatchBind = memberMatchCurrent;
 				}
 			}
 
-			lExact = false;
-			return false;
-		} // func IsMatchParameter
+			return memberMatchBind.CurrentMember;
+		} // func FindMemberNamed
+		
+		private static bool CanCallMember<TMEMBERTYPE>(TMEMBERTYPE mi)
+		{
+			var methodInfo = mi as MethodInfo;
+			return methodInfo == null || (methodInfo.CallingConvention & CallingConventions.VarArgs) == 0;
+		} // func CanCallMember
 
 		private static MethodInfo MakeNonGenericMethod<TARG>(MethodInfo mi, TARG[] arguments, Func<TARG, Type> getType)
 			where TARG : class
 		{
-			ParameterInfo[] parameters = mi.GetParameters();
-			Type[] genericArguments = mi.GetGenericArguments();
-			Type[] genericParameter = new Type[genericArguments.Length];
+			var parameterInfo = mi.GetParameters();
+			var genericArguments = mi.GetGenericArguments();
+			var genericParameter = new Type[genericArguments.Length];
 
-			for (int i = 0; i < genericArguments.Length; i++)
+			for (var i = 0; i < genericArguments.Length; i++)
 			{
 				Type t = null;
 
 				// look for the typ
-				for (int j = 0; j < parameters.Length; j++)
+				for (int j = 0; j < parameterInfo.Length; j++)
 				{
-					if (parameters[j].ParameterType == genericArguments[i])
+					if (parameterInfo[j].ParameterType == genericArguments[i])
 					{
 						t = CombineType(t, getType(arguments[j]));
 						break;
@@ -2049,7 +2155,7 @@ namespace Neo.IronLua
 			else
 				return typeof(object);
 		} // func CombineType
-
+		
 		#endregion
 
 		#region -- Reflection Helper ------------------------------------------------------

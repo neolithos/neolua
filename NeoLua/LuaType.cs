@@ -381,7 +381,7 @@ namespace Neo.IronLua
 					ConstructorInfo ci =
 						typeinfoNew.IsValueType && args.Length == 0 ?  // value-types with zero arguments always constructable
 							null :
-							LuaEmit.FindMember(typeNew.GetTypeInfo().DeclaredConstructors.Where(c => c.IsPublic), callInfo, args, mo => mo.LimitType);
+							LuaEmit.FindMember(typeNew.GetTypeInfo().DeclaredConstructors.Where(c => c.IsPublic), callInfo, args, mo => mo.LimitType, false);
 
 					// ctor not found for a class
 					if (ci == null && !typeinfoNew.IsValueType)
