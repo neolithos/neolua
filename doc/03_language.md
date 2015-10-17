@@ -175,6 +175,30 @@ function add(a, b : int) -- Func<object, int, LuaResult>
 end;
 ```
 
+## function call
+
+In NeoLua it is possible to use parameter names on function calls.
+
+```
+call ::= expr ‘(‘ [ [ identifier = expr { ‘,’ identifier = expr } ] ´)´
+```
+
+Important:
+```Lua
+local function add(a, b)
+  return a + b;
+end;
+
+return add(a=40, b=2);
+```
+This example will not return `42`, because the function signature is not `Func(object a, object b) : object` 
+it is `Func<object,object,object>(object arg1, object arg2) : object`. The reason is that lambda functions
+always use predefined signatures.
+
+```Lua
+return add(arg1=40, arg2=2); -- is 42
+```
+
 ## `return`
 
 If you do not declare a return type, then NeoLua functions always return a `LuaResult`.
