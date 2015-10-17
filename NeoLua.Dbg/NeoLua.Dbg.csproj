@@ -1,7 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <Import Project="..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets" Condition="Exists('..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -88,24 +87,9 @@
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   -->
-  <Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
-    <CreateItem Include="$(TargetDir)\Neo.Lua.*;$(TargetDir)\Microsoft.*;$(TargetDir)\de\*">
-      <Output ItemName="ZipFile" TaskParameter="Include" />
-    </CreateItem>
-    <Zip Files="@(ZipFile)" WorkingDirectory="$(TargetDir)" ZipFileName="$(TargetDir)\NeoDbg-$(Version).zip" />
-  </Target>
-  <Target Name="BeforeBuild">
-    <ReadLinesFromFile File="..\NeoLua\Properties\AssemblyInfoGlobal.cs">
-      <Output TaskParameter="Lines" ItemName="AssemblyVersionContent" />
-    </ReadLinesFromFile>
-    <PropertyGroup>
-      <Pattern>\[assembly: AssemblyFileVersion\(.(\d+)\.(\d+)\.(\d+)</Pattern>
-      <AssemblyVersionLines>@(AssemblyVersionContent)</AssemblyVersionLines>
-      <AssemblyVersionLine>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyVersionLines), $(Pattern)))</AssemblyVersionLine>
-      <Version>$(AssemblyVersionLine.Remove(0, 32))</Version>
-    </PropertyGroup>
-    <Message Text="Version: $(Version)" />
-  </Target>
-  <Target Name="AfterBuild" DependsOnTargets="ZipLua">
+
+	<Target Name="BeforeBuild">
+	</Target>
+  <Target Name="AfterBuild">
   </Target>
 </Project>
