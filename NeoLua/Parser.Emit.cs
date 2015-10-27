@@ -400,19 +400,22 @@ namespace Neo.IronLua
 			 );
 		} // func InvokeMemberExpressionDynamic
 
-		private static Expression EnsureInvokeResult(Scope scope, Token tStart, Expression expr, InvokeResult result, Expression instance, string sMember)
+		private static Expression EnsureInvokeResult(Scope scope, Token tStart, Expression expr, InvokeResult result, Expression instance, string memberName)
 		{
 			switch (result)
 			{
 				case InvokeResult.LuaResult:
-					return ConvertExpression(scope.Runtime, tStart, expr, typeof(LuaResult));
+					if (expr.Type == typeof(object))
+						return ConvertExpression(scope.Runtime, tStart, expr, typeof(LuaResult));
+					else
+						return MemberGetSandbox(scope, expr, instance, memberName);
 				case InvokeResult.Object:
 					if (LuaEmit.IsDynamicType(expr.Type))
-						return MemberGetSandbox(scope,DynamicExpression.Dynamic(scope.Runtime.GetConvertBinder(typeof(object)), typeof(object), ConvertExpression(scope.Runtime, tStart, expr, typeof(object))), instance, sMember);
+						return MemberGetSandbox(scope,DynamicExpression.Dynamic(scope.Runtime.GetConvertBinder(typeof(object)), typeof(object), ConvertExpression(scope.Runtime, tStart, expr, typeof(object))), instance, memberName);
 					else
-						return MemberGetSandbox(scope, expr, instance, sMember);
+						return MemberGetSandbox(scope, expr, instance, memberName);
 				default:
-					return MemberGetSandbox(scope, expr, instance, sMember);
+					return MemberGetSandbox(scope, expr, instance, memberName);
 			}
 		} // func EnsureInvokeResult
 
