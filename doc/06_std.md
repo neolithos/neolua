@@ -80,7 +80,7 @@ Coroutines are implemented in the LuaThread class. This class creates a managed 
 
 ## Table manipulation (table)
 
-* ![Is compatible to the lua reference.][done] `conat`  
+* ![Is compatible to the lua reference.][done] `concat`  
 * ![Is compatible to the lua reference.][done] `insert`  
 * ![Not implemented. Yet.][noti] `move`  
 * ![Is compatible to the lua reference.][done] `pack`  
