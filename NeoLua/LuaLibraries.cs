@@ -274,8 +274,10 @@ namespace Neo.IronLua
 
 			if (plain) // plain pattern
 			{
-				int iIndex = s.IndexOf(pattern, init - 1);
-				return new LuaResult(iIndex + 1, iIndex + pattern.Length);
+				var index = s.IndexOf(pattern, init - 1);
+				return index == -1 ? 
+					null : 
+					new LuaResult(index + 1, index + pattern.Length);
 			}
 			else
 			{
