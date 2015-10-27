@@ -191,7 +191,7 @@ namespace LuaDLR.Test
     {
       TestCode("return string.find('   abc', '%a+');", 4, 6, "abc");
     } // proc TestRuntimeLua13
-
+		
     [TestMethod]
     public void TestRuntimeLua14()
     {
@@ -203,6 +203,13 @@ namespace LuaDLR.Test
         g.DoChunk("debug:Print('Hallo World!');", "test.lua");
       }
     } // proc TestRuntimeLua13
+
+		[TestMethod]
+		public void TestRuntimeLua15()
+		{
+			TestCode(Lines("return string.gsub('192.168.33.15', '[0-9]+', 'x');"),
+				"x.x.x.x", 4);
+		}
 
     [TestMethod]
     public void TestGlobalMember01()

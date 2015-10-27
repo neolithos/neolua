@@ -41,23 +41,24 @@ namespace Neo.IronLua
 				iLen = s.Length - iStart;
 		} // proc NormalizeStringArguments
 
-		private static string TranslateRegularExpression(string sRegEx)
+		private static string TranslateRegularExpression(string regEx)
 		{
 			if (!lTranslateRegEx)
-				return sRegEx;
+				return regEx;
 
-			StringBuilder sb = new StringBuilder();
-			bool lEscape = false;
+			var sb = new StringBuilder();
+			var escapeCode = false;
+			var inCharList = false;
 
-			for (int i = 0; i < sRegEx.Length; i++)
+			for (var i = 0; i < regEx.Length; i++)
 			{
-				char c = sRegEx[i];
-				if (lEscape)
+				char c = regEx[i];
+				if (escapeCode)
 				{
 					if (c == '%')
 					{
 						sb.Append('%');
-						lEscape = false;
+						escapeCode = false;
 					}
 					else
 					{
@@ -134,10 +135,10 @@ namespace Neo.IronLua
 								break;
 
 							case 'b': // github #12
-								if (i < sRegEx.Length - 2)
+								if (i < regEx.Length - 2)
 								{
-									char c1 = sRegEx[i + 1];
-									char c2 = sRegEx[i + 2];
+									char c1 = regEx[i + 1];
+									char c2 = regEx[i + 2];
 									//Example for %b()
 									//(\((?>(?<n>\()|(?<-n>\))|(?:[^\(\)]*))*\)(?(n)(?!)))
 									//Example for %bab
@@ -165,19 +166,30 @@ namespace Neo.IronLua
 								sb.Append(c);
 								break;
 						}
-						lEscape = false;
+						escapeCode = false;
 					}
 				}
 				else if (c == '%')
 				{
-					lEscape = true;
+					escapeCode = true;
 				}
 				else if (c == '\\')
 				{
 					sb.Append("\\\\");
 				}
+				else if (inCharList)
+				{
+					if (c == ']')
+						inCharList = false;
+					sb.Append(c);
+				}
 				else if (c == '-')
 					sb.Append("+?");
+				else if (c == '[')
+				{
+					sb.Append('[');
+					inCharList = true;
+				}
 				else
 					sb.Append(c);
 			}
