@@ -1673,7 +1673,7 @@ namespace Neo.IronLua
 					}
 					else // build a generic type
 					{
-						Type typeGeneric = Type.GetType(currentType.FullName + "`" + genericeTypes.Count.ToString());
+						var typeGeneric = LuaType.GetType(currentType.FullName + "`" + genericeTypes.Count.ToString()).Type;
 						if (typeGeneric == null)
 							throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
 

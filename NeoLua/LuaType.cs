@@ -548,6 +548,8 @@ namespace Neo.IronLua
 
 				// update the base type
 				var tmp = type.GetTypeInfo().BaseType;
+				if (tmp != null && tmp.IsConstructedGenericType)
+					tmp = tmp.GetGenericTypeDefinition();
 				baseType = tmp != null ? LuaType.GetType(tmp) : null;
 
 				// update the known types
