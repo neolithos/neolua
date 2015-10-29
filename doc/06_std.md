@@ -63,10 +63,10 @@ Coroutines are implemented in the LuaThread class. This class creates a managed 
 * ![Is compatible to the lua reference.][done] `byte`  
 * ![Is compatible to the lua reference.][done] `char`  
 * ![Not implemented. Yet.][noti] `dump`  
-* ![Not full compatible to the lua reference.][noco] `find`  .net regex syntax with an exchange of the escape symbol % is \. But you can set string__TranslateRegEx to false to use .net regulare expressions.
+* ![Not full compatible to the lua reference.][noco] `find`  .net regex syntax with an exchange of the escape symbol % is \. But you can set string.__TranslateRegEx to false to use .net regulare expressions.
 * ![Is compatible to the lua reference.][done] `format`  
-* ![Not full compatible to the lua reference.][noco] `gmatch`  .net regex syntax with an exchange of the escape symbol % is \. But you can set string__TranslateRegEx to false to use .net regulare expressions.
-* ![Not full compatible to the lua reference.][noco] `gsub`  .net regex syntax with an exchange of the escape symbol % is \. But you can set string__TranslateRegEx to false to use .net regulare expressions.
+* ![Not full compatible to the lua reference.][noco] `gmatch`  .net regex syntax with an exchange of the escape symbol % is \. But you can set string.__TranslateRegEx to false to use .net regulare expressions.
+* ![Not full compatible to the lua reference.][noco] `gsub`  .net regex syntax with an exchange of the escape symbol % is \. But you can set string.__TranslateRegEx to false to use .net regulare expressions.
 * ![Is compatible to the lua reference.][done] `len`  
 * ![Is compatible to the lua reference.][done] `lower`  
 * ![Not full compatible to the lua reference.][noco] `match`  
@@ -80,7 +80,7 @@ Coroutines are implemented in the LuaThread class. This class creates a managed 
 
 ## Table manipulation (table)
 
-* ![Is compatible to the lua reference.][done] `conat`  
+* ![Is compatible to the lua reference.][done] `concat`  
 * ![Is compatible to the lua reference.][done] `insert`  
 * ![Not implemented. Yet.][noti] `move`  
 * ![Is compatible to the lua reference.][done] `pack`  
