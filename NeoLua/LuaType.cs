@@ -1254,7 +1254,7 @@ namespace Neo.IronLua
 			//   expr is typeof(ILuaMethod) && expr.Type == type && !args!
 			return BindingRestrictions.GetExpressionRestriction(
 					Expression.AndAlso(
-						Expression.TypeIs(methodExpression, typeof(ILuaMethod)),
+						Expression.TypeEqual(methodExpression, methodValue.GetType()), // exact type, to make a difference between overload and none overload
 						Expression.AndAlso(
 							Expression.Equal(
 								Expression.Property(Expression.Convert(methodExpression, typeof(ILuaMethod)), Lua.MethodTypePropertyInfo),
