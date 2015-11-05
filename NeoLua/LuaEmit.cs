@@ -1117,8 +1117,16 @@ namespace Neo.IronLua
 				Type typeEnum = null;
 				if (typeOp.GetTypeInfo().IsEnum)
 				{
-					if (type1.GetTypeInfo().IsEnum && type2.GetTypeInfo().IsEnum)
+					if (type1.GetTypeInfo().IsEnum && type2.GetTypeInfo().IsEnum &&
+							op != ExpressionType.Equal &&
+							op != ExpressionType.NotEqual &&
+							op != ExpressionType.LessThan &&
+							op != ExpressionType.LessThanOrEqual &&
+							op != ExpressionType.GreaterThan &&
+							op != ExpressionType.GreaterThanOrEqual)
+					{
 						typeEnum = typeOp; // save enum
+					}
 					typeOp = Enum.GetUnderlyingType(typeOp);
 				}
 

@@ -10,6 +10,13 @@ using Neo.IronLua;
 
 namespace LuaDLR.Test
 {
+	public enum TestEnum
+	{
+		Value1 = 1,
+		Value2,
+		Value3
+	}
+
   [TestClass]
   public class Expressions : TestHelper
   {
@@ -956,11 +963,83 @@ namespace LuaDLR.Test
         ), true);
     }
 
-    #endregion
+		[TestMethod]
+		public void TestCompare11()
+		{
+			TestCode(Lines(
+				"local a = clr.LuaDLR.Test.TestEnum.Value1;",
+				"if a == clr.LuaDLR.Test.TestEnum.Value1 then",
+				"  return 42;",
+				"else",
+				"  return 0;",
+				"end;"), 42);
+		}
 
-    #region -- Concat -----------------------------------------------------------------
+		[TestMethod]
+		public void TestCompare12()
+		{
+			TestCode(Lines(
+				"local a = clr.LuaDLR.Test.TestEnum.Value1;",
+				"if a == 1 then",
+				"  return 42;",
+				"else",
+				"  return 0;",
+				"end;"), 42);
+		}
 
-    [TestMethod]
+		[TestMethod]
+		public void TestCompare13()
+		{
+			TestCode(Lines(
+				"local a : LuaDLR.Test.TestEnum = 1;",
+				"if a == clr.LuaDLR.Test.TestEnum.Value1 then",
+				"  return 42;",
+				"else",
+				"  return 0;",
+				"end;"), 42);
+		}
+
+		[TestMethod]
+		public void TestCompare14()
+		{
+			TestCode(Lines(
+				"local a = clr.LuaDLR.Test.TestEnum.Value1;",
+				"if a ~= clr.LuaDLR.Test.TestEnum.Value1 then",
+				"  return 0;",
+				"else",
+				"  return 42;",
+				"end;"), 42);
+		}
+
+		[TestMethod]
+		public void TestCompare15()
+		{
+			TestCode(Lines(
+				"local a = clr.LuaDLR.Test.TestEnum.Value1;",
+				"if a ~= 1 then",
+				"  return 0;",
+				"else",
+				"  return 42;",
+				"end;"), 42);
+		}
+
+		[TestMethod]
+		public void TestCompare16()
+		{
+			TestCode(Lines(
+				"local a : LuaDLR.Test.TestEnum = 1;",
+				"if a ~= clr.LuaDLR.Test.TestEnum.Value1 then",
+				"  return 0;",
+				"else",
+				"  return 42;",
+				"end;"), 42);
+		}
+
+		#endregion
+
+		#region -- Concat -----------------------------------------------------------------
+
+		[TestMethod]
     public void TestConcat01() { TestExpr("'a' .. 'b' .. 'c'", "abc"); }
 
     [TestMethod]
@@ -999,6 +1078,7 @@ namespace LuaDLR.Test
         TestResult(g.dochunk(c, new TestOperator2(3)), 3);
       }
     }
+
     #endregion
 
     #region -- Table ------------------------------------------------------------------
