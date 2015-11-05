@@ -2176,11 +2176,10 @@ namespace Neo.IronLua
 			// register the delegate
 			if (functionTypeCollected != null)
 			{
-				functionTypeCollected(
-					Expression.GetFuncType(
-						(from p in parameters select p.Type).Concat(new Type[] { scope.ReturnType }).ToArray()
-					)
-				);
+				var functionType = scope.ReturnType == typeof(void) ?
+					Expression.GetActionType((from p in parameters select p.Type).ToArray()) :
+					Expression.GetFuncType((from p in parameters select p.Type).Concat(new Type[] { scope.ReturnType }).ToArray());
+				functionTypeCollected(functionType);
 			}
 
 			// Lese den Code-Block
