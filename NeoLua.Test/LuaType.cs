@@ -468,6 +468,16 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
+		public void OverloadTest03()
+		{
+			var fi = new DirectoryInfo("c:\\").GetFiles();
+			TestCode(Lines(
+				"local di = clr.System.IO.DirectoryInfo([[c:\\]]);",
+				"local files = di:GetFiles();",
+				"return files.Length"), fi.Length);
+		}
+
+		[TestMethod]
 		public void ExtensionTest01()
 		{
 			LuaType.RegisterTypeExtension(typeof(TypeExt));

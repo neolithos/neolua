@@ -1889,8 +1889,8 @@ namespace Neo.IronLua
 		private sealed class MemberMatchInfo<TMEMBERTYPE>
 			where TMEMBERTYPE : MemberInfo
 		{
-			private readonly int argumentsLength;
-			private readonly bool unboundedArguments;
+			private readonly int argumentsLength;			// number of arguments we need to match
+			private readonly bool unboundedArguments;	// is the number endless (LuaResult as last argument)
       private int matchesOnBeginning;
 			private int exactMatches;
 			private int implicitMatches;
@@ -1950,7 +1950,9 @@ namespace Neo.IronLua
 					return true;
 				else if (!unboundedArguments || currentParameterLength == other.currentParameterLength)
 				{
-					if (matchesOnBeginning > other.matchesOnBeginning ||
+					if (argumentsLength == 0 && currentParameterLength == 0) // zero arguments
+						return true;
+					else if (matchesOnBeginning > other.matchesOnBeginning ||
 						exactMatches > other.exactMatches ||
 						implicitMatches > other.implicitMatches) // good matches
 						return NoneMatches <= other.NoneMatches; // too much bad machtes, so it might be not better
