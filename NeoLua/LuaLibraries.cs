@@ -570,7 +570,7 @@ namespace Neo.IronLua
 			pattern = TranslateRegularExpression(pattern);
 
 			Regex r = new Regex(pattern);
-			return MatchResult(r.Match(s, init));
+			return MatchResult(r.Match(s, init - 1));
 		} // func match
 
 		private static LuaResult MatchResult(Match m)
