@@ -407,21 +407,24 @@ namespace Neo.IronLua
 
 			private BindingRestrictions GetTypeNotResolvedRestriction()
 			{
-				return BindingRestrictions.GetExpressionRestriction(
-					Expression.AndAlso(
-						Expression.TypeEqual(Expression, typeof(LuaType)),
-						Expression.AndAlso(
-							Expression.ReferenceEqual(
-								Expression.Property(Expression.Convert(Expression, typeof(LuaType)), Lua.TypeParentPropertyInfo),
-								Expression.Constant(((LuaType)Value).Parent)
-							),
-							Expression.Equal(
-								Expression.Property(Lua.EnsureType(Expression, typeof(LuaType)), Lua.TypeTypePropertyInfo),
-								Expression.Default(typeof(Type))
-							)
-						)
-					)
-				);
+				// expr == typeof(LuaType) && (expr.Parent == value.Parent && expr.Type == null)
+				//return BindingRestrictions.GetExpressionRestriction(
+				//	Expression.AndAlso(
+				//		Expression.TypeEqual(Expression, typeof(LuaType)),
+				//		Expression.AndAlso(
+				//			Expression.ReferenceEqual(
+				//				Expression.Property(Expression.Convert(Expression, typeof(LuaType)), Lua.TypeParentPropertyInfo),
+				//				Expression.Constant(((LuaType)Value).Parent)
+				//			),
+				//			Expression.Equal(
+				//				Expression.Property(Lua.EnsureType(Expression, typeof(LuaType)), Lua.TypeTypePropertyInfo),
+				//				Expression.Default(typeof(Type))
+				//			)
+				//		)
+				//	)
+				//);
+				// fix = expr == value  :: consumes memory
+				return BindingRestrictions.GetInstanceRestriction(Expression, Value);
 			} // func GetTypeNotResolvedRestriction
 
 			private BindingRestrictions GetTypeResolvedRestriction(Type type)

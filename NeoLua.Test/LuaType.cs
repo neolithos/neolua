@@ -501,7 +501,16 @@ namespace LuaDLR.Test
 				Console.WriteLine("Failed...");
 			}
 		}
-  } // class LuaTypeTests 
+
+		[TestMethod]
+		public void NamespaceTest01()
+		{
+			LuaType.RegisterTypeExtension(typeof(TypeExt));
+
+			TestCode("return '{0} {1}':Format(clr.System.Windows, clr.Microsoft.Windows);", "System.Windows Microsoft.Windows");
+		}
+
+	} // class LuaTypeTests 
 
 	public static class TypeExt
 	{
