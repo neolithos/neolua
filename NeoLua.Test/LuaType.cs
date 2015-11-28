@@ -478,6 +478,14 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
+		public void OverloadTest04()
+		{
+			TestCode(Lines(
+				"local utf8 = clr.System.Text.Encoding.UTF8;",
+				"return #utf8:GetBytes('hi');"), 2);
+		}
+
+		[TestMethod]
 		public void ExtensionTest01()
 		{
 			LuaType.RegisterTypeExtension(typeof(TypeExt));

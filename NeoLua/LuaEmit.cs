@@ -1960,12 +1960,21 @@ namespace Neo.IronLua
 				{
 					if (argumentsLength == 0 && currentParameterLength == 0) // zero arguments
 						return true;
+
 					else if (matchesOnBeginning > other.matchesOnBeginning ||
 						exactMatches > other.exactMatches ||
-						implicitMatches > other.implicitMatches) // good matches
-						return NoneMatches <= other.NoneMatches; // too much bad machtes, so it might be not better
+						implicitMatches > other.implicitMatches) // good matches (more)
+						return true;
+					else if (matchesOnBeginning == other.matchesOnBeginning ||
+						exactMatches == other.exactMatches ||
+						implicitMatches == other.implicitMatches) // good matches (equal)
+						return NoneMatches < other.NoneMatches; // too much bad machtes, so it might be not better
+
 					else if (explicitMatches > other.explicitMatches)
-						return NoneMatches <= other.NoneMatches;
+						return true;
+					else if (explicitMatches == other.explicitMatches)
+						return NoneMatches < other.NoneMatches;
+
 					else
 						return false;
 				}
