@@ -281,5 +281,15 @@ namespace LuaDLR.Test
 				TestResult(g.DoChunk("return BoolProperty", "test2.lua"), true);
 			}
 		}
+
+		[TestMethod]
+		public void TestConvert01()
+		{
+			var t = new LuaTable();
+			t["DataType"] = typeof(StringBuilder);
+			var r = Lua.RtConvertValue(t, typeof(LuaDLR.Test.LuaTypeTests.DataTypeTest));
+			Assert.AreEqual(typeof(LuaTypeTests.DataTypeTest), r.GetType());
+			Assert.AreEqual(typeof(StringBuilder), ((LuaTypeTests.DataTypeTest)r).DataType);
+		}
   } // class Runtime
 }
