@@ -47,6 +47,16 @@ namespace LuaDLR.Test
 			{
 				Console.WriteLine(string.Format(@"DrawLine '{4}' with Point: {0},{1}, {2},{3}", pt1.x, pt1.y, pt2.x, pt2.y, pen));
 			}
+
+			public void Info(string text)
+			{
+				Console.WriteLine("Info(text)");
+			}
+
+			public void Info(string text, params object[] args)
+			{
+				Console.WriteLine("Info(text, args)");
+			}
 		}
 
     public class SubClass
@@ -463,6 +473,8 @@ namespace LuaDLR.Test
 		{
 			TestCode(Lines(
 				"graph = clr.LuaDLR.Test.LuaTypeTests.Graph();",
+				"graph:Info('test12', 1, 2);",
+				"graph:Info('test');",
 				"graph.DrawLine('a', 1, 1, 1, 1);",
 				"graph.DrawLine('b', 1, 1, 1, 1.0);",
 				"graph.DrawLine('c', 1, 1, 1.0, 1);",

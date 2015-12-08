@@ -1897,15 +1897,15 @@ namespace Neo.IronLua
 		private sealed class MemberMatchInfo<TMEMBERTYPE>
 			where TMEMBERTYPE : MemberInfo
 		{
-			private readonly int argumentsLength;			// number of arguments we need to match
-			private readonly bool unboundedArguments;	// is the number endless (LuaResult as last argument)
-      private int matchesOnBeginning;
-			private int exactMatches;
+			private readonly int argumentsLength;     // number of arguments we need to match
+			private readonly bool unboundedArguments; // is the number endless (LuaResult as last argument)
+			internal int matchesOnBeginning;
+			internal int exactMatches;
 			private int implicitMatches;
 			internal int explicitMatches;
 
 			private TMEMBERTYPE currentMember;
-			private int currentParameterLength;
+			internal int currentParameterLength;
 
 			public MemberMatchInfo(bool unboundedArguments, int argumentsLength)
 			{
@@ -1934,7 +1934,7 @@ namespace Neo.IronLua
 				switch (value)
 				{
 					case MemberMatchValue.Exact:
-						if (positional && explicitMatches == 0)
+						if (positional && explicitMatches == matchesOnBeginning)
 							matchesOnBeginning++;
 						exactMatches++;
 						goto case MemberMatchValue.Implicit;
@@ -2054,17 +2054,38 @@ namespace Neo.IronLua
 				}
 			} // func GetMemberParameter
 
-			private void ResetPositional(ParameterInfo[] parameterInfo, MemberMatchInfo<TMEMBERTYPE> target)
-			{
-				var length = Math.Min(parameterInfo.Length, arguments.Length);
-				ResetPositionalPart(parameterInfo, length, target);
-			} // proc ResetPositional
-
 			private void ResetPositionalPart(ParameterInfo[] parameterInfo, int length, MemberMatchInfo<TMEMBERTYPE> target)
 			{
 				for (var i = 0; i < length; i++)
 					target.SetMatch(GetParameterMatch(parameterInfo[i].ParameterType.GetTypeInfo(), getType(arguments[i]).GetTypeInfo()), true);
 			} // proc ResetPositionalPart
+
+			private void ResetPositional(ParameterInfo[] parameterInfo, MemberMatchInfo<TMEMBERTYPE> target)
+			{
+				if (target.currentParameterLength == Int32.MaxValue)
+				{
+					// check first part
+					var length = Math.Min(parameterInfo.Length - 1, arguments.Length);
+					ResetPositionalPart(parameterInfo, length, target);
+
+					// test the array
+					var rest = lastIsExpandable ? Int32.MaxValue - length : arguments.Length - length;
+					var elementType = parameterInfo[parameterInfo.Length - 1].ParameterType.GetElementType();
+					if (elementType == typeof(object)) // all is possible
+					{
+						if (target.explicitMatches == target.matchesOnBeginning)
+							target.matchesOnBeginning += rest;
+						target.exactMatches += rest;
+					}
+					else
+						target.explicitMatches += rest;
+				}
+				else
+				{
+					var length = Math.Min(parameterInfo.Length, arguments.Length);
+					ResetPositionalPart(parameterInfo, length, target);
+				}
+			} // proc ResetPositional
 
 			private void ResetPositionalMax(ParameterInfo[] parameterInfo, MemberMatchInfo<TMEMBERTYPE> target)
 			{
