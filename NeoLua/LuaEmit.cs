@@ -255,7 +255,7 @@ namespace Neo.IronLua
 			}
 		} // func IsFloatType
 
-		private static bool IsConvertOperator(MethodInfo methodInfo)
+		internal static bool IsConvertOperator(MethodInfo methodInfo)
 		{
 			return methodInfo.IsPublic && methodInfo.IsStatic && methodInfo.IsSpecialName && (methodInfo.Name == csImplicit || methodInfo.Name == csExplicit);
 		} // func IsConvertOperator

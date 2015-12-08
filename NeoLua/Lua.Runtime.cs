@@ -715,7 +715,11 @@ namespace Neo.IronLua
 								bool lImplicit = false;
 								bool lExactTo = false;
 								bool lExactFrom = false;
-								MethodInfo mi = LuaEmit.FindConvertMethod(typeinfoTo.DeclaredMethods.Where(c => c.IsPublic && c.IsStatic), fromType, toType, ref lImplicit, ref lExactFrom, ref lExactTo);
+								var mi = LuaEmit.FindConvertMethod(
+									typeinfoTo.DeclaredMethods.Where(LuaEmit.IsConvertOperator).Concat(typeinfoFrom.DeclaredMethods.Where(LuaEmit.IsConvertOperator)),
+									fromType, toType,
+									ref lImplicit, ref lExactFrom, ref lExactTo);
+								
 								if (mi != null)
 								{
 									if (!lExactFrom)

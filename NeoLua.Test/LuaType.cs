@@ -16,6 +16,11 @@ namespace LuaDLR.Test
   [TestClass]
   public class LuaTypeTests : TestHelper
   {
+		public class DataTypeTest
+		{
+			public Type DataType;
+		}
+
 		public class Graph
 		{
 			public struct PointF
@@ -110,6 +115,8 @@ namespace LuaDLR.Test
 			return color == Color.Green;
 		}
 
+		// ------------------------------------------------------------------------
+
     [TestMethod]
     public void TypeTest01()
     {
@@ -199,6 +206,20 @@ namespace LuaDLR.Test
 		public void TypeTest07()
 		{
 			TestCode("return clr.LuaDLR.Test.LuaTypeTests:GreenColor(clr.System.Drawing.Color.Green);", true);
+		}
+
+		[TestMethod]
+		public void TypeTest08()
+		{
+			TestCode(Lines("local t : System.Type = clr.System.Text.StringBuilder;",
+				"return t"), typeof(System.Text.StringBuilder));
+		}
+
+		[TestMethod]
+		public void TypeTest09()
+		{
+			TestCode(Lines("local t : LuaDLR.Test.LuaTypeTests.DataTypeTest = { DataType = clr.System.Text.StringBuilder };",
+				"return t.DataType"), typeof(System.Text.StringBuilder));
 		}
 
 		[TestMethod]
