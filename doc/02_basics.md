@@ -73,7 +73,7 @@ debug information. With the method `LuaExceptionData.GetData` you can retrieve f
 
 ## Metatables and Metamethods
 
-Every lua table has member, that holds the metatable (`__metatable`).
+Every lua table has a member, that holds the metatable (`__metatable`).
 
 ```C#
 ta = { __add = function(a, b)
@@ -140,6 +140,6 @@ return t1 + t2;
 ## Coroutines
 
 Coroutines are implemented in the LuaThread class. This class creates a managed thread for every coroutine. 
-The resume-steps can run asynchronous (:BeginResume, :EndResume).
+The resume-steps can run asynchronous (`:BeginResume`, `:EndResume`).
 
 The NeoLua-Runtime is threadsafe, so it is possible to use the multithreading features from the .net framework.
