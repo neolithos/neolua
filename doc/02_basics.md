@@ -73,7 +73,87 @@ debug information. With the method `LuaExceptionData.GetData` you can retrieve f
 
 ## Metatables and Metamethods
 
-*- done -*
+Every lua table has member, that holds the metatable (`__metatable`).
+
+```C#
+ta = { __add = function(a, b)
+		return a.v + b.v;
+	end
+};
+
+t1 = { __metatable = ta, v = 40 };
+t2 = { __metatable = ta, v = 2 };
+
+return t1 + t2;
+
+```
+
++--------------+-------------------------------------+
+| Member       | Signature                           |
++--------------+-------------------------------------+
+| `__add`      | `(table, object) : object`          |
+|              | `:(object) : object`                |
++--------------+-------------------------------------+
+| `__sub`      | `(table, object) : object`          |
+|              | `:(object) : object`                |
++--------------+-------------------------------------+
+| `__mul`      | `(table, object) : object`          |
+|              | `:(object) : object`                |
++--------------+-------------------------------------+
+| `__div`      | `(table, object) : object`          |
+|              | `:(object) : object`                |
++--------------+-------------------------------------+
+| `__mod`      | `(table, object) : object`          |
+|              | `:(object) : object`                |
++--------------+-------------------------------------+
+| `__pow`      | `(table, object) : object`          |
+|              | `:(object) : object`                |
++--------------+-------------------------------------+
+| `__idiv`     | `(table, object) : object`          |
+|              | `:(object) : object`                |
++--------------+-------------------------------------+
+| `__unm`      | `(table) : object`                  |
+|              | `:()object`                         |
++--------------+-------------------------------------+
+| `__band`     | `(table, object) : object`          |
+|              | `:(object) : object`                |
++--------------+-------------------------------------+
+| `__bor`      | `(table, object) : object`          |
+|              | `:(object) : object`                |
++--------------+-------------------------------------+
+| `__bxor`     | `(table, object) : object`          |
+|              | `:(object) : object`                |
++--------------+-------------------------------------+
+| `__bnot`     | `(table) : object`                  |
+|              | `:() : object`                      |
++--------------+-------------------------------------+
+| `__shl`      | `(table, object) : object`          |
+|              | `:(object) : object`                |
++--------------+-------------------------------------+
+| `__shr`      | `(table, object) : object`          |
+|              | `:(object) : object`                |
++--------------+-------------------------------------+
+| `__concat`   | `(table, object) : object`          |
+|              | `:(object) : object`                |
++--------------+-------------------------------------+
+| `__len`      | `(table) : object`                  |
+|              | `:() : object`                      |
++--------------+-------------------------------------+
+| `__lt`       | `(table, object) : bool`            |
+|              | `:(object) : object`                |
++--------------+-------------------------------------+
+| `__le`       | `(table, object) : bool`            |
+|              | `:(object) : object`                |
++--------------+-------------------------------------+
+| `__index`    | `(table, key) : object`             |
+|              | `:(key) : object`                   |
++--------------+-------------------------------------+
+| `__newindex` | `(table, key, value) : object`      |
+|              | `:(key, value) : object`            |
++--------------+-------------------------------------+
+| `__call`     | `(table, object, ...) : result`     |
+|              | `:(object, ...) : result`           |
++--------------+-------------------------------------+
 
 ## Garbage Collection
 
