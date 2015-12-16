@@ -2114,7 +2114,7 @@ namespace Neo.IronLua
 					foreach (var cur in callInfo.ArgumentNames)
 					{
 						var index = Array.FindIndex(parameterInfo, positionalArguments, c => c.Name == cur);
-						if (index == -1)
+						if (index != -1)
 							target.SetMatch(GetParameterMatch(parameterInfo[index].ParameterType.GetTypeInfo(), getType(arguments[i++]).GetTypeInfo()), false);
 					}
 				}
