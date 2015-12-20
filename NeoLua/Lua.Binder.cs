@@ -73,6 +73,18 @@ namespace Neo.IronLua
           try
           {
             expr = EnsureType(LuaEmit.GetMember(lua, target.Expression, target.LimitType, Name, IgnoreCase, false), ReturnType);
+
+						/*
+						 * Fallback-Calls
+						 *   first it get calls with no error suggestion -> return the default value
+						 *   second call is to create a bind expression again, with the default value suggest
+						 *   Example: DynamicObject - creates something like
+						 *   
+						 *   fallback(TryGetMember(binder, out result) ? result : fallback(null));
+						 *
+						 */
+						if (expr.NodeType == ExpressionType.Default && errorSuggestion != null)
+							return errorSuggestion;
           }
           catch (LuaEmitException e)
           {
