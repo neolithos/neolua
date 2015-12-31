@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Neo.IronLua
 {
@@ -1893,7 +1895,7 @@ namespace Neo.IronLua
 		#region -- struct MemberMatchInfo -------------------------------------------------
 
 		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
+		/// <summary>Holds the result of the member.</summary>
 		private sealed class MemberMatchInfo<TMEMBERTYPE>
 			where TMEMBERTYPE : MemberInfo
 		{
@@ -1901,7 +1903,7 @@ namespace Neo.IronLua
 			private readonly bool unboundedArguments; // is the number endless (LuaResult as last argument)
 			internal int matchesOnBeginning;
 			internal int exactMatches;
-			private int implicitMatches;
+			internal int implicitMatches;
 			internal int explicitMatches;
 
 			private TMEMBERTYPE currentMember;
@@ -1912,6 +1914,12 @@ namespace Neo.IronLua
 				this.unboundedArguments = unboundedArguments;
 				this.argumentsLength = argumentsLength;
 			} // ctor
+
+			public override string ToString()
+			{
+				return String.Format("OnBegin={0}, Exact={1}, Implicit={2}, Explicit={3}, ParameterLength={4}, IsPerfect={5}",
+					matchesOnBeginning, exactMatches, implicitMatches, explicitMatches, currentParameterLength, IsPerfect);
+			} // func ToString
 
 			public void Reset(TMEMBERTYPE member, ParameterInfo[] parameter)
 			{
@@ -1952,28 +1960,57 @@ namespace Neo.IronLua
 			public bool IsBetter(MemberMatchInfo<TMEMBERTYPE> other) // is this better than other
 			{
 				if (other.IsPerfect)
+				{
+					Debug.WriteLine("  ==> other IsPerfect");
 					return true;
+				}
 
 				if (unboundedArguments && currentParameterLength > other.currentParameterLength)
+				{
+					Debug.WriteLine("  ==> other {0} && {1} > {2}", unboundedArguments, currentParameterLength, other.currentParameterLength);
 					return true;
+				}
 				else if (!unboundedArguments || currentParameterLength == other.currentParameterLength)
 				{
 					if (argumentsLength == 0 && currentParameterLength == 0) // zero arguments
+					{
+						Debug.WriteLine("  ==> other Zero Args");
 						return true;
+					}
 
 					else if (matchesOnBeginning > other.matchesOnBeginning ||
 						exactMatches > other.exactMatches ||
 						implicitMatches > other.implicitMatches) // good matches (more)
+					{
+						Debug.WriteLine("  ==> other is better");
 						return true;
+					}
 					else if (matchesOnBeginning == other.matchesOnBeginning ||
 						exactMatches == other.exactMatches ||
 						implicitMatches == other.implicitMatches) // good matches (equal)
-						return NoneMatches < other.NoneMatches; // too much bad machtes, so it might be not better
+					{
+						var r = NoneMatches < other.NoneMatches; // too much bad machtes, so it might be not better
+#if DEBUG
+						if (r)
+							Debug.WriteLine("  ==> other is equal, but less bad matches");
+#endif
+						return r;
+					}
 
 					else if (explicitMatches > other.explicitMatches)
+					{
+						Debug.WriteLine("   ==> other has more explicit matches");
 						return true;
+					}
 					else if (explicitMatches == other.explicitMatches)
-						return NoneMatches < other.NoneMatches;
+					{
+						var r = NoneMatches < other.NoneMatches;
+#if DEBUG
+						if (r)
+							Debug.WriteLine("  ==> other is equal, but less bad matches");
+#endif
+						return r;
+					}
 
 					else
 						return false;
@@ -1993,7 +2030,7 @@ namespace Neo.IronLua
 		#region -- class MemberMatch ------------------------------------------------------
 
 		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
+		/// <summary>Holds the description of the arguments and the compare algorithm.</summary>
 		private sealed class MemberMatch<TMEMBERTYPE, TARG>
 			where TMEMBERTYPE : MemberInfo
 			where TARG : class
@@ -2014,6 +2051,20 @@ namespace Neo.IronLua
 				this.getType = getType;
 				this.lastIsExpandable = arguments.Length > 0 && getType(arguments[arguments.Length - 1]) == typeof(LuaResult);
 
+#if DEBUG
+				var argsDebug = new StringBuilder();
+				for (var i = 0; i < arguments.Length; i++)
+				{
+					if (argsDebug.Length > 0)
+						argsDebug.Append(", ");
+					var argNameIndex = i - arguments.Length + callInfo.ArgumentNames.Count;
+					if (argNameIndex >= 0)
+						argsDebug.Append(callInfo.ArgumentNames[argNameIndex]).Append(": ");
+					argsDebug.Append(getType(arguments[i]));
+				}
+				Debug.WriteLine("Call: {0}", argsDebug.ToString());
+#endif
+
 				// choose the algorithm
 				if (arguments.Length == 0 || positionalArguments == arguments.Length)
 				{
@@ -2024,15 +2075,20 @@ namespace Neo.IronLua
 				}
 				else
 					resetAlgorithm = ResetNamed;
+
+				Debug.WriteLine("Algorithm: {0}", resetAlgorithm.GetMethodInfo().Name);
 			} // ctor
 
 			public void Reset(TMEMBERTYPE member, bool isMemberCall, MemberMatchInfo<TMEMBERTYPE> target)
 			{
+				Debug.WriteLine("Reset member: {0}", member);
+
 				var parameterInfo = GetMemberParameter(member, isMemberCall);
 				target.Reset(member, parameterInfo);
 				resetAlgorithm(parameterInfo, target);
+				Debug.WriteLine("      Result: {0}", target);
 			} // proc Reset
-
+			
 			private static ParameterInfo[] GetMemberParameter(TMEMBERTYPE mi, bool isMemberCall)
 			{
 				var mb = mi as MethodBase;
@@ -2068,17 +2124,28 @@ namespace Neo.IronLua
 					var length = Math.Min(parameterInfo.Length - 1, arguments.Length);
 					ResetPositionalPart(parameterInfo, length, target);
 
+					// array to array match
+					if (arguments.Length == parameterInfo.Length)
+					{
+						var argLastType = getType(arguments[arguments.Length - 1]);
+						var paramLastType = parameterInfo[parameterInfo.Length - 1].ParameterType;
+						if (argLastType.IsArray && paramLastType.IsArray)
+						{
+							target.SetMatch(GetParameterMatch(argLastType.GetTypeInfo(), paramLastType.GetTypeInfo()), true);
+							return;
+						}
+					}
+
 					// test the array
 					var rest = lastIsExpandable ? Int32.MaxValue - length : arguments.Length - length;
 					var elementType = parameterInfo[parameterInfo.Length - 1].ParameterType.GetElementType();
 					if (elementType == typeof(object)) // all is possible
 					{
-						if (target.explicitMatches == target.matchesOnBeginning)
-							target.matchesOnBeginning += rest;
-						target.exactMatches += rest;
+						//if (target.explicitMatches == target.matchesOnBeginning)
+						//	target.matchesOnBeginning += rest;
+						target.implicitMatches += rest;
 					}
-					else
-						target.explicitMatches += rest;
+					target.explicitMatches += rest;
 				}
 				else
 				{
@@ -2092,14 +2159,11 @@ namespace Neo.IronLua
 				var checkArguments = arguments.Length - 1;
 				if (checkArguments >= parameterInfo.Length)
 					ResetPositionalPart(parameterInfo, parameterInfo.Length, target);
-				else
-				{
-					// check the positional part
+				else // check the positional part
 					ResetPositionalPart(parameterInfo, checkArguments, target);
 
-					// the last part will match
-					target.explicitMatches += parameterInfo.Length - checkArguments;
-				}
+				// the last part will match
+				target.explicitMatches = Int32.MaxValue;
 			} // proc ResetPositionalMax
 
 			private void ResetNamed(ParameterInfo[] parameterInfo, MemberMatchInfo<TMEMBERTYPE> target)
@@ -2230,6 +2294,8 @@ namespace Neo.IronLua
 					}
 				}
 			}
+
+			Debug.WriteLine("USED: {0}", memberMatchBind.CurrentMember);
 
 			return memberMatchBind.CurrentMember;
 		} // func FindMember

@@ -511,6 +511,7 @@ namespace Neo.IronLua
       // change to the samples directory
 #if DEBUG
       string sSamples = Path.GetFullPath(@"..\..\Samples");
+			Debug.Listeners.Add(new ConsoleTraceListener());
 #else
       string sSamples = Path.GetFullPath("Samples");
 #endif
