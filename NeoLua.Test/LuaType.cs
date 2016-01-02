@@ -519,6 +519,30 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
+		public void OverloadTest05()
+		{
+			TestCode(Lines(
+				"line = clr.System.String[]('Hallo', 'Welt', '!!!');",
+				"return clr.System.String:Join(' ', line);"), "Hallo Welt !!!");
+		}
+
+		[TestMethod]
+		public void OverloadTest06()
+		{
+			TestCode(Lines(
+				"local function line() return 'Hallo', 'Welt', '!!!'; end;",
+				"return clr.System.String:Join(' ', line());"), "Hallo Welt !!!");
+		}
+
+		[TestMethod]
+		public void OverloadTest07()
+		{
+			TestCode(Lines(
+				"local function line() return 'Hallo', 'Welt', '!!!'; end;",
+				"return clr.System.String:Format('{0} {1} {2}', line());"), "Hallo Welt !!!");
+		}
+
+		[TestMethod]
 		public void ExtensionTest01()
 		{
 			LuaType.RegisterTypeExtension(typeof(TypeExt));

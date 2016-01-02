@@ -26,6 +26,17 @@ namespace NeoTest1
 	//	}
 	//}
 
+
+	public class Folder
+	{
+		public int SomeId { get; set; }
+	}
+
+	public class File
+	{
+		public Folder Folder { get; set; }
+	}
+
 	public class DynData : DynamicObject
 	{
 		public override bool TryGetIndex(GetIndexBinder binder, object[] indexes, out object result)
@@ -56,15 +67,20 @@ namespace NeoTest1
 		{
 			//Console.WriteLine(TestAsync().Result);
 
-			var lua = new Lua();
-			var global = new LuaGlobalPortable(lua) { ["workspace"] = new DynData() };
-
-			var r= global.DoChunk("return workspace.Part", "Test.lua");
-
-			Console.WriteLine(r.ToString());
+			TestDynamic();
 
 			//LinqTest2();
 			Console.ReadKey();
+		}
+
+		private static void TestDynamic()
+		{
+			var lua = new Lua();
+			var global = new LuaGlobalPortable(lua) { ["workspace"] = new DynData() };
+
+			var r = global.DoChunk("return workspace.Part", "Test.lua");
+
+			Console.WriteLine(r.ToString());
 		}
 
 		private static void Test()
