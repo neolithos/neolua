@@ -288,12 +288,15 @@ namespace Neo.IronLua
 				Match m = r.Match(s, init - 1);
 				if (m.Success)
 				{
-					object[] result = new object[m.Captures.Count + 2];
+					object[] result = new object[m.Groups.Count + 1]; // first group is all, so add 2 - 1
 
+					// offset of the match
 					result[0] = m.Index + 1;
 					result[1] = m.Index + m.Length;
-					for (int i = 0; i < m.Captures.Count; i++)
-						result[i + 2] = m.Captures[i].Value;
+
+					// copy the groups
+					for (var i = 1; i < m.Groups.Count; i++)
+						result[i + 1] = m.Groups[i].Value;
 
 					return result;
 				}

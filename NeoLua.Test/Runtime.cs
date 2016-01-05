@@ -185,12 +185,6 @@ namespace LuaDLR.Test
     {
 			TestCode(GetLines("Lua.Runtime12.lua"), 2, "fromworldtoLua");
     } // proc TestRuntimeLua12
-
-    [TestMethod]
-    public void TestRuntimeLua13()
-    {
-      TestCode("return string.find('   abc', '%a+');", 4, 6, "abc");
-    } // proc TestRuntimeLua13
 		
     [TestMethod]
     public void TestRuntimeLua14()
