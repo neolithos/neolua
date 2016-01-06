@@ -127,7 +127,8 @@ namespace Neo.IronLua
 				else
 				{
 					sFileName = System.IO.Path.Combine(c, sModName + ".lua");
-					return LuaRequireCheckFile(ref sFileName, ref dtStamp);
+					if (LuaRequireCheckFile(ref sFileName, ref dtStamp))
+						return true;
 				}
 			}
 
