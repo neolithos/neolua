@@ -277,7 +277,7 @@ namespace Neo.IronLua
       WriteText(ConsoleColor.Red, e.Message);
       Console.WriteLine();
       LuaExceptionData eData = LuaExceptionData.GetData(e);
-      WriteText(ConsoleColor.DarkGray, eData.GetStackTrace(0, true));
+      WriteText(ConsoleColor.DarkGray, eData.FormatStackTrace(0, true));
       Console.WriteLine();
       if (e.InnerException != null)
       {
