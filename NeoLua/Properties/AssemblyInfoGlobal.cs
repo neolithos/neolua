@@ -7,5 +7,5 @@
 
 [assembly: AssemblyVersion("5.3.0.0")]
 [assembly: AssemblyFileVersion("1.1.4.0")]
-[assembly: AssemblyConfiguration("")]
-//[assembly: AssemblyConfiguration("beta")]
+//[assembly: AssemblyConfiguration("")]
+[assembly: AssemblyConfiguration("beta")]

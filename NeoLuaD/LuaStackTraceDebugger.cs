@@ -199,14 +199,14 @@ namespace Neo.IronLua
 				if (!lFirstLambdaDone)
 				{
 					lFirstLambdaDone = true;
-					ParameterExpression exceptionE = Expression.Parameter(typeof(Exception), "e");
+					ParameterExpression exceptionE = Expression.Parameter(typeof(Exception), "$e");
 					return Visit(
 						Expression.Lambda<T>(
 							Expression.TryCatch(
 								node.Body,
 								Expression.Catch(exceptionE,
 									Expression.Block(
-										Expression.Call(LuaExceptionDataGetDataMethodInfo, exceptionE),
+										Expression.Call(LuaExceptionDataGetDataMethodInfo, exceptionE, Expression.Constant(true)),
 										Expression.Throw(null, node.Body.Type)
 									)
 								)
