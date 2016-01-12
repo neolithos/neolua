@@ -208,7 +208,7 @@ namespace Neo.IronLua
 		public void CopyTo(LuaStackFrame[] array, int arrayIndex) { Array.Copy(stackTrace, 0, array, arrayIndex, Count); }
 
 		/// <summary>Change the StackTrace</summary>
-		/// <param name="stackTrace"></param>
+		/// <param name="newStackTrace"></param>
 		public void UpdateStackTrace(LuaStackFrame[] newStackTrace)
 		{
 			stackTrace = new LuaStackFrame[newStackTrace.Length];
@@ -232,6 +232,10 @@ namespace Neo.IronLua
 		/// <summary>Always <c>true</c></summary>
 		public bool IsReadOnly { get { return true; } }
 
+		/// <summary></summary>
+		/// <param name="luaSkipFrames"></param>
+		/// <param name="skipClrFrames"></param>
+		/// <returns></returns>
 		[Obsolete("Use FormatStackTrace")]
 		public string GetStackTrace(int luaSkipFrames, bool skipClrFrames)
 			=> FormatStackTrace(luaSkipFrames, skipClrFrames);
@@ -328,16 +332,17 @@ namespace Neo.IronLua
 
 		/// <summary>Converts a whole StackTrace and it is possible to use a special resolver.</summary>
 		/// <param name="trace">.net stacktrace</param>
+		/// <param name="resolveFrames"></param>
 		/// <returns>LuaStackFrames</returns>
-		public static IEnumerable<LuaStackFrame> GetStackTrace(IEnumerable<StackFrame> trace, Func<StackFrame, LuaStackFrame> resolveFrame)
+		public static IEnumerable<LuaStackFrame> GetStackTrace(IEnumerable<StackFrame> trace, Func<StackFrame, LuaStackFrame> resolveFrames)
 		{
 			if (trace == null)
 				throw new ArgumentNullException("resolveFrame");
-			if (resolveFrame == null)
+			if (resolveFrames == null)
 				throw new ArgumentNullException("resolveFrame");
 
 			foreach (var frame in trace)
-				yield return resolveFrame(frame) ?? GetStackFrame(frame);
+				yield return resolveFrames(frame) ?? GetStackFrame(frame);
 		} // func GetStackTrace
 
 		/// <summary>Retrieves the debug information for an exception.</summary>

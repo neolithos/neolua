@@ -1994,10 +1994,13 @@ namespace Neo.IronLua
 						if (r)
 							Debug.WriteLine("  ==> other is equal, but less bad matches");
 #endif
-						return r;
+						if (r)
+							return true;
 					}
 
-					else if (explicitMatches > other.explicitMatches)
+					// no else, check explicit matches
+
+					if (explicitMatches > other.explicitMatches)
 					{
 						Debug.WriteLine("   ==> other has more explicit matches");
 						return true;
