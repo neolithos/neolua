@@ -1904,8 +1904,9 @@ namespace Neo.IronLua
 
 		private static void ParseForEachLoop(Scope scope, LuaLexer code)
 		{
-			ParameterExpression varEnumerable = Expression.Variable(typeof(System.Collections.IEnumerable), "#enumerable");
-			ParameterExpression varEnumerator = Expression.Variable(typeof(System.Collections.IEnumerator), "#enumerator");
+			var varEnumerable = Expression.Variable(typeof(System.Collections.IEnumerable), "$enumerable");
+			var varEnumerator = Expression.Variable(typeof(System.Collections.IEnumerator), "$enumerator");
+			var varDisposable = Expression.Variable(typeof(IDisposable), "$disposeable");
 
 			// foreach name in exp do block end;
 			code.Next(); // foreach
@@ -1938,16 +1939,29 @@ namespace Neo.IronLua
 				// local enum = exprEnum.GetEnumerator()
 				Expression.Assign(varEnumerator, Expression.Call(varEnumerable, Lua.EnumerableGetEnumeratorMethodInfo)),
 
-				// while enum.MoveNext() do
-				Expression.Label(loopScope.ContinueLabel),
-				Expression.IfThenElse(Expression.Call(varEnumerator, Lua.EnumeratorMoveNextMethodInfo), Expression.Empty(), Expression.Goto(loopScope.BreakLabel)),
+				Expression.TryFinally(
+					Expression.Block(
 
-				//   loopVar = enum.Current
-				loopScope.ExpressionBlock,
+						// while enum.MoveNext() do
+						Expression.Label(loopScope.ContinueLabel),
+						Expression.IfThenElse(Expression.Call(varEnumerator, Lua.EnumeratorMoveNextMethodInfo), Expression.Empty(), Expression.Goto(loopScope.BreakLabel)),
 
-				// end;
-				Expression.Goto(loopScope.ContinueLabel),
-				Expression.Label(loopScope.BreakLabel)
+						//   loopVar = enum.Current
+						loopScope.ExpressionBlock,
+
+						// end;
+						Expression.Goto(loopScope.ContinueLabel),
+						Expression.Label(loopScope.BreakLabel)
+					),
+					Expression.Block(
+						new ParameterExpression[] { varDisposable },
+						Expression.Assign(varDisposable, Expression.TypeAs(varEnumerator, typeof(IDisposable))),
+						Expression.IfThen(Expression.NotEqual(varDisposable, Expression.Constant(null, typeof(IDisposable))),
+							Expression.Call(varDisposable, Lua.DisposeDisposeMethodInfo)
+						)
+					)
+				)
+					
 				));
 		} // proc ParseForEachLoop
 
