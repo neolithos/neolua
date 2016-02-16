@@ -73,6 +73,18 @@ namespace Neo.IronLua
           try
           {
             expr = EnsureType(LuaEmit.GetMember(lua, target.Expression, target.LimitType, Name, IgnoreCase, false), ReturnType);
+
+						/*
+						 * Fallback-Calls
+						 *   first it get calls with no error suggestion -> return the default value
+						 *   second call is to create a bind expression again, with the default value suggest
+						 *   Example: DynamicObject - creates something like
+						 *   
+						 *   fallback(TryGetMember(binder, out result) ? result : fallback(null));
+						 *
+						 */
+						if (expr.NodeType == ExpressionType.Default && errorSuggestion != null)
+							return errorSuggestion;
           }
           catch (LuaEmitException e)
           {
@@ -312,6 +324,7 @@ namespace Neo.IronLua
                   LuaEmit.BindParameter(lua,
                     _args => Expression.Invoke(EnsureType(target.Expression, target.LimitType), _args),
                     parameters,
+										CallInfo,
                     args,
                     mo => mo.Expression, mo => mo.LimitType, false),
                   typeof(object), true);
@@ -370,7 +383,8 @@ namespace Neo.IronLua
           MethodInfo method =
             LuaEmit.FindMethod(
               LuaType.GetType(target.LimitType).GetInstanceMethods(Name, IgnoreCase),
-              args,
+              CallInfo,
+							args,
               mo => mo.LimitType,
 							true);
 
@@ -389,6 +403,7 @@ namespace Neo.IronLua
 							expr = LuaEmit.BindParameter(lua,
 								a => Expression.Call(null, method, a),
 								method.GetParameters(),
+								CallInfo,
 								(new DynamicMetaObject[] { target }).Concat(args).ToArray(),
 								mo => mo.Expression, mo => mo.LimitType, false);
 						}
@@ -397,6 +412,7 @@ namespace Neo.IronLua
 							expr = LuaEmit.BindParameter(lua,
                     a => Expression.Call(EnsureType(target.Expression, target.LimitType), method, a),
                     method.GetParameters(),
+										CallInfo,
                     args,
 								mo => mo.Expression, mo => mo.LimitType, false);
 						}

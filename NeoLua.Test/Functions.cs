@@ -10,9 +10,10 @@ using Neo.IronLua;
 
 namespace LuaDLR.Test
 {
-  public delegate int ParamOutDelegate(int a, ref int b, out int c);
+	public delegate int ParamOutDelegate(int a, ref int b, out int c);
+	public delegate int ParamIntDelegate(int a, int b, int c);
 
-  public class TestParam
+	public class TestParam
   {
     public int ParamOut(int a, ref int b, out int c)
     {
@@ -214,7 +215,30 @@ namespace LuaDLR.Test
       }
     }
 
-    [TestMethod]
+		[TestMethod]
+		public void TestFunctions11()
+		{
+			TestCode(Lines(
+				"local function add(a : int, b : int, c : int) : int",
+				"  return a + b + c;",
+				"end;",
+				"return add(1, 2, 3), add(1, 2, arg3=3), add(1, arg3=3, arg2=2), add(1, arg3=3);"),
+				6, 6, 6, 4);
+			// the name of the argument is not "a" this is the name of the parameter, the argument name is "arg1"
+    }
+
+		[TestMethod]
+		public void TestFunctions12()
+		{
+			TestCode(Lines(
+				"local add : LuaDLR.Test.ParamIntDelegate = function (a : int, b : int, c : int) : int",
+				"  return a + b + c;",
+				"end;",
+				"return add(1, 2, 3), add(1, 2, c=3), add(1, c=3, b=2), add(1, c=3);"),
+				6, 6, 6, 4);
+    }
+
+		[TestMethod]
     public void TestFunctions50()
     {
       using (Lua l = new Lua())

@@ -239,10 +239,10 @@ namespace Neo.IronLua
 		/// <param name="e"></param>
     protected virtual void OnExceptionUnwind(LuaTraceLineExceptionEventArgs e)
     {
-    } // proc OnExceptionUnwind
+		} // proc OnExceptionUnwind
 
 		/// <summary></summary>
-    protected virtual void OnFrameExit()
+		protected virtual void OnFrameExit()
     {
     } // proc OnFrameExit
   } // class LuaTraceLineDebugger

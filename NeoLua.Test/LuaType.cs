@@ -16,6 +16,11 @@ namespace LuaDLR.Test
   [TestClass]
   public class LuaTypeTests : TestHelper
   {
+		public class DataTypeTest
+		{
+			public Type DataType;
+		}
+
 		public class Graph
 		{
 			public struct PointF
@@ -41,6 +46,16 @@ namespace LuaDLR.Test
 			public void DrawLine(string pen, Point pt1, Point pt2)
 			{
 				Console.WriteLine(string.Format(@"DrawLine '{4}' with Point: {0},{1}, {2},{3}", pt1.x, pt1.y, pt2.x, pt2.y, pen));
+			}
+
+			public void Info(string text)
+			{
+				Console.WriteLine("Info(text)");
+			}
+
+			public void Info(string text, params object[] args)
+			{
+				Console.WriteLine("Info(text, args)");
 			}
 		}
 
@@ -109,6 +124,8 @@ namespace LuaDLR.Test
 			Console.WriteLine("Color: {0}", color);
 			return color == Color.Green;
 		}
+
+		// ------------------------------------------------------------------------
 
     [TestMethod]
     public void TypeTest01()
@@ -199,6 +216,20 @@ namespace LuaDLR.Test
 		public void TypeTest07()
 		{
 			TestCode("return clr.LuaDLR.Test.LuaTypeTests:GreenColor(clr.System.Drawing.Color.Green);", true);
+		}
+
+		[TestMethod]
+		public void TypeTest08()
+		{
+			TestCode(Lines("local t : System.Type = clr.System.Text.StringBuilder;",
+				"return t"), typeof(System.Text.StringBuilder));
+		}
+
+		[TestMethod]
+		public void TypeTest09()
+		{
+			TestCode(Lines("local t : LuaDLR.Test.LuaTypeTests.DataTypeTest = { DataType = clr.System.Text.StringBuilder };",
+				"return t.DataType"), typeof(System.Text.StringBuilder));
 		}
 
 		[TestMethod]
@@ -442,6 +473,8 @@ namespace LuaDLR.Test
 		{
 			TestCode(Lines(
 				"graph = clr.LuaDLR.Test.LuaTypeTests.Graph();",
+				"graph:Info('test12', 1, 2);",
+				"graph:Info('test');",
 				"graph.DrawLine('a', 1, 1, 1, 1);",
 				"graph.DrawLine('b', 1, 1, 1, 1.0);",
 				"graph.DrawLine('c', 1, 1, 1.0, 1);",
@@ -468,6 +501,48 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
+		public void OverloadTest03()
+		{
+			var fi = new DirectoryInfo("c:\\").GetFiles();
+			TestCode(Lines(
+				"local di = clr.System.IO.DirectoryInfo([[c:\\]]);",
+				"local files = di:GetFiles();",
+				"return files.Length"), fi.Length);
+		}
+
+		[TestMethod]
+		public void OverloadTest04()
+		{
+			TestCode(Lines(
+				"local utf8 = clr.System.Text.Encoding.UTF8;",
+				"return #utf8:GetBytes('hi');"), 2);
+		}
+
+		[TestMethod]
+		public void OverloadTest05()
+		{
+			TestCode(Lines(
+				"line = clr.System.String[]('Hallo', 'Welt', '!!!');",
+				"return clr.System.String:Join(' ', line);"), "Hallo Welt !!!");
+		}
+
+		[TestMethod]
+		public void OverloadTest06()
+		{
+			TestCode(Lines(
+				"local function line() return 'Hallo', 'Welt', '!!!'; end;",
+				"return clr.System.String:Join(' ', line());"), "Hallo Welt !!!");
+		}
+
+		[TestMethod]
+		public void OverloadTest07()
+		{
+			TestCode(Lines(
+				"local function line() return 'Hallo', 'Welt', '!!!'; end;",
+				"return clr.System.String:Format('{0} {1} {2}', line());"), "Hallo Welt !!!");
+		}
+
+		[TestMethod]
 		public void ExtensionTest01()
 		{
 			LuaType.RegisterTypeExtension(typeof(TypeExt));
@@ -491,7 +566,16 @@ namespace LuaDLR.Test
 				Console.WriteLine("Failed...");
 			}
 		}
-  } // class LuaTypeTests 
+
+		[TestMethod]
+		public void NamespaceTest01()
+		{
+			LuaType.RegisterTypeExtension(typeof(TypeExt));
+
+			TestCode("return '{0} {1}':Format(clr.System.Windows, clr.Microsoft.Windows);", "System.Windows Microsoft.Windows");
+		}
+
+	} // class LuaTypeTests 
 
 	public static class TypeExt
 	{

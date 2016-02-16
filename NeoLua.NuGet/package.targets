@@ -1,8 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 	<PropertyGroup>
+		<MSBuildCommunityTasksPath>$(MSBuildProjectDirectory)\..\packages\MSBuildTasks.1.4.0.88\tools</MSBuildCommunityTasksPath>
 		<TargetDir>$(MSBuildProjectDirectory)\bin</TargetDir>
 	</PropertyGroup>
+	
+	<Import Project="$(MSBuildCommunityTasksPath)\MSBuild.Community.Tasks.Targets" Condition="Exists('$(MSBuildCommunityTasksPath)\MSBuild.Community.Tasks.Targets')" />
 
 	<ItemGroup>
 		<ZipFile Include="$(MSBuildProjectDirectory)\..\NeoLuaD\bin\Release\Neo.Lua.*" />
@@ -56,7 +59,7 @@
 	<Target Name="BuildCore" DependsOnTargets="PrepareVersion" Condition=" '$(Configuration)' == 'Release' ">
 		<!-- Create Directory -->
 		<MakeDir Directories="$(TargetDir)\$(Version)" />
-		
+
 		<!-- Zip -->
 		<Zip Files="@(ZipFile)" WorkingDirectory="$(MSBuildProjectDirectory)\..\NeoLuaD\bin\Release" ZipFileName="$(TargetDir)\$(Version)\NeoLua-$(Version).zip" />
 		<Zip Files="@(ZipFileMSB)" WorkingDirectory="$(MSBuildProjectDirectory)\..\NeoLua.MSBuild\bin\Release" ZipFileName="$(TargetDir)\$(Version)\NeoLuaMSBuild-$(Version).zip" />

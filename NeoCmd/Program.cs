@@ -277,7 +277,7 @@ namespace Neo.IronLua
       WriteText(ConsoleColor.Red, e.Message);
       Console.WriteLine();
       LuaExceptionData eData = LuaExceptionData.GetData(e);
-      WriteText(ConsoleColor.DarkGray, eData.GetStackTrace(0, true));
+      WriteText(ConsoleColor.DarkGray, eData.FormatStackTrace(0, true));
       Console.WriteLine();
       if (e.InnerException != null)
       {
@@ -511,6 +511,7 @@ namespace Neo.IronLua
       // change to the samples directory
 #if DEBUG
       string sSamples = Path.GetFullPath(@"..\..\Samples");
+			Debug.Listeners.Add(new ConsoleTraceListener());
 #else
       string sSamples = Path.GetFullPath("Samples");
 #endif

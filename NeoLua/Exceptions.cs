@@ -9,15 +9,15 @@ namespace Neo.IronLua
 	public interface ILuaExceptionData
 	{
 		/// <summary>Returns the formatted stacktrace.</summary>
-		/// <param name="iLevel">Level to start.</param>
-		/// <param name="lSkipSClrFrame">Only Lua frames.</param>
+		/// <param name="skipFrames">Level to start.</param>
+		/// <param name="skipSClrFrame">Only Lua frames.</param>
 		/// <returns></returns>
-		string FormatStackTrace(int iLevel = 0, bool lSkipSClrFrame = true);
+		string FormatStackTrace(int skipFrames = 0, bool skipSClrFrame = true);
 
 		/// <summary>Returns the debug info from a frame.</summary>
-		/// <param name="iLevel"></param>
+		/// <param name="frame"></param>
 		/// <returns></returns>
-		ILuaDebugInfo this[int iLevel] { get; }
+		ILuaDebugInfo this[int frame] { get; }
 		
 		/// <summary>Stacktrace length.</summary>
 		int Count { get; }

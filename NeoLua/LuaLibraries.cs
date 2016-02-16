@@ -41,23 +41,24 @@ namespace Neo.IronLua
 				iLen = s.Length - iStart;
 		} // proc NormalizeStringArguments
 
-		private static string TranslateRegularExpression(string sRegEx)
+		private static string TranslateRegularExpression(string regEx)
 		{
 			if (!lTranslateRegEx)
-				return sRegEx;
+				return regEx;
 
-			StringBuilder sb = new StringBuilder();
-			bool lEscape = false;
+			var sb = new StringBuilder();
+			var escapeCode = false;
+			var inCharList = false;
 
-			for (int i = 0; i < sRegEx.Length; i++)
+			for (var i = 0; i < regEx.Length; i++)
 			{
-				char c = sRegEx[i];
-				if (lEscape)
+				char c = regEx[i];
+				if (escapeCode)
 				{
 					if (c == '%')
 					{
 						sb.Append('%');
-						lEscape = false;
+						escapeCode = false;
 					}
 					else
 					{
@@ -134,10 +135,10 @@ namespace Neo.IronLua
 								break;
 
 							case 'b': // github #12
-								if (i < sRegEx.Length - 2)
+								if (i < regEx.Length - 2)
 								{
-									char c1 = sRegEx[i + 1];
-									char c2 = sRegEx[i + 2];
+									char c1 = regEx[i + 1];
+									char c2 = regEx[i + 2];
 									//Example for %b()
 									//(\((?>(?<n>\()|(?<-n>\))|(?:[^\(\)]*))*\)(?(n)(?!)))
 									//Example for %bab
@@ -165,19 +166,30 @@ namespace Neo.IronLua
 								sb.Append(c);
 								break;
 						}
-						lEscape = false;
+						escapeCode = false;
 					}
 				}
 				else if (c == '%')
 				{
-					lEscape = true;
+					escapeCode = true;
 				}
 				else if (c == '\\')
 				{
 					sb.Append("\\\\");
 				}
+				else if (inCharList)
+				{
+					if (c == ']')
+						inCharList = false;
+					sb.Append(c);
+				}
 				else if (c == '-')
 					sb.Append("+?");
+				else if (c == '[')
+				{
+					sb.Append('[');
+					inCharList = true;
+				}
 				else
 					sb.Append(c);
 			}
@@ -262,8 +274,10 @@ namespace Neo.IronLua
 
 			if (plain) // plain pattern
 			{
-				int iIndex = s.IndexOf(pattern, init - 1);
-				return new LuaResult(iIndex + 1, iIndex + pattern.Length);
+				var index = s.IndexOf(pattern, init - 1);
+				return index == -1 ? 
+					null : 
+					new LuaResult(index + 1, index + pattern.Length);
 			}
 			else
 			{
@@ -274,12 +288,15 @@ namespace Neo.IronLua
 				Match m = r.Match(s, init - 1);
 				if (m.Success)
 				{
-					object[] result = new object[m.Captures.Count + 2];
+					object[] result = new object[m.Groups.Count + 1]; // first group is all, so add 2 - 1
 
+					// offset of the match
 					result[0] = m.Index + 1;
 					result[1] = m.Index + m.Length;
-					for (int i = 0; i < m.Captures.Count; i++)
-						result[i + 2] = m.Captures[i].Value;
+
+					// copy the groups
+					for (var i = 1; i < m.Groups.Count; i++)
+						result[i + 1] = m.Groups[i].Value;
 
 					return result;
 				}
@@ -556,7 +573,7 @@ namespace Neo.IronLua
 			pattern = TranslateRegularExpression(pattern);
 
 			Regex r = new Regex(pattern);
-			return MatchResult(r.Match(s, init));
+			return MatchResult(r.Match(s, init - 1));
 		} // func match
 
 		private static LuaResult MatchResult(Match m)

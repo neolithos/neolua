@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Neo.IronLua
 {
@@ -255,7 +257,7 @@ namespace Neo.IronLua
 			}
 		} // func IsFloatType
 
-		private static bool IsConvertOperator(MethodInfo methodInfo)
+		internal static bool IsConvertOperator(MethodInfo methodInfo)
 		{
 			return methodInfo.IsPublic && methodInfo.IsStatic && methodInfo.IsSpecialName && (methodInfo.Name == csImplicit || methodInfo.Name == csExplicit);
 		} // func IsConvertOperator
@@ -312,7 +314,7 @@ namespace Neo.IronLua
 		public static MethodInfo FindConvertMethod(IEnumerable<MethodInfo> methods, Type typeFrom, Type typeTo, ref bool lImplicit, ref bool lExactFrom, ref bool lExactTo)
 		{
 			MethodInfo miCurrent = null;
-			foreach(var mi in methods)
+			foreach (var mi in methods)
 			{
 				ParameterInfo[] parameters = mi.GetParameters();
 
@@ -726,15 +728,15 @@ namespace Neo.IronLua
 			for (int i = 0; i < parameters.Length; i++)
 				if (parameters[i].ParameterType != args[i])
 					return false;
-			
+
 			return true;
 		} // func TestParameter
 
 		private static Expression BinaryOperationCompareToExpression(Lua runtime, Type compareInterface, ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2, bool lParse)
 		{
 			MethodInfo miMethod = (
-				from mi in compareInterface.GetTypeInfo().DeclaredMethods 
-				where mi.IsPublic && !mi.IsStatic && mi.Name =="CompareTo" && mi.ReturnType == typeof(int) 
+				from mi in compareInterface.GetTypeInfo().DeclaredMethods
+				where mi.IsPublic && !mi.IsStatic && mi.Name == "CompareTo" && mi.ReturnType == typeof(int)
 				select mi
 			).FirstOrDefault();
 
@@ -751,13 +753,13 @@ namespace Neo.IronLua
 		{
 			TypeInfo equalableInterfaceTypeInfo = equalableInterface.GetTypeInfo();
 			Type typeParam = equalableInterfaceTypeInfo.GenericTypeArguments[0];
-			
+
 			MethodInfo miMethod = (
-				from mi in equalableInterfaceTypeInfo.DeclaredMethods 
-				where mi.IsPublic && !mi.IsStatic && mi.Name=="Equals" && TestParameter( mi.GetParameters(), typeParam) 
+				from mi in equalableInterfaceTypeInfo.DeclaredMethods
+				where mi.IsPublic && !mi.IsStatic && mi.Name == "Equals" && TestParameter(mi.GetParameters(), typeParam)
 				select mi
 			).FirstOrDefault();
-			
+
 			Expression expr = Expression.Call(
 				Convert(runtime, expr1, type1, equalableInterface, false),
 				miMethod,
@@ -830,7 +832,7 @@ namespace Neo.IronLua
 					typeEnum = type;
 					typeOp = Enum.GetUnderlyingType(type);
 				}
-				
+
 				switch (tc)
 				{
 					case LuaEmitTypeCode.Double:
@@ -852,7 +854,7 @@ namespace Neo.IronLua
 
 			#region -- find operator --
 			var operators = type.GetRuntimeMethods().Where(mi => mi.Name == GetOperationMethodName(ExpressionType.OnesComplement) && mi.IsStatic);
-			MethodInfo miOperator = FindMethod(operators, new Type[] { type }, t => t, false);
+			MethodInfo miOperator = FindMethod(operators, new CallInfo(1), new Type[] { type }, t => t, false);
 			if (miOperator != null)
 				return Expression.OnesComplement(Convert(runtime, expr, type, miOperator.GetParameters()[0].ParameterType, lParse), miOperator);
 			#endregion
@@ -899,7 +901,7 @@ namespace Neo.IronLua
 			#region -- find operator --
 
 			var operators = type.GetRuntimeMethods().Where(mi => mi.Name == GetOperationMethodName(ExpressionType.Negate) && mi.IsStatic);
-			MethodInfo miOperator = FindMethod(operators, new Type[] { type }, t => t, false);
+			MethodInfo miOperator = FindMethod(operators, new CallInfo(1), new Type[] { type }, t => t, false);
 			if (miOperator != null)
 				return Expression.Negate(Convert(runtime, expr, type, miOperator.GetParameters()[0].ParameterType, lParse), miOperator);
 			#endregion
@@ -1117,8 +1119,16 @@ namespace Neo.IronLua
 				Type typeEnum = null;
 				if (typeOp.GetTypeInfo().IsEnum)
 				{
-					if (type1.GetTypeInfo().IsEnum && type2.GetTypeInfo().IsEnum)
+					if (type1.GetTypeInfo().IsEnum && type2.GetTypeInfo().IsEnum &&
+							op != ExpressionType.Equal &&
+							op != ExpressionType.NotEqual &&
+							op != ExpressionType.LessThan &&
+							op != ExpressionType.LessThanOrEqual &&
+							op != ExpressionType.GreaterThan &&
+							op != ExpressionType.GreaterThanOrEqual)
+					{
 						typeEnum = typeOp; // save enum
+					}
 					typeOp = Enum.GetUnderlyingType(typeOp);
 				}
 
@@ -1150,7 +1160,7 @@ namespace Neo.IronLua
 					Array.Copy(members2, 0, members3, members1.Length, members2.Length);
 
 					// Find the correct method
-					MethodInfo miOperator = FindMethod(members3, parameterTypes, t => t, false);
+					MethodInfo miOperator = FindMethod(members3, new CallInfo(2), parameterTypes, t => t, false);
 					if (miOperator != null)
 					{
 						// Get the argumentslist
@@ -1576,14 +1586,15 @@ namespace Neo.IronLua
 			}
 			else // try find a property
 			{
-				PropertyInfo[] properties =
+				var properties =
 					(
 						from pi in instanceType.GetRuntimeProperties()
 						where pi.GetMethod.IsStatic == (instance == null) && pi.GetIndexParameters().Length > 0
 						select pi
 					).ToArray();
 
-				PropertyInfo piIndex = FindMember(properties, arguments, getType);
+				var callInfo = new CallInfo(arguments.Length);
+				var piIndex = FindMember(properties, callInfo, arguments, getType, false);
 
 				if (piIndex == null)
 					throw new LuaEmitException(LuaEmitException.IndexNotFound, instanceType.Name);
@@ -1591,6 +1602,7 @@ namespace Neo.IronLua
 					return BindParameter(runtime,
 						args => Expression.MakeIndex(Convert(runtime, instance, instanceType, instanceType, lParse), piIndex, args),
 						piIndex.GetIndexParameters(),
+						callInfo,
 						arguments,
 						getExpr, getType, lParse);
 			}
@@ -1600,141 +1612,199 @@ namespace Neo.IronLua
 
 		#region -- BindParameter ----------------------------------------------------------
 
-		public static Expression BindParameter<T>(Lua runtime, Func<Expression[], Expression> emitCall, ParameterInfo[] parameters, T[] arguments, Func<T, Expression> getExpr, Func<T, Type> getType, bool lParse)
+		public static Expression BindParameter<T>(Lua runtime, Func<Expression[], Expression> emitCall, ParameterInfo[] parameterInfo, CallInfo callInfo, T[] arguments, Func<T, Expression> getExpr, Func<T, Type> getType, bool forParse)
 		{
-			Expression[] exprPara = new Expression[parameters.Length]; // Parameters for the function
-			int iParameterIndex = 0;                  // Index of the parameter that is processed
-			int iArgumentsIndex = 0;                  // Index of the argument that is processed
-			int iParameterCount = parameters.Length;  // Parameter count
-			ParameterExpression varLuaResult = null;  // variable that olds the reference to the last argument (that is a LuaResult)
-			int iLastArgumentStretchCount = -1;       // counter for the LuaResult return
-			ParameterInfo parameter = null;           // Current parameter that is processed
+			var argumentExpressions = new Expression[parameterInfo.Length]; // argument-array for the call
+			var variablesToReturn = new List<ParameterExpression>(); // variables the are needed for the call
+			var callBlock = new List<Expression>(); // expression of the call block, for the call
 
-			List<ParameterExpression> variablesToReturn = new List<ParameterExpression>();
-			List<Expression> callBlock = new List<Expression>();
+			var argumentsWorkedWith = callInfo.ArgumentNames.Count != 0 ? new bool[arguments.Length] : null;
+			var positionalArguments = arguments.Length - callInfo.ArgumentNames.Count; // number of positional arguments
 
-			while (iParameterIndex < iParameterCount)
+			var argumentsIndex = 0; // index of the argument, that is processed
+			var lastArgumentStretchCount = 0; // numer of LuaResult arguments, processed
+			var lastArgumentIsResult = arguments.Length > 0 && argumentsWorkedWith == null && getType(arguments[arguments.Length - 1]) == typeof(LuaResult); // is last argumetn a result
+			var argumentsCount = lastArgumentIsResult ? positionalArguments - 1 : positionalArguments;
+
+			var parameterIndex = 0; // index of the parameter, that is processed
+			var lastParameterIsArray = parameterInfo.Length > 0 && argumentsWorkedWith == null && parameterInfo[parameterInfo.Length - 1].ParameterType.IsArray; // is the last argument a array
+			var parameterCount = lastParameterIsArray ? parameterInfo.Length - 1 : (argumentsWorkedWith == null ? parameterInfo.Length : positionalArguments); // number of "normal" parameters
+
+			ParameterExpression varLuaResult = null;
+
+			if (argumentsWorkedWith != null)
 			{
-				parameter = parameters[iParameterIndex];
+				for (var i = 0; i < argumentsWorkedWith.Length; i++)
+					argumentsWorkedWith[i] = false;
+			}
 
-				if (iParameterIndex == iParameterCount - 1 && parameter.ParameterType.IsArray)
+			#region -- fill all match parameters to arguments, positional --
+			while (parameterIndex < parameterCount)
+			{
+				Expression argumentExpression = null;
+				var parameter = parameterInfo[parameterIndex];
+				var parameterType = parameter.ParameterType.IsByRef ? parameter.ParameterType.GetElementType() : parameter.ParameterType;
+
+				if (parameter.IsOut) // out-param no value neede
 				{
-					#region -- generate vararg for an array --
-					Type typeArray = parameter.ParameterType.GetElementType();
-					if (varLuaResult != null) // create a array of the LuaResult for the last parameter
-					{
-						exprPara[iParameterIndex] = Expression.Convert(Expression.Call(Lua.GetResultValuesMethodInfo, varLuaResult, Expression.Constant(iLastArgumentStretchCount), Expression.Constant(typeArray)), parameter.ParameterType);
-					}
-					else if (iArgumentsIndex == arguments.Length - 1 && getType(arguments[iArgumentsIndex]).IsArray) // last parameter expect a array and we have an array
-					{
-						exprPara[iParameterIndex] = Convert(runtime, getExpr(arguments[iArgumentsIndex]), getType(arguments[iArgumentsIndex]), parameter.ParameterType, lParse);
-						iArgumentsIndex++;
-					}
-					else if (iArgumentsIndex >= arguments.Length) // no arguments left
-					{
-						exprPara[iParameterIndex] = Expression.NewArrayInit(typeArray);
-					}
-					else
-					{
-						List<Expression> exprCollectedArguments = new List<Expression>();
-
-						// collect all arguments that are left
-						for (; iArgumentsIndex < arguments.Length - 1; iArgumentsIndex++)
-							exprCollectedArguments.Add(Convert(runtime, getExpr(arguments[iArgumentsIndex]), getType(arguments[iArgumentsIndex]), typeArray, lParse));
-
-						// the last argument is a LuaResult
-						Expression tmpExpr = getExpr(arguments[iArgumentsIndex]);
-						Type tmpType = getType(arguments[iArgumentsIndex]);
-						iArgumentsIndex++;
-						if (tmpType == typeof(LuaResult))
-						{
-							if (exprCollectedArguments.Count == 0) // no arguments collected, convert the array
-							{
-								exprPara[iParameterIndex] = Expression.Convert(Expression.Call(Lua.GetResultValuesMethodInfo, Convert(runtime, tmpExpr, tmpType, tmpType, false), Expression.Constant(0), Expression.Constant(typeArray)), parameter.ParameterType);
-							}
-							else // combine the arguments and the last result to the correct array
-							{
-								exprPara[iParameterIndex] = Expression.Convert(
-									Expression.Call(null, Lua.CombineArrayWithResultMethodInfo,
-										Expression.Convert(Expression.NewArrayInit(typeArray, exprCollectedArguments), typeof(Array)),
-										Convert(runtime, tmpExpr, tmpType, tmpType, lParse),
-										Expression.Constant(typeArray)
-									),
-									parameter.ParameterType
-								);
-							}
-						}
-						else // normal argument
-						{
-							exprCollectedArguments.Add(Convert(runtime, tmpExpr, tmpType, typeArray, lParse));
-
-							exprPara[iParameterIndex] = Expression.NewArrayInit(typeArray, exprCollectedArguments);
-						}
-					}
-					#endregion
+					argumentExpression = null;
 				}
-				else
+				else if (argumentsIndex < argumentsCount) // positional argument exists
 				{
-					#region -- generate set argument --
-					Expression exprGet; // Holds the argument get
+					argumentExpression = Convert(runtime, getExpr(arguments[argumentsIndex]), getType(arguments[argumentsIndex]), parameterType, forParse);
+					if (argumentsWorkedWith != null)
+						argumentsWorkedWith[argumentsIndex] = true;
+					argumentsIndex++;
+				}
+				else if (lastArgumentStretchCount > 0) // stretch LuaResult
+				{
+					argumentExpression = GetResultExpression(runtime, varLuaResult, typeof(LuaResult), lastArgumentStretchCount++, parameterType, GetDefaultParameterExpression(parameter, parameterType), forParse);
+				}
+				else if (lastArgumentIsResult) // start stretch of LuaResult
+				{
+					varLuaResult = Expression.Variable(typeof(LuaResult), "#result");
+					argumentExpression = GetResultExpression(runtime,
+						Expression.Assign(varLuaResult, Convert(runtime, getExpr(arguments[argumentsIndex]), typeof(LuaResult), typeof(LuaResult), false)),
+						typeof(LuaResult),
+						0,
+						parameterType,
+						GetDefaultParameterExpression(parameter, parameterType),
+						forParse
+					);
+					lastArgumentStretchCount = 1;
+					argumentsIndex++; // move of last
+				}
+				else // No arguments left, if we have a default value, set it or use the default of the type
+					argumentExpression = GetDefaultParameterExpression(parameter, parameterType);
 
-					// get the type for the parameter
-					Type typeParameter = parameter.ParameterType.IsByRef ? parameter.ParameterType.GetElementType() : parameter.ParameterType;
+				// Create a variable for the byref parameters
+				if (parameter.ParameterType.IsByRef)
+					TransformArgumentToVariable(ref argumentExpression, parameterType, parameterIndex, callBlock, variablesToReturn);
 
-					if (parameter.IsOut) // out-param no value neede
+				argumentExpressions[parameterIndex] = argumentExpression;
+				parameterIndex++;
+			}
+			#endregion
+
+			// fill last argument
+			if (argumentsWorkedWith != null)
+			{
+				#region -- named argument mode --
+				parameterCount = parameterInfo.Length;
+				while (parameterIndex < parameterCount)
+				{
+					Expression argumentExpression = null;
+					var parameter = parameterInfo[parameterIndex];
+					var parameterType = parameter.ParameterType.IsByRef ? parameter.ParameterType.GetElementType() : parameter.ParameterType;
+
+					var nameIndex = callInfo.ArgumentNames.IndexOf(parameter.Name);
+					if (nameIndex >= 0) // named argument for the parameter exists
 					{
-						exprGet = null;
+						argumentsIndex = positionalArguments + nameIndex;
+						argumentExpression = Convert(runtime, getExpr(arguments[argumentsIndex]), getType(arguments[argumentsIndex]), parameterType, forParse);
+						argumentsWorkedWith[argumentsIndex] = true;
 					}
-					else if (iArgumentsIndex == arguments.Length - 1 && getType(arguments[iArgumentsIndex]) == typeof(LuaResult)) // The last argument is a LuaResult (eg. function), start the stretching of the array
+					else // set default
 					{
-						varLuaResult = Expression.Variable(typeof(LuaResult), "#result");
-						exprGet = GetResultExpression(runtime,
-							Expression.Assign(varLuaResult, Convert(runtime, getExpr(arguments[iArgumentsIndex]), typeof(LuaResult), typeof(LuaResult), false)),
-							typeof(LuaResult),
-							0,
-							typeParameter,
-							GetDefaultParameterExpression(parameter, typeParameter),
-							lParse
-						);
-						iLastArgumentStretchCount = 1;
-						iArgumentsIndex++;
+						argumentExpression = GetDefaultParameterExpression(parameter, parameterType);
 					}
-					else if (iLastArgumentStretchCount > 0) // get the expression of the LuaResult to stretch it
-					{
-						exprGet = GetResultExpression(runtime, varLuaResult, typeof(LuaResult), iLastArgumentStretchCount++, typeParameter, GetDefaultParameterExpression(parameter, typeParameter), lParse);
-					}
-					else if (iArgumentsIndex < arguments.Length) // assign a normal parameter
-					{
-						exprGet = Convert(runtime, getExpr(arguments[iArgumentsIndex]), getType(arguments[iArgumentsIndex]), typeParameter, lParse);
-						iArgumentsIndex++;
-					}
-					else // No arguments left, if we have a default value, set it or use the default of the type
-						exprGet = GetDefaultParameterExpression(parameter, typeParameter);
 
 					// Create a variable for the byref parameters
 					if (parameter.ParameterType.IsByRef)
-					{
-						ParameterExpression r = Expression.Variable(typeParameter, "r" + iParameterIndex.ToString());
-						variablesToReturn.Add(r);
-						if (exprGet != null)
-							callBlock.Add(Expression.Assign(r, exprGet));
-						exprPara[iParameterIndex] = exprGet = r;
-					}
+						TransformArgumentToVariable(ref argumentExpression, parameterType, parameterIndex, callBlock, variablesToReturn);
 
-					exprPara[iParameterIndex] = exprGet;
-					#endregion
+					argumentExpressions[parameterIndex] = argumentExpression;
+					parameterIndex++;
 				}
+				#endregion
+			}
+			else if (lastParameterIsArray) // extent call with the last argument
+			{
+				#region -- generate vararg for an array --
+				Expression argumentExpression;
+				var lastParameter = parameterInfo[parameterCount];
+				var arrayType = lastParameter.ParameterType.GetElementType();
 
-				iParameterIndex++;
+				if (lastArgumentStretchCount > 0) // finish LuaResult
+				{
+					argumentExpression = Expression.Convert(
+						Expression.Call(
+							Lua.GetResultValuesMethodInfo,
+							varLuaResult,
+							Expression.Constant(lastArgumentStretchCount), Expression.Constant(arrayType)),
+						lastParameter.ParameterType
+					);
+				}
+				else if (argumentsCount - argumentsIndex == 1 && !lastArgumentIsResult && getType(arguments[argumentsIndex]).IsArray)
+				{
+					if (getType(arguments[argumentsIndex]) == lastParameter.ParameterType) // same type
+						argumentExpression = Expression.Convert(getExpr(arguments[argumentsIndex]), lastParameter.ParameterType);
+					else
+					{
+						argumentExpression = Expression.Convert(
+							Expression.Call(Lua.ConvertArrayMethodInfo,
+								Expression.Convert(getExpr(arguments[argumentsIndex]), typeof(Array)),
+								Expression.Constant(arrayType)
+							),
+							lastParameter.ParameterType
+						);
+					}
+				}
+				else if (argumentsIndex < argumentsCount) // normal arguments left
+				{
+					var collectedArguments = new List<Expression>();
+
+					// collect all arguments that are left
+					for (; argumentsIndex < argumentsCount; argumentsIndex++)
+						collectedArguments.Add(Convert(runtime, getExpr(arguments[argumentsIndex]), getType(arguments[argumentsIndex]), arrayType, forParse));
+
+					// the last argument is a LuaResult
+					if (lastArgumentIsResult)
+					{
+						// combine the arguments and the last result to the correct array
+						var tmpExpr = getExpr(arguments[arguments.Length - 1]);
+						var tmpType = getType(arguments[arguments.Length - 1]);
+						argumentExpression = Expression.Convert(
+							Expression.Call(null, Lua.CombineArrayWithResultMethodInfo,
+								Expression.Convert(Expression.NewArrayInit(arrayType, collectedArguments), typeof(Array)),
+								Convert(runtime, tmpExpr, tmpType, tmpType, forParse),
+								Expression.Constant(arrayType)
+							),
+							lastParameter.ParameterType
+						);
+					}
+					else // create a array of the collected arguments
+						argumentExpression = Expression.NewArrayInit(arrayType, collectedArguments);
+				}
+				else if (lastArgumentIsResult) // there is a result to take care of
+				{
+					var tmpExpr = getExpr(arguments[arguments.Length - 1]);
+					var tmpType = getType(arguments[arguments.Length - 1]);
+					argumentExpression = Expression.Convert(
+						Expression.Call(
+							Lua.GetResultValuesMethodInfo,
+							Convert(runtime, tmpExpr, tmpType, tmpType, false),
+							Expression.Constant(0),
+							Expression.Constant(arrayType)),
+						lastParameter.ParameterType
+					);
+				}
+				else // nothing left, create empty array
+					argumentExpression = Expression.NewArrayInit(arrayType);
+
+				argumentExpressions[parameterIndex] = argumentExpression;
+				parameterIndex++;
+				#endregion
 			}
 
-			bool lArgumentsLeft = iArgumentsIndex < arguments.Length;
-			if (variablesToReturn.Count > 0 || varLuaResult != null || (lParse && lArgumentsLeft)) // we have variables or arguments are left out
+			#region -- emit call block --
+			var argumentsLeft = argumentsWorkedWith == null ? argumentsIndex < arguments.Length : Array.Exists(argumentsWorkedWith, c => c == false); // not argumentsCount, because we include really all arguments
+			if (variablesToReturn.Count > 0 || varLuaResult != null || (forParse && argumentsLeft)) // we have variables or arguments are left out
 			{
 				// add the call
-				Expression exprCall = emitCall(exprPara);
+				var exprCall = emitCall(argumentExpressions);
 				ParameterExpression varReturn = null;
-				if (exprCall.Type != typeof(void) && (lArgumentsLeft || variablesToReturn.Count > 0)) // create a return variable, if we have variables or arguments left
+				if (exprCall.Type != typeof(void) && (argumentsLeft || variablesToReturn.Count > 0)) // create a return variable, if we have variables or arguments left
 				{
 					varReturn = Expression.Variable(exprCall.Type, "#return");
 					callBlock.Add(Expression.Assign(varReturn, exprCall));
@@ -1744,22 +1814,33 @@ namespace Neo.IronLua
 					callBlock.Add(exprCall);
 
 				// argument left
-				if (lArgumentsLeft)
+				if (argumentsLeft)
 				{
-					for (; iArgumentsIndex < arguments.Length; iArgumentsIndex++)
-						callBlock.Add(getExpr(arguments[iArgumentsIndex]));
+					if (argumentsWorkedWith == null)
+					{
+						for (; argumentsIndex < arguments.Length; argumentsIndex++)
+							callBlock.Add(getExpr(arguments[argumentsIndex]));
+					}
+					else
+					{
+						for (int i = 0; i < argumentsWorkedWith.Length; i++)
+						{
+							if (!argumentsWorkedWith[i])
+								callBlock.Add(getExpr(arguments[i]));
+						}
+					}
 				}
 
 				// create the variable definition
-				int iVarResultExists = varLuaResult != null ? 1 : 0;
-				ParameterExpression[] variables = new ParameterExpression[variablesToReturn.Count + iVarResultExists];
-				variablesToReturn.CopyTo(variables, iVarResultExists);
-				if (iVarResultExists > 0)
+				var varResultExists = varLuaResult != null ? 1 : 0;
+				var variables = new ParameterExpression[variablesToReturn.Count + varResultExists];
+				variablesToReturn.CopyTo(variables, varResultExists);
+				if (varResultExists > 0)
 					variables[0] = varLuaResult;
 
 				if (variablesToReturn.Count == 0) // no multi or return variables results
 				{
-					return Expression.Block(lArgumentsLeft ? typeof(void) : exprCall.Type, variables, callBlock);
+					return Expression.Block(argumentsLeft ? typeof(void) : exprCall.Type, variables, callBlock);
 				}
 				else if (variablesToReturn.Count == 1) // only one return or variable
 				{
@@ -1775,25 +1856,398 @@ namespace Neo.IronLua
 				}
 			}
 			else
-				return emitCall(exprPara);
+				return emitCall(argumentExpressions);
+			#endregion
 		} // func BindParameter
 
-		private static Expression GetDefaultParameterExpression(ParameterInfo parameter, Type typeParameter)
+		private static void TransformArgumentToVariable(ref Expression argumentExpression, Type parameterType, int parameterIndex, List<Expression> callBlock, List<ParameterExpression> variablesToReturn)
 		{
-			if (parameter.IsOptional)
-				return Expression.Constant(parameter.DefaultValue, typeParameter);
-			else
-				return Expression.Default(typeParameter);
-		} // func GetDefaultParameterExpression
+			var r = Expression.Variable(parameterType, "r" + parameterIndex.ToString());
+			variablesToReturn.Add(r);
+			if (argumentExpression != null)
+				callBlock.Add(Expression.Assign(r, argumentExpression));
+			argumentExpression = r;
+		} // proc TransformArgumentToVariable
+
+		private static Expression GetDefaultParameterExpression(ParameterInfo parameter, Type typeParameter)
+			=> parameter.IsOptional ?
+				(Expression)Expression.Constant(parameter.DefaultValue, typeParameter) :
+				(Expression)Expression.Default(typeParameter);
 
 		#endregion
 
 		#region -- FindMember -------------------------------------------------------------
 
-		public static MethodInfo FindMethod<TARG>(IEnumerable<MethodInfo> members, TARG[] arguments, Func<TARG, Type> getType, bool lExtension)
+		#region -- enum MemberMatchValue --------------------------------------------------
+
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary></summary>
+		private enum MemberMatchValue
+		{
+			None,
+			Exact,
+			Implicit,
+			Explicit
+		} // enum MemberMatchValue
+
+		#endregion
+
+		#region -- struct MemberMatchInfo -------------------------------------------------
+
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary>Holds the result of the member.</summary>
+		private sealed class MemberMatchInfo<TMEMBERTYPE>
+			where TMEMBERTYPE : MemberInfo
+		{
+			private readonly int argumentsLength;     // number of arguments we need to match
+			private readonly bool unboundedArguments; // is the number endless (LuaResult as last argument)
+			internal int matchesOnBeginning;
+			internal int exactMatches;
+			internal int implicitMatches;
+			internal int explicitMatches;
+
+			private TMEMBERTYPE currentMember;
+			internal int currentParameterLength;
+
+			public MemberMatchInfo(bool unboundedArguments, int argumentsLength)
+			{
+				this.unboundedArguments = unboundedArguments;
+				this.argumentsLength = argumentsLength;
+			} // ctor
+
+			public override string ToString()
+			{
+				return String.Format("OnBegin={0}, Exact={1}, Implicit={2}, Explicit={3}, ParameterLength={4}, IsPerfect={5}",
+					matchesOnBeginning, exactMatches, implicitMatches, explicitMatches, currentParameterLength, IsPerfect);
+			} // func ToString
+
+			public void Reset(TMEMBERTYPE member, ParameterInfo[] parameter)
+			{
+				this.matchesOnBeginning = 0;
+				this.exactMatches = 0;
+				this.implicitMatches = 0;
+				this.explicitMatches = 0;
+				this.currentMember = member;
+
+				// get the parameter length
+				this.currentParameterLength = parameter.Length > 0 ?
+						parameter[parameter.Length - 1].ParameterType.IsArray ?
+							Int32.MaxValue :
+							parameter.Length :
+					0;
+			} // proc Reset
+
+			public void SetMatch(MemberMatchValue value, bool positional)
+			{
+				switch (value)
+				{
+					case MemberMatchValue.Exact:
+						if (positional && explicitMatches == matchesOnBeginning)
+							matchesOnBeginning++;
+						exactMatches++;
+						goto case MemberMatchValue.Implicit;
+					case MemberMatchValue.Implicit:
+						implicitMatches++;
+						goto case MemberMatchValue.Explicit;
+					case MemberMatchValue.Explicit:
+						explicitMatches++;
+						break;
+					default:
+						throw new InvalidOperationException();
+				}
+			} // proc SetMatch
+
+			public bool IsBetter(MemberMatchInfo<TMEMBERTYPE> other) // is this better than other
+			{
+				if (other.IsPerfect)
+				{
+					Debug.WriteLine("  ==> other IsPerfect");
+					return true;
+				}
+
+				if (unboundedArguments && currentParameterLength > other.currentParameterLength)
+				{
+					Debug.WriteLine("  ==> other {0} && {1} > {2}", unboundedArguments, currentParameterLength, other.currentParameterLength);
+					return true;
+				}
+				else if (!unboundedArguments || currentParameterLength == other.currentParameterLength)
+				{
+					if (argumentsLength == 0 && currentParameterLength == 0) // zero arguments
+					{
+						Debug.WriteLine("  ==> other Zero Args");
+						return true;
+					}
+
+					else if (matchesOnBeginning > other.matchesOnBeginning ||
+						exactMatches > other.exactMatches ||
+						implicitMatches > other.implicitMatches) // good matches (more)
+					{
+						Debug.WriteLine("  ==> other is better");
+						return true;
+					}
+					else if (matchesOnBeginning == other.matchesOnBeginning ||
+						exactMatches == other.exactMatches ||
+						implicitMatches == other.implicitMatches) // good matches (equal)
+					{
+						var r = NoneMatches < other.NoneMatches; // too much bad machtes, so it might be not better
+#if DEBUG
+						if (r)
+							Debug.WriteLine("  ==> other is equal, but less bad matches");
+#endif
+						if (r)
+							return true;
+					}
+
+					// no else, check explicit matches
+
+					if (explicitMatches > other.explicitMatches)
+					{
+						Debug.WriteLine("   ==> other has more explicit matches");
+						return true;
+					}
+					else if (explicitMatches == other.explicitMatches)
+					{
+						var r = NoneMatches < other.NoneMatches;
+#if DEBUG
+						if (r)
+							Debug.WriteLine("  ==> other is equal, but less bad matches");
+#endif
+						return r;
+					}
+
+					else
+						return false;
+				}
+				else
+					return false;
+			} // func IsBetter
+
+			public TMEMBERTYPE CurrentMember => currentMember;
+
+			public bool IsPerfect => currentParameterLength == argumentsLength && exactMatches == argumentsLength;
+			public int NoneMatches => currentParameterLength < Int32.MaxValue ? currentParameterLength - explicitMatches : 0;
+		} // struct MemberMatchInfo
+
+		#endregion
+
+		#region -- class MemberMatch ------------------------------------------------------
+
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary>Holds the description of the arguments and the compare algorithm.</summary>
+		private sealed class MemberMatch<TMEMBERTYPE, TARG>
+			where TMEMBERTYPE : MemberInfo
 			where TARG : class
 		{
-			MethodInfo mi = (MethodInfo)FindMember(members, arguments, getType, lExtension);
+			private readonly CallInfo callInfo;
+			private readonly int positionalArguments;
+			private readonly TARG[] arguments;
+			private readonly bool lastIsExpandable;
+			private readonly Func<TARG, Type> getType;
+			private readonly Action<ParameterInfo[], MemberMatchInfo<TMEMBERTYPE>> resetAlgorithm;
+
+			public MemberMatch(CallInfo callInfo, TARG[] arguments, Func<TARG, Type> getType)
+			{
+				// init reset parameter
+				this.callInfo = callInfo;
+				this.positionalArguments = arguments.Length - callInfo.ArgumentNames.Count; // number of positional arguments
+				this.arguments = arguments;
+				this.getType = getType;
+				this.lastIsExpandable = arguments.Length > 0 && getType(arguments[arguments.Length - 1]) == typeof(LuaResult);
+
+#if DEBUG
+				var argsDebug = new StringBuilder();
+				for (var i = 0; i < arguments.Length; i++)
+				{
+					if (argsDebug.Length > 0)
+						argsDebug.Append(", ");
+					var argNameIndex = i - arguments.Length + callInfo.ArgumentNames.Count;
+					if (argNameIndex >= 0)
+						argsDebug.Append(callInfo.ArgumentNames[argNameIndex]).Append(": ");
+					argsDebug.Append(getType(arguments[i]));
+				}
+				Debug.WriteLine("Call: {0}", argsDebug.ToString());
+#endif
+
+				// choose the algorithm
+				if (arguments.Length == 0 || positionalArguments == arguments.Length)
+				{
+					if (lastIsExpandable)
+						resetAlgorithm = ResetPositionalMax;
+					else
+						resetAlgorithm = ResetPositional;
+				}
+				else
+					resetAlgorithm = ResetNamed;
+
+				Debug.WriteLine("Algorithm: {0}", resetAlgorithm.GetMethodInfo().Name);
+			} // ctor
+
+			public void Reset(TMEMBERTYPE member, bool isMemberCall, MemberMatchInfo<TMEMBERTYPE> target)
+			{
+				Debug.WriteLine("Reset member: {0}", member);
+
+				var parameterInfo = GetMemberParameter(member, isMemberCall);
+				target.Reset(member, parameterInfo);
+				resetAlgorithm(parameterInfo, target);
+				Debug.WriteLine("      Result: {0}", target);
+			} // proc Reset
+			
+			private static ParameterInfo[] GetMemberParameter(TMEMBERTYPE mi, bool isMemberCall)
+			{
+				var mb = mi as MethodBase;
+				if (mb != null)
+				{
+					return isMemberCall && mb.IsStatic ?
+						mb.GetParameters().Skip(1).ToArray() :
+						mb.GetParameters();
+				}
+				else
+				{
+					var pi = mi as PropertyInfo;
+					if (pi != null)
+					{
+						return pi.GetIndexParameters();
+					}
+					else
+						throw new ArgumentException();
+				}
+			} // func GetMemberParameter
+
+			private void ResetPositionalPart(ParameterInfo[] parameterInfo, int length, MemberMatchInfo<TMEMBERTYPE> target)
+			{
+				for (var i = 0; i < length; i++)
+					target.SetMatch(GetParameterMatch(parameterInfo[i].ParameterType.GetTypeInfo(), getType(arguments[i]).GetTypeInfo()), true);
+			} // proc ResetPositionalPart
+
+			private void ResetPositional(ParameterInfo[] parameterInfo, MemberMatchInfo<TMEMBERTYPE> target)
+			{
+				if (target.currentParameterLength == Int32.MaxValue)
+				{
+					// check first part
+					var length = Math.Min(parameterInfo.Length - 1, arguments.Length);
+					ResetPositionalPart(parameterInfo, length, target);
+
+					// array to array match
+					if (arguments.Length == parameterInfo.Length)
+					{
+						var argLastType = getType(arguments[arguments.Length - 1]);
+						var paramLastType = parameterInfo[parameterInfo.Length - 1].ParameterType;
+						if (argLastType.IsArray && paramLastType.IsArray)
+						{
+							target.SetMatch(GetParameterMatch(argLastType.GetTypeInfo(), paramLastType.GetTypeInfo()), true);
+							return;
+						}
+					}
+
+					// test the array
+					var rest = lastIsExpandable ? Int32.MaxValue - length : arguments.Length - length;
+					var elementType = parameterInfo[parameterInfo.Length - 1].ParameterType.GetElementType();
+					if (elementType == typeof(object)) // all is possible
+					{
+						//if (target.explicitMatches == target.matchesOnBeginning)
+						//	target.matchesOnBeginning += rest;
+						target.implicitMatches += rest;
+					}
+					target.explicitMatches += rest;
+				}
+				else
+				{
+					var length = Math.Min(parameterInfo.Length, arguments.Length);
+					ResetPositionalPart(parameterInfo, length, target);
+				}
+			} // proc ResetPositional
+
+			private void ResetPositionalMax(ParameterInfo[] parameterInfo, MemberMatchInfo<TMEMBERTYPE> target)
+			{
+				var checkArguments = arguments.Length - 1;
+				if (checkArguments >= parameterInfo.Length)
+					ResetPositionalPart(parameterInfo, parameterInfo.Length, target);
+				else // check the positional part
+					ResetPositionalPart(parameterInfo, checkArguments, target);
+
+				// the last part will match
+				target.explicitMatches = Int32.MaxValue;
+			} // proc ResetPositionalMax
+
+			private void ResetNamed(ParameterInfo[] parameterInfo, MemberMatchInfo<TMEMBERTYPE> target)
+			{
+				// check the positional part
+				ResetPositionalPart(parameterInfo, Math.Min(parameterInfo.Length, positionalArguments), target);
+
+				// check the named
+				if (positionalArguments < parameterInfo.Length)
+				{
+					var i = positionalArguments;
+					foreach (var cur in callInfo.ArgumentNames)
+					{
+						var index = Array.FindIndex(parameterInfo, positionalArguments, c => c.Name == cur);
+						if (index != -1)
+							target.SetMatch(GetParameterMatch(parameterInfo[index].ParameterType.GetTypeInfo(), getType(arguments[i++]).GetTypeInfo()), false);
+					}
+				}
+			} // proc ResetNamed
+
+			private MemberMatchValue GetParameterMatch(TypeInfo parameterType, TypeInfo argumentType)
+			{
+				bool exact;
+				if (parameterType == argumentType)
+					return MemberMatchValue.Exact;
+				else if (parameterType.IsGenericParameter) // special checks for generic parameter
+				{
+					#region -- check generic --
+					var typeConstraints = parameterType.GetGenericParameterConstraints();
+
+					exact = false;
+
+					// check "class"
+					if ((parameterType.GenericParameterAttributes & GenericParameterAttributes.ReferenceTypeConstraint) != 0 && argumentType.IsValueType)
+						return MemberMatchValue.Explicit;
+
+					// check struct
+					if ((parameterType.GenericParameterAttributes & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0 && !argumentType.IsValueType)
+						return MemberMatchValue.Explicit;
+
+					// check new()
+					if ((parameterType.GenericParameterAttributes & GenericParameterAttributes.DefaultConstructorConstraint) != 0)
+					{
+						// check default ctor
+						if (argumentType.FindDeclaredConstructor(ReflectionFlag.Public | ReflectionFlag.Instance, new Type[0]) == null)
+							return MemberMatchValue.Explicit;
+					}
+
+					// no contraints, all is allowed
+					if (typeConstraints.Length == 0)
+						return MemberMatchValue.Implicit;
+
+					// search for the constraint
+					var noneExactMatch = false;
+					var t = argumentType.AsType();
+					for (int i = 0; i < typeConstraints.Length; i++)
+					{
+						if (typeConstraints[i] == t)
+							return MemberMatchValue.Exact;
+						else if (typeConstraints[i].GetTypeInfo().IsAssignableFrom(argumentType))
+							noneExactMatch = true;
+					}
+
+					return noneExactMatch ? MemberMatchValue.Implicit : MemberMatchValue.Explicit;
+					#endregion
+				}
+				else if (TypesMatch(parameterType.AsType(), argumentType.AsType(), out exact)) // is at least assignable
+				{
+					return exact ? MemberMatchValue.Exact : MemberMatchValue.Implicit;
+				}
+				else
+					return MemberMatchValue.Explicit;
+			} // func GetParameterMatch
+		} // class MemberMatch
+
+		#endregion
+
+		public static MethodInfo FindMethod<TARG>(IEnumerable<MethodInfo> members, CallInfo callInfo, TARG[] arguments, Func<TARG, Type> getType, bool lExtension)
+			where TARG : class
+		{
+			var mi = FindMember(members, callInfo, arguments, getType, lExtension);
 
 			// create a non generic version
 			if (mi != null && mi.ContainsGenericParameters)
@@ -1802,226 +2256,74 @@ namespace Neo.IronLua
 			return mi;
 		} // func FindMethod
 
-		public static TMEMBERTYPE FindMember<TMEMBERTYPE, TARG>(IEnumerable<TMEMBERTYPE> members, TARG[] arguments, Func<TARG, Type> getType, bool lExtension = false)
+		public static TMEMBERTYPE FindMember<TMEMBERTYPE, TARG>(IEnumerable<TMEMBERTYPE> members, CallInfo callInfo, TARG[] arguments, Func<TARG, Type> getType, bool isMemberCall)
 			where TMEMBERTYPE : MemberInfo
 			where TARG : class
 		{
-			int iMaxParameterLength = 0;    // Max length of the argument list, can also MaxInt for variable argument length
-			TMEMBERTYPE miBind = null;      // Member that matches best
-			int iCurParameterLength = 0;    // Length of the arguments of the current match
-			int iCurMatchCount = -1;        // How many arguments match of this list
-			int iCurMatchExactCount = -1;   // How many arguments match exact of this list
-			bool lLastArgumentIsArray = arguments.Length > 0 && getType(arguments[arguments.Length - 1]).IsArray;
+			var unboundedArguments = callInfo.ArgumentNames.Count == 0 && arguments.Length > 0 ? getType(arguments[arguments.Length - 1]) == typeof(LuaResult) : false;
+			var memberMatch = new MemberMatch<TMEMBERTYPE, TARG>(callInfo, arguments, getType);
+			var memberMatchBind = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
 
-			// Get the max. list of arguments we want to consume
-			if (arguments.Length > 0)
-			{
-				iMaxParameterLength =
-					getType(arguments[arguments.Length - 1]) == typeof(LuaResult) ?
-					Int32.MaxValue :
-					arguments.Length;
-			}
+			// get argument list
+			var memberEnum = members.Where(CanCallMember).GetEnumerator();
 
-			foreach (var miCur in members)
+			// reset the result with the first one
+			if (memberEnum.MoveNext())
+				memberMatch.Reset(memberEnum.Current, isMemberCall, memberMatchBind);
+			else
+				return null;
+
+			// text the rest if there is better one
+			if (memberEnum.MoveNext() && !memberMatchBind.IsPerfect)
 			{
-				if (miCur != null)
+				var memberMatchCurrent = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
+
+				// test
+				memberMatch.Reset(memberEnum.Current, isMemberCall, memberMatchCurrent);
+				if (memberMatchCurrent.IsBetter(memberMatchBind))
 				{
-					// do not test methods with __arglist
-					MethodInfo methodInfo = miCur as MethodInfo;
-					if (methodInfo != null && (methodInfo.CallingConvention & CallingConventions.VarArgs) != 0)
-						continue;
+					memberMatchBind = memberMatchCurrent;
+					memberMatchCurrent = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
+				}
 
-					// Get the Parameters
-					ParameterInfo[] parameters = GetMemberParameter(miCur, lExtension);
-
-					// How many parameters we have
-					int iParametersLength = parameters.Length;
-					if (iParametersLength > 0 && !lLastArgumentIsArray && parameters[iParametersLength - 1].ParameterType.IsArray)
-						iParametersLength = Int32.MaxValue;
-
-					// We have already a match, is the new one better
-					if (miBind != null)
+				while (memberEnum.MoveNext() && !memberMatchBind.IsPerfect)
+				{
+					// test
+					memberMatch.Reset(memberEnum.Current, isMemberCall, memberMatchCurrent);
+					if (memberMatchCurrent.IsBetter(memberMatchBind))
 					{
-						if (iParametersLength == iMaxParameterLength && iCurParameterLength == iMaxParameterLength)
-						{
-							// Get the parameter of the current match
-							ParameterInfo[] curParameters = iCurMatchCount == -1 ? GetMemberParameter(miBind, lExtension) : null;
-							int iNewMatchCount = 0;
-							int iNewMatchExactCount = 0;
-							int iCount;
-
-							// Count the parameters of the current match, because they are not collected
-							if (curParameters != null)
-							{
-								iCurMatchCount = 0;
-								iCurMatchExactCount = 0;
-							}
-
-							// Max length of the parameters
-							if (iCurParameterLength == Int32.MaxValue)
-							{
-								iCount = parameters.Length;
-								if (curParameters != null && iCount < curParameters.Length)
-									iCount = curParameters.Length;
-							}
-							else
-								iCount = iCurParameterLength;
-
-							// Check the matches
-							for (int j = 0; j < iCount; j++)
-							{
-								bool lExact;
-								if (curParameters != null && IsMatchParameter(j, curParameters, arguments, getType, out lExact))
-								{
-									iCurMatchCount++;
-									if (lExact)
-										iCurMatchExactCount++;
-								}
-								if (IsMatchParameter(j, parameters, arguments, getType, out lExact))
-								{
-									iNewMatchCount++;
-									if (lExact)
-										iNewMatchExactCount++;
-								}
-							}
-							if (iNewMatchCount > iCurMatchCount ||
-								iNewMatchCount == iCurMatchCount && iNewMatchExactCount > iCurMatchExactCount)
-							{
-								miBind = miCur;
-								iCurParameterLength = iParametersLength;
-								iCurMatchCount = iNewMatchCount;
-								iCurMatchExactCount = iNewMatchExactCount;
-							}
-						}
-						else if (iMaxParameterLength == iParametersLength && iCurParameterLength != iMaxParameterLength ||
-							iMaxParameterLength != iCurParameterLength && iCurParameterLength < iParametersLength)
-						{
-							// if the new parameter length is greater then the old one, it matches best
-							miBind = miCur;
-							iCurParameterLength = iParametersLength;
-							iCurMatchCount = -1;
-							iCurMatchExactCount = -1;
-						}
-					}
-					else
-					{
-						// First match, take it
-						miBind = miCur;
-						iCurParameterLength = iParametersLength;
-						iCurMatchCount = -1;
-						iCurMatchExactCount = -1;
+						memberMatchBind = memberMatchCurrent;
+						memberMatchCurrent = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
 					}
 				}
 			}
 
-			return miBind;
+			Debug.WriteLine("USED: {0}", memberMatchBind.CurrentMember);
+
+			return memberMatchBind.CurrentMember;
 		} // func FindMember
 
-		private static ParameterInfo[] GetMemberParameter<TMEMBERTYPE>(TMEMBERTYPE mi, bool lExtensions)
-			where TMEMBERTYPE : MemberInfo
+		private static bool CanCallMember<TMEMBERTYPE>(TMEMBERTYPE mi)
 		{
-			MethodBase mb = mi as MethodBase;
-			PropertyInfo pi = mi as PropertyInfo;
-
-			if (mb != null)
-			{
-				if (lExtensions && mb.IsStatic)
-					return mb.GetParameters().Skip(1).ToArray();
-				else
-					return mb.GetParameters();
-			}
-			else if (pi != null)
-				return pi.GetIndexParameters();
-			else
-				throw new ArgumentException();
-		} // func GetMemberParameter
-
-		private static bool IsMatchParameter<TARG>(int j, ParameterInfo[] parameters, TARG[] arguments, Func<TARG, Type> getType, out bool lExact)
-		{
-			if (j < parameters.Length && j < arguments.Length)
-			{
-				Type type1 = parameters[j].ParameterType;
-				TypeInfo typeInfo1 = type1.GetTypeInfo();
-				Type type2 = getType(arguments[j]);
-				TypeInfo typeInfo2 = type2.GetTypeInfo();
-
-				if (type1 == type2) // exact equal types
-				{
-					lExact = true;
-					return true;
-				}
-				else if (type1.IsGenericParameter) // the parameter is a generic type
-				{
-					#region -- check generic --
-					Type[] typeConstraints = typeInfo1.GetGenericParameterConstraints();
-
-					lExact = false;
-
-					// check "class"
-					if ((typeInfo1.GenericParameterAttributes & GenericParameterAttributes.ReferenceTypeConstraint) != 0 && typeInfo2.IsValueType)
-						return false;
-
-					// check struct
-					if ((typeInfo1.GenericParameterAttributes & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0 && !typeInfo2.IsValueType)
-						return false;
-
-					// check new()
-					if ((typeInfo1.GenericParameterAttributes & GenericParameterAttributes.DefaultConstructorConstraint) != 0)
-					{
-						// check default ctor
-						if (typeInfo2.FindDeclaredConstructor(ReflectionFlag.Public | ReflectionFlag.Instance, new Type[0]) == null)
-							return false;
-					}
-
-					// no contraints, all is allowed
-					if (typeConstraints.Length == 0)
-						return true;
-
-					// search for the constraint
-					bool lNoneExactMatch = false;
-					for (int i = 0; i < typeConstraints.Length; i++)
-					{
-						if (typeConstraints[i] == type2)
-						{
-							lExact = true;
-							return true;
-						}
-						else if (typeConstraints[i].GetTypeInfo().IsAssignableFrom(typeInfo2))
-							lNoneExactMatch = true;
-					}
-
-					if (lNoneExactMatch)
-					{
-						lExact = false;
-						return true;
-					}
-					#endregion
-				}
-				else if (TypesMatch(type1, type2, out lExact)) // is at least assignable
-				{
-					return true;
-				}
-			}
-
-			lExact = false;
-			return false;
-		} // func IsMatchParameter
+			var methodInfo = mi as MethodInfo;
+			return methodInfo == null || (methodInfo.CallingConvention & CallingConventions.VarArgs) == 0;
+		} // func CanCallMember
 
 		private static MethodInfo MakeNonGenericMethod<TARG>(MethodInfo mi, TARG[] arguments, Func<TARG, Type> getType)
 			where TARG : class
 		{
-			ParameterInfo[] parameters = mi.GetParameters();
-			Type[] genericArguments = mi.GetGenericArguments();
-			Type[] genericParameter = new Type[genericArguments.Length];
+			var parameterInfo = mi.GetParameters();
+			var genericArguments = mi.GetGenericArguments();
+			var genericParameter = new Type[genericArguments.Length];
 
-			for (int i = 0; i < genericArguments.Length; i++)
+			for (var i = 0; i < genericArguments.Length; i++)
 			{
 				Type t = null;
 
 				// look for the typ
-				for (int j = 0; j < parameters.Length; j++)
+				for (int j = 0; j < parameterInfo.Length; j++)
 				{
-					if (parameters[j].ParameterType == genericArguments[i])
+					if (parameterInfo[j].ParameterType == genericArguments[i])
 					{
 						t = CombineType(t, getType(arguments[j]));
 						break;
@@ -2172,7 +2474,7 @@ namespace Neo.IronLua
 						continue;
 					else if (member is EventInfo && ((EventInfo)member).AddMethod.IsStatic != lStatic)
 						continue;
-					
+
 					yield return member;
 				}
 			// Base type

@@ -185,13 +185,7 @@ namespace LuaDLR.Test
     {
 			TestCode(GetLines("Lua.Runtime12.lua"), 2, "fromworldtoLua");
     } // proc TestRuntimeLua12
-
-    [TestMethod]
-    public void TestRuntimeLua13()
-    {
-      TestCode("return string.find('   abc', '%a+');", 4, 6, "abc");
-    } // proc TestRuntimeLua13
-
+		
     [TestMethod]
     public void TestRuntimeLua14()
     {
@@ -203,6 +197,13 @@ namespace LuaDLR.Test
         g.DoChunk("debug:Print('Hallo World!');", "test.lua");
       }
     } // proc TestRuntimeLua13
+
+		[TestMethod]
+		public void TestRuntimeLua15()
+		{
+			TestCode(Lines("return string.gsub('192.168.33.15', '[0-9]+', 'x');"),
+				"x.x.x.x", 4);
+		}
 
     [TestMethod]
     public void TestGlobalMember01()
@@ -273,6 +274,16 @@ namespace LuaDLR.Test
 				g.DoChunk("BoolProperty = true", "test1.lua");
 				TestResult(g.DoChunk("return BoolProperty", "test2.lua"), true);
 			}
+		}
+
+		[TestMethod]
+		public void TestConvert01()
+		{
+			var t = new LuaTable();
+			t["DataType"] = typeof(StringBuilder);
+			var r = Lua.RtConvertValue(t, typeof(LuaDLR.Test.LuaTypeTests.DataTypeTest));
+			Assert.AreEqual(typeof(LuaTypeTests.DataTypeTest), r.GetType());
+			Assert.AreEqual(typeof(StringBuilder), ((LuaTypeTests.DataTypeTest)r).DataType);
 		}
   } // class Runtime
 }

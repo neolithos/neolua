@@ -28,12 +28,15 @@ namespace Neo.IronLua
 	///////////////////////////////////////////////////////////////////////////////
 	/// <summary></summary>
 	[Serializable]
-	public class LuaStackFrame
+	public class LuaStackFrame : ILuaDebugInfo
 	{
 		private readonly StackFrame frame;
 		private readonly ILuaDebugInfo info;
 
-		internal LuaStackFrame(StackFrame frame, ILuaDebugInfo info)
+		/// <summary></summary>
+		/// <param name="frame"></param>
+		/// <param name="info"></param>
+		public LuaStackFrame(StackFrame frame, ILuaDebugInfo info)
 		{
 			this.frame = frame;
 			this.info = info;
@@ -41,13 +44,13 @@ namespace Neo.IronLua
 
 		/// <summary></summary>
 		/// <param name="sb"></param>
-		/// <param name="lPrintType"></param>
+		/// <param name="printType"></param>
 		/// <returns></returns>
-		public StringBuilder ToString(StringBuilder sb, bool lPrintType)
+		public StringBuilder ToString(StringBuilder sb, bool printType)
 		{
 			sb.Append(Properties.Resources.rsStackTraceAt);
 
-			if (lPrintType)
+			if (printType)
 				sb.Append('[').Append(Type.ToString()[0]).Append("] ");
 
 			// at type if it is clr or unknown
@@ -60,7 +63,7 @@ namespace Neo.IronLua
 				sb.Append(Properties.Resources.rsStackTraceUnknownMethod);
 			else
 			{
-				bool lComma = false;
+				var comma = false;
 				if (info != null)
 				{
 					sb.Append(m.Name);
@@ -69,10 +72,10 @@ namespace Neo.IronLua
 						sb.Append('<');
 						foreach (Type g in m.GetGenericArguments())
 						{
-							if (lComma)
+							if (comma)
 								sb.Append(',');
 							else
-								lComma = true;
+								comma = true;
 							sb.Append(g.Name);
 						}
 						sb.Append('>');
@@ -82,17 +85,17 @@ namespace Neo.IronLua
 					sb.Append(MethodName);
 
 				// print parameters
-				lComma = false;
+				comma = false;
 				sb.Append('(');
 				foreach (ParameterInfo pi in m.GetParameters())
 				{
 					if (typeof(Closure).IsAssignableFrom(pi.ParameterType))
 						continue;
 
-					if (lComma)
+					if (comma)
 						sb.Append(',');
 					else
-						lComma = true;
+						comma = true;
 
 					sb.Append(pi.ParameterType.Name);
 
@@ -130,13 +133,13 @@ namespace Neo.IronLua
 
 		private string GetChunkName()
 		{
-			string sChunk = info.ChunkName;
-			string sMethod = Method.Name;
+			var chunkName = info.ChunkName;
+			var methodName = Method.Name;
 
-			if (sMethod.StartsWith(sChunk))
-				return sChunk;
+			if (methodName.StartsWith(chunkName))
+				return chunkName;
 			else
-				return sChunk + "#" + sMethod;
+				return chunkName + "#" + methodName;
 		} // func GetChunkName
 
 		/// <summary></summary>
@@ -167,6 +170,10 @@ namespace Neo.IronLua
 		public int ColumnNumber { get { return info == null ? frame.GetFileColumnNumber() : info.Column; } }
 		/// <summary></summary>
 		public int LineNumber { get { return info == null ? frame.GetFileLineNumber() : info.Line; } }
+
+		string ILuaDebugInfo.ChunkName => MethodName;
+		int ILuaDebugInfo.Line => LineNumber;
+		int ILuaDebugInfo.Column => ColumnNumber;
 	} // class LuaStackFrame
 
 	#endregion
@@ -176,10 +183,12 @@ namespace Neo.IronLua
 	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Class to extent the any Exception with Lua debug information.</summary>
 	[Serializable]
-	public sealed class LuaExceptionData : IList<LuaStackFrame>
+	public sealed class LuaExceptionData : IList<LuaStackFrame>, ILuaExceptionData
 	{
 		private LuaStackFrame[] stackTrace;
 
+		/// <summary>Creates a exception data with a stack trace.</summary>
+		/// <param name="stackTrace"></param>
 		internal LuaExceptionData(LuaStackFrame[] stackTrace)
 		{
 			this.stackTrace = stackTrace;
@@ -198,62 +207,76 @@ namespace Neo.IronLua
 		/// <param name="arrayIndex"></param>
 		public void CopyTo(LuaStackFrame[] array, int arrayIndex) { Array.Copy(stackTrace, 0, array, arrayIndex, Count); }
 
+		/// <summary>Change the StackTrace</summary>
+		/// <param name="newStackTrace"></param>
+		public void UpdateStackTrace(LuaStackFrame[] newStackTrace)
+		{
+			stackTrace = new LuaStackFrame[newStackTrace.Length];
+			newStackTrace.CopyTo(stackTrace, 0);
+		} // porc UpdateStackTrace
+
 		/// <summary></summary>
 		/// <returns></returns>
 		public IEnumerator<LuaStackFrame> GetEnumerator()
 		{
-			int iLength = Count;
-			for (int i = 0; i < iLength; i++)
+			var length = Count;
+			for (int i = 0; i < length; i++)
 				yield return stackTrace[i];
 		} // func GetEnumerator
 
 		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-		{
-			return stackTrace.GetEnumerator();
-		} // func System.Collections.IEnumerable.GetEnumerator
+			=> stackTrace.GetEnumerator();
 
 		/// <summary>Stackframes</summary>
 		public int Count { get { return stackTrace.Length; } }
 		/// <summary>Always <c>true</c></summary>
 		public bool IsReadOnly { get { return true; } }
 
+		/// <summary></summary>
+		/// <param name="luaSkipFrames"></param>
+		/// <param name="skipClrFrames"></param>
+		/// <returns></returns>
+		[Obsolete("Use FormatStackTrace")]
+		public string GetStackTrace(int luaSkipFrames, bool skipClrFrames)
+			=> FormatStackTrace(luaSkipFrames, skipClrFrames);
+
 		/// <summary>Get StackTrace format as an string.</summary>
-		/// <param name="iLuaSkipFrames">Lua frame to skip.</param>
-		/// <param name="lSkipClrFrames">Skip all clr-frames.</param>
+		/// <param name="luaSkipFrames">Lua frame to skip.</param>
+		/// <param name="skipClrFrames">Skip all clr-frames.</param>
 		/// <returns>Formatted stackframe</returns>
-		public string GetStackTrace(int iLuaSkipFrames, bool lSkipClrFrames)
+		public string FormatStackTrace(int luaSkipFrames, bool skipClrFrames)
 		{
-			bool lUnknownFrame = false;
-			StringBuilder sb = new StringBuilder();
+			var unknownFrame = false;
+			var sb = new StringBuilder();
 			foreach (LuaStackFrame c in this)
 			{
 				// Skip the frames
-				if (iLuaSkipFrames > 0)
+				if (luaSkipFrames > 0)
 				{
 					if (c.Type == LuaStackFrameType.Lua)
-						iLuaSkipFrames--;
+						luaSkipFrames--;
 				}
 				// Skip unknwon frames
-				else if (lUnknownFrame)
+				else if (unknownFrame)
 				{
 					if (c.Type == LuaStackFrameType.Unknown)
 						continue;
-					else if (!lSkipClrFrames)
+					else if (!skipClrFrames)
 						sb.AppendLine(Properties.Resources.rsStackTraceInternal);
 				}
 				else
 				{
 					if (c.Type == LuaStackFrameType.Unknown)
 					{
-						lUnknownFrame = true;
+						unknownFrame = true;
 						continue;
 					}
 				}
-				if (iLuaSkipFrames <= 0 && (!lSkipClrFrames || c.Type == LuaStackFrameType.Lua))
-					c.ToString(sb, !lSkipClrFrames).AppendLine();
+				if (luaSkipFrames <= 0 && (!skipClrFrames || c.Type == LuaStackFrameType.Lua))
+					c.ToString(sb, !skipClrFrames).AppendLine();
 			}
 			return sb.ToString();
-		} // func GetStackTrace
+		} // func FormatStackTrace
 
 		/// <summary></summary>
 		/// <param name="index"></param>
@@ -266,9 +289,10 @@ namespace Neo.IronLua
 
 		/// <summary>Formatted StackTrace</summary>
 		public string StackTrace
-		{
-			get { return GetStackTrace(0, false); }
-		} // prop StackTrace
+			=> FormatStackTrace(0, false);
+
+		ILuaDebugInfo ILuaExceptionData.this[int frame]
+			=> this[frame];
 
 		void IList<LuaStackFrame>.Insert(int index, LuaStackFrame item) { throw new NotImplementedException(); }
 		void IList<LuaStackFrame>.RemoveAt(int index) { throw new NotImplementedException(); }
@@ -278,8 +302,6 @@ namespace Neo.IronLua
 
 		// -- Static --------------------------------------------------------------
 
-		private static readonly object luaStackTraceDataKey = new object();
-
 		/// <summary>Get the LuaStackFrame from a .net StackFrame, if someone exists. In the other case, the return LuaStackFrame is only proxy to the orginal frame.</summary>
 		/// <param name="frame">.net stackframe</param>
 		/// <returns>LuaStackFrame</returns>
@@ -288,39 +310,59 @@ namespace Neo.IronLua
 			ILuaDebugInfo info = null;
 
 			// find the lua debug info
-			MethodBase method = frame.GetMethod();
-			LuaChunk chunk = Lua.GetChunkFromMethodInfo(method);
+			var method = frame.GetMethod();
+			var chunk = Lua.GetChunkFromMethodInfo(method);
 			if (chunk != null)
 				info = chunk.GetDebugInfo(method, frame.GetILOffset());
 
 			return new LuaStackFrame(frame, info);
 		} // func GetStackFrame
-
+				
 		/// <summary>Converts a whole StackTrace.</summary>
 		/// <param name="trace">.net stacktrace</param>
 		/// <returns>LuaStackFrames</returns>
 		public static LuaStackFrame[] GetStackTrace(StackTrace trace)
 		{
-			LuaStackFrame[] frames = new LuaStackFrame[trace.FrameCount];
-			int iLength = frames.Length;
-			for (int i = 0; i < iLength; i++)
+			var frames = new LuaStackFrame[trace.FrameCount];
+			var length = frames.Length;
+			for (var i = 0; i < length; i++)
 				frames[i] = GetStackFrame(trace.GetFrame(i));
 			return frames;
 		} // func GetStackTrace
 
+		/// <summary>Converts a whole StackTrace and it is possible to use a special resolver.</summary>
+		/// <param name="trace">.net stacktrace</param>
+		/// <param name="resolveFrames"></param>
+		/// <returns>LuaStackFrames</returns>
+		public static IEnumerable<LuaStackFrame> GetStackTrace(IEnumerable<StackFrame> trace, Func<StackFrame, LuaStackFrame> resolveFrames)
+		{
+			if (trace == null)
+				throw new ArgumentNullException("resolveFrame");
+			if (resolveFrames == null)
+				throw new ArgumentNullException("resolveFrame");
+
+			foreach (var frame in trace)
+				yield return resolveFrames(frame) ?? GetStackFrame(frame);
+		} // func GetStackTrace
+
 		/// <summary>Retrieves the debug information for an exception.</summary>
 		/// <param name="ex">Exception</param>
+		/// <param name="resolveStackTrace"></param>
 		/// <returns>Debug Information</returns>
-		public static LuaExceptionData GetData(Exception ex)
+		public static LuaExceptionData GetData(Exception ex, bool resolveStackTrace = true)
 		{
-			LuaExceptionData data = ex.Data[luaStackTraceDataKey] as LuaExceptionData;
+			var data = ex.Data[LuaRuntimeException.ExceptionDataKey] as LuaExceptionData;
 			if (data == null)
 			{
 				// retrieve the stacktrace
-				data = new LuaExceptionData(GetStackTrace(new StackTrace(ex, true)));
+				data = new LuaExceptionData(
+					resolveStackTrace ?
+						GetStackTrace(new StackTrace(ex, true)) :
+						new LuaStackFrame[0]
+				);
 
 				// set the data
-				ex.Data[luaStackTraceDataKey] = data;
+				ex.Data[LuaRuntimeException.ExceptionDataKey] = data;
 			}
 			return data;
 		} // func GetData

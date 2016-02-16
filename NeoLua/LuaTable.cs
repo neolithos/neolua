@@ -3159,22 +3159,26 @@ namespace Neo.IronLua
 		/// <summary></summary>
 		/// <param name="args"></param>
 		/// <returns></returns>
-		protected virtual object OnCall(object[] args)
+		protected virtual LuaResult OnCall(object[] args)
 		{
 			if (args == null || args.Length == 0)
 			{
-				object o;
-				TryInvokeMetaTableOperator<object>("__call", true, out o, this);
-				return o;
+				LuaResult o;
+				if (TryInvokeMetaTableOperator<LuaResult>("__call", true, out o, this))
+					return o;
+				else
+					return LuaResult.Empty;
 			}
 			else
 			{
 				object[] argsEnlarged = new object[args.Length + 1];
 				argsEnlarged[0] = this;
 				Array.Copy(args, 0, argsEnlarged, 1, args.Length);
-				object o;
-				TryInvokeMetaTableOperator<object>("__call", false, out o, argsEnlarged);
-				return o;
+				LuaResult o;
+				if (TryInvokeMetaTableOperator<LuaResult>("__call", false, out o, argsEnlarged))
+					return o;
+				else
+					return LuaResult.Empty;
 			}
 		} // func OnCall
 

@@ -101,6 +101,30 @@ namespace LuaDLR.Test
 					""
 				)
 			);
-		} 
+		}
+
+		[TestMethod]
+		public void TestFind01()
+		{
+			TestCode("return string.find('fsdfsdF/R/1/EP', '.*/.*/.*/.*')", 1, 14);
+		}
+
+		[TestMethod]
+		public void TestFind02()
+		{
+			TestCode("return string.find('fsdfsdF/R/1/EP', '.*/.*/.*/(.*)')", 1, 14, "EP");
+		}
+
+		[TestMethod]
+		public void TestFind03()
+		{
+			TestCode("return string.find('fsdfsdF/R/1/EP', '.*/(.*)/.*/(.*)')", 1, 14, "R", "EP");
+		}
+
+		[TestMethod]
+		public void TestFind04()
+		{
+			TestCode("return string.find('   abc', '%a+');", 4, 6);
+		} // proc TestRuntimeLua13
 	}
 }

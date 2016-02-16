@@ -332,14 +332,6 @@ namespace Neo.IronLua
 
 		#region -- Write, Seek ------------------------------------------------------------
 
-		private void WriteValue(object v)
-		{
-			if (v == null)
-				return;
-			else
-				WriteValue((string)Lua.RtConvertValue(v, typeof(string)));
-		} // proc WriteValue
-
 		/// <summary></summary>
 		/// <param name="args"></param>
 		/// <returns></returns>
@@ -353,8 +345,12 @@ namespace Neo.IronLua
 				{
 					if (args != null || args.Length > 0)
 					{
-						for (int i = 0; i < args.Length; i++)
-							WriteValue(args[i]);
+						for (var i = 0; i < args.Length; i++)
+						{
+							var v = args[i];
+							if (v != null)
+								tw.Write((string)Lua.RtConvertValue(v, typeof(string)));
+						}
 
 						if (tr != null)
 							tr.DiscardBufferedData();

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.Linq;
 using System.Threading.Tasks;
 using Neo.IronLua;
@@ -25,6 +26,35 @@ namespace NeoTest1
 	//	}
 	//}
 
+
+	public class Folder
+	{
+		public int SomeId { get; set; }
+	}
+
+	public class File
+	{
+		public Folder Folder { get; set; }
+	}
+
+	public class DynData : DynamicObject
+	{
+		public override bool TryGetIndex(GetIndexBinder binder, object[] indexes, out object result)
+		{
+			return base.TryGetIndex(binder, indexes, out result);
+		}
+
+		public override bool TryGetMember(GetMemberBinder binder, out object result)
+		{
+			if (binder.Name == "Part")
+			{
+				result = "Part returned";
+				return true;
+			}
+			return base.TryGetMember(binder, out result);
+		}
+	}
+
 	class Program
 	{
 		static async Task<int> TestAsync()
@@ -35,7 +65,26 @@ namespace NeoTest1
 
 		static void Main(string[] args)
 		{
-			Console.Write(TestAsync().Result);
+			//Console.WriteLine(TestAsync().Result);
+
+			TestDynamic();
+
+			//LinqTest2();
+			Console.ReadKey();
+		}
+
+		private static void TestDynamic()
+		{
+			var lua = new Lua();
+			var global = new LuaGlobalPortable(lua) { ["workspace"] = new DynData() };
+
+			var r = global.DoChunk("return workspace.Part", "Test.lua");
+
+			Console.WriteLine(r.ToString());
+		}
+
+		private static void Test()
+		{
 			using (Lua l = new Lua())
 			{
 				var t = new LuaTable();
@@ -50,9 +99,6 @@ namespace NeoTest1
 				var r = c.Run(t);
 				Console.WriteLine("Test: v1=[{0}], v2=[{1}], r={2}", Lua.RtGetUpValue(t.GetMemberValue("f") as Delegate, 1), Lua.RtGetUpValue(t.GetMemberValue("f") as Delegate, 2), r.ToInt32());
 			}
-
-			//LinqTest2();
-			Console.ReadKey();
 		}
 
 //		private static void LinqTest2()

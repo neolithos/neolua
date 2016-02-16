@@ -693,7 +693,7 @@ namespace Neo.IronLua
 						return value == null ? String.Empty : Convert.ToString(value, CultureInfo.InvariantCulture);
 					}
 				}
-				else
+				else 
 				{
 					TypeInfo typeinfoTo = toType.GetTypeInfo();
 					TypeInfo typeinfoFrom = fromType.GetTypeInfo();
@@ -712,19 +712,8 @@ namespace Neo.IronLua
 								return value;
 							else
 							{
-								bool lImplicit = false;
-								bool lExactTo = false;
-								bool lExactFrom = false;
-								MethodInfo mi = LuaEmit.FindConvertMethod(typeinfoTo.DeclaredMethods.Where(c => c.IsPublic && c.IsStatic), fromType, toType, ref lImplicit, ref lExactFrom, ref lExactTo);
-								if (mi != null)
-								{
-									if (!lExactFrom)
-										value = RtConvertValue(value, mi.GetParameters()[0].ParameterType);
-									value = mi.Invoke(null, new object[] { value });
-									if (!lExactTo)
-										value = RtConvertValue(value, toType);
-								}
-								return value;
+								var c = CallSite<Func<CallSite, object, object>>.Create(new LuaConvertBinder(null, toType));
+								return c.Target(c, value);
 							}
 						}
 						else
