@@ -1645,7 +1645,7 @@ namespace Neo.IronLua
 				var parameter = parameterInfo[parameterIndex];
 				var parameterType = parameter.ParameterType.IsByRef ? parameter.ParameterType.GetElementType() : parameter.ParameterType;
 
-				if (parameter.IsOut) // out-param no value neede
+				if (parameter.IsOut && !parameter.IsIn) // out-param no value needed
 				{
 					argumentExpression = null;
 				}
