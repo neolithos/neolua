@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Dynamic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -19,10 +20,35 @@ namespace LuaDLR.Test
 
   [TestClass]
   public class Expressions : TestHelper
-  {
-    #region -- TestHelper --
+	{
+		#region -- class DynTest ----------------------------------------------------------
 
-    public struct TestOperator2
+		private class DynTest : DynamicObject
+		{
+			public override bool TryGetMember(GetMemberBinder binder, out object result)
+			{
+				if (binder.Name == "Value1")
+				{
+					result = 42;
+					return true;
+				}
+				return base.TryGetMember(binder, out result); // => false
+			}
+
+			public override IEnumerable<string> GetDynamicMemberNames()
+			{
+				yield return "Value1";
+			}
+
+			public int Value3 => 43;
+		}
+
+		#endregion
+
+
+		#region -- TestHelper --
+
+		public struct TestOperator2
     {
       private int i;
 
@@ -1305,7 +1331,37 @@ namespace LuaDLR.Test
         2);
     }
 
-    #endregion
+		#endregion
+
+		#region -- DynamicObjectCompatibility ---------------------------------------------
+
+		[TestMethod]
+		public void DynamicObjectCompatibility01()
+		{
+			using (var l = new Lua())
+			{
+				var g = l.CreateEnvironment();
+				TestResult(g.DoChunk(
+					Lines(
+						"foreach c in dyn.GetDynamicMemberNames() do print(c); end;",
+						"return dyn.Value1, dyn.Value2, dyn.Value3"), "test.lua",
+					new KeyValuePair<string, object>("dyn", new DynTest())), 42, null, 43);
+			}
+			// test get.member
+			// test get.members
+		} // proc DynamicObjectCompatibility01
+
+		//[TestMethod]
+		//public void DynamicComCompatibility01()
+		//{
+		//	TestCode(Lines(
+		//		"local t = clr.System.Type:GetTypeFromProgID('WScript.Shell')",
+		//		"local w = clr.System.Activator:CreateInstance(t);",
+		//		"return w.CurrentDirectory;"),
+		//		Environment.CurrentDirectory);
+		//}
+
+		#endregion
 
 		#region -- Assign -----------------------------------------------------------------
 

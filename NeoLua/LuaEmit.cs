@@ -10,6 +10,17 @@ using System.Text;
 
 namespace Neo.IronLua
 {
+	#region -- enum LuaEmitReturn -------------------------------------------------------
+
+	internal enum LuaEmitReturn
+	{
+		None ,
+		ValidExpression,
+		NotReadable
+	} // enum LuaEmitReturn
+
+	#endregion
+
 	#region -- class LuaEmitException ---------------------------------------------------
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -107,7 +118,7 @@ namespace Neo.IronLua
 		private static readonly TypeInfo DynamicMetaObjectProviderTypeInfo = typeof(IDynamicMetaObjectProvider).GetTypeInfo();
 
 		#region -- IsDynamic, IsArithmetic, ... -------------------------------------------
-
+		
 		public static bool IsDynamicType(Type type)
 		{
 			return type == typeof(object) || DynamicMetaObjectProviderTypeInfo.IsAssignableFrom(type.GetTypeInfo());
@@ -1445,59 +1456,89 @@ namespace Neo.IronLua
 
 		#region -- Emit GetMember ---------------------------------------------------------
 
-		public static Expression GetMember(Lua runtime, Expression instance, Type type, string sMemberName, bool lIgnoreCase, bool lParse)
+		public static LuaEmitReturn TryGetMember(Expression target, Type targetType, string memberName, bool ignoreCase, out Expression result)
 		{
-			MemberInfo[] members =
-				lParse && IsDynamicType(type) ? null :  // dynamic type --> resolve later
-					GetRuntimeMembers(type.GetTypeInfo(), sMemberName, instance == null, lIgnoreCase).ToArray(); // get the current members
+			var luaTargetType = LuaType.GetType(targetType);
 
-			if (members == null || members.Length == 0) // no member found, try later again
-			{
-				if (lParse)
-					return DynamicExpression.Dynamic(runtime.GetGetMemberBinder(sMemberName), typeof(object), Convert(runtime, instance, type, typeof(object), false));
-				else
-					return Expression.Default(typeof(object));
+			var memberEnum = luaTargetType.EnumerateMembers<MemberInfo>(memberName, ignoreCase, target == null).GetEnumerator();
+			try {
+				if (!memberEnum.MoveNext()) // no member found
+				{
+					result = null;
+					return LuaEmitReturn.None;
+				}
+
+				var methodInfo = memberEnum.Current as MethodInfo; // check for method member
+				if (methodInfo != null)
+				{
+					if (memberEnum.MoveNext()) // more than one overload
+					{
+						result = Expression.New(Lua.OverloadedMethodConstructorInfo,
+							target ?? Expression.Default(typeof(object)),
+							Expression.Constant(luaTargetType.EnumerateMembers<MethodInfo>(memberName, ignoreCase, target == null).ToArray())
+						);
+						return LuaEmitReturn.ValidExpression;
+					}
+					else // only one method member -> return the member
+					{
+						result = Expression.New(Lua.MethodConstructorInfo,
+							target ?? Expression.Default(typeof(object)),
+							Expression.Constant(methodInfo, typeof(MethodInfo))
+						);
+						return LuaEmitReturn.ValidExpression;
+					}
+				}
+				else // return a property
+				{
+					var memberInfo = memberEnum.Current;
+
+					if (target != null && target.Type != targetType) // limitType can be different to the act
+						target = Expression.Convert(target, targetType);
+
+					if (memberInfo is FieldInfo)
+					{
+						result = Expression.MakeMemberAccess(target, memberInfo);
+						return LuaEmitReturn.ValidExpression;
+					}
+					else if (memberInfo is PropertyInfo)
+					{
+						var propertyInfo = (PropertyInfo)memberInfo;
+						if (!propertyInfo.CanRead)
+						{
+							result = null;
+							return LuaEmitReturn.NotReadable;
+						}
+
+						result = Expression.MakeMemberAccess(target, memberInfo);
+						return LuaEmitReturn.ValidExpression;
+					}
+					else if (memberInfo is EventInfo)
+					{
+						result = Expression.New(Lua.EventConstructorInfo,
+							target ?? Expression.Default(typeof(object)),
+							 Expression.Constant((EventInfo)memberInfo)
+						);
+						return LuaEmitReturn.ValidExpression;
+					}
+					else if (memberInfo is TypeInfo)
+					{
+						result = Expression.Call(Lua.TypeGetTypeMethodInfoArgType, Expression.Constant(((TypeInfo)memberInfo).AsType()));
+						return LuaEmitReturn.ValidExpression;
+					}
+					else
+					{
+						result = null;
+						return LuaEmitReturn.NotReadable;
+						//throw new LuaEmitException(LuaEmitException.CanNotReadMember, targetType.Name, memberName);
+					}
+				}
 			}
-			else if (members.Length > 1 && members[0] is MethodInfo) // multiple member
+			finally
 			{
-				return Expression.New(Lua.OverloadedMethodConstructorInfo, instance == null ? Expression.Default(typeof(object)) : instance, Expression.Constant(Lua.RtConvertArray(members, typeof(MethodInfo)), typeof(MethodInfo[])));
-			}
-			else // return the one member
-			{
-				var member = members[0];
-
-				if (instance != null)
-					instance = Convert(runtime, instance, type, type, false);
-
-				if (member is FieldInfo)
-				{
-					return Expression.MakeMemberAccess(instance, member);
-				}
-				else if (member is PropertyInfo)
-				{
-					PropertyInfo pi = (PropertyInfo)member;
-					if (!pi.CanRead)
-						throw new LuaEmitException(LuaEmitException.CanNotReadMember, type.Name, sMemberName);
-
-					return Expression.MakeMemberAccess(instance, member);
-				}
-				else if (member is MethodInfo)
-				{
-					return Expression.New(Lua.MethodConstructorInfo, instance == null ? Expression.Default(typeof(object)) : instance, Expression.Constant(member, typeof(MethodInfo)));
-				}
-				else if (member is EventInfo)
-				{
-					return Expression.New(Lua.EventConstructorInfo, instance == null ? Expression.Default(typeof(object)) : instance, Expression.Constant((EventInfo)member));
-				}
-				else if (member is TypeInfo)
-				{
-					return Expression.Call(Lua.TypeGetTypeMethodInfoArgType, Expression.Constant(((TypeInfo)member).AsType()));
-				}
-				else
-					throw new LuaEmitException(LuaEmitException.CanNotReadMember, type.Name, sMemberName);
+				(memberEnum as IDisposable)?.Dispose();
 			}
 		} // func GetMember
-
+		
 		#endregion
 
 		#region -- Emit SetMember ---------------------------------------------------------

@@ -58,7 +58,7 @@ namespace Neo.IronLua
         if (!target.HasValue)
           return Defer(target);
 
-        if (target.Value == null)
+        if (target.Value == null) // no value for target, finish binding with an error or the suggestion
         {
           return errorSuggestion ??
             new DynamicMetaObject(
@@ -68,35 +68,23 @@ namespace Neo.IronLua
         }
         else
         {
-          // try to bind the member
-          Expression expr;
-          try
-          {
-            expr = EnsureType(LuaEmit.GetMember(lua, target.Expression, target.LimitType, Name, IgnoreCase, false), ReturnType);
+					Expression expr;
+					
+					// restrictions
+					var restrictions = target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
 
-						/*
-						 * Fallback-Calls
-						 *   first it get calls with no error suggestion -> return the default value
-						 *   second call is to create a bind expression again, with the default value suggest
-						 *   Example: DynamicObject - creates something like
-						 *   
-						 *   fallback(TryGetMember(binder, out result) ? result : fallback(null));
-						 *
-						 */
-						if (expr.NodeType == ExpressionType.Default && errorSuggestion != null)
-							return errorSuggestion;
-          }
-          catch (LuaEmitException e)
-          {
-            if (errorSuggestion != null)
-              return errorSuggestion;
-            expr = ThrowExpression(e.Message, ReturnType);
-          }
-
-          // restrictions
-          var restrictions = target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
-
-          return new DynamicMetaObject(expr, restrictions);
+					// try to bind the member
+					switch (LuaEmit.TryGetMember(target.Expression, target.LimitType, Name, IgnoreCase, out expr))
+					{
+						case LuaEmitReturn.None:
+							return errorSuggestion ?? new DynamicMetaObject(Expression.Default(ReturnType), restrictions);
+						case LuaEmitReturn.NotReadable:
+							return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(LuaEmitException.GetMessageText(LuaEmitException.CanNotReadMember, target.LimitType.Name, Name), ReturnType), restrictions);
+						case LuaEmitReturn.ValidExpression:
+							return new DynamicMetaObject(Lua.EnsureType(expr, ReturnType), restrictions);
+						default:
+							throw new ArgumentException("return of TryGetMember.");
+					}
         }
       } // func FallbackGetMember
 
@@ -870,20 +858,20 @@ namespace Neo.IronLua
       else
         return BindingRestrictions.GetTypeRestriction(mo.Expression, mo.LimitType);
     } // func GetSimpleRestriction
+		
+		internal static Expression ThrowExpression(string sMessage, Type type = null)
+		{
+			return Expression.Throw(
+				 Expression.New(
+					 Lua.RuntimeExceptionConstructorInfo,
+					 Expression.Constant(sMessage, typeof(string)),
+					 Expression.Constant(null, typeof(Exception))
+				 ),
+				 type ?? typeof(object)
+			 );
+		} // func ThrowExpression
 
-    internal static Expression ThrowExpression(string sMessage, Type type = null)
-    {
-      return Expression.Throw(
-         Expression.New(
-           Lua.RuntimeExceptionConstructorInfo,
-           Expression.Constant(sMessage, typeof(string)),
-           Expression.Constant(null, typeof(Exception))
-         ),
-         type ?? typeof(object)
-       );
-    } // func ThrowExpression
-    
-    internal static Expression EnsureType(Expression expr, Type returnType, bool lResult = false)
+		internal static Expression EnsureType(Expression expr, Type returnType, bool lResult = false)
     {
       if (expr.Type == returnType)
         return expr;
@@ -910,8 +898,8 @@ namespace Neo.IronLua
 			return flags;
 		} // func GetReflectionFlags
 
-    #endregion
-  } // class Lua
+		#endregion
+	} // class Lua
 
   #endregion
 }

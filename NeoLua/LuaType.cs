@@ -106,29 +106,37 @@ namespace Neo.IronLua
 
 			public override DynamicMetaObject BindGetMember(GetMemberBinder binder)
 			{
-				LuaType val = ((LuaType)Value);
-				Type type = val.Type;
-				Expression expr;
+				var luaType = ((LuaType)Value);
+				var type = luaType.Type;
 
-				if (type != null) // we have a type, bind to the member
+				if (type != null) // there is a valid type
 				{
-					try
+					Expression expr;
+					var r = LuaEmit.TryGetMember(null, type, binder.Name, binder.IgnoreCase, out expr);
+					if (r == LuaEmitReturn.ValidExpression)
 					{
-						expr = Lua.EnsureType(LuaEmit.GetMember(Lua.GetRuntime(binder), null, type, binder.Name, binder.IgnoreCase, false), binder.ReturnType);
+						return new DynamicMetaObject(Lua.EnsureType(expr, binder.ReturnType), GetTypeResolvedRestriction(type));
 					}
-					catch (LuaEmitException e)
+					else if (ExceptionOnMissingMember)
 					{
-						expr = Lua.ThrowExpression(e.Message, binder.ReturnType);
+						return new DynamicMetaObject(
+							Lua.ThrowExpression(
+								LuaEmitException.GetMessageText(r == LuaEmitReturn.NotReadable ? LuaEmitException.CanNotReadMember : LuaEmitException.MemberNotFound, type.Name, binder.Name),
+								binder.ReturnType
+							),
+							GetTypeResolvedRestriction(type)
+						);
 					}
-					return new DynamicMetaObject(expr, GetTypeResolvedRestriction(type));
+					else
+						return new DynamicMetaObject(Expression.Default(binder.ReturnType), GetTypeResolvedRestriction(type));
 				}
 				else
 				{
 					// Get the index for the access, as long is there no type behind
-					expr = Expression.Condition(
+					var expr = Expression.Condition(
 						GetUpdateCondition(),
 						binder.GetUpdateExpression(binder.ReturnType),
-						Lua.EnsureType(Expression.Call(Lua.TypeGetTypeMethodInfoArgIndex, Expression.Constant(val.GetIndex(binder.Name, binder.IgnoreCase, null), typeof(int))), binder.ReturnType)
+						Lua.EnsureType(Expression.Call(Lua.TypeGetTypeMethodInfoArgIndex, Expression.Constant(luaType.GetIndex(binder.Name, binder.IgnoreCase, null), typeof(int))), binder.ReturnType)
 					);
 					return new DynamicMetaObject(expr, GetTypeNotResolvedRestriction());
 				}
@@ -797,6 +805,23 @@ namespace Neo.IronLua
 
 		#endregion
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="memberName"></param>
+		/// <param name="ignoreCase"></param>
+		/// <param name="searchStatic"></param>
+		/// <returns></returns>
+		public IEnumerable<T> EnumerateMembers<T>(string memberName, bool ignoreCase, bool searchStatic)
+			where T : MemberInfo
+		{
+			// todo: virtual
+			return from c in LuaEmit.GetRuntimeMembers(type.GetTypeInfo(), memberName, searchStatic, ignoreCase)
+						 where c is T
+						 select (T)c;
+		} // func EnumerateMembers
+
 		// -- Static --------------------------------------------------------------
 
 		private static LuaType clr = new LuaType();                 // root type
@@ -1100,6 +1125,9 @@ namespace Neo.IronLua
 		public static LuaType Clr { get { return clr; } }
 		/// <summary>Resolver for types.</summary>
 		public static ILuaTypeResolver Resolver { get { return typeResolver; } set { typeResolver = value; } }
+
+		/// <summary>Should LuaType throw an exception, if the type is not bindable (default: true).</summary>
+		public static bool ExceptionOnMissingMember { get; set; } = true;
 	} // class LuaType
 
 	#endregion

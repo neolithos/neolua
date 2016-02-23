@@ -143,10 +143,30 @@ namespace Neo.IronLua
 			return scope.Options.SandboxCore(getMember, instance, sMember);
 		} // func MemberGetSandbox
 
-		private static Expression MemberGetExpression(Scope scope, Token tStart, Expression instance, string sMember)
+		private static Expression MemberGetExpressionCore(Lua lua, Token tokenStart, Expression instance, string memberName)
 		{
-			return MemberGetSandbox(scope, SafeExpression(() => LuaEmit.GetMember(scope.Runtime, instance, instance.Type, sMember, false, true), tStart), instance, sMember);
-		} // func MemberGetExpression
+			// if this is a dynamic type, let the type deside what is to do
+			if (LuaEmit.IsDynamicType(instance.Type))
+				return DynamicExpression.Dynamic(lua.GetGetMemberBinder(memberName), typeof(object), Lua.EnsureType(instance, typeof(object)));
+			else
+			{
+				Expression result;
+				switch (LuaEmit.TryGetMember(instance, instance.Type, memberName, false, out result))
+				{
+					case LuaEmitReturn.None:
+						throw ParseError(tokenStart, LuaEmitException.GetMessageText(LuaEmitException.MemberNotFound, instance.Type.Name, memberName));
+					case LuaEmitReturn.NotReadable:
+						throw ParseError(tokenStart, LuaEmitException.GetMessageText(LuaEmitException.CanNotReadMember, instance.Type.Name, memberName));
+					case LuaEmitReturn.ValidExpression:
+						return result;
+					default:
+						throw new ArgumentException("Internal return type of TryGetMember");
+				}
+			}
+		} // func MemberGetExpressionCore
+
+		private static Expression MemberGetExpression(Scope scope, Token tokenStart, Expression instance, string memberName)
+			=> MemberGetSandbox(scope, MemberGetExpressionCore(scope.Runtime, tokenStart, instance, memberName), instance, memberName);
 
 		private static Expression MemberSetExpression(Lua runtime, Token tStart, Expression instance, string sMember, bool lMethodMember, Expression set)
 		{
