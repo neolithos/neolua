@@ -10,14 +10,25 @@ using System.Text;
 
 namespace Neo.IronLua
 {
-	#region -- enum LuaEmitReturn -------------------------------------------------------
+	#region -- enum LuaTryGetMemberReturn -----------------------------------------------
 
-	internal enum LuaEmitReturn
+	internal enum LuaTryGetMemberReturn
 	{
 		None ,
 		ValidExpression,
 		NotReadable
-	} // enum LuaEmitReturn
+	} // enum LuaTryGetMemberReturn
+
+	#endregion
+
+	#region -- enum LuaTrySetMemberReturn -----------------------------------------------
+
+	internal enum LuaTrySetMemberReturn
+	{
+		None,
+		ValidExpression,
+		NotWritable
+	} // enum LuaTrySetMemberReturn
 
 	#endregion
 
@@ -118,7 +129,7 @@ namespace Neo.IronLua
 		private static readonly TypeInfo DynamicMetaObjectProviderTypeInfo = typeof(IDynamicMetaObjectProvider).GetTypeInfo();
 
 		#region -- IsDynamic, IsArithmetic, ... -------------------------------------------
-		
+
 		public static bool IsDynamicType(Type type)
 		{
 			return type == typeof(object) || DynamicMetaObjectProviderTypeInfo.IsAssignableFrom(type.GetTypeInfo());
@@ -1456,7 +1467,7 @@ namespace Neo.IronLua
 
 		#region -- Emit GetMember ---------------------------------------------------------
 
-		public static LuaEmitReturn TryGetMember(Expression target, Type targetType, string memberName, bool ignoreCase, out Expression result)
+		public static LuaTryGetMemberReturn TryGetMember(Expression target, Type targetType, string memberName, bool ignoreCase, out Expression result)
 		{
 			var luaTargetType = LuaType.GetType(targetType);
 
@@ -1465,7 +1476,7 @@ namespace Neo.IronLua
 				if (!memberEnum.MoveNext()) // no member found
 				{
 					result = null;
-					return LuaEmitReturn.None;
+					return LuaTryGetMemberReturn.None;
 				}
 
 				var methodInfo = memberEnum.Current as MethodInfo; // check for method member
@@ -1477,7 +1488,7 @@ namespace Neo.IronLua
 							target ?? Expression.Default(typeof(object)),
 							Expression.Constant(luaTargetType.EnumerateMembers<MethodInfo>(memberName, ignoreCase, target == null).ToArray())
 						);
-						return LuaEmitReturn.ValidExpression;
+						return LuaTryGetMemberReturn.ValidExpression;
 					}
 					else // only one method member -> return the member
 					{
@@ -1485,7 +1496,7 @@ namespace Neo.IronLua
 							target ?? Expression.Default(typeof(object)),
 							Expression.Constant(methodInfo, typeof(MethodInfo))
 						);
-						return LuaEmitReturn.ValidExpression;
+						return LuaTryGetMemberReturn.ValidExpression;
 					}
 				}
 				else // return a property
@@ -1498,7 +1509,7 @@ namespace Neo.IronLua
 					if (memberInfo is FieldInfo)
 					{
 						result = Expression.MakeMemberAccess(target, memberInfo);
-						return LuaEmitReturn.ValidExpression;
+						return LuaTryGetMemberReturn.ValidExpression;
 					}
 					else if (memberInfo is PropertyInfo)
 					{
@@ -1506,30 +1517,29 @@ namespace Neo.IronLua
 						if (!propertyInfo.CanRead)
 						{
 							result = null;
-							return LuaEmitReturn.NotReadable;
+							return LuaTryGetMemberReturn.NotReadable;
 						}
 
 						result = Expression.MakeMemberAccess(target, memberInfo);
-						return LuaEmitReturn.ValidExpression;
+						return LuaTryGetMemberReturn.ValidExpression;
 					}
 					else if (memberInfo is EventInfo)
 					{
 						result = Expression.New(Lua.EventConstructorInfo,
 							target ?? Expression.Default(typeof(object)),
-							 Expression.Constant((EventInfo)memberInfo)
+							Expression.Constant((EventInfo)memberInfo)
 						);
-						return LuaEmitReturn.ValidExpression;
+						return LuaTryGetMemberReturn.ValidExpression;
 					}
 					else if (memberInfo is TypeInfo)
 					{
 						result = Expression.Call(Lua.TypeGetTypeMethodInfoArgType, Expression.Constant(((TypeInfo)memberInfo).AsType()));
-						return LuaEmitReturn.ValidExpression;
+						return LuaTryGetMemberReturn.ValidExpression;
 					}
 					else
 					{
 						result = null;
-						return LuaEmitReturn.NotReadable;
-						//throw new LuaEmitException(LuaEmitException.CanNotReadMember, targetType.Name, memberName);
+						return LuaTryGetMemberReturn.NotReadable;
 					}
 				}
 			}
@@ -1538,46 +1548,46 @@ namespace Neo.IronLua
 				(memberEnum as IDisposable)?.Dispose();
 			}
 		} // func GetMember
-		
+
 		#endregion
 
 		#region -- Emit SetMember ---------------------------------------------------------
 
-		public static Expression SetMember(Lua runtime, Expression instance, Type type, string sMemberName, bool lIgnoreCase, Expression set, Type typeSet, bool lParse)
+		public static LuaTrySetMemberReturn TrySetMember(Expression target, Type targetType, string memberName, bool ignoreCase, Func<Type, Expression> set, out Expression result)
 		{
-			if (lParse && IsDynamicType(type))
+			var luaType = LuaType.GetType(targetType);
+			var memberEnum = luaType.EnumerateMembers<MemberInfo>(memberName, ignoreCase, target == null).GetEnumerator();
+
+			if (!memberEnum.MoveNext())
 			{
-				return DynamicExpression.Dynamic(runtime.GetSetMemberBinder(sMemberName), typeof(object),
-					Convert(runtime, instance, type, typeof(object), false),
-					Convert(runtime, set, typeSet, typeof(object), false)
-				);
+				result = null;
+				return LuaTrySetMemberReturn.None;
 			}
 
-			MemberInfo[] members = type.GetTypeInfo().GetRuntimeMembers(sMemberName, instance == null, lIgnoreCase).ToArray();
-			instance = instance == null ? null : Convert(runtime, instance, type, type, lParse);
-
-			if (members == null || members.Length == 0)
-				throw new LuaEmitException(LuaEmitException.MemberNotFound, type.Name, sMemberName);
-			//else if (members.Length > 1)
-			//	throw new LuaEmitException(LuaEmitException.MemberNotUnique, type.Name, sMemberName);
+			var memberInfo = memberEnum.Current;
+			if (memberInfo is PropertyInfo)
+			{
+				var propertyInfo = (PropertyInfo)memberInfo;
+				if (!propertyInfo.CanWrite)
+				{
+					result = null;
+					return LuaTrySetMemberReturn.NotWritable;
+				}
+				result = Expression.Assign(Expression.Property(target != null ? Lua.EnsureType(target, targetType) : null, propertyInfo), set(propertyInfo.PropertyType));
+				return LuaTrySetMemberReturn.ValidExpression;
+			}
+			else if (memberInfo is FieldInfo)
+			{
+				var fieldInfo = (FieldInfo)memberInfo;
+				result = Expression.Assign(Expression.Field(target != null ? Lua.EnsureType(target, targetType) : null, fieldInfo), set(fieldInfo.FieldType));
+				return LuaTrySetMemberReturn.ValidExpression;
+			}
 			else
 			{
-				if (members[0] is PropertyInfo)
-				{
-					PropertyInfo pi = (PropertyInfo)members[0];
-					if (!pi.CanWrite)
-						throw new LuaEmitException(LuaEmitException.CanNotWriteMember, type.Name, sMemberName);
-					return Expression.Assign(Expression.Property(instance, pi), Convert(runtime, set, typeSet, pi.PropertyType, lParse));
-				}
-				else if (members[0] is FieldInfo)
-				{
-					FieldInfo fi = (FieldInfo)members[0];
-					return Expression.Assign(Expression.Field(instance, fi), Convert(runtime, set, typeSet, fi.FieldType, lParse));
-				}
-				else
-					throw new LuaEmitException(LuaEmitException.CanNotWriteMember, type.Name, sMemberName);
+				result = null;
+				return LuaTrySetMemberReturn.NotWritable;
 			}
-		} // func SetMember
+		} // func TrySetMember
 
 		#endregion
 

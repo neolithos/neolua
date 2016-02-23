@@ -113,7 +113,7 @@ namespace Neo.IronLua
 				{
 					Expression expr;
 					var r = LuaEmit.TryGetMember(null, type, binder.Name, binder.IgnoreCase, out expr);
-					if (r == LuaEmitReturn.ValidExpression)
+					if (r == LuaTryGetMemberReturn.ValidExpression)
 					{
 						return new DynamicMetaObject(Lua.EnsureType(expr, binder.ReturnType), GetTypeResolvedRestriction(type));
 					}
@@ -121,7 +121,7 @@ namespace Neo.IronLua
 					{
 						return new DynamicMetaObject(
 							Lua.ThrowExpression(
-								LuaEmitException.GetMessageText(r == LuaEmitReturn.NotReadable ? LuaEmitException.CanNotReadMember : LuaEmitException.MemberNotFound, type.Name, binder.Name),
+								LuaEmitException.GetMessageText(r == LuaTryGetMemberReturn.NotReadable ? LuaEmitException.CanNotReadMember : LuaEmitException.MemberNotFound, type.Name, binder.Name),
 								binder.ReturnType
 							),
 							GetTypeResolvedRestriction(type)
@@ -148,24 +148,31 @@ namespace Neo.IronLua
 
 			public override DynamicMetaObject BindSetMember(SetMemberBinder binder, DynamicMetaObject value)
 			{
-				Type type = ((LuaType)Value).Type;
+				var luaType = (LuaType)Value;
+				var type = luaType;
 
-				Expression expr;
 				if (type != null)
 				{
-					try
+					Expression result;
+					var r = LuaEmit.TrySetMember(null, type, binder.Name, binder.IgnoreCase,
+						(setType) => LuaEmit.Convert(Lua.GetRuntime(binder), value.Expression, value.LimitType, setType, false),
+						out result);
+
+					if (r == LuaTrySetMemberReturn.ValidExpression)
+						return new DynamicMetaObject(Lua.EnsureType(result, binder.ReturnType), GetTypeResolvedRestriction(type).Merge(Lua.GetSimpleRestriction(value)));
+					else
 					{
-						expr = Lua.EnsureType(LuaEmit.SetMember(Lua.GetRuntime(binder), null, type, binder.Name, binder.IgnoreCase, value.Expression, value.LimitType, false), binder.ReturnType);
+						return new DynamicMetaObject(
+							Lua.ThrowExpression(LuaEmitException.GetMessageText(
+								r == LuaTrySetMemberReturn.NotWritable ? LuaEmitException.CanNotWriteMember : LuaEmitException.MemberNotFound,
+								type.Name, binder.Name), binder.ReturnType),
+							GetTypeResolvedRestriction(type)
+						);
 					}
-					catch (LuaEmitException e)
-					{
-						expr = Lua.ThrowExpression(e.Message, binder.ReturnType);
-					}
-					return new DynamicMetaObject(expr, GetTypeResolvedRestriction(type).Merge(Lua.GetSimpleRestriction(value)));
 				}
 				else
 				{
-					expr = Expression.Condition(
+					var expr = Expression.Condition(
 						GetUpdateCondition(),
 						binder.GetUpdateExpression(binder.ReturnType),
 						Lua.ThrowExpression(String.Format(Properties.Resources.rsMemberNotWritable, "LuaType", binder.Name), binder.ReturnType)

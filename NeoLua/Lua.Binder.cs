@@ -76,11 +76,11 @@ namespace Neo.IronLua
 					// try to bind the member
 					switch (LuaEmit.TryGetMember(target.Expression, target.LimitType, Name, IgnoreCase, out expr))
 					{
-						case LuaEmitReturn.None:
+						case LuaTryGetMemberReturn.None:
 							return errorSuggestion ?? new DynamicMetaObject(Expression.Default(ReturnType), restrictions);
-						case LuaEmitReturn.NotReadable:
+						case LuaTryGetMemberReturn.NotReadable:
 							return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(LuaEmitException.GetMessageText(LuaEmitException.CanNotReadMember, target.LimitType.Name, Name), ReturnType), restrictions);
-						case LuaEmitReturn.ValidExpression:
+						case LuaTryGetMemberReturn.ValidExpression:
 							return new DynamicMetaObject(Lua.EnsureType(expr, ReturnType), restrictions);
 						default:
 							throw new ArgumentException("return of TryGetMember.");
@@ -113,33 +113,36 @@ namespace Neo.IronLua
         if (!target.HasValue)
           return Defer(target);
 
-        if (target.Value == null)
-        {
-          return errorSuggestion ??
-            new DynamicMetaObject(
-              ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, target.LimitType.Name, Name), ReturnType),
-              target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, null))
-            );
-        }
-        else
-        {
-          Expression expr;
-          try
-          {
-            expr = Lua.EnsureType(LuaEmit.SetMember(lua, target.Expression, target.LimitType, Name, IgnoreCase, value.Expression, value.LimitType, false), ReturnType);
-          }
-          catch (LuaEmitException e)
-          {
-            if (errorSuggestion != null)
-              return errorSuggestion;
-            expr = ThrowExpression(e.Message, ReturnType);
-          }
+				if (target.Value == null)
+				{
+					return errorSuggestion ??
+						new DynamicMetaObject(
+							ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, target.LimitType.Name, Name), ReturnType),
+							target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, null))
+						);
+				}
+				else
+				{
+					Expression expr;
 
-          return new DynamicMetaObject(
-            expr,
-            target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType).Merge(Lua.GetSimpleRestriction(value)))
-          );
-        }
+					// restrictions
+					var restrictions = target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
+
+					// try to bind the member
+					switch (LuaEmit.TrySetMember(target.Expression, target.LimitType, Name, IgnoreCase,
+						(setType) => Lua.EnsureType(DynamicExpression.Dynamic(Lua.GetConvertBinder(setType), typeof(object), Lua.EnsureType(value.Expression, value.LimitType)), setType),
+						out expr))
+					{
+						case LuaTrySetMemberReturn.None:
+							return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(LuaEmitException.GetMessageText(LuaEmitException.MemberNotFound, target.LimitType.Name, Name), ReturnType), restrictions);
+						case LuaTrySetMemberReturn.NotWritable:
+							return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(LuaEmitException.GetMessageText(LuaEmitException.CanNotWriteMember, target.LimitType.Name, Name), ReturnType), restrictions);
+						case LuaTrySetMemberReturn.ValidExpression:
+							return new DynamicMetaObject(Lua.EnsureType(expr, ReturnType), restrictions.Merge(Lua.GetSimpleRestriction(value)));
+						default:
+							throw new ArgumentException("return of TryGetMember.");
+					}
+				}
       } // func FallbackSetMember
 
       public Lua Lua { get { return lua; } }

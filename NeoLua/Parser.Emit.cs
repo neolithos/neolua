@@ -80,21 +80,21 @@ namespace Neo.IronLua
 			}
 		} // func SafeExpression
 
-		private static Expression ConvertObjectExpression(Lua runtime, Token tStart, Expression expr, bool lConvertToObject = false)
+		private static Expression ConvertObjectExpression(Lua runtime, Token tokenStart, Expression expr, bool convertToObject = false)
 		{
-			if (expr.Type == typeof(LuaResult))
-				return GetResultExpression(runtime, tStart, expr, 0);
-			else if (expr.Type == typeof(object) && expr.NodeType == ExpressionType.Dynamic)
+			if (expr.Type == typeof(LuaResult)) // shortcut for LuaResult ==> expr[0]
+				return GetResultExpression(runtime, tokenStart, expr, 0);
+			else if (expr.Type == typeof(object) && expr.NodeType == ExpressionType.Dynamic) // wrap dynamic Invokes
 			{
-				DynamicExpression exprDynamic = (DynamicExpression)expr;
-				if (exprDynamic.Binder is InvokeBinder || exprDynamic.Binder is InvokeMemberBinder)
+				var exprDynamic = (DynamicExpression)expr;
+				if (exprDynamic.Binder is InvokeBinder || exprDynamic.Binder is InvokeMemberBinder) // convert the result of a invoke to object
 					return DynamicExpression.Dynamic(runtime.GetConvertBinder(typeof(object)), typeof(object), expr);
-				else if (lConvertToObject)
+				else if (convertToObject) // other binders return normally objects, do we need to force the object convert
 					return Lua.EnsureType(expr, typeof(object));
 				else
 					return expr;
 			}
-			else if (lConvertToObject)
+			else if (convertToObject) // force
 				return Lua.EnsureType(expr, typeof(object));
 			else
 				return expr;
@@ -147,17 +147,17 @@ namespace Neo.IronLua
 		{
 			// if this is a dynamic type, let the type deside what is to do
 			if (LuaEmit.IsDynamicType(instance.Type))
-				return DynamicExpression.Dynamic(lua.GetGetMemberBinder(memberName), typeof(object), Lua.EnsureType(instance, typeof(object)));
+				return DynamicExpression.Dynamic(lua.GetGetMemberBinder(memberName), typeof(object), ConvertObjectExpression(lua, tokenStart, instance, true));
 			else
 			{
 				Expression result;
 				switch (LuaEmit.TryGetMember(instance, instance.Type, memberName, false, out result))
 				{
-					case LuaEmitReturn.None:
+					case LuaTryGetMemberReturn.None:
 						throw ParseError(tokenStart, LuaEmitException.GetMessageText(LuaEmitException.MemberNotFound, instance.Type.Name, memberName));
-					case LuaEmitReturn.NotReadable:
+					case LuaTryGetMemberReturn.NotReadable:
 						throw ParseError(tokenStart, LuaEmitException.GetMessageText(LuaEmitException.CanNotReadMember, instance.Type.Name, memberName));
-					case LuaEmitReturn.ValidExpression:
+					case LuaTryGetMemberReturn.ValidExpression:
 						return result;
 					default:
 						throw new ArgumentException("Internal return type of TryGetMember");
@@ -168,20 +168,46 @@ namespace Neo.IronLua
 		private static Expression MemberGetExpression(Scope scope, Token tokenStart, Expression instance, string memberName)
 			=> MemberGetSandbox(scope, MemberGetExpressionCore(scope.Runtime, tokenStart, instance, memberName), instance, memberName);
 
-		private static Expression MemberSetExpression(Lua runtime, Token tStart, Expression instance, string sMember, bool lMethodMember, Expression set)
+		private static Expression MemberSetExpressionCore(Lua lua, Token tokenStart, Expression instance, string memberName, Expression set)
 		{
-			// Assign the value to a member
-			if (lMethodMember)
+			if (LuaEmit.IsDynamicType(instance.Type)) // first call the dynamic interface
 			{
-				return Expression.Call(
-					 ConvertExpression(runtime, tStart, instance, typeof(LuaTable)),
-					 Lua.TableDefineMethodLightMethodInfo,
-					 Expression.Constant(sMember, typeof(string)),
-					 ConvertExpression(runtime, tStart, set, typeof(Delegate))
+				return DynamicExpression.Dynamic(lua.GetSetMemberBinder(memberName), typeof(object),
+					ConvertObjectExpression(lua, tokenStart, instance, true),
+					ConvertObjectExpression(lua, tokenStart, set, true)
 				);
 			}
 			else
-				return SafeExpression(() => LuaEmit.SetMember(runtime, instance, instance.Type, sMember, false, set, set.Type, true), tStart);
+			{
+				Expression result;
+				switch (LuaEmit.TrySetMember(instance, instance.Type, memberName, false, (setType) => ConvertExpression(lua, tokenStart, set, setType), out result))
+				{
+					case LuaTrySetMemberReturn.None:
+						throw ParseError(tokenStart, LuaEmitException.GetMessageText(LuaEmitException.MemberNotFound, instance.Type.Name, memberName));
+					case LuaTrySetMemberReturn.NotWritable:
+						throw ParseError(tokenStart, LuaEmitException.GetMessageText(LuaEmitException.CanNotWriteMember, instance.Type.Name, memberName));
+					case LuaTrySetMemberReturn.ValidExpression:
+						return result;
+					default:
+						throw new ArgumentException("Internal return type of TrySetMember");
+				}
+			}
+		} // func MemberSetExpressionCore
+
+		private static Expression MemberSetExpression(Lua runtime, Token tokenStart, Expression instance, string memberName, bool setMethodMember, Expression set)
+		{
+			// Assign the value to a member
+			if (setMethodMember)
+			{
+				return Expression.Call(
+					 ConvertExpression(runtime, tokenStart, instance, typeof(LuaTable)),
+					 Lua.TableDefineMethodLightMethodInfo,
+					 Expression.Constant(memberName, typeof(string)),
+					 ConvertExpression(runtime, tokenStart, set, typeof(Delegate))
+				);
+			}
+			else
+				return SafeExpression(() => MemberSetExpressionCore(runtime, tokenStart, instance, memberName, set), tokenStart);
 		} // func MemberSetExpression
 
 		private static Expression IndexGetExpression(Scope scope, Token tStart, Expression instance, Expression[] indexes)
