@@ -831,6 +831,7 @@ namespace Neo.IronLua
 		public IEnumerable<T> EnumerateMembers<T>(bool searchStatic)
 			where T : MemberInfo
 		{
+			//GetInstanceMethods()
 			// todo: virtual, public only
 			return from c in LuaEmit.GetRuntimeMembers(type.GetTypeInfo(), null, searchStatic, false)
 						 where c is T
