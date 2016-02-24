@@ -44,10 +44,10 @@ namespace Neo.IronLua
     /// <summary></summary>
 		internal class LuaGetMemberBinder : GetMemberBinder, ILuaBinder
     {
-      private Lua lua;
+      private readonly Lua lua;
 
-      public LuaGetMemberBinder(Lua lua, string sName)
-        : base(sName, false)
+      public LuaGetMemberBinder(Lua lua, string name)
+        : base(name, false)
       {
         this.lua = lua;
       } // ctor
@@ -88,7 +88,7 @@ namespace Neo.IronLua
         }
       } // func FallbackGetMember
 
-      public Lua Lua { get { return lua; } }
+			public Lua Lua => lua;
     } // class LuaGetMemberBinder
 
     #endregion
@@ -99,10 +99,10 @@ namespace Neo.IronLua
     /// <summary></summary>
 		internal class LuaSetMemberBinder : SetMemberBinder, ILuaBinder
     {
-      private Lua lua;
+      private readonly Lua lua;
 
-      public LuaSetMemberBinder(Lua lua, string sName)
-        : base(sName, false)
+      public LuaSetMemberBinder(Lua lua, string name)
+        : base(name, false)
       {
         this.lua = lua;
       } // ctor
@@ -145,7 +145,7 @@ namespace Neo.IronLua
 				}
       } // func FallbackSetMember
 
-      public Lua Lua { get { return lua; } }
+      public Lua Lua => lua;
     } // class LuaSetMemberBinder
 
     #endregion
@@ -538,9 +538,6 @@ namespace Neo.IronLua
     /// <summary></summary>
     internal class LuaConvertBinder : ConvertBinder, ILuaBinder
     {
-      private static readonly MethodInfo miGetType;
-      private static readonly MethodInfo miIsArithmetic;
-
       private Lua lua;
 
       public LuaConvertBinder(Lua lua, Type type)
@@ -554,45 +551,38 @@ namespace Neo.IronLua
         if (!target.HasValue)
           return Defer(target);
 
-        Expression expr = target.Expression;
-        BindingRestrictions restrictions = null;
+				if (target.Value == null) // get the default value
+				{
+					Expression expr;
+					var restrictions = target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, null));
 
-        if (target.Value == null) // get the default value
-        {
-          restrictions = target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, null));
-          if (this.Type == typeof(LuaResult)) // replace null with empty LuaResult 
-            expr = Expression.Property(null, Lua.ResultEmptyPropertyInfo);
-          else if (this.Type == typeof(string)) // replace null with empty String
-            expr = Expression.Field(null, Lua.StringEmptyFieldInfo);
-          else
-            expr = Expression.Default(this.Type);
-        }
-        else // convert the value
-        {
-          restrictions = target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
-          try
-          {
-            expr = LuaEmit.Convert(lua, target.Expression, target.LimitType, this.Type, false); // no dynamic allowed
-          }
-          catch (LuaEmitException e)
-          {
-            if (errorSuggestion != null)
-              return errorSuggestion;
-            expr = ThrowExpression(e.Message, this.Type);
-          }
-        }
+					if (this.Type == typeof(LuaResult)) // replace null with empty LuaResult 
+						expr = Expression.Property(null, Lua.ResultEmptyPropertyInfo);
+					else if (this.Type == typeof(string)) // replace null with empty String
+						expr = Expression.Field(null, Lua.StringEmptyFieldInfo);
+					else
+						expr = Expression.Default(this.Type);
 
-        return new DynamicMetaObject(expr, restrictions);
+					return new DynamicMetaObject(expr, restrictions);
+				}
+				else // convert the value
+				{
+					var restrictions = target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
+					object result;
+					if (LuaEmit.TryConvertCore(target.Expression, target.LimitType, Type, null, out result))
+					{
+						return new DynamicMetaObject((Expression)result, restrictions);
+					}
+					else if (errorSuggestion == null)
+					{
+						if (result == null)
+							throw new ArgumentNullException("expr", "LuaEmit.TryConvert does not return a expression.");
+						return new DynamicMetaObject(ThrowExpression(((LuaEmitException)result).Message, ReturnType), restrictions);
+					}
+					else
+						return errorSuggestion;
+				}
       } // func FallbackConvert
-
-			static LuaConvertBinder()
-			{
-				TypeInfo tiObject = typeof(Object).GetTypeInfo();
-				TypeInfo tiLuaEmit = typeof(LuaEmit).GetTypeInfo();
-
-				miGetType = tiObject.FindDeclaredMethod("GetType", ReflectionFlag.Instance);
-				miIsArithmetic = tiLuaEmit.FindDeclaredMethod("IsArithmeticType", ReflectionFlag.Static, typeof(Type));
-			} // sctor
 
       public Lua Lua { get { return lua; } }
     } // class LuaConvertBinder
@@ -819,13 +809,13 @@ namespace Neo.IronLua
       return b;
     } // func GetUnaryOperationBinary
 
-    internal CallSiteBinder GetConvertBinder(Type type)
+    internal ConvertBinder GetConvertBinder(Type type)
     {
       CallSiteBinder b;
       lock (convertBinder)
         if (!convertBinder.TryGetValue(type, out b))
           b = convertBinder[type] = new LuaConvertBinder(this, type);
-      return b;
+      return (ConvertBinder)b;
     } // func GetConvertBinder
 
     #endregion
@@ -874,12 +864,12 @@ namespace Neo.IronLua
 			 );
 		} // func ThrowExpression
 
-		internal static Expression EnsureType(Expression expr, Type returnType, bool lResult = false)
+		internal static Expression EnsureType(Expression expr, Type returnType, bool forResult = false)
     {
       if (expr.Type == returnType)
         return expr;
       else if (expr.Type == typeof(void))
-        if (lResult)
+        if (forResult)
           return Expression.Block(expr, Expression.Property(null, Lua.ResultEmptyPropertyInfo));
         else
           return Expression.Block(expr, Expression.Default(returnType));
@@ -887,22 +877,15 @@ namespace Neo.IronLua
         return Expression.Convert(expr, returnType);
     } // func EnsureType
 
-		internal static ReflectionFlag GetReflectionFlags(bool lInstance, bool lIgnoreCase)
+		internal static Expression EnsureType(Expression expr, Type exprType, Type returnType, bool forResult = false)
 		{
-			var flags = ReflectionFlag.Public;
-
-			if (lInstance)
-				flags |= ReflectionFlag.Instance;
-			else
-				flags |= ReflectionFlag.Static;
-
-			if (lIgnoreCase)
-				flags |= ReflectionFlag.IgnoreCase;
-			return flags;
-		} // func GetReflectionFlags
+			if (expr.Type != exprType)
+				expr = Expression.Convert(expr, exprType);
+			return EnsureType(expr, returnType, forResult);
+		} // func Expression
 
 		#endregion
 	} // class Lua
 
-  #endregion
+	#endregion
 }

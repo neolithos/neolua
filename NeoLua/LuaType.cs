@@ -155,7 +155,17 @@ namespace Neo.IronLua
 				{
 					Expression result;
 					var r = LuaEmit.TrySetMember(null, type, binder.Name, binder.IgnoreCase,
-						(setType) => LuaEmit.Convert(Lua.GetRuntime(binder), value.Expression, value.LimitType, setType, false),
+						(setType) =>
+						{
+							try
+							{
+								return LuaEmit.ConvertWithRuntime(Lua.GetRuntime(binder), value.Expression, value.LimitType, setType);
+							}
+							catch (LuaEmitException e)
+							{
+								return Lua.ThrowExpression(e.Message, setType);
+							}
+						},
 						out result);
 
 					if (r == LuaTrySetMemberReturn.ValidExpression)
@@ -811,6 +821,21 @@ namespace Neo.IronLua
 		public LuaType Parent { get { return parent; } }
 
 		#endregion
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="searchStatic"></param>
+		/// <returns></returns>
+		public IEnumerable<T> EnumerateMembers<T>(bool searchStatic)
+			where T : MemberInfo
+		{
+			// todo: virtual, public only
+			return from c in LuaEmit.GetRuntimeMembers(type.GetTypeInfo(), null, searchStatic, false)
+						 where c is T
+						 select(T)c;
+		}
 
 		/// <summary>
 		/// 

@@ -870,7 +870,7 @@ namespace Neo.IronLua
 				code.Next();
 
 				// parse all expressions
-				IEnumerator<Expression> expr = ParseExpressionList(scope, code).GetEnumerator();
+				var expr = ParseExpressionList(scope, code).GetEnumerator();
 				expr.MoveNext();
 
 				if (prefixes.Count == 1) // one expression, one variable?

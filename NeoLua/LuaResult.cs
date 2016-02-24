@@ -39,7 +39,7 @@ namespace Neo.IronLua
 
 			private Expression GetFirstResultExpression()
 			{
-				return LuaEmit.GetResultExpression(Expression, typeof(LuaResult), 0);
+				return LuaEmit.GetResultExpression(Expression, 0);
 			} // func GetFirstResultExpression
 
 			private DynamicMetaObject GetTargetDynamicCall(CallSiteBinder binder, Type typeReturn, Expression[] exprs)
@@ -63,7 +63,7 @@ namespace Neo.IronLua
 					new Expression[] 
           {
             GetFirstResultExpression(),
-            LuaEmit.Convert(Lua.GetRuntime(binder), arg.Expression, arg.LimitType, typeof(object), false)
+            Lua.EnsureType(arg.Expression, arg.LimitType, typeof(object))
           }
 				);
 			} // func GetTargetDynamicCall
@@ -71,14 +71,14 @@ namespace Neo.IronLua
 			private DynamicMetaObject GetTargetDynamicCall(CallSiteBinder binder, Type typeReturn, DynamicMetaObject[] args)
 			{
 				return GetTargetDynamicCall(binder, typeReturn,
-					LuaEmit.CreateDynamicArgs(Lua.GetRuntime(binder), GetFirstResultExpression(), typeof(object), args, mo => mo.Expression, mo => mo.LimitType)
+					LuaEmit.CreateDynamicArgs(GetFirstResultExpression(), typeof(object), args, mo => mo.Expression, mo => mo.LimitType)
 				);
 			} // func GetTargetDynamicCall
 
 			public override DynamicMetaObject BindConvert(ConvertBinder binder)
 			{
-				BindingRestrictions r = BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaResult));
-				LuaResult v = (LuaResult)Value;
+				var r = BindingRestrictions.GetTypeRestriction(Expression, typeof(LuaResult));
+				var v = (LuaResult)Value;
 				if (binder.Type == typeof(LuaResult))
 					return new DynamicMetaObject(Expression.Convert(this.Expression, binder.ReturnType), r);
 				else if (binder.Type == typeof(object[]))
@@ -110,7 +110,7 @@ namespace Neo.IronLua
 			public override DynamicMetaObject BindSetIndex(SetIndexBinder binder, DynamicMetaObject[] indexes, DynamicMetaObject value)
 			{
 				return GetTargetDynamicCall(binder, binder.ReturnType,
-					LuaEmit.CreateDynamicArgs(Lua.GetRuntime(binder), GetFirstResultExpression(), typeof(object), indexes, value, mo => mo.Expression, mo => mo.LimitType)
+					LuaEmit.CreateDynamicArgs(GetFirstResultExpression(), typeof(object), indexes, value, mo => mo.Expression, mo => mo.LimitType)
 				);
 			} // func BindSetIndex
 

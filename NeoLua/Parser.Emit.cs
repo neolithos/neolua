@@ -68,7 +68,7 @@ namespace Neo.IronLua
 
 		#region -- Emit Helper ------------------------------------------------------------
 
-		private static Expression SafeExpression(Func<Expression> f, Token tStart)
+		private static Expression SafeExpression(Func<Expression> f, Token tokenStart)
 		{
 			try
 			{
@@ -76,38 +76,67 @@ namespace Neo.IronLua
 			}
 			catch (LuaEmitException e)
 			{
-				throw ParseError(tStart, e.Message);
+				throw ParseError(tokenStart, e.Message);
 			}
 		} // func SafeExpression
 
-		private static Expression ConvertObjectExpression(Lua runtime, Token tokenStart, Expression expr, bool convertToObject = false)
+		private static Expression ConvertExpressionNoneEmit(Lua runtime, Token tokenStart, Expression expr, Type toType, bool forceType)
 		{
-			if (expr.Type == typeof(LuaResult)) // shortcut for LuaResult ==> expr[0]
-				return GetResultExpression(runtime, tokenStart, expr, 0);
+			if (expr.Type == typeof(LuaResult) && toType != typeof(LuaResult)) // shortcut for LuaResult ==> expr[0]
+			{
+				if (expr.NodeType == ExpressionType.New) // new LuaResult(?)
+				{
+					var newExpression = (NewExpression)expr;
+					if (newExpression.Constructor == Lua.ResultConstructorInfoArg1 || newExpression.Constructor == Lua.ResultConstructorInfoArgN)
+						return ConvertExpressionNoneEmit(runtime, tokenStart, newExpression.Arguments.First(), toType, forceType);
+				}
+				else if (expr.NodeType == ExpressionType.Dynamic) // (LuaResult)?
+				{
+					var dynamicExpression = (DynamicExpression)expr;
+					if (dynamicExpression.Binder is ConvertBinder)
+						return ConvertExpressionNoneEmit(runtime, tokenStart, DynamicExpression.Dynamic(runtime.GetConvertBinder(toType), toType, dynamicExpression.Arguments.First()), toType, forceType);
+				}
+
+				return GetResultExpression(runtime, tokenStart, expr, 0); // is forced by default
+			}
 			else if (expr.Type == typeof(object) && expr.NodeType == ExpressionType.Dynamic) // wrap dynamic Invokes
 			{
 				var exprDynamic = (DynamicExpression)expr;
 				if (exprDynamic.Binder is InvokeBinder || exprDynamic.Binder is InvokeMemberBinder) // convert the result of a invoke to object
-					return DynamicExpression.Dynamic(runtime.GetConvertBinder(typeof(object)), typeof(object), expr);
-				else if (convertToObject) // other binders return normally objects, do we need to force the object convert
-					return Lua.EnsureType(expr, typeof(object));
-				else
-					return expr;
+					return ConvertExpressionNoneEmit(runtime, tokenStart, DynamicExpression.Dynamic(runtime.GetConvertBinder(toType), toType, expr), toType, forceType);
+				else if (exprDynamic.Binder is ConvertBinder && exprDynamic.Type != toType)
+					return ConvertExpressionNoneEmit(runtime, tokenStart, DynamicExpression.Dynamic(runtime.GetConvertBinder(toType), toType, exprDynamic.Arguments.First()), toType, forceType);
+
+				// fall to forceType
 			}
-			else if (convertToObject) // force
+
+			if (forceType) // force
 				return Lua.EnsureType(expr, typeof(object));
 			else
 				return expr;
+		} // func ConvertExpressionNoneEmit
+
+		private static Expression ConvertObjectExpression(Lua runtime, Token tokenStart, Expression expr, bool convertToObject = false)
+		{
+			return ConvertExpressionNoneEmit(runtime, tokenStart, expr, typeof(object), convertToObject);
 		} // func ConvertObjectExpression
 
-		private static Expression ConvertExpression(Lua runtime, Token tStart, Expression expr, Type toType)
+		private static Expression ConvertExpression(Lua runtime, Token tokenStart, Expression expr, Type toType)
 		{
-			return SafeExpression(() => LuaEmit.Convert(runtime, expr, expr.Type, toType, true), tStart);
+			// convert from multi result to single result
+			expr = ConvertExpressionNoneEmit(runtime, tokenStart, expr, toType, false);
+
+			// dynamic convert
+			object result;
+			if (LuaEmit.TryConvertCore(expr, expr.Type, toType, runtime.GetConvertBinder, out result))
+				return (Expression)result;
+			else
+				throw ParseError(tokenStart, ((LuaEmitException)result).Message);
 		} // func ConvertExpression
 
 		private static Expression GetResultExpression(Lua runtime, Token tStart, Expression expr, int iIndex)
 		{
-			return SafeExpression(() => LuaEmit.GetResultExpression(expr, expr.Type, iIndex), tStart);
+			return SafeExpression(() => LuaEmit.GetResultExpression(expr, iIndex), tStart);
 		} // func GetResultExpression
 
 		private static Expression UnaryOperationExpression(Lua runtime, Token tStart, ExpressionType op, Expression expr)
@@ -134,7 +163,7 @@ namespace Neo.IronLua
 			else
 			{
 				return SafeExpression(() => Expression.Call(Lua.StringConcatMethodInfo, Expression.NewArrayInit(typeof(string),
-					from e in args select LuaEmit.Convert(runtime, e, e.Type, typeof(string), true))), tStart);
+					from e in args select ConvertExpression(runtime, tStart, e, typeof(string)))), tStart);
 			}
 		} // func ConcatOperationExpression
 
@@ -457,7 +486,7 @@ namespace Neo.IronLua
 						return MemberGetSandbox(scope, expr, instance, memberName);
 				case InvokeResult.Object:
 					if (LuaEmit.IsDynamicType(expr.Type))
-						return MemberGetSandbox(scope,DynamicExpression.Dynamic(scope.Runtime.GetConvertBinder(typeof(object)), typeof(object), ConvertExpression(scope.Runtime, tStart, expr, typeof(object))), instance, memberName);
+						return MemberGetSandbox(scope, DynamicExpression.Dynamic(scope.Runtime.GetConvertBinder(typeof(object)), typeof(object), ConvertExpression(scope.Runtime, tStart, expr, typeof(object))), instance, memberName);
 					else
 						return MemberGetSandbox(scope, expr, instance, memberName);
 				default:

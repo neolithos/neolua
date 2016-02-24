@@ -88,7 +88,8 @@ namespace Neo.IronLua
 		internal readonly static PropertyInfo RemoveMethodInfoPropertyInfo;
 		internal readonly static PropertyInfo RaiseMethodInfoPropertyInfo;
 		// Lua
-		internal readonly static MethodInfo ParseNumberMethodInfo;
+		internal readonly static MethodInfo ParseNumberObjectMethodInfo;
+		internal readonly static MethodInfo ParseNumberTypedMethodInfo;
 		internal readonly static MethodInfo RuntimeLengthMethodInfo;
 		internal readonly static MethodInfo ConvertValueMethodInfo;
 		internal readonly static MethodInfo GetResultValuesMethodInfo;
@@ -220,7 +221,8 @@ namespace Neo.IronLua
 
 			// Lua
 			var tiLua = typeof(Lua).GetTypeInfo();
-			ParseNumberMethodInfo = tiLua.FindDeclaredMethod("RtParseNumber", ReflectionFlag.None, typeof(string), typeof(bool), typeof(bool));
+			ParseNumberObjectMethodInfo = tiLua.FindDeclaredMethod("RtParseNumber", ReflectionFlag.None, typeof(string));
+			ParseNumberTypedMethodInfo = tiLua.FindDeclaredMethod("RtParseNumber", ReflectionFlag.None, typeof(string), typeof(Type));
 			RuntimeLengthMethodInfo = tiLua.FindDeclaredMethod("RtLength", ReflectionFlag.None | ReflectionFlag.NoArguments);
 			ConvertValueMethodInfo = tiLua.FindDeclaredMethod("RtConvertValue", ReflectionFlag.None, typeof(object), typeof(Type));
 			GetResultValuesMethodInfo = tiLua.FindDeclaredMethod("RtGetResultValues", ReflectionFlag.None, typeof(LuaResult), typeof(int), typeof(Type));
@@ -299,71 +301,80 @@ namespace Neo.IronLua
 		#region -- RtParseNumber ----------------------------------------------------------
 
 		/// <summary>This function convert numbers, that are automatically convert from strings.</summary>
-		internal static object RtParseNumber(string sNumber, bool lUseDouble)
-		{
-			return RtParseNumber(sNumber, lUseDouble, true);
-		} // func RtParseNumber
+		internal static object RtParseNumber(string sNumber, bool useDouble)
+			=> RtParseNumber(sNumber, useDouble, true);
 
-		internal static object RtParseNumber(string sNumber, bool lUseDouble, bool lThrowException)
+		internal static object RtParseNumber(string number, bool useDouble, bool throwException)
 		{
-			if (sNumber == null || sNumber.Length == 0)
-				return ThrowFormatExpression(lThrowException, "nil", 10);
+			if (number == null || number.Length == 0)
+				return ThrowFormatExpression(throwException, "nil", 10);
 
 			// skip spaces
-			int iOffset = SkipSpaces(sNumber, 0);
-			if (iOffset == sNumber.Length)
-				return ThrowFormatExpression(lThrowException, "nil", 10);
+			var offset = SkipSpaces(number, 0);
+			if (offset == number.Length)
+				return ThrowFormatExpression(throwException, "nil", 10);
 
 			// test for sign
-			bool? lNeg = null;
-			if (sNumber[iOffset] == '+')
+			bool? isNegative = null;
+			if (number[offset] == '+')
 			{
-				iOffset++;
-				lNeg = false;
+				offset++;
+				isNegative = false;
 			}
-			else if (sNumber[iOffset] == '-')
+			else if (number[offset] == '-')
 			{
-				iOffset++;
-				lNeg = true;
+				offset++;
+				isNegative = true;
 			}
 
 			// test for base
-			int iBase = 10;
-			if (iOffset == sNumber.Length)
+			var numberBase = 10;
+			if (offset == number.Length)
 				return null;
-			else if (sNumber[iOffset] == '0')
+			else if (number[offset] == '0')
 			{
-				iOffset++;
-				if (iOffset == sNumber.Length)
+				offset++;
+				if (offset == number.Length)
 					return 0;
 				else
 				{
-					char c = sNumber[iOffset];
+					char c = number[offset];
 					if (c == 'x' || c == 'X')
 					{
-						iBase = 16;
-						lNeg = lNeg ?? false;
-						iOffset++;
+						numberBase = 16;
+						isNegative = isNegative ?? false;
+						offset++;
 					}
 					else if (c == 'b' || c == 'B')
 					{
-						iBase = 2;
-						lNeg = lNeg ?? false;
-						iOffset++;
+						numberBase = 2;
+						isNegative = isNegative ?? false;
+						offset++;
 					}
 					else if (c == 'o' || c == 'O')
 					{
-						iBase = 8;
-						lNeg = lNeg ?? false;
-						iOffset++;
+						numberBase = 8;
+						isNegative = isNegative ?? false;
+						offset++;
 					}
 					else
-						iOffset--;
+						offset--;
 				}
 			}
 
-			return RtParseNumber(lNeg, sNumber, iOffset, iBase, lUseDouble, lThrowException);
+			return RtParseNumber(isNegative, number, offset, numberBase, useDouble, throwException);
 		} // proc RtParseNumber
+
+		internal static object RtParseNumber(string number)
+			=> RtParseNumber(number, true, true);
+
+		internal static object RtParseNumber(string number, Type toType)
+		{
+			var r = RtParseNumber(number);
+			if (toType != typeof(object))
+				r = Convert.ChangeType(r, toType);
+			return r;
+		} // func RtParseNumber
 
 		private static int GetDigit(char c)
 		{
@@ -377,93 +388,93 @@ namespace Neo.IronLua
 				return -1;
 		} // func GetDigit
 
-		private static int SkipSpaces(string sNumber, int iOffset)
+		private static int SkipSpaces(string number, int offset)
 		{
-			while (iOffset < sNumber.Length && Char.IsWhiteSpace(sNumber[iOffset]))
-				iOffset++;
-			return iOffset;
+			while (offset < number.Length && Char.IsWhiteSpace(number[offset]))
+				offset++;
+			return offset;
 		} // func SkipSpaces
 
-		internal static object RtParseNumber(bool? lNegValue, string sNumber, int iOffset, int iBase, bool lUseDouble, bool lThrowException)
+		internal static object RtParseNumber(bool? isNegative, string number, int offset, int numberBase, bool useDouble, bool throwException)
 		{
-			if (iBase < 2 || iBase > 36)
+			if (numberBase < 2 || numberBase > 36)
 				throw new ArgumentException("Invalid base");
 
 			bool lNeg;
 			bool lNegE = false;
 
-			ulong border = UInt64.MaxValue / (ulong)iBase;
+			ulong border = UInt64.MaxValue / (ulong)numberBase;
 			ulong fraction = 0;
-			int expBorder = Int32.MaxValue / 10;
-			int exponent = 0;
-			int scale = 0;
+			var expBorder = Int32.MaxValue / 10;
+			var exponent = 0;
+			var scale = 0;
 
-			if (lNegValue.HasValue)
-				lNeg = lNegValue.Value;
+			if (isNegative.HasValue)
+				lNeg = isNegative.Value;
 			else
 			{
 				// skip white spaces
-				iOffset = SkipSpaces(sNumber, iOffset);
+				offset = SkipSpaces(number, offset);
 
 				// check sign
-				if (iOffset >= sNumber.Length)
-					return ThrowFormatExpression(lThrowException, sNumber, iBase);
-				else if (sNumber[iOffset] == '+')
+				if (offset >= number.Length)
+					return ThrowFormatExpression(throwException, number, numberBase);
+				else if (number[offset] == '+')
 				{
 					lNeg = false;
-					iOffset++;
+					offset++;
 				}
-				else if (sNumber[iOffset] == '-')
+				else if (number[offset] == '-')
 				{
 					lNeg = true;
-					iOffset++;
+					offset++;
 				}
 				else
 					lNeg = false;
 			}
 
 			// read the numbers
-			int iState = 0;
+			var state = 0;
 			int n;
-			bool lNumberReaded = false;
-			bool lExponentReaded = false;
-			while (iOffset < sNumber.Length)
+			var isNumberReaded = false;
+			var isExponentReaded = false;
+			while (offset < number.Length)
 			{
 				// convert the char
-				char c = sNumber[iOffset];
+				char c = number[offset];
 
-				switch (iState)
+				switch (state)
 				{
 					case 0: // read integer number
 						if (c == '.') // goto read decimal
 						{
-							iState = 1;
+							state = 1;
 							break;
 						}
 						goto case 1;
 					case 1: // decimal part
-						if ((c == 'e' || c == 'E') && iBase == 10) // goto read exponent
-							iState = 4;
-						else if ((c == 'p' || c == 'P') && (iBase == 2 || iBase == 8 || iBase == 16)) // goto read binary exponent
-							iState = 5;
+						if ((c == 'e' || c == 'E') && numberBase == 10) // goto read exponent
+							state = 4;
+						else if ((c == 'p' || c == 'P') && (numberBase == 2 || numberBase == 8 || numberBase == 16)) // goto read binary exponent
+							state = 5;
 						else if (Char.IsWhiteSpace(c)) // goto read trailing whitespaces
-							iState = iState | 0x100;
+							state = state | 0x100;
 						else
 						{
 							n = GetDigit(c);
-							if (n == -1 || n >= iBase)
-								return ThrowFormatExpression(lThrowException, sNumber, iBase);
+							if (n == -1 || n >= numberBase)
+								return ThrowFormatExpression(throwException, number, numberBase);
 
 							if (fraction > border) // check for overflow
 							{
-								iState += 2;
+								state += 2;
 								goto case 2; // loop
 							}
 							else
 							{
-								lNumberReaded |= true;
-								fraction = unchecked(fraction * (ulong)iBase + (ulong)n);
-								if (iState == 1)
+								isNumberReaded |= true;
+								fraction = unchecked(fraction * (ulong)numberBase + (ulong)n);
+								if (state == 1)
 									scale--;
 							}
 						}
@@ -471,17 +482,17 @@ namespace Neo.IronLua
 					case 2: // integer overflow
 					case 3: // decimal overflow
 						if (Char.IsWhiteSpace(c)) // goto read trailing whitespaces
-							iState = iState | 0x100;
-						else if ((c == 'e' || c == 'E') && iBase == 10) // goto read exponent
-							iState = 4;
-						else if ((c == 'p' || c == 'P') && iBase <= 16) // goto read binary exponent
-							iState = 5;
+							state = state | 0x100;
+						else if ((c == 'e' || c == 'E') && numberBase == 10) // goto read exponent
+							state = 4;
+						else if ((c == 'p' || c == 'P') && numberBase <= 16) // goto read binary exponent
+							state = 5;
 						else
 						{
 							n = GetDigit(c);
-							if (n >= iBase)
-								return ThrowFormatExpression(lThrowException, sNumber, iBase);
-							else if (iState == 2)
+							if (n >= numberBase)
+								return ThrowFormatExpression(throwException, number, numberBase);
+							else if (state == 2)
 								scale++;
 						}
 						break;
@@ -491,55 +502,55 @@ namespace Neo.IronLua
 						if (c == '+')
 						{
 							lNegE = false;
-							iState += 2;
+							state += 2;
 						}
 						else if (c == '-')
 						{
 							lNegE = true;
-							iState += 2;
+							state += 2;
 						}
 						else
 						{
-							iState += 2;
-							iOffset--;
+							state += 2;
+							offset--;
 						}
 						break;
 					case 6: // exponent
 					case 7: // b exponent
 						if (Char.IsWhiteSpace(c)) // goto read trailing whitespaces
-							iState = iState | 0x100;
+							state = state | 0x100;
 						else
 						{
 							n = GetDigit(c);
 							if (n == -1 || n >= 10 || exponent > expBorder)
-								return ThrowFormatExpression(lThrowException, sNumber, iBase);
+								return ThrowFormatExpression(throwException, number, numberBase);
 
-							lExponentReaded |= true;
+							isExponentReaded |= true;
 							exponent = unchecked(exponent * 10 + n);
 						}
 						break;
 					default:
-						if ((iState & 0x100) != 0) // read trailing spaces
+						if ((state & 0x100) != 0) // read trailing spaces
 						{
 							if (Char.IsWhiteSpace(c))
 								break;
-							return ThrowFormatExpression(lThrowException, sNumber, iBase);
+							return ThrowFormatExpression(throwException, number, numberBase);
 						}
 						else
 							throw new InvalidOperationException();
 				}
-				iOffset++;
+				offset++;
 			}
 
 			// check for a value
-			if (!lNumberReaded)
-				return ThrowFormatExpression(lThrowException, sNumber, iBase);
+			if (!isNumberReaded)
+				return ThrowFormatExpression(throwException, number, numberBase);
 
 			// correct state
-			iState = iState & 0xFF;
+			state = state & 0xFF;
 
 			// return the value
-			if (iState == 0) // a integer value
+			if (state == 0) // a integer value
       {
         unchecked
         {
@@ -550,7 +561,7 @@ namespace Neo.IronLua
             else if (fraction < Int64.MaxValue)
               return -(long)fraction;
             else
-              return lUseDouble ? -(double)fraction : -(float)fraction;
+              return useDouble ? -(double)fraction : -(float)fraction;
           }
           else
           {
@@ -568,35 +579,35 @@ namespace Neo.IronLua
 			else
 			{
 				// check for a exponent
-				if (iState >= 4 && !lExponentReaded)
-					return ThrowFormatExpression(lThrowException, sNumber, iBase);
+				if (state >= 4 && !isExponentReaded)
+					return ThrowFormatExpression(throwException, number, numberBase);
 
 				double bias = 1;
-				if (iState == 7)
+				if (state == 7)
 				{
-					if (iBase == 2)
+					if (numberBase == 2)
 					{
 						bias = 1;
-						iBase = 2;
+						numberBase = 2;
 					}
-					else if (iBase == 8)
+					else if (numberBase == 8)
 					{
 						bias = 2;
-						iBase = 2;
+						numberBase = 2;
 					}
-					else if (iBase == 16)
+					else if (numberBase == 16)
 					{
 						bias = 4;
-						iBase = 2;
+						numberBase = 2;
 					}
 				}
 
 				double t = lNegE ? scale * bias - exponent : scale * bias + exponent;
-				double r = fraction * Math.Pow(iBase, t);
+				double r = fraction * Math.Pow(numberBase, t);
 				if (lNeg)
 					r = -r;
 
-				if (iState == 7 && (r % 1) == 0)
+				if (state == 7 && (r % 1) == 0)
 				{
 					if (r >= 0)
 					{
@@ -617,7 +628,7 @@ namespace Neo.IronLua
 							return (long)r;
 					}
 				}
-				return lUseDouble ? r : (float)r;
+				return useDouble ? r : (float)r;
 			}
 		} // func RtParseNumber
 
@@ -680,17 +691,16 @@ namespace Neo.IronLua
 						return (bool)value ? "true" : "false";
 					else
 					{
-						foreach (MethodInfo mi in fromType.GetTypeInfo().DeclaredMethods)
+						if (value == null)
+							return String.Empty;
+						else
 						{
-							if (mi.IsPublic && mi.IsStatic)
-							{
-								if ((mi.Name == LuaEmit.csExplicit || mi.Name == LuaEmit.csImplicit) &&
-									mi.ReturnType == typeof(string))
-									return mi.Invoke(null, new object[] { value });
-							}
+							var convertToString = LuaEmit.FindConvertOperator(fromType, typeof(string));
+							if (convertToString != null)
+								return convertToString.Invoke(null, new object[] { value });
+							else
+								return Convert.ToString(value, CultureInfo.InvariantCulture);
 						}
-
-						return value == null ? String.Empty : Convert.ToString(value, CultureInfo.InvariantCulture);
 					}
 				}
 				else 
@@ -734,44 +744,11 @@ namespace Neo.IronLua
 								case LuaEmitTypeCode.DateTime:
 									value = Convert.ToDateTime(value, CultureInfo.InvariantCulture);
 									break;
-								case LuaEmitTypeCode.SByte:
-									value = Convert.ToSByte(value, CultureInfo.InvariantCulture);
-									break;
-								case LuaEmitTypeCode.Int16:
-									value = Convert.ToInt16(value, CultureInfo.InvariantCulture);
-									break;
-								case LuaEmitTypeCode.Int32:
-									value = Convert.ToInt32(value, CultureInfo.InvariantCulture);
-									break;
-								case LuaEmitTypeCode.Int64:
-									value = Convert.ToInt64(value, CultureInfo.InvariantCulture);
-									break;
-								case LuaEmitTypeCode.Byte:
-									value = Convert.ToByte(value, CultureInfo.InvariantCulture);
-									break;
-								case LuaEmitTypeCode.UInt16:
-									value = Convert.ToUInt16(value, CultureInfo.InvariantCulture);
-									break;
-								case LuaEmitTypeCode.UInt32:
-									value = Convert.ToUInt32(value, CultureInfo.InvariantCulture);
-									break;
-								case LuaEmitTypeCode.UInt64:
-									value = Convert.ToUInt64(value, CultureInfo.InvariantCulture);
-									break;
-								case LuaEmitTypeCode.Single:
-									value = Convert.ToSingle(value, CultureInfo.InvariantCulture);
-									break;
-								case LuaEmitTypeCode.Double:
-									value = Convert.ToDouble(value, CultureInfo.InvariantCulture);
-									break;
-								case LuaEmitTypeCode.Decimal:
-									value = Convert.ToDecimal(value, CultureInfo.InvariantCulture);
-									break;
 								case LuaEmitTypeCode.String:
 									value = Convert.ToString(value, CultureInfo.InvariantCulture);
 									break;
 								default:
-									throw new InvalidOperationException("TypeCode unknown");
+										throw new InvalidOperationException("No parse method found");
 							}
 
 							// check for generic and enum

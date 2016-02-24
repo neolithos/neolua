@@ -82,8 +82,8 @@ namespace Neo.IronLua
 				case LuaSandboxResult.Dynamic:
 					if (DynamicSandbox == null)
 						return expression;
-					else
-						return LuaEmit.Convert(null, Expression.Invoke(Expression.Constant(DynamicSandbox), expression), typeof(object), expression.Type, false);
+					else 
+						return Lua.EnsureType(Expression.Invoke(Expression.Constant(DynamicSandbox), expression), expression.Type);
 
 				case LuaSandboxResult.Restrict:
 					return RestrictAccess();

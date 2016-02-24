@@ -30,7 +30,8 @@ do
 end
 
 function f(...)
-  if select('#', ...) == 1 then
+  local c =  select('#', ...); -- NeoLua: Empty table is like one
+  if c == 0 or c == 1 then
     return (...)
   else
     return "***"

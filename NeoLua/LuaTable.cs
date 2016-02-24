@@ -79,7 +79,7 @@ namespace Neo.IronLua
 				return Expression.Call(
 					Lua.EnsureType(Expression, typeof(LuaTable)),
 					mi,
-					LuaEmit.Convert(Lua.GetRuntime(binder), arg.Expression, arg.LimitType, typeof(object), false)
+					Lua.EnsureType(arg.Expression, arg.LimitType, typeof(object))
 				);
 			} // func BinaryOperationCall
 
@@ -109,7 +109,7 @@ namespace Neo.IronLua
 				{
 					restrictions = restrictions.Merge(BindingRestrictions.GetExpressionRestriction(Expression.TypeEqual(value.Expression, typeof(LuaResult))));
 					typeFrom = typeof(object);
-					expr = LuaEmit.GetResultExpression(value.Expression, value.LimitType, 0);
+					expr = LuaEmit.GetResultExpression(value.Expression, 0);
 				}
 				else
 				{
@@ -120,7 +120,16 @@ namespace Neo.IronLua
 				if (typeConvertTo == null)
 					return Lua.EnsureType(expr, typeof(object));
 				else
-					return LuaEmit.Convert(Lua.GetRuntime(binder), expr, typeFrom, typeConvertTo, false);
+				{
+					try
+					{
+						return LuaEmit.ConvertWithRuntime(Lua.GetRuntime(binder), expr, typeFrom, typeConvertTo);
+					}
+					catch (LuaEmitException e)
+					{
+						return Lua.ThrowExpression(e.Message, typeConvertTo);
+					}
+				}
 			} // func CreateSetExpresion
 
 			private static BindingRestrictions NoIndexKeyRestriction(BindingRestrictions restrictions, DynamicMetaObject arg)
@@ -147,6 +156,19 @@ namespace Neo.IronLua
 				));
 				return restrictions;
 			} // func NoIndexKeyRestriction
+
+			private static Expression ConvertToIndexKey(DynamicMetaObject arg)
+			{
+				if (arg.LimitType == typeof(sbyte) ||
+					arg.LimitType == typeof(byte) ||
+					arg.LimitType == typeof(short) ||
+					arg.LimitType == typeof(ushort))
+					return Expression.Convert(Lua.EnsureType(arg.Expression, arg.LimitType), typeof(int));
+				else if (arg.LimitType == typeof(int))
+					return Lua.EnsureType(arg.Expression, typeof(int));
+				else
+					return Lua.ThrowExpression(LuaEmitException.GetMessageText(LuaEmitException.ConversationNotDefined, arg.LimitType.Name, "indexKey"), typeof(int));
+			} // func ConvertToIndexKey
 
 			#endregion
 
@@ -247,7 +269,7 @@ namespace Neo.IronLua
 					else if (IsIndexKey(arg.LimitType)) // integer access
 					{
 						expr = Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableSetValueKeyIntMethodInfo,
-							LuaEmit.Convert(Lua.GetRuntime(binder), arg.Expression, arg.LimitType, typeof(int), false),
+							ConvertToIndexKey(arg),
 							exprSet,
 							Expression.Constant(false)
 						);
@@ -256,7 +278,7 @@ namespace Neo.IronLua
 					else if (arg.LimitType == typeof(uint) || arg.LimitType == typeof(long) || arg.LimitType == typeof(ulong))
 					{
 						expr = Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableSetValueKeyIntMethodInfo,
-							LuaEmit.Convert(Lua.GetRuntime(binder), arg.Expression, arg.LimitType, typeof(int), false),
+							ConvertToIndexKey(arg),
 							exprSet,
 							Expression.Constant(false)
 						);
@@ -328,7 +350,7 @@ namespace Neo.IronLua
 					else if (IsIndexKey(arg.LimitType)) // integer access
 					{
 						expr = Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableGetValueKeyIntMethodInfo,
-							LuaEmit.Convert(Lua.GetRuntime(binder), arg.Expression, arg.LimitType, typeof(int), false),
+							ConvertToIndexKey(arg),
 							Expression.Constant(false)
 						);
 						restrictions = restrictions.Merge(BindingRestrictions.GetTypeRestriction(arg.Expression, arg.LimitType));
@@ -336,7 +358,7 @@ namespace Neo.IronLua
 					else if (arg.LimitType == typeof(uint) || arg.LimitType == typeof(long) || arg.LimitType == typeof(ulong))
 					{
 						expr = Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableGetValueKeyIntMethodInfo,
-							LuaEmit.Convert(Lua.GetRuntime(binder), arg.Expression, arg.LimitType, typeof(int), false),
+							ConvertToIndexKey(arg),
 							Expression.Constant(false)
 						);
 						restrictions = restrictions.Merge(BindingRestrictions.GetExpressionRestriction(
@@ -621,7 +643,7 @@ namespace Neo.IronLua
 			{
 				// Automatic convert to a special type, only for classes and structure
 				var typeInfo = binder.Type.GetTypeInfo();
-				if (!typeInfo.IsPrimitive && !typeInfo.IsAssignableFrom(Value.GetType().GetTypeInfo()))
+				if (!typeInfo.IsPrimitive && binder.Type != typeof(LuaResult) && !typeInfo.IsAssignableFrom(Value.GetType().GetTypeInfo()))
 				{
 					return new DynamicMetaObject(
 						Lua.EnsureType(
