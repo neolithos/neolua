@@ -378,8 +378,7 @@ namespace Neo.IronLua
 				{
 					var methodInfo =
 						LuaEmit.FindMethod(
-							// todo: LuaType.GetType(target.LimitType).EnumerateMembers<MethodInfo>(Name, IgnoreCase, false),
-							LuaType.GetType(target.LimitType).GetInstanceMethods(Name, IgnoreCase),
+							LuaType.GetType(target.LimitType).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Dynamic, Name, IgnoreCase),
 							CallInfo,
 							args,
 							mo => mo.LimitType,

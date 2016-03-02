@@ -284,11 +284,8 @@ namespace Neo.IronLua
 
 		private static MethodInfo FindConvertOperator(Type fromType, Type toType, MethodInfo currentMethodInfo, ref bool implicitMethod, ref bool isExactFrom, ref bool isExactTo)
 		{
-			foreach (var mi in LuaType.GetType(fromType).EnumerateMembers<MethodInfo>(true))
+			foreach (var mi in LuaType.GetType(fromType).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static))
 			{
-				if (!mi.IsStatic || !mi.IsPublic)
-					continue;
-
 				var parameters = mi.GetParameters();
 
 				bool testImplicit;
@@ -965,7 +962,7 @@ namespace Neo.IronLua
 			#region -- find operator --
 
 			var operatorMethodInfo = FindMethod(
-					LuaType.GetType(type).EnumerateMembers<MethodInfo>(GetOperationMethodName(ExpressionType.OnesComplement), false, true),
+					LuaType.GetType(type).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static, GetOperationMethodName(ExpressionType.OnesComplement), false),
 					new CallInfo(1),
 					new Type[] { type },
 					t => t, false
@@ -1021,7 +1018,7 @@ namespace Neo.IronLua
 			#region -- find operator --
 
 			var operatorMethodInfo = FindMethod(
-					LuaType.GetType(type).EnumerateMembers<MethodInfo>(GetOperationMethodName(ExpressionType.Negate), false, true),
+					LuaType.GetType(type).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static, GetOperationMethodName(ExpressionType.Negate), false),
 					new CallInfo(1),
 					new Type[] { type },
 					t => t, false
@@ -1111,7 +1108,7 @@ namespace Neo.IronLua
 			#region -- find operator --
 
 			// try to find a exact match for the operation
-			operatorMethodInfo = FindMethod(LuaType.GetType(type).EnumerateMembers<MethodInfo>(methodName, false, true), new CallInfo(1), new Type[] { type }, t => t, false);
+			operatorMethodInfo = FindMethod(LuaType.GetType(type).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static, methodName, false), new CallInfo(1), new Type[] { type }, t => t, false);
 
 			// can we inject a string conversation --> create a dynamic operation, that results in a simple arithmetic operation
 			if (lua != null && operatorMethodInfo == null && type == typeof(string))
@@ -1289,8 +1286,8 @@ namespace Neo.IronLua
 			{
 				// create a list of all operators
 				var members =
-					LuaType.GetType(type1).EnumerateMembers<MethodInfo>(operationName, false, true).Concat(
-						LuaType.GetType(type2).EnumerateMembers<MethodInfo>(operationName, false, true)
+					LuaType.GetType(type1).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static, operationName, false).Concat(
+						LuaType.GetType(type2).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static, operationName, false)
 					);
 				var operatorMethodInfo = FindMethod<Type>(members, new CallInfo(2), new Type[] { type1, type2 }, t => t, false);
 
@@ -1589,8 +1586,9 @@ namespace Neo.IronLua
 		public static LuaTryGetMemberReturn TryGetMember(Expression target, Type targetType, string memberName, bool ignoreCase, out Expression result)
 		{
 			var luaTargetType = LuaType.GetType(targetType);
+			var enumerateType = GetMethodEnumeratorType(target, targetType);
 
-			var memberEnum = luaTargetType.EnumerateMembers<MemberInfo>(memberName, ignoreCase, target == null).GetEnumerator();
+			var memberEnum = luaTargetType.EnumerateMembers<MemberInfo>(enumerateType, memberName, ignoreCase).GetEnumerator();
 			try
 			{
 				if (!memberEnum.MoveNext()) // no member found
@@ -1606,7 +1604,7 @@ namespace Neo.IronLua
 					{
 						result = Expression.New(Lua.OverloadedMethodConstructorInfo,
 							target ?? Expression.Default(typeof(object)),
-							Expression.Constant(luaTargetType.EnumerateMembers<MethodInfo>(memberName, ignoreCase, target == null).ToArray())
+							Expression.Constant(luaTargetType.EnumerateMembers<MethodInfo>(enumerateType, memberName, ignoreCase).ToArray())
 						);
 						return LuaTryGetMemberReturn.ValidExpression;
 					}
@@ -1669,6 +1667,18 @@ namespace Neo.IronLua
 			}
 		} // func GetMember
 
+		private static LuaMethodEnumerate GetMethodEnumeratorType(Expression target, Type targetType)
+		{
+			LuaMethodEnumerate enumerateType;
+			if (target == null)
+				enumerateType = LuaMethodEnumerate.Static;
+			else if (target.Type == targetType)
+				enumerateType = LuaMethodEnumerate.Typed;
+			else
+				enumerateType = LuaMethodEnumerate.Dynamic;
+			return enumerateType;
+		} // func GetMethodEnumeratorType
+
 		#endregion
 
 		#region -- Emit SetMember ---------------------------------------------------------
@@ -1676,7 +1686,7 @@ namespace Neo.IronLua
 		public static LuaTrySetMemberReturn TrySetMember(Expression target, Type targetType, string memberName, bool ignoreCase, Func<Type, Expression> set, out Expression result)
 		{
 			var luaType = LuaType.GetType(targetType);
-			var memberEnum = luaType.EnumerateMembers<MemberInfo>(memberName, ignoreCase, target == null).GetEnumerator();
+			var memberEnum = luaType.EnumerateMembers<MemberInfo>(GetMethodEnumeratorType(target, targetType), memberName, ignoreCase).GetEnumerator();
 
 			if (!memberEnum.MoveNext())
 			{
@@ -2435,7 +2445,7 @@ namespace Neo.IronLua
 			var memberMatchBind = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
 
 			// get argument list
-			var memberEnum = members.Where(CanCallMember).GetEnumerator();
+			var memberEnum = members.GetEnumerator();
 
 			// reset the result with the first one
 			if (memberEnum.MoveNext())
@@ -2472,12 +2482,6 @@ namespace Neo.IronLua
 
 			return memberMatchBind.CurrentMember;
 		} // func FindMember
-
-		private static bool CanCallMember<TMEMBERTYPE>(TMEMBERTYPE mi)
-		{
-			var methodInfo = mi as MethodInfo;
-			return methodInfo == null || (methodInfo.CallingConvention & CallingConventions.VarArgs) == 0;
-		} // func CanCallMember
 
 		private static MethodInfo MakeNonGenericMethod<TARG>(MethodInfo mi, TARG[] arguments, Func<TARG, Type> getType)
 			where TARG : class
@@ -2629,38 +2633,6 @@ namespace Neo.IronLua
 
 			return GetOneResult(ti, sName, flags, methods);
 		} // func FindDeclaredMethod
-
-		[Obsolete("delete")]
-		public static IEnumerable<MemberInfo> GetRuntimeMembers(TypeInfo typeInfo, string sMemberName, bool lStatic, StringComparison stringComparison)
-		{
-			// Current
-			foreach (var member in typeInfo.DeclaredMembers)
-				if (sMemberName == null || String.Compare(sMemberName, member.Name, stringComparison) == 0)
-				{
-					if (member is MethodBase && ((MethodBase)member).IsStatic != lStatic)
-						continue;
-					else if (member is PropertyInfo && ((PropertyInfo)member).GetMethod.IsStatic != lStatic)
-						continue;
-					else if (member is FieldInfo && ((FieldInfo)member).IsStatic != lStatic)
-						continue;
-					else if (member is EventInfo && ((EventInfo)member).AddMethod.IsStatic != lStatic)
-						continue;
-
-					yield return member;
-				}
-			// Base type
-			if (typeInfo.BaseType != null)
-			{
-				foreach (var member in GetRuntimeMembers(typeInfo.BaseType.GetTypeInfo(), sMemberName, lStatic, stringComparison))
-					yield return member;
-			}
-		} // func GetRuntimeMembers
-
-		[Obsolete("delete")]
-		public static IEnumerable<MemberInfo> GetRuntimeMembers(this TypeInfo typeInfo, string sMemberName, bool lStatic, bool lIgnoreCase)
-		{
-			return GetRuntimeMembers(typeInfo, sMemberName, lStatic, lIgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
-		} // func GetRuntimeMembers
 
 		#endregion
 	} // class LuaEmit

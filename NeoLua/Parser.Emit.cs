@@ -428,7 +428,7 @@ namespace Neo.IronLua
 			{
 				// look up the method
 				MethodInfo method = LuaEmit.FindMethod(
-					LuaType.GetType(instance.Type).GetInstanceMethods(sMember, false),
+					LuaType.GetType(instance.Type).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Typed, sMember, false),
 					arguments.CallInfo,
 					arguments.Expressions,
 					getExpressionTypeFunction,

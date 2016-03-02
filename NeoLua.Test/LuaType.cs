@@ -253,7 +253,7 @@ namespace LuaDLR.Test
 				dynamic wl = g.console.WriteLine;
 				Assert.IsTrue(wl.GetType() == typeof(LuaOverloadedMethod));
 				int iCount = wl.Count;
-				Assert.IsTrue(iCount == 19);
+				Assert.IsTrue(iCount == 18);
 				for (int i = 0; i < wl.Count; i++)
 				{
 					if (i == 17)

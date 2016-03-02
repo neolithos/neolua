@@ -9,6 +9,22 @@ using System.Text;
 
 namespace Neo.IronLua
 {
+	#region -- enum LuaMethodEnumerate --------------------------------------------------
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// <summary>Enumeration type.</summary>
+	public enum LuaMethodEnumerate
+	{
+		/// <summary>Enumerate only public static methods.</summary>
+		Static,
+		/// <summary>Enumerate only public non-static methods.</summary>
+		Typed,
+		/// <summary>Enumerate public non-static and interface methods.</summary>
+		Dynamic
+	} // enum LuaMethodEnumerate
+
+	#endregion
+
 	#region -- interface ILuaTypeResolver -----------------------------------------------
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -482,12 +498,14 @@ namespace Neo.IronLua
 		#endregion
 
 		private LuaType parent;           // Access to parent type or namespace
-		private LuaType baseType;					// If the type is inherited, then this points to the base type
+		private LuaType baseType;         // If the type is inherited, then this points to the base type
+		private LuaType baseTypeGeneric;  // If this type is base on a generic typ
+		private LuaType[] implementedInterfaces; // Interfaces, that this type implements
 		private Type type;                // Type that is represented, null if it is not resolved until now
 
-		private string sName;             // Name of the unresolved type or namespace
-		private string sAliasName = null; // Current alias name
-		private int iResolverVersion;     // Number of loaded assemblies or -1 if the type is resolved as a namespace
+		private string name;							// Name of the unresolved type or namespace
+		private string aliasName = null;	// Current alias name
+		private int resolverVersion;			// Number of loaded assemblies or -1 if the type is resolved as a namespace
 
 		private Dictionary<string, int> index = null; // Index to speed up the search in big namespaces
 		private List<MethodInfo> extensionMethods = null; // Liste with extension methods
@@ -499,8 +517,8 @@ namespace Neo.IronLua
 			this.parent = null;
 			this.SetType(null, false);
 			this.baseType = null;
-			this.sName = null;
-			this.iResolverVersion = -2;
+			this.name = null;
+			this.resolverVersion = -2;
 		} // ctor
 
 		private LuaType(LuaType parent, string sName, Type type)
@@ -510,8 +528,8 @@ namespace Neo.IronLua
 
 			this.parent = parent;
 			this.SetType(type, false);
-			this.sName = sName;
-			this.iResolverVersion = 0;
+			this.name = sName;
+			this.resolverVersion = 0;
 		} // ctor
 
 		private LuaType(LuaType parent, string sName)
@@ -521,8 +539,8 @@ namespace Neo.IronLua
 
 			this.parent = parent;
 			this.SetType(null, false);
-			this.sName = sName;
-			this.iResolverVersion = 0;
+			this.name = sName;
+			this.resolverVersion = 0;
 		} // ctor
 
 		/// <summary></summary>
@@ -547,20 +565,20 @@ namespace Neo.IronLua
 		private void ResolveType()
 		{
 			if (parent != null && // the root has no type
-					iResolverVersion >= 0) // Namespace, there is no type
+					resolverVersion >= 0) // Namespace, there is no type
 			{
 				string sTypeName = FullName;
 
-				iResolverVersion = 1;
+				resolverVersion = 1;
 
 				// new assembly loaded?
 				typeResolver.Refresh();
-				if (iResolverVersion != typeResolver.Version)
+				if (resolverVersion != typeResolver.Version)
 				{
 					// Set the resolved assembly
 					SetType(typeResolver.GetType(sTypeName), true);
 					// Update the resolver version
-					iResolverVersion = typeResolver.Version;
+					resolverVersion = typeResolver.Version;
 				}
 			}
 		} // func GetItemType
@@ -571,14 +589,13 @@ namespace Neo.IronLua
 				return false;
 			else
 			{
+				var typeInfo = type.GetTypeInfo();
+
 				// set the value
 				this.type = type;
 
 				// update the base type
-				var tmp = type.GetTypeInfo().BaseType;
-				if (tmp != null && tmp.IsConstructedGenericType)
-					tmp = tmp.GetGenericTypeDefinition();
-				baseType = tmp != null ? LuaType.GetType(tmp) : null;
+				baseType = GetNoneGenericType(typeInfo.BaseType);
 
 				// update the known types
 				if (lUpdateKnownTypes)
@@ -587,9 +604,24 @@ namespace Neo.IronLua
 						knownTypes[type.FullName] = LuaType.GetTypeIndex(this); // update type cache
 				}
 
+				// update implemented types
+				implementedInterfaces =
+					(from c in typeInfo.ImplementedInterfaces
+					 let t = GetNoneGenericType(c)
+					 where t != null
+					 select t).ToArray();
+
 				return true;
 			}
 		} // proc SetType
+
+		private LuaType GetNoneGenericType(Type type)
+		{
+			var tmp = type;
+			if (tmp != null && tmp.IsConstructedGenericType)
+				tmp = tmp.GetGenericTypeDefinition();
+			return tmp != null ? LuaType.GetType(tmp) : null;
+		} // func GetNoneGenericType
 
 		private void GetFullName(StringBuilder sb)
 		{
@@ -627,62 +659,6 @@ namespace Neo.IronLua
 			}
 		} // proc RegisterExtension
 
-		private bool CanCallAsInstance(MethodInfo mi)
-		{
-			if (mi.IsStatic)
-			{
-				var p = mi.GetParameters();
-				return p.Length > 0 && p[0].ParameterType == Type;
-			}
-			else
-				return true;
-		} // func CanCallAsInstance
-
-		internal MethodInfo[] GetInstanceMethods(string sName, bool lIgnoreCase)
-		{
-			var stringComparison = lIgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-
-			// Collect all extension methods
-			List<MethodInfo> methods = null;
-			CollectExtensions(
-				ref methods,
-				mi => String.Compare(mi.Name, sName, stringComparison) == 0,
-				true
-			);
-
-			// Return the methods
-			var typeMethods = (from mi in type.GetRuntimeMethods() where mi.IsPublic && String.Compare(mi.Name, sName, stringComparison) == 0 && CanCallAsInstance(mi) select mi).ToArray();
-			if (methods != null)
-			{
-				methods.InsertRange(0, typeMethods);
-				return methods.ToArray();
-			}
-			else
-				return typeMethods;
-		} // func GetInstanceMethods
-
-		private void CollectExtensions(ref List<MethodInfo> methods, Predicate<MethodInfo> compare, bool lRecursive)
-		{
-			// Collect all extensions
-			if (extensionMethods != null)
-			{
-				lock (extensionMethods)
-				{
-					foreach (MethodInfo mi in extensionMethods)
-						if (compare(mi))
-						{
-							if (methods == null)
-								methods = new List<MethodInfo>();
-							methods.Add(mi);
-						}
-				}
-			}
-
-			// Collect base type
-			if (lRecursive && baseType != null)
-				baseType.CollectExtensions(ref methods, compare, lRecursive);
-		} // proc CollectExtensions
-
 		#endregion
 
 		#region -- GetIndex, GetItem ------------------------------------------------------
@@ -708,12 +684,12 @@ namespace Neo.IronLua
 			}
 
 			// No type for this level, but sub-items -> it is a namespace
-			if (iResolverVersion >= 0 && GetType(iIndex).Type != null && Type == null)
+			if (resolverVersion >= 0 && GetType(iIndex).Type != null && Type == null)
 			{
 				LuaType c = this;
-				while (c.parent != null && c.iResolverVersion >= 0)
+				while (c.parent != null && c.resolverVersion >= 0)
 				{
-					c.iResolverVersion = -1;
+					c.resolverVersion = -1;
 					c = c.parent;
 				}
 			}
@@ -780,7 +756,7 @@ namespace Neo.IronLua
 		#region -- Properties -------------------------------------------------------------
 
 		/// <summary>Name of the LuaType</summary>
-		public string Name { get { return sName; } }
+		public string Name { get { return name; } }
 		/// <summary>FullName of the Clr-Type</summary>
 		public string FullName
 		{
@@ -793,11 +769,11 @@ namespace Neo.IronLua
 		} // func FullName
 
 		/// <summary>Alias name</summary>
-		public string AliasName { get { return sAliasName; } }
+		public string AliasName { get { return aliasName; } }
 		/// <summary>Returns the alias or if it is <c>null</c> the full name</summary>
 		public string AliasOrFullName
 		{
-			get { return sAliasName ?? FullName; }
+			get { return aliasName ?? FullName; }
 		} // prop AliasOrFullName
 
 		/// <summary>Type that is represented by the LuaType</summary>
@@ -815,44 +791,107 @@ namespace Neo.IronLua
 		} // prop Type
 
 		/// <summary>Is the LuaType only a namespace at the time.</summary>
-		public bool IsNamespace { get { return iResolverVersion == -1 || type == null && iResolverVersion >= 0; } }
+		public bool IsNamespace { get { return resolverVersion == -1 || type == null && resolverVersion >= 0; } }
 
 		/// <summary>Parent type</summary>
 		public LuaType Parent { get { return parent; } }
 
 		#endregion
 
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <typeparam name="T"></typeparam>
-		/// <param name="searchStatic"></param>
-		/// <returns></returns>
-		public IEnumerable<T> EnumerateMembers<T>(bool searchStatic)
+		private static bool IsCallableMethod(MethodBase methodInfo, bool searchStatic)
+			=> methodInfo.IsPublic && !methodInfo.IsAbstract && (methodInfo.CallingConvention & CallingConventions.VarArgs) == 0 && methodInfo.IsStatic == searchStatic;
+
+		private static bool IsCallableField(FieldInfo fieldInfo, bool searchStatic)
+			=> fieldInfo.IsPublic && fieldInfo.IsStatic == searchStatic;
+
+		private IEnumerable<T> EnumerateMembers<T>(bool searchStatic, Func<IEnumerable<MemberInfo>, IEnumerable<MemberInfo>> getDeclaredMembers)
+				where T : MemberInfo
+		{
+			var typeInfo = type.GetTypeInfo();
+			foreach (var c in (getDeclaredMembers == null ? typeInfo.DeclaredMembers : getDeclaredMembers(typeInfo.DeclaredMembers)))
+			{
+				if (!(c is T))
+					continue;
+
+				if (c is MethodBase && !IsCallableMethod((MethodBase)c, searchStatic))
+					continue;
+				else if (c is PropertyInfo && !IsCallableMethod(((PropertyInfo)c).GetMethod, searchStatic))
+					continue;
+				else if (c is FieldInfo && !IsCallableField((FieldInfo)c, searchStatic))
+					continue;
+				else if (c is EventInfo && !IsCallableMethod(((EventInfo)c).AddMethod, searchStatic))
+					continue;
+				else if (c is TypeInfo && !((TypeInfo)c).IsNestedPublic)
+					continue;
+
+				yield return (T)c;
+			}
+		} // func EnumerateMembers
+
+		private IEnumerable<T> EnumerateMembers<T>(List<Type> enumeratedTypes, LuaMethodEnumerate searchType, Func<IEnumerable<MemberInfo>, IEnumerable<MemberInfo>> getDeclaredMembers)
 			where T : MemberInfo
 		{
-			//GetInstanceMethods()
-			// todo: virtual, public only
-			return from c in LuaEmit.GetRuntimeMembers(type.GetTypeInfo(), null, searchStatic, false)
-						 where c is T
-						 select(T)c;
-		}
+			if (type == null || enumeratedTypes.IndexOf(type) >= 0)
+				yield break;
 
-		/// <summary>
-		/// 
-		/// </summary>
+			// avoid re-enum
+			enumeratedTypes.Add(type);
+
+			// Enum members
+			foreach (var c in EnumerateMembers<T>(searchType == LuaMethodEnumerate.Static, getDeclaredMembers))
+				yield return c;
+
+			// Enum extensions
+			if (extensionMethods != null && typeof(T).GetTypeInfo().IsAssignableFrom(typeof(MethodInfo).GetTypeInfo()))
+			{
+				lock (extensionMethods)
+				{
+					foreach (var mi in (getDeclaredMembers == null ? extensionMethods : getDeclaredMembers(extensionMethods)))
+						yield return (T)(MemberInfo)mi;
+				}
+			}
+
+			// Enum base members
+			if (baseType != null)
+			{
+				foreach (var c in baseType.EnumerateMembers<T>(enumeratedTypes, searchType, getDeclaredMembers))
+					yield return c;
+			}
+
+			// Enum interfaces
+			if (searchType == LuaMethodEnumerate.Dynamic)
+			{
+				foreach (var interfaceType in implementedInterfaces)
+				{
+					foreach (var c in interfaceType.EnumerateMembers<T>(enumeratedTypes, LuaMethodEnumerate.Typed, getDeclaredMembers))
+						yield return c;
+				}
+			}
+		} // func EnumerateMembers
+
+		/// <summary></summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="searchType"></param>
+		/// <returns></returns>
+		public IEnumerable<T> EnumerateMembers<T>(LuaMethodEnumerate searchType)
+			where T : MemberInfo
+		{
+			var enumeratedTyped = new List<Type>();
+			return EnumerateMembers<T>(enumeratedTyped, searchType, null);
+		} // func EnumerateMembers
+
+		/// <summary></summary>
 		/// <typeparam name="T"></typeparam>
 		/// <param name="memberName"></param>
 		/// <param name="ignoreCase"></param>
-		/// <param name="searchStatic"></param>
+		/// <param name="searchType"></param>
 		/// <returns></returns>
-		public IEnumerable<T> EnumerateMembers<T>(string memberName, bool ignoreCase, bool searchStatic)
+		public IEnumerable<T> EnumerateMembers<T>(LuaMethodEnumerate searchType, string memberName, bool ignoreCase)
 			where T : MemberInfo
 		{
-			// todo: virtual
-			return from c in LuaEmit.GetRuntimeMembers(type.GetTypeInfo(), memberName, searchStatic, ignoreCase)
-						 where c is T
-						 select (T)c;
+			var enumeratedTyped = new List<Type>();
+			var stringComparison = ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+			return EnumerateMembers<T>(enumeratedTyped, searchType, declaredMembers => declaredMembers.Where(c => String.Compare(c.Name, memberName, stringComparison) == 0));
 		} // func EnumerateMembers
 
 		// -- Static --------------------------------------------------------------
@@ -903,6 +942,10 @@ namespace Neo.IronLua
 			RegisterTypeAlias("void", typeof(void));
 
 			RegisterTypeExtension(typeof(LuaLibraryString));
+
+			// add these methods as extensions
+			RegisterMethodExtension(typeof(string), typeof(string), "Format");
+			RegisterMethodExtension(typeof(string), typeof(string), "Join");
 
 			if (piLookupReferencedAssemblies != null)
 				piLookupReferencedAssemblies.SetValue(null, true);
@@ -1088,9 +1131,9 @@ namespace Neo.IronLua
 				{
 					LuaType oldType = LuaType.GetType(iOldAlias);
 					if (oldType != luaType)
-						oldType.sAliasName = null;
+						oldType.aliasName = null;
 				}
-				luaType.sAliasName = sAlias;
+				luaType.aliasName = sAlias;
 				knownTypes[sAlias] = LuaType.GetTypeIndex(luaType);
 			}
 		} // proc RegisterTypeAlias
@@ -1130,6 +1173,25 @@ namespace Neo.IronLua
 				LuaType.GetType(mi.GetParameters()[0].ParameterType).RegisterExtension(mi);
 			else
 				throw new ArgumentException(String.Format(Properties.Resources.rsTypeExtentionInvalidMethod, mi.DeclaringType.Name, mi.Name));
+		} // proc RegisterMethodExtension
+
+		/// <summary></summary>
+		/// <param name="typeToExtent"></param>
+		/// <param name="type"></param>
+		/// <param name="methodName"></param>
+		public static void RegisterMethodExtension(Type typeToExtent, Type type, string methodName)
+		{
+			var luaTypeToExtent = LuaType.GetType(typeToExtent);
+			var typeInfo = type.GetTypeInfo();
+			foreach (var mi in typeInfo.DeclaredMethods)
+			{
+				if (mi.Name == methodName && mi.IsStatic && mi.IsPublic)
+				{
+					var parameters = mi.GetParameters();
+					if (parameters.Length > 1 && parameters[0].ParameterType == typeToExtent)
+						luaTypeToExtent.RegisterExtension(mi);
+				}
+			}
 		} // proc RegisterMethodExtension
 
 		#endregion
