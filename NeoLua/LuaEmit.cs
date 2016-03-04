@@ -2427,11 +2427,11 @@ namespace Neo.IronLua
 		public static MethodInfo FindMethod<TARG>(IEnumerable<MethodInfo> members, CallInfo callInfo, TARG[] arguments, Func<TARG, Type> getType, bool lExtension)
 			where TARG : class
 		{
-			var mi = FindMember(members, callInfo, arguments, getType, lExtension);
+			var mi = FindMember(members, callInfo, arguments, getType, lExtension); // todo: caller fehlt
 
 			// create a non generic version
 			if (mi != null && mi.ContainsGenericParameters)
-				mi = MakeNonGenericMethod(mi, arguments, getType);
+					mi = MakeNonGenericMethod(mi, arguments, getType); // todo: caller fehlt
 
 			return mi;
 		} // func FindMethod

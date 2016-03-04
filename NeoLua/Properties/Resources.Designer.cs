@@ -600,5 +600,23 @@ namespace Neo.IronLua.Properties {
                 return ResourceManager.GetString("rsTypeExtentionInvalidType", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to &apos;{0}&apos; is a pointer or byref type. These types can not converted to a LuaType..
+        /// </summary>
+        internal static string rsTypeInvalidType {
+            get {
+                return ResourceManager.GetString("rsTypeInvalidType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Invalid type format for &apos;{0}&apos; (unexpected: {1} at {2}; expected: {3}).
+        /// </summary>
+        internal static string rsTypeParseError {
+            get {
+                return ResourceManager.GetString("rsTypeParseError", resourceCulture);
+            }
+        }
     }
 }

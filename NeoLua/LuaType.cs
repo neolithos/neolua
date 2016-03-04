@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Dynamic;
+using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -103,6 +104,11 @@ namespace Neo.IronLua
 	/// <summary>Base class for the Type-Wrapper.</summary>
 	public sealed class LuaType : IDynamicMetaObjectProvider
 	{
+		private const int ResolvedAsNamespace = -1; // type is resolved as a namespace
+		private const int ResolvedAsArray = -2; // type is a array type
+		private const int ResolvedAsType = -3; // normal type
+		private const int ResolvedAsRoot = -4; // root type
+
 		#region -- class LuaTypeMetaObject ------------------------------------------------
 
 		///////////////////////////////////////////////////////////////////////////////
@@ -152,7 +158,7 @@ namespace Neo.IronLua
 					var expr = Expression.Condition(
 						GetUpdateCondition(),
 						binder.GetUpdateExpression(binder.ReturnType),
-						Lua.EnsureType(Expression.Call(Lua.TypeGetTypeMethodInfoArgIndex, Expression.Constant(luaType.GetIndex(binder.Name, binder.IgnoreCase, null), typeof(int))), binder.ReturnType)
+						Lua.EnsureType(Expression.Call(Lua.TypeGetTypeMethodInfoArgIndex, Expression.Constant(luaType.AddType(binder.Name, binder.IgnoreCase, null), typeof(int))), binder.ReturnType)
 					);
 					return new DynamicMetaObject(expr, GetTypeNotResolvedRestriction());
 				}
@@ -220,7 +226,7 @@ namespace Neo.IronLua
 					// create a array of the type
 					return new DynamicMetaObject(
 						Expression.Call(Lua.TypeGetTypeMethodInfoArgIndex,
-							Expression.Constant(val.GetIndex("[]", true, () => type.MakeArrayType()), typeof(int))
+							Expression.Constant(val.AddType("[]", true, () => type.MakeArrayType()), typeof(int))
 						),
 						GetTypeResolvedRestriction(type)
 					);
@@ -240,8 +246,7 @@ namespace Neo.IronLua
 					else
 					{
 						// create the generic type name
-						StringBuilder sbTypeName = new StringBuilder();
-						val.GetFullName(sbTypeName);
+						StringBuilder sbTypeName = new StringBuilder(val.FullName);
 						sbTypeName.Append('`').Append(indexes.Length);
 
 						// find the type
@@ -491,99 +496,102 @@ namespace Neo.IronLua
 
 			public override IEnumerable<string> GetDynamicMemberNames()
 			{
-				return ((LuaType)Value).index.Keys;
+				return ((LuaType)Value).namespaceIndex.Keys;
 			} // proc GetDynamicMemberNames
 		} // class LuaTypeMetaObject
 
 		#endregion
 
-		private LuaType parent;           // Access to parent type or namespace
-		private LuaType baseType;         // If the type is inherited, then this points to the base type
-		private LuaType baseTypeGeneric;  // If this type is base on a generic typ
-		private LuaType[] implementedInterfaces; // Interfaces, that this type implements
-		private Type type;                // Type that is represented, null if it is not resolved until now
+		private readonly object currentTypeLock = new object();
 
-		private string name;							// Name of the unresolved type or namespace
-		private string aliasName = null;	// Current alias name
-		private int resolverVersion;			// Number of loaded assemblies or -1 if the type is resolved as a namespace
+		private readonly LuaType parent;    // Access to parent type or namespace
+		private LuaType baseType;           // If the type is inherited, then this points to the base type
+		private Lazy<LuaType[]> implementedInterfaces; // Interfaces, that this type implements
+		private Type type;                  // Type that is represented, null if it is not resolved until now
 
-		private Dictionary<string, int> index = null; // Index to speed up the search in big namespaces
-		private List<MethodInfo> extensionMethods = null; // Liste with extension methods
+		private readonly string name;               // Name of the unresolved type or namespace
+		private readonly string fullName;     // Holds the full name of the type
+		private string aliasName = null;            // Current alias name
+
+		private int resolvedVersion;                    // Number of loaded assemblies or -1 if the type is resolved as a namespace
+
+		private Dictionary<string, int> namespaceIndex = null; // Index to speed up the search in big namespaces
+		private List<MethodInfo> extensionMethods = null; // List of extension methods
+		private List<MethodInfo> genericExtensionMethods = null; // Liest of extension methods for the generic definition
 
 		#region -- Ctor/GetMetaObject -----------------------------------------------------
 
 		private LuaType()
+			: this(null, null, ResolvedAsRoot, null)
 		{
-			this.parent = null;
-			this.SetType(null, false);
 			this.baseType = null;
-			this.name = null;
-			this.resolverVersion = -2;
 		} // ctor
 
-		private LuaType(LuaType parent, string sName, Type type)
+		private LuaType(LuaType parent, string name, int resolvedVersion, Type type)
 		{
-			if (type == null)
-				throw new ArgumentNullException();
+			if (resolvedVersion != ResolvedAsRoot)
+			{
+				if (String.IsNullOrEmpty(name))
+					throw new ArgumentNullException();
+				else if (parent == null)
+					throw new ArgumentNullException();
+			}
 
 			this.parent = parent;
+			this.resolvedVersion = resolvedVersion;
+			this.name = name;
+
+			// set full name
+			if (parent == null)
+				fullName = String.Empty;
+			else if (parent.parent == null)
+				fullName = name;
+			else if (name[0] != '[')  // is generic type or array
+				if (parent.IsNamespace)
+					fullName = parent.fullName + "." + name;
+				else
+					fullName = parent.fullName + "+" + name;
+			else
+				fullName = parent.fullName + name;
+
 			this.SetType(type, false);
-			this.name = sName;
-			this.resolverVersion = 0;
-		} // ctor
-
-		private LuaType(LuaType parent, string sName)
-		{
-			if (String.IsNullOrEmpty(sName))
-				throw new ArgumentNullException();
-
-			this.parent = parent;
-			this.SetType(null, false);
-			this.name = sName;
-			this.resolverVersion = 0;
 		} // ctor
 
 		/// <summary></summary>
 		/// <returns></returns>
 		public override string ToString()
-		{
-			return FullName;
-		} // func ToString
+			=> $"LuaType: {{Name={name}, Fullname={fullName}}}";
 
 		/// <summary>Gets the dynamic interface of a type</summary>
 		/// <param name="parameter"></param>
 		/// <returns></returns>
 		public DynamicMetaObject GetMetaObject(Expression parameter)
-		{
-			return new LuaTypeMetaObject(parameter, this);
-		} // func GetMetaObject
+			=> new LuaTypeMetaObject(parameter, this);
 
 		#endregion
 
-		#region -- ResolveType, GetFullName -----------------------------------------------
+		#region -- ResolveType, SetType ---------------------------------------------------
 
 		private void ResolveType()
 		{
-			if (parent != null && // the root has no type
-					resolverVersion >= 0) // Namespace, there is no type
+			if (resolvedVersion >= 0) // Namespace, there is no type
 			{
-				string sTypeName = FullName;
-
-				resolverVersion = 1;
+				var typeName = FullName;
 
 				// new assembly loaded?
 				typeResolver.Refresh();
-				if (resolverVersion != typeResolver.Version)
+				if (resolvedVersion != typeResolver.Version)
 				{
 					// Set the resolved assembly
-					SetType(typeResolver.GetType(sTypeName), true);
+					SetType(typeResolver.GetType(typeName), true);
+
 					// Update the resolver version
-					resolverVersion = typeResolver.Version;
+					resolvedVersion = typeResolver.Version;
 				}
 			}
 		} // func GetItemType
 
-		private bool SetType(Type type, bool lUpdateKnownTypes)
+		private bool SetType(Type type, bool updateKnownTypes)
 		{
 			if (type == null)
 				return false;
@@ -594,209 +602,189 @@ namespace Neo.IronLua
 				// set the value
 				this.type = type;
 
-				// update the base type
-				baseType = GetNoneGenericType(typeInfo.BaseType);
-
-				// update the known types
-				if (lUpdateKnownTypes)
+				if (typeInfo.IsGenericTypeDefinition) // it is only a type definition
+					return false;
+				else
 				{
-					lock (knownTypes)
-						knownTypes[type.FullName] = LuaType.GetTypeIndex(this); // update type cache
-				}
+					// update the base type
+					baseType = typeInfo.BaseType == null ? null : LuaType.GetType(typeInfo.BaseType);
 
-				// update implemented types
-				implementedInterfaces =
-					(from c in typeInfo.ImplementedInterfaces
-					 let t = GetNoneGenericType(c)
-					 where t != null
-					 select t).ToArray();
+					// update known types
+					if (updateKnownTypes)
+					{
+						lock (knownTypes)
+						{
+							knownTypes[type] =
+								knownTypeStrings[fullName] = LuaType.GetTypeIndex(this); // update type cache
+						}
+					}
+
+					// update implemented types
+					implementedInterfaces = new Lazy<LuaType[]>(() => (from c in typeInfo.ImplementedInterfaces select LuaType.GetType(c)).ToArray(), true);
+
+					resolvedVersion = type.IsArray ? ResolvedAsArray : ResolvedAsType;
+				}
 
 				return true;
 			}
 		} // proc SetType
 
-		private LuaType GetNoneGenericType(Type type)
-		{
-			var tmp = type;
-			if (tmp != null && tmp.IsConstructedGenericType)
-				tmp = tmp.GetGenericTypeDefinition();
-			return tmp != null ? LuaType.GetType(tmp) : null;
-		} // func GetNoneGenericType
-
-		private void GetFullName(StringBuilder sb)
-		{
-			if (parent != null)
-			{
-				string sName = Name;
-				if (parent.parent == null)
-					sb.Append(sName);
-				else
-				{
-					parent.GetFullName(sb);
-					if (sName[0] != '`' && sName[0] != '[') // is generic type
-						if (parent.IsNamespace)
-							sb.Append('.');
-						else
-							sb.Append('+');
-					sb.Append(sName);
-				}
-			}
-		} // proc GetFullName
-
 		#endregion
 
 		#region -- Extensions -------------------------------------------------------------
 
-		private void RegisterExtension(MethodInfo mi)
+		private void RegisterExtension(MethodInfo mi, bool checkFirstParameter)
 		{
-			if (extensionMethods == null)
-				extensionMethods = new List<MethodInfo>();
+			// check the first argument of the method
+			var parameterInfo = mi.GetParameters();
+			if (checkFirstParameter && parameterInfo.Length == 0)
+				throw new ArgumentException(String.Format(Properties.Resources.rsTypeExtentionInvalidMethod, mi.DeclaringType.Name, mi.Name));
 
-			lock (extensionMethods)
+			var firstType = parameterInfo[0].ParameterType;
+			if (firstType.FullName == null && firstType.IsConstructedGenericType) // generic extension
 			{
-				if (extensionMethods.IndexOf(mi) == -1)
-					extensionMethods.Add(mi);
+				if (checkFirstParameter && LuaType.GetType(firstType) != this)
+					throw new ArgumentException(String.Format(Properties.Resources.rsTypeExtentionInvalidMethod, mi.DeclaringType.Name, mi.Name));
+
+				lock (currentTypeLock)
+				{
+					if (genericExtensionMethods == null)
+						genericExtensionMethods = new List<MethodInfo>();
+
+					if (genericExtensionMethods.IndexOf(mi) == -1)
+						genericExtensionMethods.Add(mi);
+				}
+			}
+			else
+			{
+				if (checkFirstParameter && firstType != type)
+					throw new ArgumentException(String.Format(Properties.Resources.rsTypeExtentionInvalidMethod, mi.DeclaringType.Name, mi.Name));
+
+				lock (currentTypeLock)
+				{
+					// create the extensions
+					if (extensionMethods == null)
+						extensionMethods = new List<MethodInfo>();
+
+					// add the method
+					if (extensionMethods.IndexOf(mi) == -1)
+						extensionMethods.Add(mi);
+				}
 			}
 		} // proc RegisterExtension
 
 		#endregion
 
-		#region -- GetIndex, GetItem ------------------------------------------------------
+		#region -- AddType, MakeGenericType, ... ------------------------------------------
 
-		internal int GetIndex(string sName, bool lIgnoreCase, Func<Type> buildType)
+		private void SetNamespace()
 		{
-			int iIndex = FindIndexByName(sName, lIgnoreCase);
-
-			// Name not found, create a new one
-			if (iIndex == -1)
+			// to the root
+			var c = this;
+			while (c.parent != null && c.resolvedVersion >= 0)
 			{
-				// Create the new object
-				if (buildType == null)
-					iIndex = AddType(new LuaType(this, sName));
-				else
-					iIndex = AddType(new LuaType(this, sName, buildType()));
-
-				// Update the local index
-				if (index == null)
-					index = new Dictionary<string, int>();
-
-				index[sName] = iIndex;
+				c.resolvedVersion = ResolvedAsNamespace;
+				c = c.parent;
 			}
+		} // proc SetNamespace
 
-			// No type for this level, but sub-items -> it is a namespace
-			if (resolverVersion >= 0 && GetType(iIndex).Type != null && Type == null)
+		private int AddType(string name, bool ignoreCase, Func<Type> getType)
+		{
+			// is the name already inserted 
+			var index = FindIndexByName(name, ignoreCase);
+
+			// create the name
+			if (index == -1)
 			{
-				LuaType c = this;
-				while (c.parent != null && c.resolverVersion >= 0)
+				// create the type
+				index = AddType(new LuaType(this, name, 0, getType == null ? null : getType()));
+
+				// update the local index
+				lock (currentTypeLock)
 				{
-					c.resolverVersion = -1;
-					c = c.parent;
+					if (namespaceIndex == null)
+						namespaceIndex = new Dictionary<string, int>();
+					namespaceIndex[name] = index;
 				}
 			}
 
-			return iIndex;
-		} // func GetIndex
-
-		private int FindIndexByName(string sName, bool lIgnoreCase)
-		{
-			int iIndex = -1;
-			if (index != null)
+			// check if the current level is a namespace or generic definition
+			if (resolvedVersion >= 0 && Type == null)
 			{
-				if (!index.TryGetValue(sName, out iIndex))
+				var childType = GetType(index).Type;
+				if (childType != null)
 				{
-					if (lIgnoreCase)
+					if (!childType.IsConstructedGenericType && Type == null)
+						SetNamespace();
+				}
+			}
+
+			return index;
+		} // func AddType
+
+		private int FindIndexByName(string sName, bool ignoreCase)
+		{
+			var index = -1;
+			lock (currentTypeLock)
+			{
+				if (namespaceIndex != null)
+				{
+					if (!namespaceIndex.TryGetValue(sName, out index))
 					{
-						foreach (var k in index)
+						if (ignoreCase)
 						{
-							if (String.Compare(sName, k.Key, StringComparison.OrdinalIgnoreCase) == 0)
+							foreach (var k in namespaceIndex)
 							{
-								iIndex = k.Value;
-								break;
+								if (String.Compare(sName, k.Key, StringComparison.OrdinalIgnoreCase) == 0)
+								{
+									index = k.Value;
+									break;
+								}
 							}
 						}
+						else
+							index = -1;
 					}
-					else
-						iIndex = -1;
 				}
 			}
-			return iIndex;
+			return index;
 		} // func FindIndexByName
 
+		private Type MakeGenericClrType(LuaType[] genericArguments)
+		{
+			// get the type definition
+			var genericTypeDefinition = Type.GetType(fullName + "`" + genericArguments.Length.ToString(CultureInfo.InvariantCulture), true);
+			var genericClrArguments = new Type[genericArguments.Length];
+
+			for (var i = 0; i < genericClrArguments.Length; i++)
+			{
+				var t = genericArguments[i].Type;
+				if (t == null)
+					throw new ArgumentNullException(String.Format("Argument[{0}] = '{1}' is not a type.", i, genericArguments[i].FullName));
+				genericClrArguments[i] = t;
+			}
+
+			return genericTypeDefinition.MakeGenericType(genericClrArguments);
+		} // func MakeGenericClrType
+
 		/// <summary>Get the generic type</summary>
-		/// <param name="typeGeneric">Generic type</param>
 		/// <param name="arguments">Arguments for the generic type</param>
 		/// <returns>Created type.</returns>
-		public LuaType GetGenericItem(Type typeGeneric, LuaType[] arguments)
-		{
-			Type[] genericParameters = new Type[arguments.Length];
+		public LuaType MakeGenericLuaType(LuaType[] arguments)
+			=> LuaType.GetType(MakeGenericClrType(arguments));
 
-			// Build the typename
-			StringBuilder sb = new StringBuilder();
-			sb.Append('`').Append(arguments.Length).Append('[');
-			for (int i = 0; i < arguments.Length; i++)
-			{
-				if (i > 0)
-					sb.Append(',');
+		private Type MakeArrayClrType(int rank)
+			=> rank == 1 ? Type.MakeArrayType() : Type.MakeArrayType(rank);
 
-				Type typeTmp = genericParameters[i] = arguments[i].Type;
-				if (typeTmp == null)
-					throw new LuaRuntimeException(String.Format(Properties.Resources.rsClrGenericNoType, i), null);
-
-				sb.Append('[').Append(typeTmp.AssemblyQualifiedName).Append(']');
-			}
-			sb.Append(']');
-
-			// try to find the typename
-			lock (this)
-				return GetType(GetIndex(sb.ToString(), false, () => typeGeneric.MakeGenericType(genericParameters)));
-		} // func GetGenericItem
+		/// <summary></summary>
+		/// <param name="rank"></param>
+		/// <returns></returns>
+		public LuaType MakeArrayLuaType(int rank = 1)
+			=> LuaType.GetType(MakeArrayClrType(rank));
 
 		#endregion
 
-		#region -- Properties -------------------------------------------------------------
-
-		/// <summary>Name of the LuaType</summary>
-		public string Name { get { return name; } }
-		/// <summary>FullName of the Clr-Type</summary>
-		public string FullName
-		{
-			get
-			{
-				StringBuilder sb = new StringBuilder();
-				GetFullName(sb);
-				return sb.ToString();
-			}
-		} // func FullName
-
-		/// <summary>Alias name</summary>
-		public string AliasName { get { return aliasName; } }
-		/// <summary>Returns the alias or if it is <c>null</c> the full name</summary>
-		public string AliasOrFullName
-		{
-			get { return aliasName ?? FullName; }
-		} // prop AliasOrFullName
-
-		/// <summary>Type that is represented by the LuaType</summary>
-		public Type Type
-		{
-			get
-			{
-				lock (this)
-				{
-					if (type == null)  // no type found
-						ResolveType();
-					return type;
-				}
-			}
-		} // prop Type
-
-		/// <summary>Is the LuaType only a namespace at the time.</summary>
-		public bool IsNamespace { get { return resolverVersion == -1 || type == null && resolverVersion >= 0; } }
-
-		/// <summary>Parent type</summary>
-		public LuaType Parent { get { return parent; } }
-
-		#endregion
+		#region -- EnumerateMembers -------------------------------------------------------
 
 		private static bool IsCallableMethod(MethodBase methodInfo, bool searchStatic)
 			=> methodInfo.IsPublic && !methodInfo.IsAbstract && (methodInfo.CallingConvention & CallingConventions.VarArgs) == 0 && methodInfo.IsStatic == searchStatic;
@@ -841,13 +829,27 @@ namespace Neo.IronLua
 			foreach (var c in EnumerateMembers<T>(searchType == LuaMethodEnumerate.Static, getDeclaredMembers))
 				yield return c;
 
-			// Enum extensions
-			if (extensionMethods != null && typeof(T).GetTypeInfo().IsAssignableFrom(typeof(MethodInfo).GetTypeInfo()))
+			// Do we look for methods
+			if (typeof(T).GetTypeInfo().IsAssignableFrom(typeof(MethodInfo).GetTypeInfo()))
 			{
-				lock (extensionMethods)
+				// Enum extensions
+				if (extensionMethods != null)
 				{
-					foreach (var mi in (getDeclaredMembers == null ? extensionMethods : getDeclaredMembers(extensionMethods)))
-						yield return (T)(MemberInfo)mi;
+					lock (currentTypeLock)
+					{
+						foreach (var mi in (getDeclaredMembers == null ? extensionMethods : getDeclaredMembers(extensionMethods)))
+							yield return (T)(MemberInfo)mi;
+					}
+				}
+
+				// Enum generic extensions
+				if (parent != null && parent.genericExtensionMethods != null)
+				{
+					lock (parent.currentTypeLock)
+					{
+						foreach (var mi in (getDeclaredMembers == null ? parent.genericExtensionMethods : getDeclaredMembers(parent.genericExtensionMethods)))
+							yield return (T)(MemberInfo)mi;
+					}
 				}
 			}
 
@@ -859,9 +861,9 @@ namespace Neo.IronLua
 			}
 
 			// Enum interfaces
-			if (searchType == LuaMethodEnumerate.Dynamic)
+			if (searchType == LuaMethodEnumerate.Dynamic && implementedInterfaces != null)
 			{
-				foreach (var interfaceType in implementedInterfaces)
+				foreach (var interfaceType in implementedInterfaces.Value)
 				{
 					foreach (var c in interfaceType.EnumerateMembers<T>(enumeratedTypes, LuaMethodEnumerate.Typed, getDeclaredMembers))
 						yield return c;
@@ -894,11 +896,50 @@ namespace Neo.IronLua
 			return EnumerateMembers<T>(enumeratedTyped, searchType, declaredMembers => declaredMembers.Where(c => String.Compare(c.Name, memberName, stringComparison) == 0));
 		} // func EnumerateMembers
 
+		#endregion
+
+		#region -- Properties -------------------------------------------------------------
+
+		/// <summary>Name of the LuaType</summary>
+		public string Name { get { return name; } }
+		/// <summary>FullName of the Clr-Type</summary>
+		public string FullName => fullName;
+
+		/// <summary>Alias name</summary>
+		public string AliasName => aliasName;
+		/// <summary>Returns the alias or if it is <c>null</c> the full name</summary>
+		public string AliasOrFullName => aliasName ?? fullName;
+
+		/// <summary>Type that is represented by the LuaType</summary>
+		public Type Type
+		{
+			get
+			{
+				lock (currentTypeLock)
+				{
+					if (type == null)  // no type found
+						ResolveType();
+					return type;
+				}
+			}
+		} // prop Type
+
+		/// <summary>Is the LuaType only a namespace at the time.</summary>
+		public bool IsNamespace => resolvedVersion == ResolvedAsNamespace || type == null && resolvedVersion >= 0;
+
+		/// <summary>Parent type</summary>
+		public LuaType Parent => parent;
+
+		#endregion
+
 		// -- Static --------------------------------------------------------------
 
 		private static LuaType clr = new LuaType();                 // root type
+
 		private static List<LuaType> types = new List<LuaType>();   // SubItems of this type
-		private static Dictionary<string, int> knownTypes = new Dictionary<string, int>(); // index for well known types
+		private static Dictionary<Type, int> knownTypes = new Dictionary<Type, int>(); // index for well known types
+		private static Dictionary<string, int> knownTypeStrings = new Dictionary<string, int>(); // index for well known types
+
 		private static ILuaTypeResolver typeResolver;
 
 		static LuaType()
@@ -947,6 +988,9 @@ namespace Neo.IronLua
 			RegisterMethodExtension(typeof(string), typeof(string), "Format");
 			RegisterMethodExtension(typeof(string), typeof(string), "Join");
 
+			// add linq extensions
+			RegisterTypeExtension(typeof(Enumerable));
+
 			if (piLookupReferencedAssemblies != null)
 				piLookupReferencedAssemblies.SetValue(null, true);
 		} // /sctor
@@ -957,9 +1001,7 @@ namespace Neo.IronLua
 		/// <param name="type">lua-type that should convert.</param>
 		/// <returns>clr-type</returns>
 		public static implicit operator Type(LuaType type)
-		{
-			return type == null ? null : type.Type;
-		} // implicit to type
+			=> type == null ? null : type.Type;
 
 		#endregion
 
@@ -967,34 +1009,40 @@ namespace Neo.IronLua
 
 		private static int AddType(LuaType type)
 		{
-			int iIndex;
+			int index;
+
 			lock (types)
 			{
 				// add the type
-				iIndex = types.Count;
+				index = types.Count;
 				types.Add(type);
 			}
 
-			// update type cache
+			// update known types
 			if (type.Type != null)
+			{
 				lock (knownTypes)
-					knownTypes[type.FullName] = iIndex;
+				{
+					knownTypes[type.Type] =
+						knownTypeStrings[type.FullName] = index;
+				}
+			}
 
-			return iIndex;
+			return index;
 		} // proc Add
 
 		private static int GetTypeIndex(LuaType type)
 		{
 			lock (types)
 			{
-				int iReturn = types.IndexOf(type);
+				int index = types.IndexOf(type);
 #if DEBUG
-				if (iReturn == -1)
+				if (index == -1)
 					throw new InvalidOperationException();
 #endif
-				return iReturn;
+				return index;
 			}
-		} // func
+		} // func GetTypeIndex
 
 		#endregion
 
@@ -1006,93 +1054,238 @@ namespace Neo.IronLua
 				return types[iIndex];
 		} // func GetType
 
-		private static LuaType GetType(LuaType current, int iOffset, string sFullName, bool lIgnoreCase, Type type)
+		private static Exception TypeParseException(int offset, string fullName, string expected)
+			=> new FormatException(String.Format(Properties.Resources.rsTypeParseError, fullName, offset >= fullName.Length ? "eof" : fullName.Substring(offset, 1), offset, expected));
+
+		private static LuaType GetTypeGenericArgument(ref int offset, string fullName, bool ignoreCase)
 		{
-			string sCurrentName;
+			var startAt = offset;
+			var bracketCount = 0;
 
-			// search for the offset
-			int iNextOffset;
-			if (iOffset > 0 && sFullName[iOffset - 1] == '`') // parse namespace
+			while (offset < fullName.Length)
 			{
-				int iBracketCount = 0;
-				iNextOffset = iOffset;
-				iOffset--;
-
-				// search for the first [
-				while (iNextOffset < sFullName.Length && sFullName[iNextOffset] != '[')
-					iNextOffset++;
-				while (iNextOffset < sFullName.Length)
+				var c = fullName[offset];
+				if (bracketCount == 0 && (c == ',' || c == ']'))
 				{
-					if (sFullName[iNextOffset] == '[')
-						iBracketCount++;
-					else if (sFullName[iNextOffset] == ']')
-					{
-						iBracketCount--;
-						if (iBracketCount == 0)
-						{
-							iNextOffset++;
-							break;
-						}
-					}
-					iNextOffset++;
+					if (fullName[startAt] == '[')
+						return GetType(fullName.Substring(startAt + 1, offset - startAt - 2), ignoreCase, false);
+					else
+						return GetType(fullName.Substring(startAt, offset - startAt), ignoreCase, false);
 				}
+				else if (c == '[')
+					bracketCount++;
+				else if (c == ']')
+					bracketCount--;
 
-				if (iNextOffset == sFullName.Length)
-					iNextOffset = -1;
+				offset++;
 			}
-			else
-				iNextOffset = sFullName.IndexOfAny(new char[] { '.', '+', '`' }, iOffset);
 
-			// Cut out the current name
-			if (iNextOffset == -1)
-				sCurrentName = sFullName.Substring(iOffset);
-			else
+			throw TypeParseException(offset, fullName, ",");
+		} // func GetTypeGenericArgument
+
+		private static LuaType GetType(LuaType current, int offset, string fullName, bool ignoreCase, Type type)
+		{
+			if (fullName.Length <= offset)
+				throw TypeParseException(offset, fullName, "part");
+
+			if (fullName[offset] == '[') // array or generic definition
 			{
-				sCurrentName = sFullName.Substring(iOffset, iNextOffset - iOffset);
-				iNextOffset++;
+				offset++;
+				if (fullName.Length <= offset)
+					throw TypeParseException(offset, fullName, "array|generic");
+				else if (fullName[offset] == ',' || fullName[offset] == ']') // array
+				{
+					#region -- array --
+					// count the number of dimension
+					var startAt = offset - 1;
+					var rank = 1;
+					while (fullName[offset] == ',')
+					{
+						rank++;
+						offset++;
+					}
+					if (fullName[offset] == ']')
+					{
+						offset++;
+
+						// more array definition might follow
+						var lastElement = fullName.Length <= offset;
+						var luaType = GetType(current.AddType(fullName.Substring(startAt, offset - startAt), false, () => current.MakeArrayClrType(rank)));
+						if (lastElement)
+							return luaType;
+						else
+							return GetType(luaType, offset, fullName, false, null);
+					}
+					else
+						throw TypeParseException(offset, fullName, "]");
+					#endregion
+				}
+				else // generic definition
+				{
+					#region -- generic --
+					// collect generic arguments
+					var genericArguments = new List<LuaType>();
+					var sbTypeName = new StringBuilder("[");
+					do
+					{
+						var arg = GetTypeGenericArgument(ref offset, fullName, ignoreCase);
+
+						// build name
+						if (genericArguments.Count > 0)
+							sbTypeName.Append(',');
+						sbTypeName.Append(arg.Name);
+
+						// collect
+						genericArguments.Add(arg);
+					} while (offset < fullName.Length && fullName[offset] == ',');
+
+					sbTypeName.Append(']');
+
+					// check end of array
+					if (fullName.Length <= offset || fullName[offset] != ']') // check
+						throw TypeParseException(offset, fullName, "]");
+					offset++;
+
+					// is a array following
+					var lastElement = fullName.Length <= offset;
+
+					// create the generic type
+					var luaType = GetType(current.AddType(sbTypeName.ToString(), false,
+						() =>
+						{
+							if (!lastElement || type == null)
+								return current.MakeGenericClrType(genericArguments.ToArray());
+							else
+								return type;
+						}));
+
+					if (lastElement)
+						return luaType;
+					else
+						return GetType(luaType, offset, fullName, ignoreCase, type);
+
+					#endregion
+				}
 			}
+			else // type or namespace
+			{
+				#region -- type, namespace --
+				// get the current part of the name
+				var nextOffset = fullName.IndexOfAny(new char[] { '.', '+', '[', ',' }, offset);
+				var currentPart = nextOffset == -1 ? fullName.Substring(offset) : fullName.Substring(offset, nextOffset - offset);
 
-			// try to find the name in the current namespace
-			int iIndex = current.GetIndex(sCurrentName, lIgnoreCase, type == null || iNextOffset > 0 ? (Func<Type>)null : () => type);
+				// if this is a generic type definition remove `n
+				var genericMarker = currentPart.IndexOf('`');
+				if (genericMarker > 0)
+					currentPart = currentPart.Substring(0, genericMarker);
 
-			// end of the type change found
-			if (iNextOffset == -1)
-				return GetType(iIndex);
-			else
-				return GetType(GetType(iIndex), iNextOffset, sFullName, lIgnoreCase, type);
+				if (nextOffset == -1) // last element of the chain
+				{
+					return GetType(current.AddType(currentPart, ignoreCase, () => type));
+				}
+				else if (fullName[nextOffset] == '[') // array or generic
+				{
+					if (fullName.Length == nextOffset + 1)
+						throw TypeParseException(offset, fullName, "array|generic");
+					else if (fullName[nextOffset + 1] == '[') // generic
+					{
+						return GetType(GetType(current.AddType(currentPart, ignoreCase, null)), nextOffset, fullName, ignoreCase, type);
+					}
+					else // array
+					{
+						var index = type == null ? current.AddType(currentPart, ignoreCase, null) :
+							current.AddType(currentPart, ignoreCase, type.GetElementType);
+
+						return GetType(GetType(index), nextOffset, fullName, ignoreCase, type);
+					}
+				}
+				else // Sub-Class or namespace
+				{
+					return GetType(GetType(current.AddType(currentPart, ignoreCase, null)), nextOffset + 1, fullName, ignoreCase, type);
+				}
+				#endregion
+			}
 		} // func GetType
 
 		/// <summary>Creates or looks up the LuaType for a clr-type.</summary>
-		/// <param name="type">clr-type, that should wrap.</param>
+		/// <param name="type">clr-type, that should wrapped.</param>
 		/// <returns>Wrapped Type</returns>
 		public static LuaType GetType(Type type)
 		{
-			string sFullName = type.FullName;
+			if (type == null)
+				return clr;
+
+			// is this type well known
 			lock (knownTypes)
 			{
-				int iIndex;
-				if (knownTypes.TryGetValue(sFullName, out iIndex))
-					return GetType(iIndex);
+				int index;
+				if (knownTypes.TryGetValue(type, out index))
+					return GetType(index);
 			}
-			return GetType(clr, 0, sFullName, false, type);
+
+			// the type is unknown parse the information
+			var fullName = type.FullName;
+			if (fullName == null)
+			{
+				if (type.IsConstructedGenericType)
+				{
+					fullName = type.Namespace + "." + type.Name;
+					type = null;
+				}
+				else
+					throw new ArgumentNullException(String.Format(Properties.Resources.rsTypeInvalidType, type.Name));
+			}
+
+			return GetType(clr, 0, fullName, false, type);
 		} // func GetType
 
 		/// <summary>Creates or looks up the LuaType for a clr-type.</summary>
-		/// <param name="sTypeName">Full path to the type (clr-name).</param>
-		/// <param name="lIgnoreCase"></param>
-		/// <param name="lLateAllowed">Must the type exist or it is possible to bound the type later.</param>
+		/// <param name="typeName">Full path to the type (clr-name).</param>
+		/// <param name="ignoreCase"></param>
+		/// <param name="lateAllowed">Must the type exist or it is possible to bound the type later.</param>
 		/// <returns>Wrapped Type, is lLate is <c>false</c> also <c>null</c> is possible.</returns>
-		public static LuaType GetType(string sTypeName, bool lIgnoreCase = false, bool lLateAllowed = true)
+		public static LuaType GetType(string typeName, bool ignoreCase = false, bool lateAllowed = true)
 		{
-			// search the tyle in the cache
-			LuaType luaType = GetCachedType(sTypeName);
+			// remove all stuff, that is not used
+			StringBuilder sb = null;
+			var bracketCount = 0;
+			for (var i = 0; i < typeName.Length; i++)
+			{
+				var c = typeName[i];
+
+				// escape counter
+				if (c == '[')
+					bracketCount++;
+				else if (c == ']')
+					bracketCount--;
+
+				// white space delete
+				if (Char.IsWhiteSpace(c))
+				{
+					if (sb == null)
+						sb = new StringBuilder(typeName, 0, i, typeName.Length);
+				}
+				else if (bracketCount == 0 && c == ',') // cut assembly name
+				{
+					if (sb == null)
+						typeName = typeName.Substring(0, i);
+					break;
+				}
+				else if (sb != null)
+					sb.Append(c);
+			}
+			if (sb != null)
+				typeName = sb.ToString();
+
+			// search the type in the cache
+			var luaType = GetCachedType(typeName);
 
 			// create the lua type
 			if (luaType == null)
-				luaType = GetType(clr, 0, sTypeName, lIgnoreCase, Type.GetType(sTypeName, false));
+				luaType = GetType(clr, 0, typeName, ignoreCase, null);
 
 			// Test the result
-			if (lLateAllowed)
+			if (lateAllowed)
 				return luaType;
 			else if (luaType.Type != null)
 				return luaType;
@@ -1101,40 +1294,44 @@ namespace Neo.IronLua
 		} // func GetType
 
 		/// <summary>Lookup for a well known type.</summary>
-		/// <param name="sTypeName">Name of the type</param>
+		/// <param name="typeName">Name of the type (in neolua style)</param>
 		/// <returns></returns>
-		internal static LuaType GetCachedType(string sTypeName)
+		internal static LuaType GetCachedType(string typeName)
 		{
 			lock (knownTypes)
 			{
-				int iIndex;
-				if (knownTypes.TryGetValue(sTypeName, out iIndex))
-					return GetType(iIndex);
+				int index;
+				if (knownTypeStrings.TryGetValue(typeName, out index))
+					return GetType(index);
 				else
 					return null;
 			}
 		} // func GetCachedType
 
+		#endregion
+
+		#region -- RegisterTypeAlias ------------------------------------------------------
+
 		/// <summary>Register a new type alias.</summary>
-		/// <param name="sAlias">Name of the type alias. It should be a identifier.</param>
+		/// <param name="aliasName">Name of the type alias. It should be a identifier.</param>
 		/// <param name="type">Type of the alias</param>
-		public static void RegisterTypeAlias(string sAlias, Type type)
+		public static void RegisterTypeAlias(string aliasName, Type type)
 		{
-			if (sAlias.IndexOfAny(new char[] { '.', '+', ' ' }) >= 0)
-				throw new ArgumentException(String.Format(Properties.Resources.rsTypeAliasInvalidName, sAlias));
+			if (aliasName.IndexOfAny(new char[] { '.', '+', ' ', '[', ']', ',' }) >= 0)
+				throw new ArgumentException(String.Format(Properties.Resources.rsTypeAliasInvalidName, aliasName));
 
 			lock (knownTypes)
 			{
-				int iOldAlias;
-				LuaType luaType = LuaType.GetType(type);
-				if (knownTypes.TryGetValue(sAlias, out iOldAlias))
+				int oldAliasIndex;
+				var luaType = LuaType.GetType(type);
+				if (knownTypeStrings.TryGetValue(aliasName, out oldAliasIndex))
 				{
-					LuaType oldType = LuaType.GetType(iOldAlias);
+					var oldType = LuaType.GetType(oldAliasIndex);
 					if (oldType != luaType)
 						oldType.aliasName = null;
 				}
-				luaType.aliasName = sAlias;
-				knownTypes[sAlias] = LuaType.GetTypeIndex(luaType);
+				luaType.aliasName = aliasName;
+				knownTypeStrings[aliasName] = LuaType.GetTypeIndex(luaType);
 			}
 		} // proc RegisterTypeAlias
 
@@ -1152,12 +1349,12 @@ namespace Neo.IronLua
 					if (mi.GetCustomAttribute(typeof(ExtensionAttribute)) != null && mi.GetParameters().Length > 0)
 					{
 						// Get the lua type
-						Type currentType = mi.GetParameters()[0].ParameterType;
+						var currentType = mi.GetParameters()[0].ParameterType;
 						if (lastType == null || currentType != lastType.Type)
 							lastType = LuaType.GetType(currentType);
 
 						// register the method
-						lastType.RegisterExtension(mi);
+						lastType.RegisterExtension(mi, false);
 					}
 				}
 			}
@@ -1170,7 +1367,7 @@ namespace Neo.IronLua
 		public static void RegisterMethodExtension(MethodInfo mi)
 		{
 			if (mi.IsStatic && mi.IsPublic && mi.GetParameters().Length > 0)
-				LuaType.GetType(mi.GetParameters()[0].ParameterType).RegisterExtension(mi);
+				LuaType.GetType(mi.GetParameters()[0].ParameterType).RegisterExtension(mi, false);
 			else
 				throw new ArgumentException(String.Format(Properties.Resources.rsTypeExtentionInvalidMethod, mi.DeclaringType.Name, mi.Name));
 		} // proc RegisterMethodExtension
@@ -1189,7 +1386,7 @@ namespace Neo.IronLua
 				{
 					var parameters = mi.GetParameters();
 					if (parameters.Length > 1 && parameters[0].ParameterType == typeToExtent)
-						luaTypeToExtent.RegisterExtension(mi);
+						luaTypeToExtent.RegisterExtension(mi, false);
 				}
 			}
 		} // proc RegisterMethodExtension
@@ -1223,6 +1420,18 @@ namespace Neo.IronLua
 
 		/// <summary>Should LuaType throw an exception, if the type is not bindable (default: true).</summary>
 		public static bool ExceptionOnMissingMember { get; set; } = true;
+
+		[Obsolete("todo")]
+		internal int GetIndex(string sType, bool v, Func<Type> p)
+		{
+			return AddType(sType, v, p);
+		}
+
+		[Obsolete("todo")]
+		internal int GetGenericItem(Type typeGeneric, LuaType[] luaType)
+		{
+			throw new NotImplementedException("todo");
+		}
 	} // class LuaType
 
 	#endregion
@@ -1351,7 +1560,7 @@ namespace Neo.IronLua
 				mi.GetParameters(),
 				callInfo,
 				args,
-				mo => mo.Expression, mo => mo.LimitType, true), typeReturn, true);
+				mo => mo.Expression, mo => mo.LimitType, true), typeReturn, false);
 
 			return new DynamicMetaObject(expr, BindInvokeRestrictions(methodExpression, methodValue).Merge(Lua.GetMethodSignatureRestriction(null, args)));
 		} // func BindInvoke
@@ -1492,7 +1701,7 @@ namespace Neo.IronLua
 					{
 						var val = (LuaOverloadedMethod)Value;
 						var parameterInfo = miInvoke.GetParameters();
-            var miTarget = LuaEmit.FindMethod(val.methods, new CallInfo(parameterInfo.Length), parameterInfo, p => p.ParameterType, false);
+						var miTarget = LuaEmit.FindMethod(val.methods, new CallInfo(parameterInfo.Length), parameterInfo, p => p.ParameterType, false);
 						return LuaMethod.CreateDelegate(Expression, val, binder.Type, miTarget, binder.ReturnType);
 					}
 				}

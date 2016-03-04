@@ -297,4 +297,10 @@
   <data name="rsTypeExtentionInvalidType" xml:space="preserve">
     <value>{0} is not static.</value>
   </data>
+  <data name="rsTypeInvalidType" xml:space="preserve">
+    <value>'{0}' is a pointer or byref type. These types can not converted to a LuaType.</value>
+  </data>
+  <data name="rsTypeParseError" xml:space="preserve">
+    <value>Invalid type format for '{0}' (unexpected: {1} at {2}; expected: {3})</value>
+  </data>
 </root>

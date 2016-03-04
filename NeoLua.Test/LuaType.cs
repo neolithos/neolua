@@ -130,13 +130,42 @@ namespace LuaDLR.Test
     [TestMethod]
     public void TypeTest01()
     {
-      LuaType t = LuaType.GetType(typeof(Stream));
+      var t = LuaType.GetType(typeof(Stream));
       Assert.IsTrue(t.Type != null);
       t = LuaType.GetType("System.Test.Test", false, true);
       Assert.IsTrue(t.Type == null);
-      t = LuaType.GetType("LuaDLR.Test.LuaTypeTests.SubClass", false, true);
-      Assert.IsTrue(t.Type != null);
-      t = LuaType.GetType(typeof(List<string>));
+
+      var t1 = LuaType.GetType("LuaDLR.Test.LuaTypeTests.SubClass", false, true);
+			Assert.AreEqual(typeof(SubClass), t1.Type);
+			var t2 = LuaType.GetType("LuaDLR.Test.LuaTypeTests+SubClass", false, true);
+			Assert.AreEqual(t1, t2);
+
+			t = LuaType.GetType("System.String[,,]");
+			Assert.AreEqual(typeof(string[,,]), t.Type);
+
+			t = LuaType.GetType("System.String[][][]");
+			Assert.AreEqual(typeof(string[][][]), t.Type);
+
+			t = LuaType.GetType(typeof(Tuple));
+			Assert.IsTrue(t.Type != null);
+
+			t1 = LuaType.GetType("System.Tuple[System.String][,,]");
+			Assert.AreEqual(typeof(Tuple<String>[,,]), t1.Type);
+			t2 = LuaType.GetType("System.Tuple`1[[System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]][,,]");
+			Assert.AreEqual(t1, t2);
+
+			t1 = LuaType.GetType("System.Collections.Generic.List[System.Collections.Generic.List[System.Tuple[System.String]]]");
+			Assert.AreEqual(typeof(List<List<Tuple<String>>>), t1.Type);
+			t2 = LuaType.GetType(Lines("System.Collections.Generic.List`1[",
+			"[System.Collections.Generic.List`1[",
+			"[System.Tuple`1[",
+			"[System.String, mscorlib, Version = 4.0.0.0, Culture = neutral, PublicKeyToken = b77a5c561934e089]",
+			"], mscorlib, Version = 4.0.0.0, Culture = neutral, PublicKeyToken = b77a5c561934e089]",
+			"], mscorlib, Version = 4.0.0.0, Culture = neutral, PublicKeyToken = b77a5c561934e089]]"
+			));
+			Assert.AreEqual(t1, t2);
+
+			t = LuaType.GetType(typeof(List<string>));
       Assert.IsTrue(t.Type != null);
       t = LuaType.GetType(typeof(string[]));
       Assert.IsTrue(t.Type != null);
@@ -549,6 +578,17 @@ namespace LuaDLR.Test
 
 			TestCode("return 'Hallo0':LetterCount();", 5);
 			TestCode("t = 'Hallo0'; return t:LetterCount();", 5);
+		}
+
+		[TestMethod]
+		public void ExtensionTest02()
+		{
+			TestCode(
+				Lines(
+					"local t = clr.System.Int32[](6, 8, 9, 19);",
+					"return t:Sum(), t:Where(function(c: int) : bool return c < 10 end):Sum()"
+				), 42, 23
+			);
 		}
 
 		[TestMethod]
