@@ -306,10 +306,11 @@ namespace Neo.IronLua
 				{
 					try
 					{
+						// todo: fix me
 						MethodInfo mi = LuaEmit.FindMethod(
 							type.GetRuntimeMethods().Where(
 								c => String.Compare(binder.Name, c.Name, binder.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) == 0 && c.IsStatic
-							), binder.CallInfo, args, mo => mo.LimitType, false
+							), binder.CallInfo, this, args, mo => mo.LimitType, false
 						);
 						if (mi == null)
 						{
@@ -848,7 +849,14 @@ namespace Neo.IronLua
 					lock (parent.currentTypeLock)
 					{
 						foreach (var mi in (getDeclaredMembers == null ? parent.genericExtensionMethods : getDeclaredMembers(parent.genericExtensionMethods)))
-							yield return (T)(MemberInfo)mi;
+						{
+							var methodInfo = (MethodInfo)mi;
+
+							// get first argument
+							var firstArgumentType = methodInfo.GetParameters()[0].ParameterType;
+							if (firstArgumentType.GetGenericTypeDefinition() == type.GetGenericTypeDefinition())
+								yield return (T)(MemberInfo)mi;
+						}
 					}
 				}
 			}
@@ -1679,7 +1687,7 @@ namespace Neo.IronLua
 			public override DynamicMetaObject BindInvoke(InvokeBinder binder, DynamicMetaObject[] args)
 			{
 				LuaOverloadedMethod val = (LuaOverloadedMethod)Value;
-				MethodInfo mi = LuaEmit.FindMethod(val.methods, binder.CallInfo, args, mo => mo.LimitType, false);
+				MethodInfo mi = LuaEmit.FindMethod(val.methods, binder.CallInfo, null, args, mo => mo.LimitType, false);
 				if (mi == null)
 					return new DynamicMetaObject(
 						Lua.ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, val.Type, val.Name)),
@@ -1701,7 +1709,7 @@ namespace Neo.IronLua
 					{
 						var val = (LuaOverloadedMethod)Value;
 						var parameterInfo = miInvoke.GetParameters();
-						var miTarget = LuaEmit.FindMethod(val.methods, new CallInfo(parameterInfo.Length), parameterInfo, p => p.ParameterType, false);
+						var miTarget = LuaEmit.FindMethod(val.methods, new CallInfo(parameterInfo.Length), null, parameterInfo, p => p.ParameterType, false);
 						return LuaMethod.CreateDelegate(Expression, val, binder.Type, miTarget, binder.ReturnType);
 					}
 				}

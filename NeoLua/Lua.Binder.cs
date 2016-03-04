@@ -380,6 +380,7 @@ namespace Neo.IronLua
 						LuaEmit.FindMethod(
 							LuaType.GetType(target.LimitType).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Dynamic, Name, IgnoreCase),
 							CallInfo,
+							target,
 							args,
 							mo => mo.LimitType,
 							true

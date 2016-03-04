@@ -964,6 +964,7 @@ namespace Neo.IronLua
 			var operatorMethodInfo = FindMethod(
 					LuaType.GetType(type).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static, GetOperationMethodName(ExpressionType.OnesComplement), false),
 					new CallInfo(1),
+					null,
 					new Type[] { type },
 					t => t, false
 			);
@@ -1020,6 +1021,7 @@ namespace Neo.IronLua
 			var operatorMethodInfo = FindMethod(
 					LuaType.GetType(type).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static, GetOperationMethodName(ExpressionType.Negate), false),
 					new CallInfo(1),
+					null, 
 					new Type[] { type },
 					t => t, false
 			);
@@ -1108,7 +1110,7 @@ namespace Neo.IronLua
 			#region -- find operator --
 
 			// try to find a exact match for the operation
-			operatorMethodInfo = FindMethod(LuaType.GetType(type).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static, methodName, false), new CallInfo(1), new Type[] { type }, t => t, false);
+			operatorMethodInfo = FindMethod(LuaType.GetType(type).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static, methodName, false), new CallInfo(1), null, new Type[] { type }, t => t, false);
 
 			// can we inject a string conversation --> create a dynamic operation, that results in a simple arithmetic operation
 			if (lua != null && operatorMethodInfo == null && type == typeof(string))
@@ -1289,7 +1291,7 @@ namespace Neo.IronLua
 					LuaType.GetType(type1).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static, operationName, false).Concat(
 						LuaType.GetType(type2).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static, operationName, false)
 					);
-				var operatorMethodInfo = FindMethod<Type>(members, new CallInfo(2), new Type[] { type1, type2 }, t => t, false);
+				var operatorMethodInfo = FindMethod<Type>(members, new CallInfo(2), null, new Type[] { type1, type2 }, t => t, false);
 
 				if (operatorMethodInfo != null)
 				{
@@ -2424,14 +2426,18 @@ namespace Neo.IronLua
 
 		#endregion
 
-		public static MethodInfo FindMethod<TARG>(IEnumerable<MethodInfo> members, CallInfo callInfo, TARG[] arguments, Func<TARG, Type> getType, bool lExtension)
+		public static MethodInfo FindMethod<TARG>(IEnumerable<MethodInfo> members, CallInfo callInfo, TARG instance, TARG[] arguments, Func<TARG, Type> getType, bool isMemberCall)
 			where TARG : class
 		{
-			var mi = FindMember(members, callInfo, arguments, getType, lExtension); // todo: caller fehlt
+			var mi = FindMember(members, callInfo, arguments, getType, isMemberCall);
 
 			// create a non generic version
 			if (mi != null && mi.ContainsGenericParameters)
-					mi = MakeNonGenericMethod(mi, arguments, getType); // todo: caller fehlt
+			{
+				if (isMemberCall && instance != null && mi.IsStatic)
+					arguments = (new TARG[] { instance }).Concat(arguments).ToArray();
+				mi = MakeNonGenericMethod(mi, arguments, getType);
+			}
 
 			return mi;
 		} // func FindMethod
@@ -2493,16 +2499,14 @@ namespace Neo.IronLua
 			for (var i = 0; i < genericArguments.Length; i++)
 			{
 				Type t = null;
+				var currentArgument = genericArguments[i];
 
 				// look for the typ
 				for (int j = 0; j < parameterInfo.Length; j++)
 				{
-					if (parameterInfo[j].ParameterType == genericArguments[i])
-					{
-						t = CombineType(t, getType(arguments[j]));
-						break;
-					}
+					t = CombineType(t, FindGenericParameterType(parameterInfo[j].ParameterType, currentArgument, getType(arguments[j])));
 				}
+
 				genericParameter[i] = t;
 			}
 
@@ -2512,10 +2516,49 @@ namespace Neo.IronLua
 			return mi.MakeGenericMethod(genericParameter);
 		} // func MakeNonGenericMethod
 
+		private static Type FindGenericParameterType(Type parameterType, Type genericArgumentType, Type actualArgumentType)
+		{
+			if (parameterType == genericArgumentType)
+				return actualArgumentType;
+			else if (parameterType.IsConstructedGenericType)
+			{
+				var parameterGenericTypeDefinition = parameterType.GetGenericTypeDefinition();
+
+				for (var i = 0; i < parameterType.GenericTypeArguments.Length; i++)
+				{
+					// is the actualArgumentType the same generic type
+					var r = FindGenericParameterType(parameterType, genericArgumentType, parameterGenericTypeDefinition, i, actualArgumentType);
+					if (r != null)
+						return r;
+
+					// find a implemented interface
+					foreach (var interfaceType in actualArgumentType.GetTypeInfo().ImplementedInterfaces)
+					{
+						r = FindGenericParameterType(parameterType, genericArgumentType, parameterGenericTypeDefinition, i, interfaceType);
+						if (r != null)
+							return r;
+					}
+				}
+
+				return null;
+			}
+			else
+				return null;
+		} // proc FindGenericParameterType
+
+		private static Type FindGenericParameterType(Type parameterType, Type genericArgumentType, Type parameterGenericTypeDefinition, int i, Type testType)
+		{
+			if (testType.IsConstructedGenericType && parameterGenericTypeDefinition == testType.GetGenericTypeDefinition())
+				return FindGenericParameterType(parameterType.GenericTypeArguments[i], genericArgumentType, testType.GenericTypeArguments[i]);
+			return null;
+		} // func FindGenericParameterType
+
 		private static Type CombineType(Type t, Type type)
 		{
 			if (t == null)
 				return type;
+			else if (type == null)
+				return t;
 			else if (t.GetTypeInfo().IsAssignableFrom(type.GetTypeInfo()))
 				return t;
 			else if (type.GetTypeInfo().IsAssignableFrom(t.GetTypeInfo()))

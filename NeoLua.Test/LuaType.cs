@@ -586,7 +586,7 @@ namespace LuaDLR.Test
 			TestCode(
 				Lines(
 					"local t = clr.System.Int32[](6, 8, 9, 19);",
-					"return t:Sum(), t:Where(function(c: int) : bool return c < 10 end):Sum()"
+					"return t:Sum(), t:Where(function(c : int) : bool return c < 10 end):Sum()"
 				), 42, 23
 			);
 		}
