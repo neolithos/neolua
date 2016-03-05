@@ -1669,21 +1669,24 @@ namespace Neo.IronLua
 						if (currentType.Type == null)
 							throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
 
-						currentType = LuaType.GetType(currentType.GetIndex("[]", false, () => currentType.Type.MakeArrayType()));
+						currentType = LuaType.GetType(currentType.AddType("[]", false, 1));
 					}
 					else // build a generic type
 					{
-						var typeGeneric = LuaType.GetType(currentType.FullName + "`" + genericeTypes.Count.ToString()).Type;
-						if (typeGeneric == null)
-							throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
-
-						currentType = LuaType.GetType(currentType.GetGenericItem(typeGeneric, genericeTypes.ToArray()));
+						try
+						{
+							currentType = currentType.MakeGenericLuaType(genericeTypes.ToArray(), true);
+						}
+						catch (ArgumentException e)
+						{
+							throw ParseError(code.Current, e.Message);
+						}
 					}
 				}
 				else
 				{
 					code.Next();
-					currentType = LuaType.GetType(currentType.GetIndex(FetchToken(LuaToken.Identifier, code).Value, false, null));
+					currentType = LuaType.GetType(currentType.AddType(FetchToken(LuaToken.Identifier, code).Value, false, null));
 				}
 			}
 
@@ -1703,7 +1706,7 @@ namespace Neo.IronLua
 				if (expr != null && expr.Type == typeof(LuaType))
 					return (LuaType)expr.Value;
 				else
-					return LuaType.GetType(LuaType.Clr.GetIndex(sType, false, null));
+					return LuaType.GetType(LuaType.Clr.AddType(sType, false, null));
 			}
 			else
 				return luaType;

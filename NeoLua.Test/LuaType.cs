@@ -169,7 +169,13 @@ namespace LuaDLR.Test
       Assert.IsTrue(t.Type != null);
       t = LuaType.GetType(typeof(string[]));
       Assert.IsTrue(t.Type != null);
-    }
+
+			t = LuaType.GetType("System.StringF[]");
+			Assert.IsNull(t.Type);
+
+			t = LuaType.GetType("System.Tuple[System.AAA]");
+			Assert.IsNull(t.Type);
+		}
 
     [TestMethod]
     public void TypeTest02()
