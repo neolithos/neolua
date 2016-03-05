@@ -234,7 +234,7 @@ namespace Neo.IronLua
 			}
 			else
 			{
-				sValue = (string)Lua.RtConvertValue(value, typeof(string));
+				sValue = (string)Lua.RtConvertValue(value, typeof(string)) ?? "nil";
 				sType = GetTypeName(value.GetType());
 			}
 

@@ -117,7 +117,7 @@ namespace Neo.IronLua
 			#region -- Ctor/Dtor ------------------------------------------------------------
 
 			public LuaTypeMetaObject(Expression expression, LuaType value)
-				: base(expression, BindingRestrictions.Empty, value)
+				: base(expression, BindingRestrictions.GetInstanceRestriction(expression, value), value)
 			{
 			} // ctor
 
@@ -136,20 +136,20 @@ namespace Neo.IronLua
 					var r = LuaEmit.TryGetMember(null, type, binder.Name, binder.IgnoreCase, out expr);
 					if (r == LuaTryGetMemberReturn.ValidExpression)
 					{
-						return new DynamicMetaObject(Lua.EnsureType(expr, binder.ReturnType), GetTypeResolvedRestriction(type));
+						return new DynamicMetaObject(Lua.EnsureType(expr, binder.ReturnType), Restrictions);
 					}
-					else if (ExceptionOnMissingMember)
+					else if (r == LuaTryGetMemberReturn.NotReadable)
 					{
 						return new DynamicMetaObject(
 							Lua.ThrowExpression(
-								LuaEmitException.GetMessageText(r == LuaTryGetMemberReturn.NotReadable ? LuaEmitException.CanNotReadMember : LuaEmitException.MemberNotFound, type.Name, binder.Name),
+								String.Format(Properties.Resources.rsMemberNotReadable, type.Name, binder.Name),
 								binder.ReturnType
 							),
-							GetTypeResolvedRestriction(type)
+							Restrictions
 						);
 					}
 					else
-						return new DynamicMetaObject(Expression.Default(binder.ReturnType), GetTypeResolvedRestriction(type));
+						return new DynamicMetaObject(Expression.Default(binder.ReturnType), Restrictions);
 				}
 				else
 				{
@@ -159,7 +159,7 @@ namespace Neo.IronLua
 						binder.GetUpdateExpression(binder.ReturnType),
 						Lua.EnsureType(Expression.Call(Lua.TypeGetTypeMethodInfoArgIndex, Expression.Constant(luaType.AddType(binder.Name, binder.IgnoreCase, null), typeof(int))), binder.ReturnType)
 					);
-					return new DynamicMetaObject(expr, GetTypeNotResolvedRestriction());
+					return new DynamicMetaObject(expr, Restrictions);
 				}
 			} // func BindGetMember
 
@@ -190,14 +190,14 @@ namespace Neo.IronLua
 						out result);
 
 					if (r == LuaTrySetMemberReturn.ValidExpression)
-						return new DynamicMetaObject(Lua.EnsureType(result, binder.ReturnType), GetTypeResolvedRestriction(type).Merge(Lua.GetSimpleRestriction(value)));
+						return new DynamicMetaObject(Lua.EnsureType(result, binder.ReturnType), Restrictions.Merge(Lua.GetSimpleRestriction(value)));
 					else
 					{
 						return new DynamicMetaObject(
-							Lua.ThrowExpression(LuaEmitException.GetMessageText(
-								r == LuaTrySetMemberReturn.NotWritable ? LuaEmitException.CanNotWriteMember : LuaEmitException.MemberNotFound,
+							Lua.ThrowExpression(String.Format(
+								r == LuaTrySetMemberReturn.NotWritable ? Properties.Resources.rsMemberNotWritable : Properties.Resources.rsMemberNotResolved,
 								type.Name, binder.Name), binder.ReturnType),
-							GetTypeResolvedRestriction(type)
+							Restrictions
 						);
 					}
 				}
@@ -208,7 +208,7 @@ namespace Neo.IronLua
 						binder.GetUpdateExpression(binder.ReturnType),
 						Lua.ThrowExpression(String.Format(Properties.Resources.rsMemberNotWritable, "LuaType", binder.Name), binder.ReturnType)
 					);
-					return new DynamicMetaObject(expr, GetTypeNotResolvedRestriction());
+					return new DynamicMetaObject(expr, Restrictions);
 				}
 			} // proc BindSetMember
 
@@ -218,65 +218,66 @@ namespace Neo.IronLua
 
 			public override DynamicMetaObject BindGetIndex(GetIndexBinder binder, DynamicMetaObject[] indexes)
 			{
-				LuaType val = (LuaType)Value;
-				Type type = val.Type;
-				if (type != null && indexes.Length == 0)
-				{
-					// create a array of the type
-					return new DynamicMetaObject(
-						Expression.Call(Lua.TypeGetTypeMethodInfoArgIndex,
-							Expression.Constant(val.AddType("[]", true, type.MakeArrayType()), typeof(int))
-						),
-						GetTypeResolvedRestriction(type)
-					);
-				}
-				else
-				{
-					if (indexes.Any(c => !c.HasValue))
-						return binder.Defer(indexes);
+				//LuaType val = (LuaType)Value;
+				//Type type = val.Type;
+				//if (type != null && indexes.Length == 0)
+				//{
+				//	// create a array of the type
+				//	return new DynamicMetaObject(
+				//		Expression.Call(Lua.TypeGetTypeMethodInfoArgIndex,
+				//			Expression.Constant(val.AddType("[]", true, type.MakeArrayType()), typeof(int))
+				//		),
+				//		GetTypeResolvedRestriction(type)
+				//	);
+				//}
+				//else
+				//{
+				//	if (indexes.Any(c => !c.HasValue))
+				//		return binder.Defer(indexes);
 
-					// is the current type a array
-					if (indexes.All(c => LuaEmit.IsIntegerType(LuaEmit.GetTypeCode(c.LimitType))))
-					{
-						return new DynamicMetaObject(
-							Expression.NewArrayBounds(type, from c in indexes select Lua.EnsureType(c.Expression, typeof(int))),
-							Lua.GetMethodSignatureRestriction(this, indexes));
-					}
-					else
-					{
-						// create the generic type name
-						StringBuilder sbTypeName = new StringBuilder(val.FullName);
-						sbTypeName.Append('`').Append(indexes.Length);
+				//	// is the current type a array
+				//	if (indexes.All(c => LuaEmit.IsIntegerType(LuaEmit.GetTypeCode(c.LimitType))))
+				//	{
+				//		return new DynamicMetaObject(
+				//			Expression.NewArrayBounds(type, from c in indexes select Lua.EnsureType(c.Expression, typeof(int))),
+				//			Lua.GetMethodSignatureRestriction(this, indexes));
+				//	}
+				//	else
+				//	{
+				//		// create the generic type name
+				//		StringBuilder sbTypeName = new StringBuilder(val.FullName);
+				//		sbTypeName.Append('`').Append(indexes.Length);
 
-						// find the type
-						Type typeGeneric = Type.GetType(sbTypeName.ToString(), false);
-						if (typeGeneric == null)
-						{
-							return new DynamicMetaObject(
-								Lua.ThrowExpression(String.Format(Properties.Resources.rsParseUnknownType, sbTypeName.ToString())),
-								GetTypeResolvedRestriction(type).Merge(Lua.GetMethodSignatureRestriction(null, indexes))
-							);
-						}
+				//		// find the type
+				//		Type typeGeneric = Type.GetType(sbTypeName.ToString(), false);
+				//		if (typeGeneric == null)
+				//		{
+				//			return new DynamicMetaObject(
+				//				Lua.ThrowExpression(String.Format(Properties.Resources.rsParseUnknownType, sbTypeName.ToString())),
+				//				GetTypeResolvedRestriction(type).Merge(Lua.GetMethodSignatureRestriction(null, indexes))
+				//			);
+				//		}
 
-						// check, only types are allowed
-						if (indexes.Any(c => c.LimitType != typeof(LuaType) && c.LimitType != typeof(Type)))
-						{
-							return new DynamicMetaObject(
-								Lua.ThrowExpression(Properties.Resources.rsClrGenericTypeExpected),
-								GetTypeResolvedRestriction(type).Merge(Lua.GetMethodSignatureRestriction(null, indexes))
-							);
-						}
+				//		// check, only types are allowed
+				//		if (indexes.Any(c => c.LimitType != typeof(LuaType) && c.LimitType != typeof(Type)))
+				//		{
+				//			return new DynamicMetaObject(
+				//				Lua.ThrowExpression(Properties.Resources.rsClrGenericTypeExpected),
+				//				GetTypeResolvedRestriction(type).Merge(Lua.GetMethodSignatureRestriction(null, indexes))
+				//			);
+				//		}
 
-						// create the call to the runtime
-						return new DynamicMetaObject(
-							Expression.Call(Expression.Convert(Expression, typeof(LuaType)), Lua.TypeGetGenericItemMethodInfo,
-								Expression.Constant(typeGeneric),
-								Expression.NewArrayInit(typeof(LuaType), (from a in indexes select ConvertToLuaType(a)).AsEnumerable())
-							),
-							GetTypeResolvedRestriction(type).Merge(Lua.GetMethodSignatureRestriction(null, indexes))
-						);
-					}
-				}
+				//		// create the call to the runtime
+				throw new NotImplementedException("todo");
+				//		//return new DynamicMetaObject(
+				//		//	Expression.Call(Expression.Convert(Expression, typeof(LuaType)), Lua.TypeGetGenericItemMethodInfo,
+				//		//		Expression.Constant(typeGeneric),
+				//		//		Expression.NewArrayInit(typeof(LuaType), (from a in indexes select ConvertToLuaType(a)).AsEnumerable())
+				//		//	),
+				//		//	GetTypeResolvedRestriction(type).Merge(Lua.GetMethodSignatureRestriction(null, indexes))
+				//		//);
+				//	}
+				//}
 			} // func BindGetIndex
 
 			#endregion
@@ -297,65 +298,59 @@ namespace Neo.IronLua
 
 			public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
 			{
-				Type type = ((LuaType)Value).Type;
+				var luaType = (LuaType)Value;
+				var type = luaType.Type;
+				var stringComparison = binder.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
-				BindingRestrictions restrictions;
-				Expression expr;
-				if (type != null)
+				if (args.Length == 0 && String.Compare(binder.Name, "GetType", stringComparison) == 0) // :GetType is always existent
 				{
+					return new DynamicMetaObject(
+						Lua.EnsureType(
+							Expression.Property(Lua.EnsureType(Expression, typeof(LuaType)), Lua.TypeTypePropertyInfo),
+							binder.ReturnType
+						),
+						Restrictions
+					);
+				}
+				else if (type == null) // type not resolved
+				{
+					var restrictions = Restrictions;
+					Expression expr;
+
+					var fallback = binder.FallbackInvokeMember(this, args, new DynamicMetaObject(Lua.ThrowExpression(String.Format(Properties.Resources.rsParseUnknownType, luaType.FullName), binder.ReturnType), restrictions));
+					expr = fallback.Expression;
+					restrictions = restrictions.Merge(fallback.Restrictions);
+
+					// create a updatable expression
+					expr = Expression.Condition(
+						 GetUpdateCondition(),
+						 binder.GetUpdateExpression(binder.ReturnType),
+						 expr
+					 );
+
+					return new DynamicMetaObject(expr, restrictions);
+				}
+				else // type existing
+				{
+					var restrictions = Restrictions.Merge(Lua.GetMethodSignatureRestriction(null, args));
 					try
 					{
-						// todo: fix me
-						MethodInfo mi = LuaEmit.FindMethod(
-							type.GetRuntimeMethods().Where(
-								c => String.Compare(binder.Name, c.Name, binder.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) == 0 && c.IsStatic
-							), binder.CallInfo, this, args, mo => mo.LimitType, false
-						);
-						if (mi == null)
-						{
-							var stringComparison = binder.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-							if (args.Length == 0 && String.Compare(binder.Name, "GetType", stringComparison) == 0)
-							{
-								restrictions = BindingRestrictions.GetInstanceRestriction(Expression, Value);
-								expr = Lua.EnsureType(Expression.Property(Lua.EnsureType(Expression, typeof(LuaType)), Lua.TypeTypePropertyInfo), binder.ReturnType);
-							}
-							else if (String.Compare(binder.Name, "ctor", stringComparison) == 0)
-							{
-								return BindNewObject(type, binder.CallInfo, args, binder.ReturnType);
-							}
-							else
-							{
-								restrictions = Lua.GetMethodSignatureRestriction(this, args);
-								expr = Lua.ThrowExpression(Properties.Resources.rsNilNotCallable, binder.ReturnType);
-							}
-						}
+						// search for a member
+						Expression expr;
+						if (LuaEmit.TryInvokeMember<DynamicMetaObject>(Lua.GetRuntime(binder), luaType, null, binder.CallInfo, args, binder.Name, binder.IgnoreCase, a => a.Expression, a => a.LimitType, true, out expr))
+							return new DynamicMetaObject(Lua.EnsureType(expr, binder.ReturnType), restrictions);
 						else
 						{
-							restrictions = Lua.GetMethodSignatureRestriction(this, args);
-							expr = Lua.EnsureType(LuaEmit.BindParameter(Lua.GetRuntime(binder),
-								a => Expression.Call(null, mi, a),
-								mi.GetParameters(),
-								binder.CallInfo,
-								args,
-								mo => mo.Expression, mo => mo.LimitType, false), binder.ReturnType, true);
+							if (String.Compare(binder.Name, "ctor", stringComparison) == 0)
+								return BindNewObject(luaType, binder.CallInfo, args, binder.ReturnType);
+							else
+								return binder.FallbackInvokeMember(this, args, new DynamicMetaObject(Lua.ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, luaType.FullName, binder.Name), binder.ReturnType), restrictions));
 						}
 					}
 					catch (LuaEmitException e)
 					{
-						restrictions = BindingRestrictions.GetInstanceRestriction(Expression, Value);
-						expr = Lua.ThrowExpression(e.Message, binder.ReturnType);
+						return binder.FallbackInvokeMember(this, args, new DynamicMetaObject(Lua.ThrowExpression(e.Message, binder.ReturnType), restrictions));
 					}
-					return new DynamicMetaObject(expr, restrictions.Merge(GetTypeResolvedRestriction(type)));
-				}
-				else
-				{
-					expr = Expression.Condition(
-						 GetUpdateCondition(),
-						 binder.GetUpdateExpression(binder.ReturnType),
-						 Lua.ThrowExpression(Properties.Resources.rsNilNotCallable, binder.ReturnType)
-					 );
-
-					return new DynamicMetaObject(expr, GetTypeNotResolvedRestriction());
 				}
 			} // func BindInvokeMember
 
@@ -386,7 +381,7 @@ namespace Neo.IronLua
 						return new DynamicMetaObject(expr, BindingRestrictions.GetInstanceRestriction(Expression, Value).Merge(Lua.GetMethodSignatureRestriction(null, args)));
 					}
 					else // call the constructor
-						return BindNewObject(type, binder.CallInfo, args, binder.ReturnType);
+						return BindNewObject((LuaType)Value, binder.CallInfo, args, binder.ReturnType);
 				}
 				else
 				{
@@ -418,73 +413,37 @@ namespace Neo.IronLua
 
 			#endregion
 
-			private DynamicMetaObject BindNewObject(Type typeNew, CallInfo callInfo, DynamicMetaObject[] args, Type returnType)
+			private DynamicMetaObject BindNewObject(LuaType luaType, CallInfo callInfo, DynamicMetaObject[] args, Type returnType)
 			{
-				Expression expr;
-				try
+				var type = luaType.Type;
+
+				// find the ctor
+				ConstructorInfo constructorInfo;
+				var isValueType = type.GetTypeInfo().IsValueType;
+				if (isValueType && args.Length == 0) // value-types with zero arguments always constructable
+					constructorInfo = null;
+				else
+					constructorInfo = LuaEmit.FindMember<ConstructorInfo, DynamicMetaObject>(luaType.EnumerateMembers<ConstructorInfo>(LuaMethodEnumerate.Typed), callInfo, args, mo => mo.LimitType, false);
+
+				var restrictions = Restrictions.Merge(Lua.GetMethodSignatureRestriction(null, args));
+
+				// ctor not found for a class
+				if (constructorInfo == null && !isValueType)
+					return new DynamicMetaObject(Lua.ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, luaType.FullName, "ctor"), returnType), restrictions);
+				else          // create the object
 				{
-					var typeinfoNew = typeNew.GetTypeInfo();
-					ConstructorInfo ci =
-						typeinfoNew.IsValueType && args.Length == 0 ?  // value-types with zero arguments always constructable
-							null :
-							LuaEmit.FindMember(typeNew.GetTypeInfo().DeclaredConstructors.Where(c => c.IsPublic), callInfo, args, mo => mo.LimitType, false);
-
-					// ctor not found for a class
-					if (ci == null && !typeinfoNew.IsValueType)
-						expr = Lua.ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, typeNew.Name, "ctor"), returnType);
-
-					// create the object
-					expr = Lua.EnsureType(
+					var expr = Lua.EnsureType(
 						LuaEmit.BindParameter(null,
-							a => ci == null ? Expression.New(typeNew) : Expression.New(ci, a),
-							ci == null ? new ParameterInfo[0] : ci.GetParameters(),
+							a => constructorInfo == null ? Expression.New(type) : Expression.New(constructorInfo, a),
+							constructorInfo == null ? new ParameterInfo[0] : constructorInfo.GetParameters(),
 							callInfo,
 							args,
 							mo => mo.Expression, mo => mo.LimitType, false),
 						returnType, true
 					);
+					return new DynamicMetaObject(expr, restrictions);
 				}
-				catch (LuaEmitException e)
-				{
-					expr = Lua.ThrowExpression(e.Message, returnType);
-				}
-				return new DynamicMetaObject(expr, GetTypeResolvedRestriction(typeNew).Merge(Lua.GetMethodSignatureRestriction(null, args)));
 			} // func BindNewObject
-
-			private BindingRestrictions GetTypeNotResolvedRestriction()
-			{
-				// expr == typeof(LuaType) && (expr.Parent == value.Parent && expr.Type == null)
-				//return BindingRestrictions.GetExpressionRestriction(
-				//	Expression.AndAlso(
-				//		Expression.TypeEqual(Expression, typeof(LuaType)),
-				//		Expression.AndAlso(
-				//			Expression.ReferenceEqual(
-				//				Expression.Property(Expression.Convert(Expression, typeof(LuaType)), Lua.TypeParentPropertyInfo),
-				//				Expression.Constant(((LuaType)Value).Parent)
-				//			),
-				//			Expression.Equal(
-				//				Expression.Property(Lua.EnsureType(Expression, typeof(LuaType)), Lua.TypeTypePropertyInfo),
-				//				Expression.Default(typeof(Type))
-				//			)
-				//		)
-				//	)
-				//);
-				// fix = expr == value  :: consumes memory
-				return BindingRestrictions.GetInstanceRestriction(Expression, Value);
-			} // func GetTypeNotResolvedRestriction
-
-			private BindingRestrictions GetTypeResolvedRestriction(Type type)
-			{
-				return BindingRestrictions.GetExpressionRestriction(
-					Expression.AndAlso(
-						Expression.TypeEqual(Expression, typeof(LuaType)),
-						Expression.Equal(
-							Expression.Property(Lua.EnsureType(Expression, typeof(LuaType)), Lua.TypeTypePropertyInfo),
-							Expression.Constant(type)
-						)
-					)
-				);
-			} // func GetTypeResolvedRestriction
 
 			private BinaryExpression GetUpdateCondition()
 			{
@@ -1457,9 +1416,6 @@ namespace Neo.IronLua
 		public static LuaType Clr { get { return clr; } }
 		/// <summary>Resolver for types.</summary>
 		public static ILuaTypeResolver Resolver { get { return typeResolver; } set { typeResolver = value; } }
-
-		/// <summary>Should LuaType throw an exception, if the type is not bindable (default: true).</summary>
-		public static bool ExceptionOnMissingMember { get; set; } = true;
 	} // class LuaType
 
 	#endregion

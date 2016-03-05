@@ -1669,6 +1669,10 @@ namespace Neo.IronLua
 			}
 		} // func GetMember
 
+		private static LuaMethodEnumerate GetMethodEnumeratorType<TARG>(TARG target, Func<TARG, Expression> getExpr, Func<TARG,Type> getType)
+			where TARG : class
+			=> target == null ? LuaMethodEnumerate.Static : GetMethodEnumeratorType(getExpr(target), getType(target));
+
 		private static LuaMethodEnumerate GetMethodEnumeratorType(Expression target, Type targetType)
 		{
 			LuaMethodEnumerate enumerateType;
@@ -1792,6 +1796,8 @@ namespace Neo.IronLua
 		} // func GetIndexAccess
 
 		#endregion
+
+		#region -- Emit Invoke Member -----------------------------------------------------
 
 		#region -- BindParameter ----------------------------------------------------------
 
@@ -2291,7 +2297,7 @@ namespace Neo.IronLua
 						return pi.GetIndexParameters();
 					}
 					else
-						throw new ArgumentException();
+						return new ParameterInfo[0];
 				}
 			} // func GetMemberParameter
 
@@ -2566,6 +2572,121 @@ namespace Neo.IronLua
 			else
 				return typeof(object);
 		} // func CombineType
+
+		#endregion
+
+		public static bool TryInvokeMember<TARG>(Lua lua, LuaType targetType, TARG target, CallInfo callInfo, TARG[] arguments, string memberName, bool ignoreCase, Func<TARG, Expression> getExpr, Func<TARG, Type> getType, bool allowDynamic, out Expression result)
+			where TARG : class
+		{
+			// find the member
+			var memberInfo = LuaEmit.FindMember(
+				targetType.EnumerateMembers<MemberInfo>(GetMethodEnumeratorType(target, getExpr, getType), memberName, ignoreCase),
+				callInfo, arguments, getType, target != null
+			);
+
+			if (memberInfo == null) // no member found
+			{
+				result = null;
+				return false;
+			}
+			else // bind member
+			{
+				if (memberInfo is MethodInfo)
+				{
+					var mi = (MethodInfo)memberInfo;
+
+					Func<Expression[], Expression> emitCall;
+					if (target != null) // member call
+					{
+						if (mi.IsStatic) // extension method
+						{
+							arguments = (new TARG[] { target }).Concat(arguments).ToArray();
+							if (mi.ContainsGenericParameters)
+								mi = MakeNonGenericMethod(mi, arguments, getType);
+							emitCall = convertedArguments => Expression.Call(null, mi, convertedArguments);
+						}
+						else
+						{
+							if (mi.ContainsGenericParameters)
+								mi = MakeNonGenericMethod(mi, arguments, getType);
+							var targetExpression = Lua.EnsureType(getExpr(target), getType(target));
+							emitCall = convertedArguments => Expression.Call(targetExpression, mi, convertedArguments);
+						}
+					}
+					else
+					{
+						if (mi.ContainsGenericParameters)
+							mi = MakeNonGenericMethod(mi, arguments, getType);
+						emitCall = convertedArguments => Expression.Call(null, mi, convertedArguments);
+					}
+
+					result = BindParameter<TARG>(lua,
+						 emitCall,
+						 mi.GetParameters(),
+						 callInfo,
+						 arguments,
+						 getExpr,
+						 getType,
+						 allowDynamic
+					 );
+					return true;
+				}
+				else if (memberInfo is PropertyInfo)
+				{
+					var pi = (PropertyInfo)memberInfo;
+
+					if (!pi.CanRead)
+						throw new LuaEmitException(LuaEmitException.CanNotReadMember, targetType.FullName, memberName);
+
+					var instance = target == null ? null : Lua.EnsureType(getExpr(target), getType(target));
+
+					var parameterInfo = pi.GetIndexParameters();
+					if (parameterInfo != null && parameterInfo.Length > 0)
+					{
+						result = BindParameter<TARG>(lua,
+							convertedArguments => Expression.Property(instance, pi, convertedArguments),
+							parameterInfo,
+							callInfo,
+							arguments,
+							getExpr,
+							getType,
+							allowDynamic
+						);
+						return true;
+					}
+					else
+					{
+						result = Expression.Property(instance, pi);
+						return true;
+					}
+				}
+				else if (memberInfo is FieldInfo)
+				{
+					var instance = target == null ? null : Lua.EnsureType(getExpr(target), getType(target));
+					result = Expression.Field(instance, (FieldInfo)memberInfo);
+					return true;
+				}
+				else if (memberInfo is EventInfo)
+				{
+					var instance = target == null ? Expression.Default(typeof(object)) : Lua.EnsureType(getExpr(target), getType(target));
+					result = Expression.New(Lua.EventConstructorInfo,
+						instance,
+						Expression.Constant((EventInfo)memberInfo)
+					);
+					return true;
+				}
+				else if (memberInfo is TypeInfo)
+				{
+					result = Expression.Call(Lua.TypeGetTypeMethodInfoArgType, Expression.Constant(((TypeInfo)memberInfo).AsType()));
+					return true;
+				}
+				else
+				{
+					result = null;
+					return false;
+				}
+			}
+		} // func TryInvokeMember
 
 		#endregion
 

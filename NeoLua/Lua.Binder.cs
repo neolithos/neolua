@@ -370,65 +370,33 @@ namespace Neo.IronLua
 				{
 					return errorSuggestion ??
 						new DynamicMetaObject(
-							ThrowExpression(Properties.Resources.rsNilNotCallable, typeof(object)),
+							ThrowExpression(Properties.Resources.rsNilNotCallable, ReturnType),
 							target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, null))
 						);
 				}
 				else
 				{
-					var methodInfo =
-						LuaEmit.FindMethod(
-							LuaType.GetType(target.LimitType).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Dynamic, Name, IgnoreCase),
-							CallInfo,
-							target,
-							args,
-							mo => mo.LimitType,
-							true
-						);
-
-					if (methodInfo == null)
-					{
-						if (errorSuggestion != null)
-							return errorSuggestion;
-
-						return new DynamicMetaObject(ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, target.LimitType.Name, Name), typeof(object)), GetMethodSignatureRestriction(target, args));
-					}
-
 					try
 					{
+						var luaType = LuaType.GetType(target.LimitType);
 						Expression expr;
-						if (methodInfo.IsStatic) // it is a extension method, add first self-parameter
+						if (LuaEmit.TryInvokeMember<DynamicMetaObject>(lua, luaType, target, CallInfo, args, Name, IgnoreCase, mo => mo.Expression, mo => mo.LimitType, false, out expr))
 						{
-							expr = LuaEmit.BindParameter(lua,
-								a => Expression.Call(null, methodInfo, a),
-								methodInfo.GetParameters(),
-								CallInfo,
-								(new DynamicMetaObject[] { target }).Concat(args).ToArray(),
-								mo => mo.Expression, mo => mo.LimitType, false
-							);
+							return new DynamicMetaObject(Lua.EnsureType(expr, ReturnType), GetMethodSignatureRestriction(target, args));
 						}
-						else // normal instance method
+						else
 						{
-							expr = LuaEmit.BindParameter(lua,
-								a => Expression.Call(EnsureType(target.Expression, target.LimitType), methodInfo, a),
-								methodInfo.GetParameters(),
-								CallInfo,
-								args,
-								mo => mo.Expression, mo => mo.LimitType, false
-							);
+							return errorSuggestion ??
+								new DynamicMetaObject
+									(ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, luaType.FullName, Name), ReturnType),
+									GetMethodSignatureRestriction(target, args)
+								);
 						}
-
-						return new DynamicMetaObject(
-							EnsureType(expr, typeof(object), true),
-							GetMethodSignatureRestriction(target, args)
-						);
 					}
 					catch (LuaEmitException e)
 					{
-						if (errorSuggestion != null)
-							return errorSuggestion;
-
-						return new DynamicMetaObject(ThrowExpression(e.Message, typeof(object)), GetMethodSignatureRestriction(target, args));
+						return errorSuggestion ??
+							new DynamicMetaObject(ThrowExpression(e.Message, ReturnType), GetMethodSignatureRestriction(target, args));
 					}
 				}
       } // func FallbackInvokeMember

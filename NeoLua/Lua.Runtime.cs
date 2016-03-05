@@ -70,7 +70,6 @@ namespace Neo.IronLua
 		// LuaType
 		internal readonly static PropertyInfo TypeClrPropertyInfo;
 		internal readonly static MethodInfo TypeGetTypeMethodInfoArgIndex;
-		internal readonly static MethodInfo TypeGetGenericItemMethodInfo;
 		internal readonly static MethodInfo TypeGetTypeMethodInfoArgType;
 		internal readonly static PropertyInfo TypeTypePropertyInfo;
 		internal readonly static PropertyInfo TypeParentPropertyInfo;
@@ -190,7 +189,6 @@ namespace Neo.IronLua
 			// LuaType
 			var tiLuaType = typeof(LuaType).GetTypeInfo();
 			TypeClrPropertyInfo = tiLuaType.FindDeclaredProperty("Clr", ReflectionFlag.None);
-			TypeGetGenericItemMethodInfo = tiLuaType.FindDeclaredMethod("GetGenericItem", ReflectionFlag.NoArguments);
 			TypeGetTypeMethodInfoArgIndex = tiLuaType.FindDeclaredMethod("GetType", ReflectionFlag.Static, typeof(int));
 			TypeGetTypeMethodInfoArgType = tiLuaType.FindDeclaredMethod("GetType", ReflectionFlag.Static, typeof(Type));
 			TypeTypePropertyInfo = tiLuaType.FindDeclaredProperty("Type", ReflectionFlag.None);
