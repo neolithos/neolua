@@ -471,7 +471,7 @@ namespace Neo.IronLua
 		{
 			object arg0;
 
-			if (!TryConvertCore(expr, type, typeof(string), null, out arg0))
+			if (!TryConvert(expr, type, typeof(string), null, out arg0))
 			{
 				result = arg0;
 				return false;
@@ -499,11 +499,9 @@ namespace Neo.IronLua
 
 		#region -- TryConvertCore ---------------------------------------------------------
 
-		internal static bool TryConvertCore(Expression expr, Type fromType, Type toType, Func<Type, ConvertBinder> getDynamicConvertBinder, out object result)
+		private static bool TryConvertCore(Expression expr, Type toType, Func<Type, ConvertBinder> getDynamicConvertBinder, out object result)
 		{
-			// correct to the limit type
-			if (expr.Type != fromType)
-				expr = Expression.Convert(expr, fromType);
+			var fromType = expr.Type;
 
 			// -- convert lua/dlr rules --
 			if (fromType == toType)
@@ -513,7 +511,7 @@ namespace Neo.IronLua
 			}
 			else if (fromType == typeof(LuaResult)) // LuaResult -> convert first value
 			{
-				return TryConvertCore(GetResultExpression(expr, 0), typeof(object), toType, getDynamicConvertBinder, out result);
+				return TryConvertCore(GetResultExpression(expr, 0), toType, getDynamicConvertBinder, out result);
 			}
 			else if (toType == typeof(LuaResult)) // type to LuaResult
 			{
@@ -635,10 +633,54 @@ namespace Neo.IronLua
 
 		#endregion
 
+		public static Expression ConvertToSingleResultExpression(Expression expr, Type fromType, Type toType, Func<Type, ConvertBinder> getDynamicConvertBinder)
+		{
+			// correct to the limit type
+			if (fromType == null)
+				fromType = expr.Type;
+			else if (expr.Type != fromType)
+				expr = Expression.Convert(expr, fromType);
+
+			if (expr.Type == typeof(LuaResult) && toType != typeof(LuaResult)) // shortcut for LuaResult ==> expr[0]
+			{
+				if (expr.NodeType == ExpressionType.New) // new LuaResult(?)
+				{
+					var newExpression = (NewExpression)expr;
+					if (newExpression.Constructor == Lua.ResultConstructorInfoArg1 || newExpression.Constructor == Lua.ResultConstructorInfoArgN)
+						return ConvertToSingleResultExpression(newExpression.Arguments.First(), null, toType, getDynamicConvertBinder);
+				}
+				else if (expr.NodeType == ExpressionType.Dynamic) // (LuaResult)?
+				{
+					var dynamicExpression = (DynamicExpression)expr;
+					if (dynamicExpression.Binder is ConvertBinder)
+						return ConvertToSingleResultExpression(DynamicExpression.Dynamic(getDynamicConvertBinder(toType), toType, dynamicExpression.Arguments.First()), null, toType, getDynamicConvertBinder);
+				}
+
+				return GetResultExpression(expr, 0); // is forced by default
+			}
+			else if (expr.Type == typeof(object) && expr.NodeType == ExpressionType.Dynamic) // wrap dynamic Invokes
+			{
+				var exprDynamic = (DynamicExpression)expr;
+				if (exprDynamic.Binder is InvokeBinder || exprDynamic.Binder is InvokeMemberBinder) // convert the result of a invoke to object
+					return ConvertToSingleResultExpression(DynamicExpression.Dynamic(getDynamicConvertBinder(toType), toType, expr), null, toType, getDynamicConvertBinder);
+				else if (exprDynamic.Binder is ConvertBinder && exprDynamic.Type != toType)
+					return ConvertToSingleResultExpression(DynamicExpression.Dynamic(getDynamicConvertBinder(toType), toType, exprDynamic.Arguments.First()), null, toType, getDynamicConvertBinder);
+
+				// fall to forceType
+			}
+
+			return expr;
+		} // func ConvertToSingleResultExpression
+
+		public static bool TryConvert(Expression expr, Type fromType, Type toType, Func<Type, ConvertBinder> getDynamicConvertBinder, out object result)
+		{
+			return TryConvertCore(ConvertToSingleResultExpression(expr, fromType, toType, getDynamicConvertBinder), toType, getDynamicConvertBinder, out result);
+		} // func TryConvert
+
 		public static Expression Convert(Expression expr, Type fromType, Type toType, Func<Type, ConvertBinder> getDynamicConvertBinder)
 		{
 			object result;
-			if (TryConvertCore(expr, fromType, toType, getDynamicConvertBinder, out result))
+			if (TryConvertCore(ConvertToSingleResultExpression(expr, fromType, toType, getDynamicConvertBinder), toType, getDynamicConvertBinder, out result))
 				return (Expression)result;
 			else
 				throw (LuaEmitException)result;
@@ -646,8 +688,9 @@ namespace Neo.IronLua
 
 		public static Expression ConvertWithRuntime(Lua lua, Expression expr, Type fromType, Type toType)
 		{
+			var getDynamicConvertBinder = lua == null ? null : new Func<Type, ConvertBinder>(lua.GetConvertBinder);
 			object result;
-			if (TryConvertCore(expr, fromType, toType, lua == null ? null : new Func<Type, ConvertBinder>(lua.GetConvertBinder), out result))
+			if (TryConvertCore(ConvertToSingleResultExpression(expr, fromType, toType, getDynamicConvertBinder), toType, getDynamicConvertBinder, out result))
 				return (Expression)result;
 			else
 				throw (LuaEmitException)result;
@@ -660,12 +703,12 @@ namespace Neo.IronLua
 			{
 				// convert the parameter
 				var argParameterType = convertTo.GetParameters()[0].ParameterType;
-				if (!TryConvertCore(target, targetType, argParameterType, getDynamicConvertBinder, out result))
+				if (!TryConvertCore(Lua.EnsureType(target, targetType), argParameterType, getDynamicConvertBinder, out result))
 					return false;
 
 				// convert
 				var expr = Expression.Convert((Expression)result, convertTo.ReturnType, convertTo);
-				return TryConvertCore(expr, expr.Type, toType, getDynamicConvertBinder, out result);
+				return TryConvertCore(expr, toType, getDynamicConvertBinder, out result);
 			}
 			result = null;
 			return false;
@@ -673,8 +716,9 @@ namespace Neo.IronLua
 
 		private static bool TryConvertWithRuntime(Lua lua, ref Expression expr, ref Type fromType, Type toType)
 		{
+			var getDynamicConvertBinder = lua == null ? null : new Func<Type, ConvertBinder>(lua.GetConvertBinder);
 			object result;
-			if (TryConvertCore(expr, fromType, toType, lua == null ? null : new Func<Type, ConvertBinder>(lua.GetConvertBinder), out result))
+			if (TryConvertCore(ConvertToSingleResultExpression(expr, fromType, toType, getDynamicConvertBinder), toType, getDynamicConvertBinder, out result))
 			{
 				expr = (Expression)result;
 				fromType = toType;

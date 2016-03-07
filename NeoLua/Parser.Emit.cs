@@ -82,33 +82,7 @@ namespace Neo.IronLua
 
 		private static Expression ConvertExpressionNoneEmit(Lua runtime, Token tokenStart, Expression expr, Type toType, bool forceType)
 		{
-			if (expr.Type == typeof(LuaResult) && toType != typeof(LuaResult)) // shortcut for LuaResult ==> expr[0]
-			{
-				if (expr.NodeType == ExpressionType.New) // new LuaResult(?)
-				{
-					var newExpression = (NewExpression)expr;
-					if (newExpression.Constructor == Lua.ResultConstructorInfoArg1 || newExpression.Constructor == Lua.ResultConstructorInfoArgN)
-						return ConvertExpressionNoneEmit(runtime, tokenStart, newExpression.Arguments.First(), toType, forceType);
-				}
-				else if (expr.NodeType == ExpressionType.Dynamic) // (LuaResult)?
-				{
-					var dynamicExpression = (DynamicExpression)expr;
-					if (dynamicExpression.Binder is ConvertBinder)
-						return ConvertExpressionNoneEmit(runtime, tokenStart, DynamicExpression.Dynamic(runtime.GetConvertBinder(toType), toType, dynamicExpression.Arguments.First()), toType, forceType);
-				}
-
-				return GetResultExpression(runtime, tokenStart, expr, 0); // is forced by default
-			}
-			else if (expr.Type == typeof(object) && expr.NodeType == ExpressionType.Dynamic) // wrap dynamic Invokes
-			{
-				var exprDynamic = (DynamicExpression)expr;
-				if (exprDynamic.Binder is InvokeBinder || exprDynamic.Binder is InvokeMemberBinder) // convert the result of a invoke to object
-					return ConvertExpressionNoneEmit(runtime, tokenStart, DynamicExpression.Dynamic(runtime.GetConvertBinder(toType), toType, expr), toType, forceType);
-				else if (exprDynamic.Binder is ConvertBinder && exprDynamic.Type != toType)
-					return ConvertExpressionNoneEmit(runtime, tokenStart, DynamicExpression.Dynamic(runtime.GetConvertBinder(toType), toType, exprDynamic.Arguments.First()), toType, forceType);
-
-				// fall to forceType
-			}
+			expr = LuaEmit.ConvertToSingleResultExpression(expr, null, toType, runtime.GetConvertBinder);
 
 			if (forceType) // force
 				return Lua.EnsureType(expr, typeof(object));
@@ -123,12 +97,9 @@ namespace Neo.IronLua
 
 		private static Expression ConvertExpression(Lua runtime, Token tokenStart, Expression expr, Type toType)
 		{
-			// convert from multi result to single result
-			expr = ConvertExpressionNoneEmit(runtime, tokenStart, expr, toType, false);
-
 			// dynamic convert
 			object result;
-			if (LuaEmit.TryConvertCore(expr, expr.Type, toType, runtime.GetConvertBinder, out result))
+			if (LuaEmit.TryConvert(expr, expr.Type, toType, runtime.GetConvertBinder, out result))
 				return (Expression)result;
 			else
 				throw ParseError(tokenStart, ((LuaEmitException)result).Message);
@@ -411,18 +382,32 @@ namespace Neo.IronLua
 				throw ParseError(tStart, LuaEmitException.GetMessageText(LuaEmitException.InvokeNoDelegate, instance.Type.Name));
 		}  // func InvokeExpression
 
-		private static Expression InvokeMemberExpression(Scope scope, Token tStart, Expression instance, string sMember, InvokeResult result, ArgumentsList arguments)
+		private static Expression InvokeMemberExpression(Scope scope, Token tStart, Expression instance, string memberName, InvokeResult result, ArgumentsList arguments)
 		{
 			if (LuaEmit.IsDynamicType(instance.Type) || arguments.Expressions.Any(c => LuaEmit.IsDynamicType(c.Type)))
 			{
+				var dynamicArguments = new Expression[arguments.Count + 1];
+
+				// first argument is the instance
+				dynamicArguments[0] = ConvertObjectExpression(scope.Runtime, tStart, instance, false);
+
+				if (arguments.Count > 0)
+				{
+					// single object
+					for (var i = 0; i < arguments.Count - 1; i++)
+						dynamicArguments[i + 1] = ConvertObjectExpression(scope.Runtime, tStart, arguments.Expressions[i], false);
+
+					// last argument is different
+					if (arguments.CallInfo.ArgumentNames.Count > 0)
+						dynamicArguments[dynamicArguments.Length - 1] = ConvertObjectExpression(scope.Runtime, tStart, arguments.Expressions[arguments.Count - 1], false);
+					else
+						dynamicArguments[dynamicArguments.Length - 1] = Lua.EnsureType(arguments.Expressions[arguments.Count - 1], typeof(object));
+				}
+
 				return EnsureInvokeResult(scope, tStart,
-					DynamicExpression.Dynamic(scope.Runtime.GetInvokeMemberBinder(sMember, arguments.CallInfo), typeof(object),
-						new Expression[] { ConvertExpression(scope.Runtime, tStart, instance, typeof(object)) }.Concat(
-							from c in arguments.Expressions select Lua.EnsureType(c, typeof(object))
-						).ToArray()
-					),
-					result, instance, sMember
-				 );
+					DynamicExpression.Dynamic(scope.Runtime.GetInvokeMemberBinder(memberName, arguments.CallInfo), typeof(object), dynamicArguments),
+					result, instance, memberName
+				);
 			}
 			else
 			{
@@ -430,24 +415,14 @@ namespace Neo.IronLua
 					SafeExpression(() =>
 					{
 						Expression expr;
-						if (!LuaEmit.TryInvokeMember<Expression>(scope.Runtime, LuaType.GetType(instance.Type), instance, arguments.CallInfo, arguments.Expressions, sMember, false, e => e, e => e.Type, true, out expr))
-							throw new LuaEmitException(LuaEmitException.MemberNotFound, instance.Type, sMember);
+						if (!LuaEmit.TryInvokeMember<Expression>(scope.Runtime, LuaType.GetType(instance.Type), instance, arguments.CallInfo, arguments.Expressions, memberName, false, e => e, e => e.Type, true, out expr))
+							throw new LuaEmitException(LuaEmitException.MemberNotFound, instance.Type, memberName);
 						return expr;
-					}, tStart), result, instance, sMember
+					}, tStart), result, instance, memberName
 				);
 			}
 		} // func InvokeMemberExpression
-
-		private static Expression InvokeMemberExpressionDynamic(Scope scope, Token tStart, Expression instance, string sMember, InvokeResult result, ArgumentsList arguments)
-		{
-			return EnsureInvokeResult(scope, tStart,
-				DynamicExpression.Dynamic(scope.Runtime.GetInvokeMemberBinder(sMember, arguments.CallInfo), typeof(object),
-					new Expression[] { ConvertExpression(scope.Runtime, tStart, instance, typeof(object)) }.Concat(from a in arguments.Expressions select Lua.EnsureType(a, typeof(object))).ToArray()
-				),
-				result, instance, sMember
-			 );
-		} // func InvokeMemberExpressionDynamic
-
+		
 		private static Expression EnsureInvokeResult(Scope scope, Token tStart, Expression expr, InvokeResult result, Expression instance, string memberName)
 		{
 			switch (result)

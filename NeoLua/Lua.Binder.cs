@@ -547,7 +547,7 @@ namespace Neo.IronLua
 				{
 					var restrictions = target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
 					object result;
-					if (LuaEmit.TryConvertCore(target.Expression, target.LimitType, Type, null, out result))
+					if (LuaEmit.TryConvert(target.Expression, target.LimitType, Type, null, out result))
 					{
 						return new DynamicMetaObject((Expression)result, restrictions);
 					}

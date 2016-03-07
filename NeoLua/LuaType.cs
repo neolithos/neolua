@@ -1151,15 +1151,24 @@ namespace Neo.IronLua
 
 						// collect
 						genericArguments.Add(arg);
-					} while (offset < fullName.Length && fullName[offset] == ',');
+
+						// check position
+						if (offset >= fullName.Length) // eof of type
+							throw TypeParseException(offset, fullName, "]");
+						else if (fullName[offset] == ',') // next argument
+							offset++;
+						else if (fullName[offset] == ']') // check array
+						{
+							offset++;
+							break;
+						}
+						else
+							throw TypeParseException(offset, fullName, "]");
+
+					} while (true);
 
 					sbTypeName.Append(']');
-
-					// check end of array
-					if (fullName.Length <= offset || fullName[offset] != ']') // check
-						throw TypeParseException(offset, fullName, "]");
-					offset++;
-
+										
 					// is a array following
 					var lastElement = fullName.Length <= offset;
 
@@ -1524,7 +1533,7 @@ namespace Neo.IronLua
 			{
 				expr = Lua.EnsureType(
 					LuaEmit.InvokeMethod<DynamicMetaObject>(runtime, mi,
-						new DynamicMetaObject(GetInstance(methodExpression, methodValue, methodValue.Type), BindingRestrictions.Empty, methodValue.Instance),
+						methodValue.Instance == null ? null : new DynamicMetaObject(GetInstance(methodExpression, methodValue, methodValue.Type), BindingRestrictions.Empty, methodValue.Instance),
 						callInfo,
 						args,
 						mo => mo.Expression,
@@ -1578,13 +1587,19 @@ namespace Neo.IronLua
 		internal static BindingRestrictions BindInvokeRestrictions(Expression methodExpression, ILuaMethod methodValue)
 		{
 			// create the restrictions
-			//   expr.GetType() == methodValue.GetType() && expr.Type == methodValue.type && !args!
+			//   expr.GetType() == methodValue.GetType() && expr.Type == methodValue.type && expr.Name == methodValue.Name && !args!
 			return BindingRestrictions.GetExpressionRestriction(
 					Expression.AndAlso(
 						Expression.TypeEqual(methodExpression, methodValue.GetType()), // exact type, to make a difference between overload and none overload
-						Expression.Equal(
-							Expression.Property(Expression.Convert(methodExpression, typeof(ILuaMethod)), Lua.MethodTypePropertyInfo),
-							Expression.Constant(methodValue.Type)
+						Expression.AndAlso(
+							Expression.Equal(
+								Expression.Property(Expression.Convert(methodExpression, typeof(ILuaMethod)), Lua.MethodTypePropertyInfo),
+								Expression.Constant(methodValue.Type)
+							),
+							Expression.Equal(
+								Expression.Property(Expression.Convert(methodExpression, typeof(ILuaMethod)), Lua.MethodNamePropertyInfo),
+								Expression.Constant(methodValue.Name)
+							)
 						)
 					)
 				);
@@ -1673,7 +1688,7 @@ namespace Neo.IronLua
 					binder.CallInfo,
 					args,
 					mo => mo.LimitType,
-					true
+					val.Instance != null
 				);
 
 				if (mi == null)
