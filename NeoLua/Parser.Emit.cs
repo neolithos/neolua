@@ -413,7 +413,7 @@ namespace Neo.IronLua
 
 		private static Expression InvokeMemberExpression(Scope scope, Token tStart, Expression instance, string sMember, InvokeResult result, ArgumentsList arguments)
 		{
-			if (LuaEmit.IsDynamicType(instance.Type))
+			if (LuaEmit.IsDynamicType(instance.Type) || arguments.Expressions.Any(c => LuaEmit.IsDynamicType(c.Type)))
 			{
 				return EnsureInvokeResult(scope, tStart,
 					DynamicExpression.Dynamic(scope.Runtime.GetInvokeMemberBinder(sMember, arguments.CallInfo), typeof(object),
@@ -426,45 +426,17 @@ namespace Neo.IronLua
 			}
 			else
 			{
-				// look up the method
-				MethodInfo method = LuaEmit.FindMethod(
-					LuaType.GetType(instance.Type).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Typed, sMember, false),
-					arguments.CallInfo,
-					instance,
-					arguments.Expressions,
-					getExpressionTypeFunction,
-					true);
-
-				if (method != null)
-					return EnsureInvokeResult(scope, tStart, SafeExpression(() => InvokeMemberExpressionBind(method, scope.Runtime, instance, arguments), tStart), result, instance, sMember);
-				else
-					return InvokeMemberExpressionDynamic(scope, tStart, instance, sMember, result, arguments);
+				return EnsureInvokeResult(scope, tStart,
+					SafeExpression(() =>
+					{
+						Expression expr;
+						if (!LuaEmit.TryInvokeMember<Expression>(scope.Runtime, LuaType.GetType(instance.Type), instance, arguments.CallInfo, arguments.Expressions, sMember, false, e => e, e => e.Type, true, out expr))
+							throw new LuaEmitException(LuaEmitException.MemberNotFound, instance.Type, sMember);
+						return expr;
+					}, tStart), result, instance, sMember
+				);
 			}
 		} // func InvokeMemberExpression
-
-		private static Expression InvokeMemberExpressionBind(MethodInfo method, Lua runtime, Expression instance, ArgumentsList arguments)
-		{
-			if (method.IsStatic)
-			{
-				return LuaEmit.BindParameter(runtime,
-					args => Expression.Call(null, method, args),
-					method.GetParameters(),
-					arguments.CallInfo,
-					new Expression[] { instance }.Concat(
-						from a in arguments.Expressions select Lua.EnsureType(a, typeof(object))
-					).ToArray(),
-					getExpressionFunction, getExpressionTypeFunction, true);
-			}
-			else
-			{
-				return LuaEmit.BindParameter(runtime,
-					args => Expression.Call(instance, method, args),
-					method.GetParameters(),
-					arguments.CallInfo,
-					arguments.Expressions,
-					getExpressionFunction, getExpressionTypeFunction, true);
-			}
-		} // func InvokeMemberExpressionBind
 
 		private static Expression InvokeMemberExpressionDynamic(Scope scope, Token tStart, Expression instance, string sMember, InvokeResult result, ArgumentsList arguments)
 		{

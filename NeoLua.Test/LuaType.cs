@@ -618,7 +618,7 @@ namespace LuaDLR.Test
 		{
 			LuaType.RegisterTypeExtension(typeof(TypeExt));
 
-			TestCode("return '{0} {1}':Format(clr.System.Windows, clr.Microsoft.Windows);", "System.Windows Microsoft.Windows");
+			TestCode("return '{0} {1}':Format(clr.System.Windows:FullName(), clr.Microsoft.Windows:FullName());", "System.Windows Microsoft.Windows");
 		}
 
 	} // class LuaTypeTests 

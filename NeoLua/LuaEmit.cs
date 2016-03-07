@@ -2593,42 +2593,7 @@ namespace Neo.IronLua
 			{
 				if (memberInfo is MethodInfo)
 				{
-					var mi = (MethodInfo)memberInfo;
-
-					Func<Expression[], Expression> emitCall;
-					if (target != null) // member call
-					{
-						if (mi.IsStatic) // extension method
-						{
-							arguments = (new TARG[] { target }).Concat(arguments).ToArray();
-							if (mi.ContainsGenericParameters)
-								mi = MakeNonGenericMethod(mi, arguments, getType);
-							emitCall = convertedArguments => Expression.Call(null, mi, convertedArguments);
-						}
-						else
-						{
-							if (mi.ContainsGenericParameters)
-								mi = MakeNonGenericMethod(mi, arguments, getType);
-							var targetExpression = Lua.EnsureType(getExpr(target), getType(target));
-							emitCall = convertedArguments => Expression.Call(targetExpression, mi, convertedArguments);
-						}
-					}
-					else
-					{
-						if (mi.ContainsGenericParameters)
-							mi = MakeNonGenericMethod(mi, arguments, getType);
-						emitCall = convertedArguments => Expression.Call(null, mi, convertedArguments);
-					}
-
-					result = BindParameter<TARG>(lua,
-						 emitCall,
-						 mi.GetParameters(),
-						 callInfo,
-						 arguments,
-						 getExpr,
-						 getType,
-						 allowDynamic
-					 );
+					result = InvokeMethod(lua, (MethodInfo)memberInfo, target, callInfo, arguments, getExpr, getType, allowDynamic);
 					return true;
 				}
 				else if (memberInfo is PropertyInfo)
@@ -2687,6 +2652,47 @@ namespace Neo.IronLua
 				}
 			}
 		} // func TryInvokeMember
+
+		internal static Expression InvokeMethod<TARG>(Lua lua, MethodInfo methodInfo, TARG target, CallInfo callInfo, TARG[] arguments, Func<TARG, Expression> getExpr, Func<TARG, Type> getType, bool allowDynamic)
+			where TARG : class
+		{
+			Expression result;
+			Func<Expression[], Expression> emitCall;
+			if (target != null) // member call
+			{
+				if (methodInfo.IsStatic) // extension method
+				{
+					arguments = (new TARG[] { target }).Concat(arguments).ToArray();
+					if (methodInfo.ContainsGenericParameters)
+						methodInfo = MakeNonGenericMethod(methodInfo, arguments, getType);
+					emitCall = convertedArguments => Expression.Call(null, methodInfo, convertedArguments);
+				}
+				else
+				{
+					if (methodInfo.ContainsGenericParameters)
+						methodInfo = MakeNonGenericMethod(methodInfo, arguments, getType);
+					var targetExpression = Lua.EnsureType(getExpr(target), getType(target));
+					emitCall = convertedArguments => Expression.Call(targetExpression, methodInfo, convertedArguments);
+				}
+			}
+			else
+			{
+				if (methodInfo.ContainsGenericParameters)
+					methodInfo = MakeNonGenericMethod(methodInfo, arguments, getType);
+				emitCall = convertedArguments => Expression.Call(null, methodInfo, convertedArguments);
+			}
+
+			result = BindParameter<TARG>(lua,
+				 emitCall,
+				 methodInfo.GetParameters(),
+				 callInfo,
+				 arguments,
+				 getExpr,
+				 getType,
+				 allowDynamic
+			 );
+			return result;
+		} // func InvokeMethod
 
 		#endregion
 

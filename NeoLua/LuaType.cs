@@ -1006,8 +1006,8 @@ namespace Neo.IronLua
 			RegisterTypeExtension(typeof(LuaLibraryString));
 
 			// add these methods as extensions
-			RegisterMethodExtension(typeof(string), typeof(string), "Format");
-			RegisterMethodExtension(typeof(string), typeof(string), "Join");
+			RegisterMethodExtension(typeof(string), typeof(string), nameof(String.Format));
+			RegisterMethodExtension(typeof(string), typeof(string), nameof(String.Join));
 
 			// add linq extensions
 			RegisterTypeExtension(typeof(Enumerable));
@@ -1441,7 +1441,7 @@ namespace Neo.IronLua
 
 			public override DynamicMetaObject BindInvoke(InvokeBinder binder, DynamicMetaObject[] args)
 			{
-				LuaMethod val = (LuaMethod)Value;
+				var val = (LuaMethod)Value;
 				return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, val, val.method, binder.CallInfo, args, binder.ReturnType);
 			} // proc BindInvoke
 
@@ -1449,7 +1449,7 @@ namespace Neo.IronLua
 			{
 				if (typeof(Delegate).GetTypeInfo().IsAssignableFrom(binder.Type.GetTypeInfo())) // we expect a delegate
 				{
-					LuaMethod val = (LuaMethod)Value;
+					var val = (LuaMethod)Value;
 					return CreateDelegate(Expression, val, binder.Type, val.method, binder.ReturnType);
 				}
 				else if (typeof(MethodInfo).GetTypeInfo().IsAssignableFrom(binder.Type.GetTypeInfo()))
@@ -1488,51 +1488,60 @@ namespace Neo.IronLua
 		/// <param name="parameter"></param>
 		/// <returns></returns>
 		public DynamicMetaObject GetMetaObject(Expression parameter)
-		{
-			return new LuaMethodMetaObject(parameter, this);
-		} // func GetMetaObject
+			=> new LuaMethodMetaObject(parameter, this);
 
 		#endregion
 
 		/// <summary></summary>
 		/// <returns></returns>
 		public override string ToString()
-		{
-			return method.ToString();
-		} // func ToString
+			=> method.ToString();
 
 		/// <summary>Creates a delegate from the method</summary>
 		/// <param name="typeDelegate"></param>
 		/// <returns></returns>
 		public Delegate CreateDelegate(Type typeDelegate)
-		{
-			return method.CreateDelegate(typeDelegate, instance);
-		} // func CreateDelegate
+			=> method.CreateDelegate(typeDelegate, instance);
 
 		/// <summary>Name of the member.</summary>
-		public string Name { get { return method.Name; } }
+		public string Name=> method.Name; 
 		/// <summary>Type that is the owner of the member list</summary>
-		public Type Type { get { return method.DeclaringType; } }
+		public Type Type => method.DeclaringType; 
 		/// <summary>Instance, that belongs to the member.</summary>
-		public object Instance { get { return instance; } }
+		public object Instance => instance; 
 		/// <summary>Access to the method.</summary>
-		public MethodInfo Method { get { return method; } }
+		public MethodInfo Method => method;
 		/// <summary>Delegate of the Method</summary>
-		public Delegate Delegate { get { return Parser.CreateDelegate(instance, Method); } }
+		public Delegate Delegate => Parser.CreateDelegate(instance, Method);
 
 		// -- Static --------------------------------------------------------------
 
 		internal static DynamicMetaObject BindInvoke(Lua runtime, Expression methodExpression, ILuaMethod methodValue, MethodInfo mi, CallInfo callInfo, DynamicMetaObject[] args, Type typeReturn)
 		{
 			// create the call expression
-			Expression expr = Lua.EnsureType(LuaEmit.BindParameter(runtime,
-				a => Expression.Call(mi.IsStatic ? null : GetInstance(methodExpression, methodValue, methodValue.Type), mi, a),
-				mi.GetParameters(),
-				callInfo,
-				args,
-				mo => mo.Expression, mo => mo.LimitType, true), typeReturn, false);
-
-			return new DynamicMetaObject(expr, BindInvokeRestrictions(methodExpression, methodValue).Merge(Lua.GetMethodSignatureRestriction(null, args)));
+			Expression expr;
+			try
+			{
+				expr = Lua.EnsureType(
+					LuaEmit.InvokeMethod<DynamicMetaObject>(runtime, mi,
+						new DynamicMetaObject(GetInstance(methodExpression, methodValue, methodValue.Type), BindingRestrictions.Empty, methodValue.Instance),
+						callInfo,
+						args,
+						mo => mo.Expression,
+						mo => mo.LimitType,
+						true
+					),
+					typeReturn
+				);
+			}
+			catch (LuaEmitException e)
+			{
+				expr = Lua.ThrowExpression(e.Message, typeReturn);
+			}
+			return new DynamicMetaObject(
+				expr, 
+				BindInvokeRestrictions(methodExpression, methodValue).Merge(Lua.GetMethodSignatureRestriction(null, args))
+			);
 		} // func BindInvoke
 
 		private static Expression GetInstance(Expression methodExpression, ILuaMethod methodValue, Type returnType)
@@ -1569,19 +1578,13 @@ namespace Neo.IronLua
 		internal static BindingRestrictions BindInvokeRestrictions(Expression methodExpression, ILuaMethod methodValue)
 		{
 			// create the restrictions
-			//   expr is typeof(ILuaMethod) && expr.Type == type && !args!
+			//   expr.GetType() == methodValue.GetType() && expr.Type == methodValue.type && !args!
 			return BindingRestrictions.GetExpressionRestriction(
 					Expression.AndAlso(
 						Expression.TypeEqual(methodExpression, methodValue.GetType()), // exact type, to make a difference between overload and none overload
-						Expression.AndAlso(
-							Expression.Equal(
-								Expression.Property(Expression.Convert(methodExpression, typeof(ILuaMethod)), Lua.MethodTypePropertyInfo),
-								Expression.Constant(methodValue.Type)
-							),
-							Expression.Equal(
-								Expression.Property(Expression.Convert(methodExpression, typeof(ILuaMethod)), Lua.MethodNamePropertyInfo),
-								Expression.Constant(methodValue.Name)
-							)
+						Expression.Equal(
+							Expression.Property(Expression.Convert(methodExpression, typeof(ILuaMethod)), Lua.MethodTypePropertyInfo),
+							Expression.Constant(methodValue.Type)
 						)
 					)
 				);
@@ -1615,9 +1618,19 @@ namespace Neo.IronLua
 			{
 			} // ctor
 
+			#region -- BindGetIndex ---------------------------------------------------------
+
+			private static Expression ConvertToType(DynamicMetaObject mo)
+			{
+				if (mo.LimitType == typeof(LuaType))
+					return Expression.Convert(Expression.Property(Expression.Convert(mo.Expression, typeof(LuaType)), Lua.TypeTypePropertyInfo), typeof(Type));
+				else
+					return Expression.Convert(mo.Expression, typeof(Type));
+			} // func ConvertToLuaType
+
 			public override DynamicMetaObject BindGetIndex(GetIndexBinder binder, DynamicMetaObject[] indexes)
 			{
-				LuaOverloadedMethod val = (LuaOverloadedMethod)Value;
+				var val = (LuaOverloadedMethod)Value;
 
 				if (indexes.Any(c => !c.HasValue))
 					return binder.Defer(indexes);
@@ -1646,28 +1659,43 @@ namespace Neo.IronLua
 				);
 			} // func BindGetIndex
 
-			internal static Expression ConvertToType(DynamicMetaObject a)
-			{
-				if (a.LimitType == typeof(LuaType))
-					return Expression.Convert(Expression.Property(Expression.Convert(a.Expression, typeof(LuaType)), Lua.TypeTypePropertyInfo), typeof(Type));
-				else if (typeof(Type).GetTypeInfo().IsAssignableFrom(a.LimitType.GetTypeInfo()))
-					return Expression.Convert(a.Expression, typeof(Type));
-				else
-					throw new ArgumentException();
-			} // func ConvertToLuaType
+			#endregion
+
+			#region -- BindInvoke -----------------------------------------------------------
 
 			public override DynamicMetaObject BindInvoke(InvokeBinder binder, DynamicMetaObject[] args)
 			{
-				LuaOverloadedMethod val = (LuaOverloadedMethod)Value;
-				MethodInfo mi = LuaEmit.FindMethod(val.methods, binder.CallInfo, null, args, mo => mo.LimitType, false);
+				var val = (LuaOverloadedMethod)Value;
+
+				// find the method
+				var mi = LuaEmit.FindMember<MethodInfo, DynamicMetaObject>(
+					val.methods,
+					binder.CallInfo,
+					args,
+					mo => mo.LimitType,
+					true
+				);
+
 				if (mi == null)
-					return new DynamicMetaObject(
-						Lua.ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, val.Type, val.Name)),
-						LuaMethod.BindInvokeRestrictions(Expression, val).Merge(Lua.GetMethodSignatureRestriction(null, args))
+				{
+					var fallback = binder.FallbackInvoke(this, args,
+						new DynamicMetaObject(
+							Lua.ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, val.Type, val.Name)),
+							LuaMethod.BindInvokeRestrictions(Expression, val).Merge(Lua.GetMethodSignatureRestriction(null, args))
+						)
 					);
+
+					return fallback;
+				}
 				else
+				{
 					return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, val, mi, binder.CallInfo, args, binder.ReturnType);
+				}
 			} // proc BindInvoke
+
+			#endregion
+
+			#region -- BindConvert ----------------------------------------------------------
 
 			public override DynamicMetaObject BindConvert(ConvertBinder binder)
 			{
@@ -1690,6 +1718,8 @@ namespace Neo.IronLua
 				else
 					return base.BindConvert(binder);
 			} // func BindConvert
+
+			#endregion
 		} // class LuaOverloadedMethodMetaObject
 
 		#endregion
@@ -1717,110 +1747,126 @@ namespace Neo.IronLua
 		} // func GetMetaObject
 
 		#endregion
- 
+
 		#region -- GetDelegate, GetMethod -------------------------------------------------
 
-		private MethodInfo FindMethod(bool lExact, params Type[] types)
+		private MethodInfo FindMethod(bool exactMatchesOnly, CallInfo callInfo, params Type[] types)
 		{
-			for (int i = 0; i < methods.Length; i++)
+			if (exactMatchesOnly)
 			{
-				ParameterInfo[] parameters = methods[i].GetParameters();
-				if (parameters.Length == types.Length)
+				if (callInfo.ArgumentNames.Count > 0)
+					throw new ArgumentException("Named parameters not allowed,");
+
+				for (var i = 0; i < methods.Length; i++)
 				{
-					bool lMatch = false;
-
-					for (int j = 0; j < parameters.Length; j++)
+					var parameterInfo = methods[i].GetParameters();
+					if (parameterInfo.Length == types.Length)
 					{
-						bool lOutExact;
-						if (LuaEmit.TypesMatch(parameters[j].ParameterType, types[j], out lOutExact) && (!lExact || lOutExact))
-						{
-							lMatch = true;
-							break;
-						}
+						var match = true;
+						for (var j = 0; j < parameterInfo.Length; j++)
+							if (!parameterInfo[j].ParameterType.GetTypeInfo().IsAssignableFrom(types[j].GetTypeInfo()))
+							{
+								match = false;
+								break;
+							}
+						if (match)
+							return methods[i];
 					}
-
-					if (lMatch || types.Length == 0)
-						return methods[i];
 				}
+
+				return null;
 			}
-			return null;
+			else
+				return LuaEmit.FindMember<MethodInfo, Type>(methods, callInfo, types, t => t, true);
 		} // func FindMethod
 
 		/// <summary>Finds the delegate from the signature.</summary>
-		/// <param name="lExact"><c>true </c>type must match exact. <c>false</c>, the types only should assignable.</param>
+		/// <param name="exactMatchesOnly"><c>true </c>type must match exact. <c>false</c>, the types only should assignable.</param>
 		/// <param name="types">Types</param>
 		/// <returns></returns>
-		public Delegate GetDelegate(bool lExact, params Type[] types)
+		public Delegate GetDelegate(bool exactMatchesOnly, params Type[] types)
 		{
-			MethodInfo mi = FindMethod(lExact, types);
+			var mi = FindMethod(exactMatchesOnly, new CallInfo(types.Length), types);
 			return mi == null ? null : Parser.CreateDelegate(instance, mi);
 		} // func GetDelegate
 
-		/// <summary>Gets the delegate from the index</summary>
-		/// <param name="iIndex">Index</param>
+		/// <summary>Finds the delegate from the signature.</summary>
+		/// <param name="callInfo"></param>
+		/// <param name="types"></param>
 		/// <returns></returns>
-		public Delegate GetDelegate(int iIndex)
+		public Delegate GetDelegate(CallInfo callInfo, params Type[] types)
 		{
-			return iIndex >= 0 && iIndex < methods.Length ? Parser.CreateDelegate(instance, methods[iIndex]) : null;
+			var mi = FindMethod(false, callInfo, types);
+			return mi == null ? null : Parser.CreateDelegate(instance, mi);
+		} // func GetDelegate
+
+
+		/// <summary>Gets the delegate from the index</summary>
+		/// <param name="index">Index</param>
+		/// <returns></returns>
+		public Delegate GetDelegate(int index)
+		{
+			return index >= 0 && index < methods.Length ? Parser.CreateDelegate(instance, methods[index]) : null;
 		} // func GetDelegate
 
 		/// <summary>Finds the method from the signature</summary>
-		/// <param name="lExact"><c>true </c>type must match exact. <c>false</c>, the types only should assignable.</param>
+		/// <param name="exactMatchesOnly"><c>true </c>type must match exact. <c>false</c>, the types only should assignable.</param>
 		/// <param name="types"></param>
 		/// <returns></returns>
-		public LuaMethod GetMethod(bool lExact, params Type[] types)
+		public LuaMethod GetMethod(bool exactMatchesOnly, params Type[] types)
 		{
-			MethodInfo mi = FindMethod(true, types);
+			var mi = FindMethod(exactMatchesOnly, new CallInfo(types.Length), types);
+			return mi == null ? null : new LuaMethod(instance, mi);
+		} // func GetMethod
+
+		/// <summary>Finds the method from the signature.</summary>
+		/// <param name="callInfo"></param>
+		/// <param name="types"></param>
+		/// <returns></returns>
+		public LuaMethod GetMethod(CallInfo callInfo, params Type[] types)
+		{
+			var mi = FindMethod(false, callInfo, types);
 			return mi == null ? null : new LuaMethod(instance, mi);
 		} // func GetMethod
 
 		/// <summary>Gets the method from the index</summary>
-		/// <param name="iIndex">Index</param>
+		/// <param name="index">Index</param>
 		/// <returns></returns>
-		public LuaMethod GetMethod(int iIndex)
-		{
-			return iIndex >= 0 && iIndex < methods.Length ? new LuaMethod(instance, methods[iIndex]) : null;
-		} // func GetMethod
+		public LuaMethod GetMethod(int index)
+			=> index >= 0 && index < methods.Length ? new LuaMethod(instance, methods[index]) : null;
 
 		#endregion
 
 		/// <summary></summary>
 		/// <returns></returns>
 		public IEnumerator<Delegate> GetEnumerator()
-		{
-			for (int i = 0; i < methods.Length; i++)
-				yield return Parser.CreateDelegate(instance, methods[i]);
-		} // func GetEnumerator
+			=> (from c in methods select Parser.CreateDelegate(instance, c)).GetEnumerator();
 
 		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-		{
-			return GetEnumerator();
-		} // func System.Collections.IEnumerable.GetEnumerator
+			=> GetEnumerator();
 
 		/// <summary></summary>
 		/// <returns></returns>
 		public override string ToString()
-		{
-			return methods[0].DeclaringType.Name + "." + methods[0].Name + " overloaded";
-		} // func ToString
+			=> methods[0].DeclaringType.Name + "." + methods[0].Name + " overloaded";
 
 		/// <summary></summary>
-		/// <param name="iIndex"></param>
+		/// <param name="index"></param>
 		/// <returns></returns>
-		public LuaMethod this[int iIndex] { get { return GetMethod(iIndex); } }
+		public LuaMethod this[int index] => GetMethod(index);
 		/// <summary></summary>
 		/// <param name="types"></param>
 		/// <returns></returns>
-		public LuaMethod this[params Type[] types] { get { return GetMethod(true, types); } }
+		public LuaMethod this[params Type[] types] => GetMethod(true, types);
 
 		/// <summary>Name of the member.</summary>
-		public string Name { get { return methods[0].Name; } }
+		public string Name => methods[0].Name;
 		/// <summary>Type that is the owner of the member list</summary>
-		public Type Type { get { return methods[0].DeclaringType; } }
+		public Type Type => methods[0].DeclaringType;
 		/// <summary>Instance, that belongs to the member.</summary>
-		public object Instance { get { return instance; } }
+		public object Instance => instance;
 		/// <summary>Count of overloade members.</summary>
-		public int Count { get { return methods.Length; } }
+		public int Count => methods.Length;
 	} // class LuaOverloadedMethod
 
 	#endregion
@@ -1848,19 +1894,19 @@ namespace Neo.IronLua
 
 			private DynamicMetaObject BindAddMethod(DynamicMetaObjectBinder binder, DynamicMetaObject[] args)
 			{
-				LuaEvent value = (LuaEvent)Value;
+				var value = (LuaEvent)Value;
 				return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, value, value.eventInfo.AddMethod, new CallInfo(args.Length), args, binder.ReturnType);
 			} // func BindAddMethod
 
 			private DynamicMetaObject BindRemoveMethod(DynamicMetaObjectBinder binder, DynamicMetaObject[] args)
 			{
-				LuaEvent value = (LuaEvent)Value;
+				var value = (LuaEvent)Value;
 				return LuaMethod.BindInvoke(Lua.GetRuntime(binder), Expression, value, value.eventInfo.RemoveMethod, new CallInfo(args.Length), args, binder.ReturnType);
 			} // func BindRemoveMethod
 
 			private DynamicMetaObject BindGetMember(DynamicMetaObjectBinder binder, PropertyInfo piMethodGet)
 			{
-				LuaEvent value = (LuaEvent)Value;
+				var value = (LuaEvent)Value;
 				return new DynamicMetaObject(
 					Lua.EnsureType(
 						Expression.New(Lua.MethodConstructorInfo,
