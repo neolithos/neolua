@@ -699,7 +699,7 @@ namespace Neo.IronLua
 						{
 							var convertToString = LuaEmit.FindConvertOperator(fromType, typeof(string));
 							if (convertToString != null)
-								return convertToString.Invoke(null, new object[] { value });
+								return RtConvertValue(convertToString.Invoke(null, new object[] { value }), toType);
 							else
 								return Convert.ToString(value, CultureInfo.InvariantCulture);
 						}
