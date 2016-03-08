@@ -749,8 +749,43 @@ namespace Neo.IronLua
 								case LuaEmitTypeCode.String:
 									value = Convert.ToString(value, CultureInfo.InvariantCulture);
 									break;
+
+								case LuaEmitTypeCode.SByte:
+									value = Convert.ToSByte(value, CultureInfo.InvariantCulture);
+									break;
+								case LuaEmitTypeCode.Int16:
+									value = Convert.ToInt16(value, CultureInfo.InvariantCulture);
+									break;
+								case LuaEmitTypeCode.Int32:
+									value = Convert.ToInt32(value, CultureInfo.InvariantCulture);
+									break;
+								case LuaEmitTypeCode.Int64:
+									value = Convert.ToInt64(value, CultureInfo.InvariantCulture);
+									break;
+								case LuaEmitTypeCode.Byte:
+									value = Convert.ToByte(value, CultureInfo.InvariantCulture);
+									break;
+								case LuaEmitTypeCode.UInt16:
+									value = Convert.ToUInt16(value, CultureInfo.InvariantCulture);
+									break;
+								case LuaEmitTypeCode.UInt32:
+									value = Convert.ToUInt32(value, CultureInfo.InvariantCulture);
+									break;
+								case LuaEmitTypeCode.UInt64:
+									value = Convert.ToUInt64(value, CultureInfo.InvariantCulture);
+									break;
+								case LuaEmitTypeCode.Single:
+									value = Convert.ToSingle(value, CultureInfo.InvariantCulture);
+									break;
+								case LuaEmitTypeCode.Double:
+									value = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+									break;
+								case LuaEmitTypeCode.Decimal:
+									value = Convert.ToDecimal(value, CultureInfo.InvariantCulture);
+									break;
+
 								default:
-										throw new InvalidOperationException("No parse method found");
+									throw new InvalidOperationException("TypeCode unknown");
 							}
 
 							// check for generic and enum
