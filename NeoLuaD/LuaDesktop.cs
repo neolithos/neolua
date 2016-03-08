@@ -194,7 +194,10 @@ namespace Neo.IronLua
 					else
 					{
 						n.prev = lastReflected;
-						lastReflected.next = n;
+						if (lastReflected != null)
+						{
+							lastReflected.next = n;
+						}
 						lastReflected = n;
 					}
 
