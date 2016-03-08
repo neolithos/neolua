@@ -480,7 +480,7 @@ namespace Neo.IronLua
 					Instance = IndexGetExpression(scope, Position, Instance, Indices);
 					Indices = null;
 				}
-				else if (Instance != null && Member != null && Indices == null && Arguments == null)
+				else if (Instance != null && Member != null && Indices == null && Arguments == null && !MethodMember)
 				{
 					// Convert the member to an instance
 					Instance = WrapDebugInfo(scope.EmitExpressionDebug, true, Position, Position, Instance);
@@ -492,8 +492,9 @@ namespace Neo.IronLua
 				{
 					// Nothing to todo, we have already an instance
 				}
-				else if (Instance != null && Indices == null && Arguments != null)
+				else if (Instance != null && Indices == null && (Arguments != null || MethodMember))
 				{
+					Arguments = Arguments ?? new ArgumentsList();
 					if (Arguments.Count > 0)
 					{
 						// First the arguments are pushed on the stack, and later comes the call, so we wrap the last parameter

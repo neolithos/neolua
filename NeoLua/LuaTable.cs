@@ -568,71 +568,60 @@ namespace Neo.IronLua
 			#endregion
 
 			#region -- BindInvokeMember -----------------------------------------------------
+			
+			private Expression GetDynamicCallExpression(LuaTable t, InvokeMemberBinder binder, ParameterExpression variableMethodExpresion, bool isDynamicCall, bool isMemberCall, DynamicMetaObject[] args)
+			{
+				var lua = Lua.GetRuntime(binder);
+				var hiddenArguments = isMemberCall || (!isDynamicCall && lua != null) ? 2 : 1;
+				var expressionArgs = new Expression[args.Length + hiddenArguments];
+
+				// create argument set
+				expressionArgs[0] = variableMethodExpresion;
+				if (hiddenArguments > 1)
+					expressionArgs[1] = Expression;
+				for (var i = 0; i < args.Length; i++)
+					expressionArgs[hiddenArguments + i] = args[i].Expression;
+
+				return DynamicExpression.Dynamic(
+					lua == null ? 
+						t.GetInvokeBinder(binder.CallInfo) :
+						lua.GetInvokeBinder(binder.CallInfo),
+					binder.ReturnType,
+					expressionArgs
+				);
+			} // func GetDynamicCallExpression
 
 			public override DynamicMetaObject BindInvokeMember(InvokeMemberBinder binder, DynamicMetaObject[] args)
 			{
-				LuaTable t = (LuaTable)Value;
-				BindingRestrictions restrictions = GetLuaTableRestriction();
+				var t = (LuaTable)Value;
+				var restrictions = GetLuaTableRestriction();
 
-				if (binder is Lua.LuaInvokeMemberBinder) // always call member like a member
-				{
-					// get the member
-					Expression exprGetMember = Expression.Call(
-						Lua.EnsureType(Expression, typeof(LuaTable)),
-						Lua.TableGetValueKeyStringMethodInfo,
-						Expression.Constant(binder.Name),
-						Expression.Constant(binder.IgnoreCase),
-						Expression.Constant(false)
-					);
+				var variableMethodExpresion = Expression.Variable(typeof(object), "method");
 
-					// add the self parameter
-					DynamicMetaObject[] newArgs = new DynamicMetaObject[args.Length + 1];
-					newArgs[0] = this;
-					for (int i = 0; i < args.Length; i++)
-						newArgs[i + 1] = args[i];
+				// generate:
+				// switch(GetCallMethod(binder.Name, binder.IgnoreCase, false, out method)
+				// ...
+				var expr = Expression.Block(
+					new ParameterExpression[] { variableMethodExpresion },
+					Expression.Switch(
+						Expression.Call(
+							Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableGetCallMemberMethodInfo,
+							Expression.Constant(binder.Name),
+							Expression.Constant(binder.IgnoreCase),
+							Expression.Constant(false),
+							variableMethodExpresion
+						),
+						variableMethodExpresion,
 
-					return binder.FallbackInvoke(new DynamicMetaObject(exprGetMember, restrictions), newArgs, null);
-				}
-				else // get the method and do invoke or a member call
-				{
-					ParameterExpression exprIsMethod = Expression.Variable(typeof(bool), "isMethod");
-					ParameterExpression exprDelegate = Expression.Variable(typeof(object), "delegate");
+						Expression.SwitchCase(Lua.ThrowExpression(String.Format(Properties.Resources.rsMemberNotResolved, "table", binder.Name), typeof(object)), Expression.Constant(CallMethod.Nil)),
 
-					// generate member call
-					Expression[] exprArgs = new Expression[args.Length + 1];
-					exprArgs[0] = exprDelegate;
-					for (int i = 0; i < args.Length; i++)
-						exprArgs[i + 1] = args[i].Expression;
-
-					Expression exprCallMember = DynamicExpression.Dynamic(t.GetInvokeBinder(binder.CallInfo), typeof(object), exprArgs);
-
-					// Method Call
-					exprArgs = new Expression[args.Length + 2];
-					exprArgs[0] = exprDelegate;
-					exprArgs[1] = Expression;
-					for (int i = 0; i < args.Length; i++)
-						exprArgs[i + 2] = args[i].Expression;
-
-					Expression exprCallMethod = DynamicExpression.Dynamic(t.GetInvokeBinder(new CallInfo(binder.CallInfo.ArgumentCount + 1)), typeof(object), exprArgs);
-
-					// Get Member
-					Expression expr = Expression.Block(new ParameterExpression[] { exprIsMethod, exprDelegate },
-						Expression.Assign(exprDelegate,
-							Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableGetCallMemberMethodInfo,
-								Expression.Constant(binder.Name),
-								Expression.Constant(binder.IgnoreCase),
-								Expression.Constant(false),
-								exprIsMethod
-							)
-						)
-						,
-						Expression.Condition(exprIsMethod,
-							exprCallMethod,
-							exprCallMember
-						)
-					);
-					return new DynamicMetaObject(expr, restrictions.Merge(Lua.GetMethodSignatureRestriction(null, args)));
-				}
+						Expression.SwitchCase(GetDynamicCallExpression(t, binder, variableMethodExpresion, false, false, args), Expression.Constant(CallMethod.Delegate)),
+						Expression.SwitchCase(GetDynamicCallExpression(t, binder, variableMethodExpresion, false, true, args), Expression.Constant(CallMethod.DelegateMember)),
+						Expression.SwitchCase(GetDynamicCallExpression(t, binder, variableMethodExpresion, true, false, args), Expression.Constant(CallMethod.Dynamic)),
+						Expression.SwitchCase(GetDynamicCallExpression(t, binder, variableMethodExpresion, true, true, args), Expression.Constant(CallMethod.DynamicMember))
+					)
+				);
+				return new DynamicMetaObject(expr, restrictions.Merge(Lua.GetMethodSignatureRestriction(null, args)));
 			} // BindInvokeMember
 
 			#endregion
@@ -1060,13 +1049,13 @@ namespace Neo.IronLua
 				return hashCode == -1 ? String.Format("_empty_ next: {0}", nextHash) : String.Format("key: {0}; value: {1}; next:{2}", key ?? "null", value ?? "null", nextHash);
 			} // func ToString
 
-			public bool SetValue(object newValue, bool lMarkAsMethod)
+			public bool SetValue(object newValue, bool markAsMethod)
 			{
-				if (comparerObject.Equals(newValue, value) && lMarkAsMethod == isMethod)
+				if (comparerObject.Equals(newValue, value) && markAsMethod == isMethod)
 					return false;
 
 				value = newValue;
-				isMethod = lMarkAsMethod;
+				isMethod = markAsMethod;
 				return true;
 			} // proc SetValue
 		} // struct LuaTableEntry
@@ -1116,6 +1105,7 @@ namespace Neo.IronLua
 
 			public string MemberName { get { return info.Name; } }
 			public abstract Type DeclaredType { get; }
+			public virtual bool IsMemberCall => false;
 		} // class LuaTableDefine
 
 		#endregion
@@ -1657,7 +1647,7 @@ namespace Neo.IronLua
 		{
 			// Reserve the entry for the member
 			iMemberCount++;
-			int iEntryIndex = InsertValue(define.MemberName, GetMemberHashCode(define.MemberName), null, false);
+			int iEntryIndex = InsertValue(define.MemberName, GetMemberHashCode(define.MemberName), null, define.IsMemberCall);
 #if DEBUG
 			if (iEntryIndex != iIndex)
 				throw new InvalidOperationException("entryIndex");
@@ -2750,133 +2740,147 @@ namespace Neo.IronLua
 
 		#region -- CallMember -------------------------------------------------------------
 
-		/// <summary>Call a member</summary>
-		/// <param name="sMemberName">Name of the member</param>
-		/// <returns>Result of the function call.</returns>
-		public LuaResult CallMember(string sMemberName)
+		internal enum CallMethod
 		{
-			return CallMemberDirect(sMemberName, emptyObjectArray);
-		} // func CallMember
+			Nil,
+			ReturnOnly,
+			Delegate,
+			DelegateMember,
+			Dynamic,
+			DynamicMember
+		} // enum CallMethod
+
+		internal CallMethod GetCallMember(string memberName, bool ignoreCase, bool rawGet, out object method)
+		{
+			var memberCall = false;
+
+			var entryIndex = FindKey(memberName, GetMemberHashCode(memberName), ignoreCase ? compareStringIgnoreCase : compareString);
+			if (entryIndex < 0)
+				method = rawGet ? null : OnIndex(memberName);
+			else
+			{
+				memberCall = entries[entryIndex].isMethod;
+				method = entries[entryIndex].value;
+			}
+
+			// create return value
+			if (method == null)
+				return CallMethod.Nil;
+			else if (method is IDynamicMetaObjectProvider)
+				return memberCall ? CallMethod.DynamicMember : CallMethod.Dynamic;
+			else if (method is Delegate)
+				return memberCall ? CallMethod.DelegateMember : CallMethod.Delegate;
+			else
+				return CallMethod.ReturnOnly;
+		} // func GetCallMember
+
+		/// <summary>Call a member</summary>
+		/// <param name="memberName">Name of the member</param>
+		/// <returns>Result of the function call.</returns>
+		public LuaResult CallMember(string memberName)
+			=> CallMemberDirect(memberName, emptyObjectArray);
 
 		/// <summary>Call a member</summary>
 		/// <param name="sMemberName">Name of the member</param>
 		/// <param name="arg0">first argument</param>
 		/// <returns>Result of the function call.</returns>
 		public LuaResult CallMember(string sMemberName, object arg0)
-		{
-			return CallMemberDirect(sMemberName, new object[] { arg0, });
-		} // func CallMember
+			=> CallMemberDirect(sMemberName, new object[] { arg0, });
 
 		/// <summary>Call a member</summary>
-		/// <param name="sMemberName">Name of the member</param>
+		/// <param name="memberName">Name of the member</param>
 		/// <param name="arg0">first argument</param>
 		/// <param name="arg1">second argument</param>
 		/// <returns>Result of the function call.</returns>
-		public LuaResult CallMember(string sMemberName, object arg0, object arg1)
-		{
-			return CallMemberDirect(sMemberName, new object[] { arg0, arg1 });
-		} // func CallMember
+		public LuaResult CallMember(string memberName, object arg0, object arg1)
+			=> CallMemberDirect(memberName, new object[] { arg0, arg1 });
 
 		/// <summary>Call a member</summary>
-		/// <param name="sMemberName">Name of the member</param>
+		/// <param name="memberName">Name of the member</param>
 		/// <param name="arg0">first argument</param>
 		/// <param name="arg1">second argument</param>
 		/// <param name="arg2">third argument</param>
 		/// <returns>Result of the function call.</returns>
-		public LuaResult CallMember(string sMemberName, object arg0, object arg1, object arg2)
-		{
-			return CallMemberDirect(sMemberName, new object[] { arg0, arg1, arg2 });
-		} // func CallMember
-
+		public LuaResult CallMember(string memberName, object arg0, object arg1, object arg2)
+			=> CallMemberDirect(memberName, new object[] { arg0, arg1, arg2 });
+		
 		/// <summary>Call a member</summary>
-		/// <param name="sMemberName">Name of the member</param>
+		/// <param name="memberName">Name of the member</param>
 		/// <param name="args">Arguments</param>
 		/// <returns>Result of the function call.</returns>
-		public LuaResult CallMember(string sMemberName, params object[] args)
-		{
-			return CallMemberDirect(sMemberName, args);
-		} // func CallMember
-
-		internal object GetCallMember(string sMemberName, bool lIgnoreCase, bool lRawGet, out bool lIsMethod)
-		{
-			int iEntryIndex = FindKey(sMemberName, GetMemberHashCode(sMemberName), lIgnoreCase ? compareStringIgnoreCase : compareString);
-			if (iEntryIndex < 0)
-			{
-				lIsMethod = false;
-				return lRawGet ? null : OnIndex(sMemberName);
-			}
-			else
-			{
-				lIsMethod = entries[iEntryIndex].isMethod;
-				return entries[iEntryIndex].value;
-			}
-		} // func GetCallMember
-
+		public LuaResult CallMember(string memberName, params object[] args)
+			=> CallMemberDirect(memberName, args);
+		
 		/// <summary>Call a member (function or method) of the lua-table</summary>
-		/// <param name="sMemberName">Name of the member</param>
+		/// <param name="memberName">Name of the member</param>
 		/// <param name="args">Arguments</param>
-		/// <param name="lIgnoreCase">Ignore case of the member name</param>
-		/// <param name="lRawGet"></param>
-		/// <param name="lThrowExceptions"><c>true</c>, throws a exception if something is going wrong. <c>false</c>, on a exception a empty LuaResult will be returned.</param>
+		/// <param name="ignoreCase">Ignore case of the member name</param>
+		/// <param name="rawGet"></param>
+		/// <param name="throwExceptions"><c>true</c>, throws a exception if something is going wrong. <c>false</c>, on a exception a empty LuaResult will be returned.</param>
 		/// <returns></returns>
-		public LuaResult CallMemberDirect(string sMemberName, object[] args, bool lIgnoreCase = false, bool lRawGet = false, bool lThrowExceptions = true)
+		public LuaResult CallMemberDirect(string memberName, object[] args, bool ignoreCase = false, bool rawGet = false, bool throwExceptions = true)
 		{
-			if (sMemberName == null)
+			if (memberName == null)
 				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
 
 			// look up the member
-			bool lIsMethod;
-			object value = GetCallMember(sMemberName, lIgnoreCase, lRawGet, out lIsMethod);
-			if (value == null)
-			{
-				if (lThrowExceptions)
-					throw new ArgumentNullException(Properties.Resources.rsNilNotCallable);
-				else
-					return LuaResult.Empty;
-			}
-
-			// create the argument lists
-			if (lIsMethod)
-			{
-				if (args.Length == 0)
-					args = new object[] { null, value, this };
-				else
-				{
-					object[] newArgs = new object[args.Length + 3];
-					Array.Copy(args, 0, newArgs, 3, args.Length);
-					newArgs[1] = value;
-					newArgs[2] = this;
-					args = newArgs;
-				}
-			}
-			else
-			{
-				if (args.Length == 0)
-					args = new object[] { null, value };
-				else
-				{
-					object[] newArgs = new object[args.Length + 2];
-					Array.Copy(args, 0, newArgs, 2, args.Length);
-					newArgs[1] = value;
-					args = newArgs;
-				}
-			}
-
-			// call the method
+			object method;
 			try
 			{
-				return RtInvokeSiteCached(args);
+				switch (GetCallMember(memberName, ignoreCase, rawGet, out method))
+				{
+					case CallMethod.Nil:
+						if (throwExceptions)
+							throw new ArgumentNullException(String.Format(Properties.Resources.rsMemberNotResolved, "table", memberName));
+						else
+							return LuaResult.Empty;
+
+					case CallMethod.Delegate:
+						return new LuaResult(((Delegate)method).DynamicInvoke(args));
+
+					case CallMethod.DelegateMember:
+						return new LuaResult(((Delegate)method).DynamicInvoke((new object[] { this }).Concat(args)));
+
+					case CallMethod.Dynamic:
+						{
+							if (args.Length == 0)
+							{
+								args = new object[] { null, method };
+							}
+							else
+							{
+								var newArgs = new object[args.Length + 2];
+								Array.Copy(args, 0, newArgs, 2, args.Length);
+								newArgs[1] = method;
+								args = newArgs;
+							}
+							return RtInvokeSiteCached(args);
+						}
+					case CallMethod.DynamicMember:
+						{
+							if (args.Length == 0)
+							{
+								args = new object[] { null, method, this };
+							}
+							else
+							{
+								var newArgs = new object[args.Length + 3];
+								Array.Copy(args, 0, newArgs, 2, args.Length);
+								newArgs[1] = method;
+								newArgs[2] = this;
+								args = newArgs;
+							}
+							return RtInvokeSiteCached(args);
+						}
+
+					default:
+						return new LuaResult(memberName);
+				}
 			}
 			catch (TargetInvocationException e)
 			{
-				if (lThrowExceptions)
-					throw new TargetInvocationException(String.Format(Properties.Resources.rsTableCallMemberFailed, sMemberName), e.InnerException);
-				return LuaResult.Empty;
-			}
-			catch (Exception e)
-			{
-				if (lThrowExceptions)
-					throw new TargetInvocationException(String.Format(Properties.Resources.rsTableCallMemberFailed, sMemberName), e);
+				if (throwExceptions)
+					throw new TargetInvocationException(String.Format(Properties.Resources.rsTableCallMemberFailed, memberName), e.InnerException);
 				return LuaResult.Empty;
 			}
 		} // func CallMemberDirect

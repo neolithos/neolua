@@ -16,6 +16,8 @@ Module Module1
     Sub Main()
         Console.WriteLine("Strict on")
         TestStrict()
+        'Console.WriteLine("Strict off VB only")
+        'TestDynamicVBOnly()
         Console.WriteLine("Strict off")
         Module2.TestDynamic()
         Console.ReadLine()
