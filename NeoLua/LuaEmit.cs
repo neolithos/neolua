@@ -359,7 +359,7 @@ namespace Neo.IronLua
 		{
 			MethodInfo currentMethodInfo = null;
 			withCultureInfo = false;
-
+			
 			foreach (var mi in toType.GetRuntimeMethods().Where(c => c.IsPublic && c.IsStatic && c.Name == csParse))
 			{
 				var parameters = mi.GetParameters();
@@ -571,13 +571,21 @@ namespace Neo.IronLua
 			}
 			else if (fromType == typeof(string))
 			{
-				if (IsArithmeticType(toType)) // we expect a string and have a number
+				if (IsArithmeticType(toType) && !toTypeInfo.IsEnum) // we expect a string and have a number
 				{
 					return TryParseNumberExpression(expr, fromType, toType, out result);
 				}
 				else if (toType == typeof(char)) // char
 				{
 					result = Expression.Property(Lua.EnsureType(expr, fromType), Lua.StringItemPropertyInfo, Expression.Constant(0)); // todo: fix Length == 0?
+					return true;
+				}
+				else if (toTypeInfo.IsEnum)
+				{
+					result = Expression.Call(Lua.EnumParseMethodInfo,
+						Expression.Constant(toType),
+						expr
+					);
 					return true;
 				}
 				else // find parse method,

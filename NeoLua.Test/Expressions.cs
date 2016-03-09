@@ -294,6 +294,13 @@ namespace LuaDLR.Test
       TestExpr("(clr.LuaDLR.Test.Expressions.ReturnLua3())", 3);
     }
 
+		[TestMethod]
+		public void TestConvertStatic01()
+		{
+			TestResult(new LuaResult(Lua.RtConvertValue(1, typeof(bool))), true);
+			TestResult(new LuaResult(Lua.RtConvertValue(0, typeof(bool))), true);
+		}
+
     [TestMethod]
     public void TestConvert02()
     {
@@ -305,13 +312,23 @@ namespace LuaDLR.Test
 
         TestResult(g.dochunk(c, 1), true);
         TestResult(g.dochunk(c, ShortEnum.Eins), true);
-        TestResult(g.dochunk(c, 0), true);
+        TestResult(g.dochunk(c, 0), true); // lua definition
         TestResult(g.dochunk(c, null), false);
         TestResult(g.dochunk(c, new object()), true);
       }
     }
 
-    [TestMethod]
+		[TestMethod]
+		public void TestConvertStatic02()
+		{
+			TestResult(new LuaResult(Lua.RtConvertValue(1, typeof(bool))), true);
+			TestResult(new LuaResult(Lua.RtConvertValue(ShortEnum.Eins, typeof(bool))), true);
+			TestResult(new LuaResult(Lua.RtConvertValue(0, typeof(bool))), true);
+			TestResult(new LuaResult(Lua.RtConvertValue(null, typeof(bool))), false);
+			TestResult(new LuaResult(Lua.RtConvertValue(new object(), typeof(bool))), true);
+		}
+
+		[TestMethod]
     public void TestConvert03()
     {
       TestExpr("cast(string, 'a')", "a");
@@ -320,7 +337,21 @@ namespace LuaDLR.Test
       TestExpr("cast(string, cast(short, 0))", "0");
     }
 
-    [TestMethod]
+		[TestMethod]
+		public void TestConvertStatic03()
+		{
+			TestResult(new LuaResult(Lua.RtConvertValue("a", typeof(string))), "a");
+			TestResult(new LuaResult(Lua.RtConvertValue('a', typeof(string))), "a");
+			TestResult(new LuaResult(Lua.RtConvertValue(1, typeof(string))), "1");
+			TestResult(new LuaResult(Lua.RtConvertValue(0, typeof(string))), "0");
+			TestResult(new LuaResult(Lua.RtConvertValue((short)0, typeof(string))), "0");
+
+			TestResult(new LuaResult(Lua.RtConvertValue(ShortEnum.Eins, typeof(string))), "Eins");
+			TestResult(new LuaResult(Lua.RtConvertValue(null, typeof(string))), "");
+			TestResult(new LuaResult(Lua.RtConvertValue(new object(), typeof(string))), "System.Object");
+		}
+
+		[TestMethod]
     public void TestConvert04()
     {
       using (Lua l = new Lua())
@@ -337,7 +368,7 @@ namespace LuaDLR.Test
       }
     }
 
-    [TestMethod]
+		[TestMethod]
     public void TestConvert05()
     {
       TestExpr("cast(int, '1')", 1);
@@ -349,7 +380,18 @@ namespace LuaDLR.Test
       
     }
 
-    [TestMethod]
+		[TestMethod]
+		public void TestConvertStatic05()
+		{
+			TestResult(new LuaResult(Lua.RtConvertValue("1", typeof(int))), 1);
+			TestResult(new LuaResult(Lua.RtConvertValue(0, typeof(short))), (short)0);
+			TestResult(new LuaResult(Lua.RtConvertValue("1.2", typeof(int))), 1);
+			TestResult(new LuaResult(Lua.RtConvertValue(null, typeof(int))), 0);
+			TestResult(new LuaResult(Lua.RtConvertValue(null, typeof(string))), String.Empty);
+			TestResult(new LuaResult(Lua.RtConvertValue(null, typeof(Environment))), NullResult);
+		}
+
+		[TestMethod]
     public void TestConvert06()
     {
       using (Lua l = new Lua())
@@ -366,12 +408,29 @@ namespace LuaDLR.Test
       }
     }
 
-    [TestMethod]
+		[TestMethod]
+		public void TestConvertStatic06()
+		{
+			TestResult(new LuaResult(Lua.RtConvertValue("1", typeof(int))), 1);
+			TestResult(new LuaResult(Lua.RtConvertValue(ShortEnum.Eins, typeof(int))), 1);
+			TestResult(new LuaResult(Lua.RtConvertValue('1', typeof(int))), 49);
+			TestResult(new LuaResult(Lua.RtConvertValue("1.2", typeof(int))), 1);
+			TestResult(new LuaResult(Lua.RtConvertValue(null, typeof(int))), 0);
+
+			TestResult(new LuaResult(Lua.RtConvertValue("Eins", typeof(ShortEnum))), ShortEnum.Eins);
+			TestResult(new LuaResult(Lua.RtConvertValue(1, typeof(ShortEnum))), ShortEnum.Eins);
+			TestResult(new LuaResult(Lua.RtConvertValue(ShortEnum.Zwei, typeof(int))), 2);
+			TestResult(new LuaResult(Lua.RtConvertValue(ShortEnum.Zwei, typeof(string))), "Zwei");
+		}
+
+		[TestMethod]
     public void TestConvert07()
     {
       TestExpr("cast(int, clr.LuaDLR.Test.Expressions.ReturnLua1())", 1);
       TestExpr("cast(short, clr.LuaDLR.Test.Expressions.ReturnLua2())", (short)2);
-    }
+			TestExpr("cast(LuaDLR.Test.Expressions.ShortEnum, 'Eins')", ShortEnum.Eins);
+			TestExpr("cast(LuaDLR.Test.Expressions.ShortEnum, 1)", ShortEnum.Eins);
+		}
 
     [TestMethod]
     public void TestConvert08()
@@ -388,11 +447,11 @@ namespace LuaDLR.Test
       }
     }
 
-    #endregion
+		#endregion
 
-    #region -- Arithmetic -------------------------------------------------------------
+		#region -- Arithmetic -------------------------------------------------------------
 
-    [TestMethod]
+		[TestMethod]
     public void TestOperator01()
     {
       int a = 1 + 2;

@@ -106,6 +106,8 @@ namespace Neo.IronLua
 		internal readonly static MethodInfo ObjectReferenceEqualsMethodInfo;
 		// Convert
 		internal readonly static MethodInfo ConvertToStringMethodInfo;
+		// Enum
+		internal readonly static MethodInfo EnumParseMethodInfo;
 		// String
 		internal readonly static FieldInfo StringEmptyFieldInfo;
 		internal readonly static MethodInfo StringConcatMethodInfo;
@@ -244,6 +246,10 @@ namespace Neo.IronLua
 			// Convert
 			var tiConvert = typeof(Convert).GetTypeInfo();
 			ConvertToStringMethodInfo = tiConvert.FindDeclaredMethod("ToString", ReflectionFlag.Static | ReflectionFlag.Public, typeof(object), typeof(IFormatProvider));
+
+			// Enum
+			var tiEnum = typeof(Enum).GetTypeInfo();
+			EnumParseMethodInfo = tiEnum.FindDeclaredMethod("Parse", ReflectionFlag.Static | ReflectionFlag.Public, typeof(Type), typeof(string));
 
 			// String
 			var tiString = typeof(String).GetTypeInfo();
@@ -674,17 +680,23 @@ namespace Neo.IronLua
 		public static object RtConvertValue(object value, Type toType)
 		{
 			if (value == null)
-				if (toType.GetTypeInfo().IsValueType)
+				if (toType == typeof(string))
+					return String.Empty;
+				else if (toType == typeof(bool))
+					return false;
+				else if (toType.GetTypeInfo().IsValueType)
 					return Activator.CreateInstance(toType);
 				else
 					return null;
 			else
 			{
-				Type fromType = value.GetType();
+				var fromType = value.GetType();
 				if (fromType == toType)
 					return value;
 				else if (fromType == typeof(LuaResult))
 					return RtConvertValue(((LuaResult)value)[0], toType);
+				else if (toType == typeof(LuaResult))
+					return new LuaResult(value);
 				else if (toType == typeof(object))
 					return value;
 				else if (toType == typeof(string))
@@ -705,7 +717,7 @@ namespace Neo.IronLua
 						}
 					}
 				}
-				else 
+				else
 				{
 					TypeInfo typeinfoTo = toType.GetTypeInfo();
 					TypeInfo typeinfoFrom = fromType.GetTypeInfo();
@@ -732,7 +744,12 @@ namespace Neo.IronLua
 						{
 							// convert from string to number through lua parser
 							if (tcFrom == LuaEmitTypeCode.String && tcTo >= LuaEmitTypeCode.SByte && tcTo <= LuaEmitTypeCode.Decimal)
-								value = Lua.RtParseNumber((string)value, true);
+							{
+								if (typeinfoTo.IsEnum)
+									value = Enum.Parse(toType, (string)value);
+								else
+									value = Lua.RtParseNumber((string)value, true);
+							}
 
 							// convert to correct type
 							switch (tcTo)
