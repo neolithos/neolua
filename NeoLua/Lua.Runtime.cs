@@ -709,7 +709,7 @@ namespace Neo.IronLua
 							return String.Empty;
 						else
 						{
-							var convertToString = LuaEmit.FindConvertOperator(fromType, typeof(string));
+							var convertToString = LuaEmit.GetTypeCode(fromType) != LuaEmitTypeCode.Object ? null : LuaEmit.FindConvertOperator(fromType, typeof(string));
 							if (convertToString != null)
 								return RtConvertValue(convertToString.Invoke(null, new object[] { value }), toType);
 							else

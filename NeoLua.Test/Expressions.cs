@@ -349,6 +349,11 @@ namespace LuaDLR.Test
 			TestResult(new LuaResult(Lua.RtConvertValue(ShortEnum.Eins, typeof(string))), "Eins");
 			TestResult(new LuaResult(Lua.RtConvertValue(null, typeof(string))), "");
 			TestResult(new LuaResult(Lua.RtConvertValue(new object(), typeof(string))), "System.Object");
+
+			TestResult(new LuaResult(Lua.RtConvertValue(1, typeof(Decimal))), 1m);
+			TestResult(new LuaResult(Lua.RtConvertValue("1.2", typeof(Decimal))), 1.2m);
+			TestResult(new LuaResult(Lua.RtConvertValue(1.2m, typeof(string))), "1.2");
+			TestResult(new LuaResult(Lua.RtConvertValue(1.2m, typeof(int))), 1);
 		}
 
 		[TestMethod]
@@ -365,8 +370,9 @@ namespace LuaDLR.Test
         TestResult(g.dochunk(c, ShortEnum.Eins), "Eins");
         TestResult(g.dochunk(c, null), "");
         TestResult(g.dochunk(c, new object()), "System.Object");
-      }
-    }
+				TestResult(g.dochunk(c, 1.2m), "1.2");
+			}
+		}
 
 		[TestMethod]
     public void TestConvert05()
@@ -376,9 +382,10 @@ namespace LuaDLR.Test
       TestExpr("cast(int, '1.2')", 1);
       TestExpr("cast(int, nil)", 0);
       TestExpr("cast(System.String, nil)", String.Empty);
-      TestExpr("cast(System.Environment, nil)", NullResult);
-      
-    }
+			TestExpr("cast(System.Environment, nil)", NullResult);
+			TestExpr("cast(System.Decimal, '1.2')", 1.2m);
+
+		}
 
 		[TestMethod]
 		public void TestConvertStatic05()
@@ -405,7 +412,8 @@ namespace LuaDLR.Test
         TestResult(g.dochunk(c, '1'), 49);
         TestResult(g.dochunk(c, "1.2"), 1);
         TestResult(g.dochunk(c, null), 0);
-      }
+				TestResult(g.dochunk(c, 1.2m), 1);
+			}
     }
 
 		[TestMethod]

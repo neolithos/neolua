@@ -256,7 +256,7 @@ namespace Neo.IronLua
 		private static bool IsArithmeticType(TypeInfo ti)
 			=> IsArithmeticType(GetTypeCode(ti));
 
-		private static bool IsArithmeticType(LuaEmitTypeCode typeCode)
+		internal static bool IsArithmeticType(LuaEmitTypeCode typeCode)
 		 => IsIntegerType(typeCode) || IsFloatType(typeCode);
 
 		public static bool IsIntegerType(LuaEmitTypeCode typeCode)
@@ -316,11 +316,25 @@ namespace Neo.IronLua
 				if (!TypesMatch(toType, mi.ReturnType, out testExactTo))
 					continue;
 
-				if (testExactTo)
+				if (currentMethodInfo == null) // no match until now, take first that fits
 				{
-					if (testExactFrom)
+					isExactFrom = testExactFrom;
+					isExactTo = testExactTo;
+					implicitMethod = testImplicit;
+					currentMethodInfo = mi;
+				}
+				else if (!isExactTo && testExactTo) // exactTo is matching -> is most important
+				{
+					isExactFrom = testExactFrom;
+					isExactTo = testExactTo;
+					implicitMethod = testImplicit;
+					currentMethodInfo = mi;
+				}
+				else if (isExactTo) // check only testExactFrom
+				{
+					if (testExactFrom) // nice
 					{
-						if (testImplicit) // perfect match
+						if (testImplicit) // perfect
 						{
 							isExactTo =
 								isExactFrom =
@@ -328,7 +342,7 @@ namespace Neo.IronLua
 							currentMethodInfo = mi;
 							break;
 						}
-						else // nearly perfect
+						else // nearly
 						{
 							isExactTo =
 								isExactFrom = true;
@@ -336,20 +350,30 @@ namespace Neo.IronLua
 							currentMethodInfo = mi;
 						}
 					}
-					else if (!isExactFrom)
+					else // check if the type code is better
 					{
-						isExactTo = true;
-						isExactFrom = false;
+						var tcCurrent = GetTypeCode(currentMethodInfo.GetParameters()[0].ParameterType);
+						var tcNew = GetTypeCode(parameters[0].ParameterType);
+						if (IsArithmeticType(tcCurrent) && IsArithmeticType(tcNew) && tcCurrent < tcNew)
+						{
+							isExactFrom = testExactFrom;
+							isExactTo = testExactTo;
+							implicitMethod = testImplicit;
+							currentMethodInfo = mi;
+						}
+					}
+				}
+				else if (isExactFrom)
+				{
+					var tcCurrent = GetTypeCode(currentMethodInfo.ReturnType);
+					var tcNew = GetTypeCode(mi.ReturnType);
+					if (IsArithmeticType(tcCurrent) && IsArithmeticType(tcNew) && tcCurrent < tcNew)
+					{
+						isExactFrom = testExactFrom;
+						isExactTo = testExactTo;
 						implicitMethod = testImplicit;
 						currentMethodInfo = mi;
 					}
-				}
-				else if (currentMethodInfo == null) // no match until now, take first that fits
-				{
-					isExactFrom = testExactFrom;
-					isExactTo = testExactTo;
-					implicitMethod = testImplicit;
-					currentMethodInfo = mi;
 				}
 			}
 			return currentMethodInfo;

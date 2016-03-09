@@ -6,6 +6,6 @@
 [assembly: AssemblyTrademark("")]
 
 [assembly: AssemblyVersion("5.3.0.0")]
-[assembly: AssemblyFileVersion("1.2.2.0")]
+[assembly: AssemblyFileVersion("1.2.4.0")]
 [assembly: AssemblyConfiguration("")]
 //[assembly: AssemblyConfiguration("beta")] -- todo does not detect beta?
