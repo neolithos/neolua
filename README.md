@@ -38,6 +38,22 @@ using (Lua l = new Lua()) // create the lua script engine
 }
 ```
 
+```VB
+Using l As Lua = New Lua ' create the lua script engine
+    Dim g As Object = l.CreateEnvironment(Of LuaGlobal)() ' create a environment
+    g.dochunk("a = 'Hallo World!';", "test.lua") ' create a variable in lua
+    Console.WriteLine(g.a) ' access a variable in VB
+    g.dochunk("function add(b) return b + 3; end;", "test.lua") ' create a function in lua
+    Console.WriteLine("Add(3) = {0}", (New LuaResult(g.add(3)))(0)) ' call the function in VB
+End Using
+```
+
+A more "complex" script, that shows the interaction between lua and .net:
+```Lua
+local t = clr.System.Int32[](6, 8, 9, 19);",
+return t:Sum(), t:Where(function(c : int) : bool return c < 10 end):Sum()
+```
+
 NeoLua is a .net portable assembly (IL) for 
 * .net framework 4.5.1
 * Windows Phone 8.1

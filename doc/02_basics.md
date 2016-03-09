@@ -29,7 +29,7 @@ The following table shows the types of the lua constants:
 For the conversion between types NeoLua uses the:
 * rules of Lua or C#
 * dynamic type rules
-* `implicit`/`explicit` operators
+* `implicit`/`explicit` operators (add static parse methods)
 
 ```Lua
 local a = 23 + "42"; -- "42" will be converted to integer
@@ -37,6 +37,8 @@ local b = 23 .. "42"; -- 23  will be converted to string
 local c : byte = "23"; -- 23 will converted to a unsigned 8 bit integer
 local d : int = nil; -- will be converted to 0
 ```
+
+The type casting/converting is one of the most complex part of this implemention. It will help to hold a script clean, please help to improve it.
 
 ## Environment
 
@@ -56,9 +58,9 @@ using (Lua l = new Lua())
 
 Normally, you need only one script engine per application. In rare cases it is useful to have more than one.
 
-For accessing and manipulation the environment see under Global/Table's, create your own environment see under extent tables.
+For accessing and manipulation the environment see under [Global/Table's](doc/04_04_table.md), create your own environment see under extent tables.
 
-It is also possible to create plain delegates without any environment (see Script Engine).
+It is also possible to create plain delegates without any environment (see [Script engine](doc/04_02_engine.md)).
 
 ## Error Handling
 
@@ -70,6 +72,8 @@ be catch or converted. The lua error-function creates a LuaRuntimeException.
 
 If you need a stack trace to the exception, you need to compile the script with 
 debug information. With the method `LuaExceptionData.GetData` you can retrieve for all exceptions a lua stacktrace.
+
+It is also possible to implement your own concept, for backtraces and debugging.
 
 ## Metatables and Metamethods
 

@@ -3,7 +3,7 @@
 The `LuaTable`is the most important type of Lua. It is also implemented with an dynamic 
 interface for an easy use in the host application and the script, too.
 
-The lua environment (`LuaGlobal`) is a sub class of the lua table. It holds 
+The lua environment (`LuaGlobal`, `LuaGlobalPortable`) is a sub class of the lua table. It holds 
 the basic environment (global variables, basic functions, packages) of 
 the lua script. All chunks (except Lambda's) run on environment and manipulate them.
 

@@ -22,7 +22,7 @@ You can add the full type name (namespace + type ame) or you can use a alias.
 
 Aliases can be define on the `LuaType` class, with the static method `RegisterTypeAlias` or use the `´const´ name ´typeof´ type` .
 
-Another reason to use typed locals is to avoid  unboxing and boxing operations (performance!).
+Another reason to use typed locals is to avoid unboxing and boxing operations (performance!).
 
 ###### Example:
 ```Lua
@@ -44,7 +44,27 @@ for i = 0,9,1 do
 end;
 ```
 
-Global values are always declared as objects, because they are members on the global table/environment.
+Global values are always declared as objects, because they are members on the global table/environment. All calls will be late bound.
+If a class (e.g. LuaTable) implement's IDynamicMetaObjectProvider it will also generate code, that will be evaluated dynamic.
+
+## Dot vs. Colon
+
+The dot `.` stands for the get member operation, it will also succed, if the member is `nil` or doesn't exists.
+
+If you use the colon `:` it is a member call. You can also do member calls on properties, the just return the value as result. If the member doesn't exists
+it will throw a runtime exception (on the `table` a member that has the value `nil` is a none existing value).
+
+```Lua
+t = { a = 42 }
+return t.a, -- 42
+	t:a, -- 42
+	t:a(), -- 42
+	t:a(23), -- 42
+	t.b, -- nil
+	t:b;  -- LuaRuntimeException
+```
+
+This will reduce the "Can not call nil object" exceptions.
 
 ## Keyword `cast`
 
@@ -72,6 +92,8 @@ end;
 
 sb:Append(cast(string, GetText()));
 sb:Append(cast(string, string.upper(" Welt")));
+
+sb:Append( ( GetText() ) ) -- will convert the result to a single value
 
 print(sb:ToString());
 ```
@@ -102,7 +124,7 @@ sb:Append('Hello'); -- call the method append, none dynamic
 
 ```Lua
 const Env typeof System.Environment;
-return Env.MachineName, Env:GetEnvironmentVariable("PATH");
+return Env:MachineName, Env:GetEnvironmentVariable("PATH");
 ```
 
 ## Keyword `foreach`
