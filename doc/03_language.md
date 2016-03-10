@@ -51,7 +51,7 @@ If a class (e.g. LuaTable) implement's IDynamicMetaObjectProvider it will also g
 
 The dot `.` stands for the get member operation, it will also succed, if the member is `nil` or doesn't exists.
 
-If you use the colon `:` it is a member call. You can also do member calls on properties, the just return the value as result. If the member doesn't exists
+If you use the colon `:` it is a member call. You can also do member calls on properties, they just return the value as result. If the member doesn't exists,
 it will throw a runtime exception (on the `table` a member that has the value `nil` is a none existing value).
 
 ```Lua
