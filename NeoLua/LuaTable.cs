@@ -2810,7 +2810,7 @@ namespace Neo.IronLua
 		/// <returns>Result of the function call.</returns>
 		public LuaResult CallMember(string memberName, params object[] args)
 			=> CallMemberDirect(memberName, args);
-		
+
 		/// <summary>Call a member (function or method) of the lua-table</summary>
 		/// <param name="memberName">Name of the member</param>
 		/// <param name="args">Arguments</param>
@@ -2836,11 +2836,6 @@ namespace Neo.IronLua
 							return LuaResult.Empty;
 
 					case CallMethod.Delegate:
-						return new LuaResult(((Delegate)method).DynamicInvoke(args));
-
-					case CallMethod.DelegateMember:
-						return new LuaResult(((Delegate)method).DynamicInvoke((new object[] { this }).Concat(args)));
-
 					case CallMethod.Dynamic:
 						{
 							if (args.Length == 0)
@@ -2856,6 +2851,7 @@ namespace Neo.IronLua
 							}
 							return RtInvokeSiteCached(args);
 						}
+					case CallMethod.DelegateMember:
 					case CallMethod.DynamicMember:
 						{
 							if (args.Length == 0)
