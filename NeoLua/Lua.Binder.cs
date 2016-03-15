@@ -130,7 +130,7 @@ namespace Neo.IronLua
 
 					// try to bind the member
 					switch (LuaEmit.TrySetMember(target.Expression, target.LimitType, Name, IgnoreCase,
-						(setType) => Lua.EnsureType(DynamicExpression.Dynamic(Lua.GetConvertBinder(setType), typeof(object), Lua.EnsureType(value.Expression, value.LimitType)), setType),
+						(setType) => LuaEmit.ConvertWithRuntime(Lua, value.Expression, value.LimitType, setType),
 						out expr))
 					{
 						case LuaTrySetMemberReturn.None:
@@ -549,7 +549,7 @@ namespace Neo.IronLua
 					object result;
 					if (LuaEmit.TryConvert(target.Expression, target.LimitType, Type, null, out result))
 					{
-						return new DynamicMetaObject((Expression)result, restrictions);
+						return new DynamicMetaObject(Lua.EnsureType((Expression)result, ReturnType), restrictions);
 					}
 					else if (errorSuggestion == null)
 					{

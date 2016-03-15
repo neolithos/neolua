@@ -1366,10 +1366,7 @@ namespace Neo.IronLua
 			if (!String.IsNullOrEmpty(operationName))
 			{
 				// create a list of all operators
-				var members =
-					LuaType.GetType(type1).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static, operationName, false).Concat(
-						LuaType.GetType(type2).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static, operationName, false)
-					);
+				var members = LuaType.GetType(type1).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static, operationName, false);
 				var operatorMethodInfo = FindMethod<Type>(members, new CallInfo(2), null, new Type[] { type1, type2 }, t => t, false);
 
 				if (operatorMethodInfo != null)
@@ -1379,21 +1376,29 @@ namespace Neo.IronLua
 					if (op == Lua.IntegerDivide)
 						op = ExpressionType.Divide;
 
-					// Check if the arguments are valid
-					Expression exprOperatorArgument1 = expr1;
-					Type typeOperatorArgument1 = type1;
-					Expression exprOperatorArgument2 = expr2;
-					Type typeOperatorArgument2 = type2;
-
-					if (TryConvertWithRuntime(lua, ref exprOperatorArgument1, ref typeOperatorArgument1, parameters[0].ParameterType) &&
-						TryConvertWithRuntime(lua, ref exprOperatorArgument2, ref typeOperatorArgument2, parameters[1].ParameterType))
+					if ((op == ExpressionType.Equal || op == ExpressionType.NotEqual) && 
+						!type1.GetTypeInfo().IsClass && type2.GetTypeInfo().IsClass)
 					{
-						return Expression.MakeBinary(op,
-							exprOperatorArgument1,
-							exprOperatorArgument2,
-							true,
-							operatorMethodInfo
-						);
+						// no convert, because of the default value
+					}
+					else
+					{
+						// Check if the arguments are valid
+						Expression exprOperatorArgument1 = expr1;
+						Type typeOperatorArgument1 = type1;
+						Expression exprOperatorArgument2 = expr2;
+						Type typeOperatorArgument2 = type2;
+
+						if (TryConvertWithRuntime(lua, ref exprOperatorArgument1, ref typeOperatorArgument1, parameters[0].ParameterType) &&
+							TryConvertWithRuntime(lua, ref exprOperatorArgument2, ref typeOperatorArgument2, parameters[1].ParameterType))
+						{
+							return Expression.MakeBinary(op,
+								exprOperatorArgument1,
+								exprOperatorArgument2,
+								true,
+								operatorMethodInfo
+							);
+						}
 					}
 				}
 			}
