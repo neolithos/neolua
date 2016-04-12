@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Dynamic;
 using System.Linq;
 using System.Threading.Tasks;
+using ExtTest;
 using Neo.IronLua;
 
 namespace NeoTest1
@@ -67,7 +68,8 @@ namespace NeoTest1
 		{
 			//Console.WriteLine(TestAsync().Result);
 
-			TestDynamic();
+			StartEx.Main1(args);
+			//TestDynamic();
 
 			//LinqTest2();
 			Console.ReadKey();
