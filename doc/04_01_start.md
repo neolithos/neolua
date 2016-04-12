@@ -20,17 +20,17 @@ public static class Program
 
       foreach (string c in args)
       {
-        using (LuaChunk chunk = l.CompileChunk(c, Lua.DefaultDebugEngine)) // compile the script with debug informations, that is needed for a complete stack trace
-          try
-          {
-            g.dochunk(chunk); // execute the chunk
-          }
-          catch (TargetInvocationException e)
-          {
-            Console.WriteLine("Expception: {0}", e.InnerException.Message);
-            LuaExceptionData d = LuaExceptionData.GetData(e.InnerException); // get stack trace
-            Console.WriteLine("StackTrace: {0}", d.GetStackTrace(0, false));
-          }
+        var chunk = l.CompileChunk(c, Lua.DefaultDebugEngine) // compile the script with debug informations, that is needed for a complete stack trace
+        try
+        {
+			g.dochunk(chunk); // execute the chunk
+        }
+        catch (TargetInvocationException e)
+        {
+			Console.WriteLine("Expception: {0}", e.InnerException.Message);
+			LuaExceptionData d = LuaExceptionData.GetData(e.InnerException); // get stack trace
+			Console.WriteLine("StackTrace: {0}", d.GetStackTrace(0, false));
+        }
       }
     }
   } // Main
