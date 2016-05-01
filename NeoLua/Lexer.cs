@@ -973,7 +973,7 @@ namespace Neo.IronLua
 					#endregion
 					#region -- 1000 Ident or Keyword --------------------------------------------
 					case 1000:
-						if (c == '_' || Char.IsLetterOrDigit(c))
+						if (IsIdentifierChar(c))
 							EatChar(1000);
 						else
 							return CreateToken(0, LuaToken.Identifier);
@@ -981,31 +981,31 @@ namespace Neo.IronLua
 					// and
 					case 1010: if (c == 'n') EatChar(1011); else goto case 1000; break;
 					case 1011: if (c == 'd') EatChar(1012); else goto case 1000; break;
-					case 1012: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwAnd); else goto case 1000;
+					case 1012: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwAnd); else goto case 1000;
 					// break
 					case 1020: if (c == 'r') EatChar(1021); else goto case 1000; break;
 					case 1021: if (c == 'e') EatChar(1022); else goto case 1000; break;
 					case 1022: if (c == 'a') EatChar(1023); else goto case 1000; break;
 					case 1023: if (c == 'k') EatChar(1024); else goto case 1000; break;
-					case 1024: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwBreak); else goto case 1000;
+					case 1024: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwBreak); else goto case 1000;
 					// do
 					case 1030: if (c == 'o') EatChar(1031); else goto case 1000; break;
-					case 1031: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwDo); else goto case 1000;
+					case 1031: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwDo); else goto case 1000;
 					// else, elseif end
 					case 1040: if (c == 'n') EatChar(1041); else if (c == 'l') EatChar(1043); else goto case 1000; break;
 					case 1041: if (c == 'd') EatChar(1042); else goto case 1000; break;
-					case 1042: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwEnd); else goto case 1000;
+					case 1042: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwEnd); else goto case 1000;
 					case 1043: if (c == 's') EatChar(1044); else goto case 1000; break;
 					case 1044: if (c == 'e') EatChar(1045); else goto case 1000; break;
-					case 1045: if (c == 'i') EatChar(1046); else if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwElse); else goto case 1000; break;
+					case 1045: if (c == 'i') EatChar(1046); else if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwElse); else goto case 1000; break;
 					case 1046: if (c == 'f') EatChar(1047); else goto case 1000; break;
-					case 1047: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwElseif); else goto case 1000;
+					case 1047: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwElseif); else goto case 1000;
 					// false, for, function
 					case 1050: if (c == 'a') EatChar(1051); else if (c == 'o') EatChar(1055); else if (c == 'u') EatChar(1057); else goto case 1000; break;
 					case 1051: if (c == 'l') EatChar(1052); else goto case 1000; break;
 					case 1052: if (c == 's') EatChar(1053); else goto case 1000; break;
 					case 1053: if (c == 'e') EatChar(1054); else goto case 1000; break;
-					case 1054: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwFalse); else goto case 1000;
+					case 1054: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwFalse); else goto case 1000;
 					case 1055: if (c == 'r') EatChar(1056); else goto case 1000; break;
 					case 1056: if (c == 'e') EatChar(10000); else if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwFor); else goto case 1000; break;
 					case 1057: if (c == 'n') EatChar(1058); else goto case 1000; break;
@@ -1014,76 +1014,76 @@ namespace Neo.IronLua
 					case 1060: if (c == 'i') EatChar(1061); else goto case 1000; break;
 					case 1061: if (c == 'o') EatChar(1062); else goto case 1000; break;
 					case 1062: if (c == 'n') EatChar(1063); else goto case 1000; break;
-					case 1063: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwFunction); else goto case 1000;
+					case 1063: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwFunction); else goto case 1000;
 					case 10000: if (c == 'a') EatChar(10001); else goto case 1000; break;
 					case 10001: if (c == 'c') EatChar(10002); else goto case 1000; break;
 					case 10002: if (c == 'h') EatChar(10003); else goto case 1000; break;
-					case 10003: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwForEach); else goto case 1000;
+					case 10003: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwForEach); else goto case 1000;
 					// goto
 					case 1065: if (c == 'o') EatChar(1066); else goto case 1000; break;
 					case 1066: if (c == 't') EatChar(1067); else goto case 1000; break;
 					case 1067: if (c == 'o') EatChar(1068); else goto case 1000; break;
-					case 1068: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwGoto); else goto case 1000;
+					case 1068: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwGoto); else goto case 1000;
 					// if, in
 					case 1070: if (c == 'f') EatChar(1071); else if (c == 'n') EatChar(1072); else goto case 1000; break;
-					case 1071: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwIf); else goto case 1000;
-					case 1072: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwIn); else goto case 1000;
+					case 1071: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwIf); else goto case 1000;
+					case 1072: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwIn); else goto case 1000;
 					// local
 					case 1080: if (c == 'o') EatChar(1081); else goto case 1000; break;
 					case 1081: if (c == 'c') EatChar(1082); else goto case 1000; break;
 					case 1082: if (c == 'a') EatChar(1083); else goto case 1000; break;
 					case 1083: if (c == 'l') EatChar(1084); else goto case 1000; break;
-					case 1084: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwLocal); else goto case 1000;
+					case 1084: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwLocal); else goto case 1000;
 					// nil, not
 					case 1090: if (c == 'i') EatChar(1091); else if (c == 'o') EatChar(1093); else goto case 1000; break;
 					case 1091: if (c == 'l') EatChar(1092); else goto case 1000; break;
-					case 1092: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwNil); else goto case 1000;
+					case 1092: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwNil); else goto case 1000;
 					case 1093: if (c == 't') EatChar(1094); else goto case 1000; break;
-					case 1094: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwNot); else goto case 1000;
+					case 1094: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwNot); else goto case 1000;
 					// or
 					case 1100: if (c == 'r') EatChar(1101); else goto case 1000; break;
-					case 1101: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwOr); else goto case 1000;
+					case 1101: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwOr); else goto case 1000;
 					// repeat, return
 					case 1110: if (c == 'e') EatChar(1111); else goto case 1000; break;
 					case 1111: if (c == 'p') EatChar(1112); else if (c == 't') EatChar(1116); else goto case 1000; break;
 					case 1112: if (c == 'e') EatChar(1113); else goto case 1000; break;
 					case 1113: if (c == 'a') EatChar(1114); else goto case 1000; break;
 					case 1114: if (c == 't') EatChar(1115); else goto case 1000; break;
-					case 1115: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwRepeat); else goto case 1000;
+					case 1115: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwRepeat); else goto case 1000;
 					case 1116: if (c == 'u') EatChar(1117); else goto case 1000; break;
 					case 1117: if (c == 'r') EatChar(1118); else goto case 1000; break;
 					case 1118: if (c == 'n') EatChar(1119); else goto case 1000; break;
-					case 1119: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwReturn); else goto case 1000;
+					case 1119: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwReturn); else goto case 1000;
 					// then, true
 					case 1120: if (c == 'h') EatChar(1121); else if (c == 'r') EatChar(1124); else goto case 1000; break;
 					case 1121: if (c == 'e') EatChar(1122); else goto case 1000; break;
 					case 1122: if (c == 'n') EatChar(1123); else goto case 1000; break;
-					case 1123: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwThen); else goto case 1000;
+					case 1123: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwThen); else goto case 1000;
 					case 1124: if (c == 'u') EatChar(1125); else goto case 1000; break;
 					case 1125: if (c == 'e') EatChar(1126); else goto case 1000; break;
-					case 1126: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwTrue); else goto case 1000;
+					case 1126: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwTrue); else goto case 1000;
 					// until
 					case 1130: if (c == 'n') EatChar(1131); else goto case 1000; break;
 					case 1131: if (c == 't') EatChar(1132); else goto case 1000; break;
 					case 1132: if (c == 'i') EatChar(1133); else goto case 1000; break;
 					case 1133: if (c == 'l') EatChar(1134); else goto case 1000; break;
-					case 1134: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwUntil); else goto case 1000;
+					case 1134: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwUntil); else goto case 1000;
 					// while
 					case 1140: if (c == 'h') EatChar(1141); else goto case 1000; break;
 					case 1141: if (c == 'i') EatChar(1142); else goto case 1000; break;
 					case 1142: if (c == 'l') EatChar(1143); else goto case 1000; break;
 					case 1143: if (c == 'e') EatChar(1144); else goto case 1000; break;
-					case 1144: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwWhile); else goto case 1000;
+					case 1144: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwWhile); else goto case 1000;
 					// cast
 					case 1150: if (c == 'a') EatChar(1151); else if (c == 'o') EatChar(1160); else goto case 1000; break;
 					case 1151: if (c == 's') EatChar(1152); else goto case 1000; break;
 					case 1152: if (c == 't') EatChar(1153); else goto case 1000; break;
-					case 1153: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwCast); else goto case 1000;
+					case 1153: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwCast); else goto case 1000;
 					// const
 					case 1160: if (c == 'n') EatChar(1161); else goto case 1000; break;
 					case 1161: if (c == 's') EatChar(1162); else goto case 1000; break;
 					case 1162: if (c == 't') EatChar(1163); else goto case 1000; break;
-					case 1163: if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwConst); else goto case 1000;
+					case 1163: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwConst); else goto case 1000;
 					#endregion
 				}
 			}
@@ -1146,6 +1146,11 @@ namespace Neo.IronLua
 				goto ReadChars;
 			}
 		} // proc ReadTextBlock
+
+		private bool IsIdentifierChar(char c)
+		{
+			return Char.IsLetterOrDigit(c) || c == '_';
+		}
 
 		#endregion
 
