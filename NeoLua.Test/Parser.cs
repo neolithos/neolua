@@ -164,6 +164,15 @@ namespace LuaDLR.Test
         T(LuaToken.Assign, String.Empty),
         T(LuaToken.String, "]==]")
         ));
+      Assert.IsTrue(TokenTest("and_break_cast = { const_do_else = true }",
+        T(LuaToken.Identifier, "and_break_cast"),
+        T(LuaToken.Assign, String.Empty),
+        T(LuaToken.BracketCurlyOpen, String.Empty),
+        T(LuaToken.Identifier, "const_do_else"),
+        T(LuaToken.Assign, String.Empty),
+        T(LuaToken.KwTrue, "true"),
+        T(LuaToken.BracketCurlyClose, String.Empty)
+        ));
 
       Assert.IsTrue(TokenTest("--[===[]==]]===]", T(LuaToken.Eof, String.Empty)));
 
