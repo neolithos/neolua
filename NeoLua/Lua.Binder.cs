@@ -518,8 +518,8 @@ namespace Neo.IronLua
     {
       private readonly Lua lua;
 
-      public LuaConvertBinder(Lua lua, Type type)
-        : base(type, false)
+			public LuaConvertBinder(Lua lua, Type toType)
+        : base(toType, false)
       {
         this.lua = lua;
       } // ctor
@@ -534,14 +534,14 @@ namespace Neo.IronLua
 					Expression expr;
 					var restrictions = target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, null));
 
-					if (this.Type == typeof(LuaResult)) // replace null with empty LuaResult 
+					if (Type == typeof(LuaResult)) // replace null with empty LuaResult 
 						expr = Expression.Property(null, Lua.ResultEmptyPropertyInfo);
-					else if (this.Type == typeof(string)) // replace null with empty String
+					else if (Type == typeof(string)) // replace null with empty String
 						expr = Expression.Field(null, Lua.StringEmptyFieldInfo);
 					else
-						expr = Expression.Default(this.Type);
+						expr = Expression.Default(Type);
 
-					return new DynamicMetaObject(expr, restrictions);
+					return new DynamicMetaObject(Lua.EnsureType(expr, ReturnType), restrictions);
 				}
 				else // convert the value
 				{

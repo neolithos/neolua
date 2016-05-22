@@ -575,7 +575,7 @@ namespace Neo.IronLua
 			{
 				return new LuaResult(false, e.Message, e);
 			}
-		} // func LuaPCall
+		} // func LuaXPCall
 
 		/// <summary></summary>
 		[LuaMember("_VERSION")]

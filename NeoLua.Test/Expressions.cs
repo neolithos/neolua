@@ -354,6 +354,8 @@ namespace LuaDLR.Test
 			TestResult(new LuaResult(Lua.RtConvertValue("1.2", typeof(Decimal))), 1.2m);
 			TestResult(new LuaResult(Lua.RtConvertValue(1.2m, typeof(string))), "1.2");
 			TestResult(new LuaResult(Lua.RtConvertValue(1.2m, typeof(int))), 1);
+
+			TestResult(new LuaResult(Lua.RtConvertValue("90238fad-cb41-4efa-bb2f-4d56a0088a01", typeof(Guid))), new Guid("90238fad-cb41-4efa-bb2f-4d56a0088a01"));
 		}
 
 		[TestMethod]

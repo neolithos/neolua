@@ -101,6 +101,7 @@ namespace Neo.IronLua
 		internal readonly static MethodInfo ConvertDelegateMethodInfo;
 		internal readonly static MethodInfo InitArray1MethodInfo;
 		internal readonly static MethodInfo InitArrayNMethodInfo;
+		internal readonly static MethodInfo RtConvertValueDynamicMethodInfo;
 		// Object
 		internal readonly static MethodInfo ObjectEqualsMethodInfo;
 		internal readonly static MethodInfo ObjectReferenceEqualsMethodInfo;
@@ -237,6 +238,7 @@ namespace Neo.IronLua
 			ConvertDelegateMethodInfo = tiLua.FindDeclaredMethod("RtConvertDelegate", ReflectionFlag.None | ReflectionFlag.NoArguments);
 			InitArray1MethodInfo = tiLua.FindDeclaredMethod("RtInitArray", ReflectionFlag.None, typeof(Type), typeof(object));
 			InitArrayNMethodInfo = tiLua.FindDeclaredMethod("RtInitArray", ReflectionFlag.None, typeof(Type), typeof(object[]));
+			RtConvertValueDynamicMethodInfo = tiLua.FindDeclaredMethod("RtConvertValueDynamic", ReflectionFlag.NoArguments | ReflectionFlag.Static);
 
 			// Object
 			var tiObject = typeof(Object).GetTypeInfo();
@@ -673,6 +675,16 @@ namespace Neo.IronLua
 
 		#region -- RtConvertValue, RtConvertDelegate --------------------------------------
 
+		/// <summary></summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="value"></param>
+		/// <returns></returns>
+		public static object RtConvertValueDynamic<T>(object value)
+		{
+			var c = CallSite<Func<CallSite, object, T>>.Create(new LuaConvertBinder(null, typeof(T)));
+			return c.Target(c, value);
+		} // func RtConvertValueDynamic
+
 		/// <summary>Converts the value to the type, like NeoLua will do it.</summary>
 		/// <param name="value">value, that should be converted.</param>
 		/// <param name="toType">type to which the value should be converted.</param>
@@ -736,8 +748,8 @@ namespace Neo.IronLua
 								return value;
 							else
 							{
-								var c = CallSite<Func<CallSite, object, object>>.Create(new LuaConvertBinder(null, toType));
-								return c.Target(c, value);
+								var methodInfo = RtConvertValueDynamicMethodInfo.MakeGenericMethod(toType);
+								return methodInfo.Invoke(null, new object[] { value });
 							}
 						}
 						else
