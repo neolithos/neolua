@@ -669,12 +669,11 @@ namespace AT.MIN
           if (w.StartsWith("-"))
             w = w.Substring(1);
           if (FieldLength != int.MinValue)
-            w = w.PadLeft(FieldLength - 1, Padding);
+            w = w.PadLeft(FieldLength, Padding);
           if (IsPositive(Value, true))
             w = (PositiveSign ?
                 "+" : (PositiveSpace ?
-                    " " : (FieldLength != int.MinValue ?
-                        Padding.ToString() : String.Empty))) + w;
+                    " " : String.Empty)) + w;
           else
             w = "-" + w;
         }
