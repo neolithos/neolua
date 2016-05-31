@@ -102,7 +102,24 @@ namespace LuaDLR.Test
       public int Value { get { return iValue; } set { iValue = value; } }
     }
 
-    public static void Test()
+		public class TestOverload
+		{
+			public int called = -1;
+
+			public void NamedVsUnamed(string n1, string n2 = null, string n3 = null, string n4 = null)
+			{
+				Console.WriteLine($"NamedVsUnamedString('{n1}', '{n2}', '{n3}', '{n4}');");
+				called = 1;
+			}
+
+			public void NamedVsUnamed(LuaTable t)
+			{
+				Console.WriteLine($"NamedVsUnamedTable('{t["n1"]}', '{t["n2"]}');");
+				called = 2;
+			}
+		}
+
+		public static void Test()
     {
       Console.WriteLine("Hallo");
     }
@@ -575,6 +592,22 @@ namespace LuaDLR.Test
 			TestCode(Lines(
 				"local function line() return 'Hallo', 'Welt', '!!!'; end;",
 				"return clr.System.String:Format('{0} {1} {2}', line());"), "Hallo Welt !!!");
+		}
+
+		[TestMethod]
+		public void OverloadTest08()
+		{
+			using (var l = new Lua())
+			{
+				var g = l.CreateEnvironment();
+				var testo = new TestOverload();
+				g["testo"] = testo;
+
+				g.DoChunk("testo:NamedVsUnamed(n1='test');", "test");
+				Assert.AreEqual(1, testo.called);
+				g.DoChunk("testo:NamedVsUnamed{n1='test'};", "test");
+				Assert.AreEqual(2, testo.called);
+			}
 		}
 
 		[TestMethod]

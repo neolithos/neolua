@@ -1130,6 +1130,15 @@ namespace LuaDLR.Test
 				"end;"), 42);
 		}
 
+		[TestMethod]
+		public void TestCompare17()
+		{
+			TestCode(Lines(
+				"local a = '_test';",
+				"if a[0] == '_' then return 42 else return -1 end;"
+			), 42);
+		}
+
 		#endregion
 
 		#region -- Concat -----------------------------------------------------------------

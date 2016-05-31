@@ -1514,6 +1514,18 @@ namespace Neo.IronLua
 							return BinaryOperationEqualableToExpression(lua, equalableInterface, op, expr1, type1, expr2, type2);
 						else
 						{
+							// exception for char vs string comparisions
+							if (type1 == typeof(char) && type2 == typeof(string))
+							{
+								expr1 = ConvertWithRuntime(lua, expr1, type1, type2);
+								type1 = type2;
+							}
+							if (type2 == typeof(string) && type2 == typeof(char))
+							{
+								expr2 = ConvertWithRuntime(lua, expr2, type2, type1);
+								type2 = type1;
+							}
+
 							expr1 = ConvertWithRuntime(lua, expr1, type1, typeof(object));
 							expr2 = ConvertWithRuntime(lua, expr2, type2, typeof(object));
 
@@ -2454,7 +2466,7 @@ namespace Neo.IronLua
 					{
 						var index = Array.FindIndex(parameterInfo, positionalArguments, c => c.Name == cur);
 						if (index != -1)
-							target.SetMatch(GetParameterMatch(parameterInfo[index].ParameterType.GetTypeInfo(), getType(arguments[i++]).GetTypeInfo()), false);
+							target.SetMatch(GetParameterMatch(parameterInfo[index].ParameterType.GetTypeInfo(), getType(arguments[i++]).GetTypeInfo()), true); // -> mark as position, because the argument has the correct position
 					}
 				}
 			} // proc ResetNamed
