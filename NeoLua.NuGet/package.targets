@@ -40,9 +40,9 @@
 			<AssemblyInfoGlobalLines>@(AssemblyInfoGlobalContent)</AssemblyInfoGlobalLines>
 		</PropertyGroup>
 		<PropertyGroup>
-			<Pattern2>\[assembly: AssemblyConfiguration\(.(\w*)</Pattern2>
+			<Pattern2>\;\[assembly: AssemblyConfiguration\(.(\w*)</Pattern2>
 			<AssemblyConfig>$([System.Text.RegularExpressions.Regex]::Match($(AssemblyInfoGlobalLines), $(Pattern2)))</AssemblyConfig>
-			<VersionAdd>$(AssemblyConfig.Remove(0, 34))</VersionAdd>
+			<VersionAdd>$(AssemblyConfig.Remove(0, 35))</VersionAdd>
 		</PropertyGroup>
 		<PropertyGroup>
 			<Pattern1>\[assembly: AssemblyFileVersion\(.(\d+)\.(\d+)\.(\d+)</Pattern1>
