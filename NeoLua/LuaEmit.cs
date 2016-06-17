@@ -237,7 +237,7 @@ namespace Neo.IronLua
 
 				isExcact = false;
 
-				if (tcTo == LuaEmitTypeCode.String)
+				if (tcTo == LuaEmitTypeCode.String && tcFrom != LuaEmitTypeCode.Object)
 					return true;
 				else if (tcTo >= LuaEmitTypeCode.SByte && tcTo <= LuaEmitTypeCode.Double &&
 							(tcFrom >= LuaEmitTypeCode.SByte && tcFrom <= tcTo || tcTo == LuaEmitTypeCode.Single && tcFrom == LuaEmitTypeCode.Double)) // exception for single -> double
