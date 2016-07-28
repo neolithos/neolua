@@ -49,7 +49,7 @@ namespace Neo.IronLua
 			if (!IsCompiled)
 				throw new ArgumentException(Properties.Resources.rsChunkNotCompiled, "chunk");
 
-			object[] args = new object[callArgs == null ? 0 : callArgs.Length + 1];
+			object[] args = new object[callArgs == null ? 1 : callArgs.Length + 1];
 			args[0] = env;
 			if (callArgs != null)
 				Array.Copy(callArgs, 0, args, 1, callArgs.Length);
