@@ -10,24 +10,25 @@ namespace Neo.IronLua
 	/// <summary></summary>
 	internal class LuaLinesEnumerator : System.Collections.IEnumerator
 	{
-		private LuaFile file;
-		private bool lCloseOnEnd;
-		private object[] args;
-		private object[] returns;
-		private int iReturnIndex;
+		private readonly LuaFile file;
+		private readonly bool closeOnEnd;
+		private readonly object[] args;
 
-		public LuaLinesEnumerator(LuaFile file, bool lCloseOnEnd, object[] args, int iStartIndex)
+		private object[] returns;
+		private int returnIndex;
+
+		public LuaLinesEnumerator(LuaFile file, bool closeOnEnd, object[] args, int startIndex)
 		{
 			this.file = file;
-			this.lCloseOnEnd = lCloseOnEnd;
+			this.closeOnEnd = closeOnEnd;
 			this.returns = null;
-			this.iReturnIndex = 0;
+			this.returnIndex = 0;
 
-			if (iStartIndex > 0)
+			if (startIndex > 0)
 			{
-				this.args = new object[args.Length - iStartIndex];
+				this.args = new object[args.Length - startIndex];
 				if (args.Length > 0)
-					Array.Copy(args, iStartIndex, this.args, 0, this.args.Length);
+					Array.Copy(args, startIndex, this.args, 0, this.args.Length);
 			}
 			else
 				this.args = args;
@@ -37,16 +38,16 @@ namespace Neo.IronLua
 		{
 			if (file.IsClosed || file.TextReader.EndOfStream)
 			{
-				if (lCloseOnEnd)
+				if (closeOnEnd)
 					file.close();
 				return false;
 			}
 			else
 			{
-				iReturnIndex++;
-				if (returns == null || iReturnIndex >= returns.Length) // read returns
+				returnIndex++;
+				if (returns == null || returnIndex >= returns.Length) // read returns
 				{
-					iReturnIndex = 0;
+					returnIndex = 0;
 					returns = file.read(args);
 				}
 				return true;
@@ -56,9 +57,9 @@ namespace Neo.IronLua
 		public void Reset()
 		{
 			throw new NotImplementedException();
-		}
+		} // proc Reset
 
-		public object Current { get { return returns == null ? null : returns[iReturnIndex]; } }
+		public object Current => returns == null ? null : returns[returnIndex];
 	} // class LuaLinesEnumerator
 
 	#endregion
@@ -69,8 +70,10 @@ namespace Neo.IronLua
 	/// <summary>Lua compatible file access.</summary>
 	public class LuaFile : IDisposable
 	{
-		private StreamReader tr;
-		private StreamWriter tw;
+		private readonly object syncLock = new object();
+		private readonly StreamReader tr;
+		private readonly StreamWriter tw;
+		private bool isClosed = false;
 
 		#region -- Ctor/Dtor --------------------------------------------------------------
 
@@ -106,8 +109,9 @@ namespace Neo.IronLua
 			flush();
 			lock (this)
 			{
-				if (tr != null) { tr.Dispose(); tr = null; }
-				if (tw != null) { tw.Dispose(); tw = null; }
+				isClosed = true;
+				tr?.Dispose();
+				tw?.Dispose();
 			}
 		} // proc Dispose
 
@@ -115,19 +119,18 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public virtual LuaResult close()
 		{
-			Dispose();
+			if (!isClosed)
+				Dispose();
 			return LuaResult.Empty;
 		} // func close
 
 		/// <summary></summary>
 		public virtual void flush()
 		{
-			lock (this)
+			lock (syncLock)
 			{
-				if (tw != null)
-					tw.Flush();
-				if (tr != null)
-					tr.DiscardBufferedData();
+				tw?.Flush();
+				tr?.DiscardBufferedData();
 			}
 		} // proc flush
 
@@ -137,19 +140,19 @@ namespace Neo.IronLua
 
 		private string ReadNumber()
 		{
-			int iState = 0;
+			var state = 0;
 			StringBuilder sb = new StringBuilder();
 			while (true)
 			{
-				int iChar = tr.Read();
-				char c = iChar == -1 ? '\0' : (char)iChar;
-				switch (iState)
+				var charIndex = tr.Read();
+				var c = charIndex == -1 ? '\0' : (char)charIndex;
+				switch (state)
 				{
 					case 0:
 						if (c == '\0')
 							return sb.ToString();
 						else if (c == '+' || c == '-' || Char.IsNumber(c))
-							iState = 60;
+							state = 60;
 						else
 							return sb.ToString();
 						break;
@@ -157,40 +160,40 @@ namespace Neo.IronLua
 					case 60:
 						if (c == 'x' || c == 'X')
 						{
-							iState = 70;
+							state = 70;
 						}
 						else
 							goto case 61;
 						break;
 					case 61:
 						if (c == '.')
-							iState = 62;
+							state = 62;
 						else if (c == 'e' || c == 'E')
-							iState = 63;
+							state = 63;
 						else if (c >= '0' && c <= '9')
-							iState = 61;
+							state = 61;
 						else
 							return sb.ToString();
 						break;
 					case 62:
 						if (c == 'e' || c == 'E')
-							iState = 63;
+							state = 63;
 						else if (c >= '0' && c <= '9')
-							iState = 62;
+							state = 62;
 						else
 							return sb.ToString();
 						break;
 					case 63:
 						if (c == '-' || c == '+')
-							iState = 64;
+							state = 64;
 						else if (c >= '0' && c <= '9')
-							iState = 64;
+							state = 64;
 						else
 							return sb.ToString();
 						break;
 					case 64:
 						if (c >= '0' && c <= '9')
-							iState = 64;
+							state = 64;
 						else
 							return sb.ToString();
 						break;
@@ -198,37 +201,37 @@ namespace Neo.IronLua
 					#region -- 70 HexNumber -----------------------------------------------------
 					case 70:
 						if (c == '.')
-							iState = 71;
+							state = 71;
 						else if (c == 'p' || c == 'P')
-							iState = 72;
+							state = 72;
 						else if (c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F')
-							iState = 70;
+							state = 70;
 						else
 							return sb.ToString();
 						break;
 					case 71:
 						if (c == 'p' || c == 'P')
-							iState = 72;
+							state = 72;
 						else if (c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F')
-							iState = 71;
+							state = 71;
 						else
 							return sb.ToString();
 						break;
 					case 72:
 						if (c == '-' || c == '+')
-							iState = 73;
+							state = 73;
 						else if (c >= '0' && c <= '9')
-							iState = 73;
+							state = 73;
 						else
 							return sb.ToString();
 						break;
 					case 73:
 						if (c >= '0' && c <= '9')
-							iState = 73;
+							state = 73;
 						else
 							return sb.ToString();
 						break;
-					#endregion
+						#endregion
 				}
 				sb.Append(c);
 			}
@@ -238,8 +241,8 @@ namespace Neo.IronLua
 		{
 			if (v == null)
 				return false;
-			LuaEmitTypeCode tc = LuaEmit.GetTypeCode(v.GetType());
 
+			var tc = LuaEmit.GetTypeCode(v.GetType());
 			return tc >= LuaEmitTypeCode.SByte && tc <= LuaEmitTypeCode.UInt32;
 		} // func IsFileIndex
 
@@ -251,35 +254,35 @@ namespace Neo.IronLua
 					return null;
 				else
 				{
-					int iCharCount = Convert.ToInt32(fmt);
-					if (iCharCount == 0)
+					var charCount = Convert.ToInt32(fmt);
+					if (charCount == 0)
 						return String.Empty;
 					else
 					{
-						char[] b = new char[iCharCount];
-						int iReaded = tr.Read(b, 0, iCharCount);
-						return new string(b, 0, iReaded);
+						var b = new char[charCount];
+						var readed = tr.Read(b, 0, charCount);
+						return new string(b, 0, readed);
 					}
 				}
 			}
 			else if (fmt is string)
 			{
-				string sFmt = (string)fmt;
-				if (sFmt.Length > 0 && sFmt[0] == '*')
-					sFmt = sFmt.Substring(1);
+				var fmtString = (string)fmt;
+				if (fmtString.Length > 0 && fmtString[0] == '*')
+					fmtString = fmtString.Substring(1);
 
-				if (sFmt == "n")
+				if (fmtString == "n")
 				{
 					return Lua.RtParseNumber(ReadNumber(), true, false);
 				}
-				else if (sFmt == "a")
+				else if (fmtString == "a")
 				{
 					if (tr.EndOfStream)
 						return String.Empty;
 					else
 						return tr.ReadToEnd();
 				}
-				else if (sFmt == "l" || sFmt == "L")
+				else if (fmtString == "l" || fmtString == "L")
 					return tr.ReadLine();
 				else
 					return null;
@@ -292,9 +295,7 @@ namespace Neo.IronLua
 		/// <param name="args"></param>
 		/// <returns></returns>
 		public LuaResult lines(object[] args)
-		{
-			return Lua.GetEnumIteratorResult(new LuaLinesEnumerator(this, false, args, 0));
-		} // func lines
+			=> Lua.GetEnumIteratorResult(new LuaLinesEnumerator(this, false, args, 0));
 
 		/// <summary></summary>
 		/// <param name="args"></param>
@@ -304,17 +305,17 @@ namespace Neo.IronLua
 			if (tr == null)
 				return new LuaResult(null, Properties.Resources.rsFileNotReadable);
 
-			lock (this)
+			lock (syncLock)
+			{
 				try
 				{
-					if (tw != null)
-						tw.Flush();
+					tw?.Flush();
 
 					if (args == null || args.Length == 0)
 						return new LuaResult(tr.ReadLine());
 					else
 					{
-						object[] r = new object[args.Length];
+						var r = new object[args.Length];
 
 						for (int i = 0; i < args.Length; i++)
 							r[i] = ReadFormat(args[i]);
@@ -326,6 +327,7 @@ namespace Neo.IronLua
 				{
 					return new LuaResult(null, e.Message);
 				}
+			}
 		} // func read
 
 		#endregion
@@ -340,7 +342,8 @@ namespace Neo.IronLua
 			if (tw == null)
 				return new LuaResult(null, Properties.Resources.rsFileNotWriteable);
 
-			lock (this)
+			lock (syncLock)
+			{
 				try
 				{
 					if (args != null || args.Length > 0)
@@ -352,8 +355,7 @@ namespace Neo.IronLua
 								tw.Write((string)Lua.RtConvertValue(v, typeof(string)));
 						}
 
-						if (tr != null)
-							tr.DiscardBufferedData();
+						tr?.DiscardBufferedData();
 					}
 					return new LuaResult(this);
 				}
@@ -361,6 +363,7 @@ namespace Neo.IronLua
 				{
 					return new LuaResult(null, e.Message);
 				}
+			}
 		} // func write
 
 		/// <summary></summary>
@@ -368,9 +371,7 @@ namespace Neo.IronLua
 		/// <param name="offset"></param>
 		/// <returns></returns>
 		public virtual LuaResult seek(string whence, long offset = 0)
-		{
-			return new LuaResult(null, Properties.Resources.rsFileNotSeekable);
-		} // func seek
+			=> new LuaResult(null, Properties.Resources.rsFileNotSeekable);
 
 		#endregion
 
@@ -382,14 +383,14 @@ namespace Neo.IronLua
 		} // proc setvbuf
 
 		/// <summary>Is the file closed.</summary>
-		public bool IsClosed { get { return tw == null && tr == null; } }
+		public bool IsClosed => isClosed;
 
 		/// <summary>Access to the internal TextReader.</summary>
-		public StreamReader TextReader { get { return tr; } }
+		public StreamReader TextReader => tr;
 		/// <summary>Access to the internal TextWriter.</summary>
-		public StreamWriter TextWriter { get { return tw; } }
+		public StreamWriter TextWriter => tw;
 		/// <summary>Length of the file.</summary>
-		public virtual long Length { get { return -1; } }
+		public virtual long Length => -1;
 	} // class LuaFile
 
 	#endregion
