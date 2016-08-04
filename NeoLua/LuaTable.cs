@@ -421,18 +421,18 @@ namespace Neo.IronLua
 				);
 			} // func GetMemberValueAccess
 
-			private Expression GetDirectMemberAccess(int iEntryIndex, LuaTablePropertyDefine pd, bool lGenerateRestriction, ref BindingRestrictions restrictions)
+			private Expression GetDirectMemberAccess(int iEntryIndex, LuaTablePropertyDefine pd, bool generateRestriction, ref BindingRestrictions restrictions)
 			{
 				// static property
-				bool lStatic = pd.PropertyInfo.GetMethod.IsStatic;
+				var isStatic = pd.PropertyInfo.GetMethod.IsStatic;
 
 				// generate restriction
-				if (lGenerateRestriction)
+				if (generateRestriction)
 					restrictions = restrictions.Merge(BindingRestrictions.GetExpressionRestriction(Expression.TypeIs(Expression, pd.PropertyInfo.DeclaringType)));
 
 				// access the property (t.value)
 				return Expression.Property(
-					lStatic ? null : Lua.EnsureType(Expression, pd.PropertyInfo.DeclaringType),
+					isStatic ? null : Lua.EnsureType(Expression, pd.PropertyInfo.DeclaringType),
 					pd.PropertyInfo
 				);
 			} // func GetDirectMemberAccess
@@ -509,7 +509,7 @@ namespace Neo.IronLua
 				if (iEntryIndex >= 0 && iEntryIndex < t.classDefinition.Count) // is the key a class member
 				{
 					Expression expr = null;
-					BindingRestrictions restrictions = BindingRestrictions.Empty;
+					var restrictions = BindingRestrictions.Empty;
 					var define = t.classDefinition[iEntryIndex];
 
 					switch (define.mode)
@@ -531,7 +531,7 @@ namespace Neo.IronLua
 					}
 					return new DynamicMetaObject(expr, restrictions);
 				}
-				else // do the call to a nromal member
+				else // do the call to a normal member
 				{
 					Expression expr = Expression.Call(
 						Lua.EnsureType(Expression, typeof(LuaTable)),
@@ -1125,8 +1125,8 @@ namespace Neo.IronLua
 			{
 				this.pi = pi;
 
-				MethodInfo miGet = pi.GetMethod;
-				MethodInfo miSet = pi.SetMethod;
+				var miGet = pi.GetMethod;
+				var miSet = pi.SetMethod;
 
 				if (miGet == null) // invalid property
 					throw new InvalidOperationException("No get property.");
@@ -1157,9 +1157,7 @@ namespace Neo.IronLua
 			} // ctor
 
 			public override string ToString()
-			{
-				return String.Format("Property: {0}", pi);
-			} // func ToString
+				=> $"Property: {pi}";
 
 			protected override void CollectMember(List<LuaCollectedMember> collected, LuaMemberAttribute info)
 			{
@@ -1183,29 +1181,21 @@ namespace Neo.IronLua
 			} // func GetInitialValue
 
 			private object GetPropertyStaticValue(LuaTable t)
-			{
-				return pi.GetValue(null, null);
-			} // func GetProperty
+				=> pi.GetValue(null, null);
 
 			private object GetPropertyInstanceValue(LuaTable t)
-			{
-				return pi.GetValue(t, null);
-			} // func GetPropertyStaticValue
+				=> pi.GetValue(t, null);
 
 			private void SetPropertyStaticValue(LuaTable t, object value)
-			{
-				pi.SetValue(null, value, null);
-			} // func SetPropertyStaticValue
+				=> pi.SetValue(null, value, null);
 
 			private void SetPropertyInstanceValue(LuaTable t, object value)
-			{
-				pi.SetValue(t, value, null);
-			} // func SetPropertyInstanceValue
+				=> pi.SetValue(t, value, null);
 
 			#endregion
 
-			public PropertyInfo PropertyInfo { get { return pi; } }
-			public override Type DeclaredType { get { return pi.DeclaringType; } }
+			public PropertyInfo PropertyInfo => pi;
+			public override Type DeclaredType => pi.DeclaringType;
 		} // class LuaTablePropertyDefine
 
 		#endregion

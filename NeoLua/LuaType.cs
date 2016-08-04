@@ -1533,7 +1533,7 @@ namespace Neo.IronLua
 			{
 				expr = Lua.EnsureType(
 					LuaEmit.InvokeMethod<DynamicMetaObject>(runtime, mi,
-						methodValue.Instance == null ? null : new DynamicMetaObject(GetInstance(methodExpression, methodValue, methodValue.Type), BindingRestrictions.Empty, methodValue.Instance),
+						methodValue.Instance == null ? null : new DynamicMetaObject(GetInstance(methodExpression, methodValue, methodValue.Type), BindingRestrictions.Empty),
 						callInfo,
 						args,
 						mo => mo.Expression,
