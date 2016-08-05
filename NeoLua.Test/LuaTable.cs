@@ -636,6 +636,40 @@ namespace LuaDLR.Test
 
 		#endregion
 
+		#region -- Get Member Test --------------------------------------------------------
+
+		public class LuaTableFirst : LuaTable
+		{
+			[LuaMember("Foo")]
+			private void LuaFoo()
+			{
+				Console.WriteLine("{0}:Foo() called", GetType().Name);
+			}
+		}
+
+		public class LuaTableSecond : LuaTableFirst
+		{
+		}
+
+		[TestMethod]
+		public void TestGetMemberBind()
+		{
+			var a = new LuaTableFirst();
+			var b = new LuaTableSecond();
+
+			using (var l = new Lua())
+			{
+				var g = l.CreateEnvironment();
+				g["a"] = a;
+				g["b"] = b;
+
+				g.DoChunk("b.Foo(); a.Foo()", "test.lua");
+			}
+		}
+
+		#endregion
+
+
 		[TestMethod]
     public void EnvDynamicCall01()
     {
