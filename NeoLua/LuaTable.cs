@@ -2643,17 +2643,17 @@ namespace Neo.IronLua
 
 		/// <summary>Returns the value of the table.</summary>
 		/// <typeparam name="T">Excpected type for the value</typeparam>
-		/// <param name="sName">Name of the member.</param>
+		/// <param name="name">Name of the member.</param>
 		/// <param name="default">Replace value, if the member not exists or can not converted.</param>
-		/// <param name="lIgnoreCase"></param>
-		/// <param name="lRawGet"></param>
+		/// <param name="ignoreCase"></param>
+		/// <param name="rawGet"></param>
 		/// <returns>Value or default.</returns>
-		public T GetOptionalValue<T>(string sName, T @default, bool lIgnoreCase = false, bool lRawGet = false)
+		public T GetOptionalValue<T>(string name, T @default, bool ignoreCase = false, bool rawGet = false)
 		{
 			try
 			{
-				object o = GetMemberValue(sName, lIgnoreCase, lRawGet);
-				return (T)Lua.RtConvertValue(o, typeof(T));
+				object o = GetMemberValue(name, ignoreCase, rawGet);
+				return o != null ? (T)Lua.RtConvertValue(o, typeof(T)) : @default;
 			}
 			catch
 			{
