@@ -160,8 +160,8 @@ namespace Neo.IronLua
 								else
 									throw new ArgumentOutOfRangeException();
 								break;
-
-							default:
+						
+						    default:
 								sb.Append('\\');
 								sb.Append(c);
 								break;
@@ -184,7 +184,9 @@ namespace Neo.IronLua
 					sb.Append(c);
 				}
 				else if (c == '-')
-					sb.Append("+?");
+				{
+					sb.Append("*?");
+				}
 				else if (c == '[')
 				{
 					sb.Append('[');
