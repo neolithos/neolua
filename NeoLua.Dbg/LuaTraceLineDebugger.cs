@@ -9,45 +9,36 @@ using Microsoft.Scripting.Debugging.CompilerServices;
 
 namespace Neo.IronLua
 {
-  #region -- class LuaTraceLineEventArgs ----------------------------------------------
+	#region -- class LuaTraceLineEventArgs ----------------------------------------------
 
 	///////////////////////////////////////////////////////////////////////////////
 	/// <summary></summary>
-  public class LuaTraceLineEventArgs : EventArgs
-  {
-    private string sName;
-    private string sSourceFile;
-    private int iLine;
-		private Func<IDictionary<object, object>> scopeCallback;
-    
-    private IDictionary<object, object> locals;
+	public class LuaTraceLineEventArgs : EventArgs
+	{
+		private readonly string name;
+		private readonly string sourceFile;
+		private readonly int line;
 
-		internal LuaTraceLineEventArgs(string sName, string sSourceFile, int iLine, Func<IDictionary<object, object>> scopeCallback)
-    {
-      this.sName = sName;
-      this.sSourceFile = sSourceFile;
-      this.iLine = iLine;
-      this.scopeCallback = scopeCallback;
-    } // ctor
+		private readonly Lazy<IDictionary<object, object>> locals;
 
-		/// <summary></summary>
-		public string ScopeName { get { return sName; } }
-		/// <summary></summary>
-		public string SourceName { get { return sSourceFile; } }
-		/// <summary></summary>
-		public int SourceLine { get { return iLine; } }
+		internal LuaTraceLineEventArgs(string name, string sourceFile, int line, Func<IDictionary<object, object>> scopeCallback)
+		{
+			this.name = name;
+			this.sourceFile = sourceFile;
+			this.line = line;
+			this.locals = new Lazy<IDictionary<object, object>>(scopeCallback);
+		} // ctor
 
 		/// <summary></summary>
-		public IDictionary<object, object> Locals
-    {
-      get
-      {
-        if (locals == null)
-          locals = scopeCallback();
-        return locals;
-      }
-    } // prop Locals
-  } // class LuaTraceLineEventArgs
+		public string ScopeName => name;
+		/// <summary></summary>
+		public string SourceName => sourceFile;
+		/// <summary></summary>
+		public int SourceLine => line;
+
+		/// <summary></summary>
+		public IDictionary<object, object> Locals => locals.Value;
+	} // class LuaTraceLineEventArgs
 
   #endregion
 
@@ -59,14 +50,14 @@ namespace Neo.IronLua
   {
     private Exception exception;
 
-		internal LuaTraceLineExceptionEventArgs(string sName, string sSourceFile, int iLine, Func<IDictionary<object, object>> scopeCallback, Exception exception)
-			: base(sName, sSourceFile, iLine, scopeCallback)
+		internal LuaTraceLineExceptionEventArgs(string name, string sourceFile, int line, Func<IDictionary<object, object>> scopeCallback, Exception exception)
+			: base(name, sourceFile, line, scopeCallback)
 		{
 			this.exception = exception;
 		} // ctor
 
 		/// <summary></summary>
-    public Exception Exception { get { return exception; } }
+		public Exception Exception => exception;
   } // class LuaTraceLineExceptionEventArgs
 
   #endregion
@@ -125,14 +116,12 @@ namespace Neo.IronLua
         this.debugLambdaInfo = new DebugLambdaInfo(this, null, false, null, null, null);
       } // ctor
 
-      protected override Expression VisitBlock(BlockExpression node)
-      {
-        return base.VisitBlock(Expression.Block(node.Type, node.Variables, ReduceDebugExpressions(node.Expressions)));
-      } // func VisitBlock
+			protected override Expression VisitBlock(BlockExpression node)
+				=> base.VisitBlock(Expression.Block(node.Type, node.Variables, ReduceDebugExpressions(node.Expressions)));
 
       protected override Expression VisitLambda<T>(Expression<T> node)
       {
-        Expression expr = base.VisitLambda(node);
+        var expr = base.VisitLambda(node);
 
         if (node.Parameters.Count > 0 && node.Parameters[0].Name == "$frame")
           return expr;
@@ -140,56 +129,56 @@ namespace Neo.IronLua
           return context.TransformLambda((Expression<T>)expr, debugLambdaInfo);
       } // func VisitLambda
 
-      public bool DoesExpressionNeedReduction(Expression expression)
-      {
-        return true;
-      } // func DoesExpressionNeedReduction
+			public bool DoesExpressionNeedReduction(Expression expression)
+				=> true;
 
-      public bool IsCallToDebuggableLambda(Expression expression)
-      {
-        return true;
-      } // func IsCallToDebuggableLambda
+			public bool IsCallToDebuggableLambda(Expression expression)
+				=> true;
 
       public Expression QueueExpressionForReduction(Expression expression)
-      {
-        return expression;
-      } // func QueueExpressionForReduction
-
+        => expression;
+      
       private static IEnumerable<Expression> ReduceDebugExpressions(ReadOnlyCollection<Expression> expressions)
       {
-        Expression[] newBlock = new Expression[expressions.Count];
-        int iCurrent = 0;
+        var newBlock = new Expression[expressions.Count];
+        var current = 0;
         foreach (Expression expr in expressions)
         {
-          DebugInfoExpression exprDebugInfo = expr as DebugInfoExpression;
-          if (iCurrent > 0 && exprDebugInfo != null)
+          var exprDebugInfo = expr as DebugInfoExpression;
+          if (current > 0 && exprDebugInfo != null)
           {
             if (exprDebugInfo.StartLine != 16707566)
             {
-              if (newBlock[iCurrent - 1] is DebugInfoExpression)
-                newBlock[iCurrent - 1] = expr;
+              if (newBlock[current - 1] is DebugInfoExpression)
+                newBlock[current - 1] = expr;
               else
-                newBlock[iCurrent++] = expr;
+                newBlock[current++] = expr;
             }
           }
           else
-            newBlock[iCurrent++] = expr;
+            newBlock[current++] = expr;
         }
-        if (newBlock[iCurrent - 1] is DebugInfoExpression)
-          iCurrent--;
+        if (newBlock[current - 1] is DebugInfoExpression)
+          current--;
 
-        return newBlock.Take(iCurrent);
+        return newBlock.Take(current);
       } // func ReduceDebugExpressions
     } // class TransformAllLambda
 
-    #endregion
+		#endregion
 
-    #region -- class LuaTraceChunk ----------------------------------------------------
+		#region -- class LuaTraceChunk ----------------------------------------------------
 
-    private class LuaTraceChunk : LuaChunk
+		///////////////////////////////////////////////////////////////////////////////
+		/// <summary>Chunk definition.</summary>
+		protected class LuaTraceChunk : LuaChunk
     {
-      public LuaTraceChunk(Lua lua, string sName, Delegate chunk)
-        : base(lua, sName, chunk)
+			/// <summary></summary>
+			/// <param name="lua"></param>
+			/// <param name="name"></param>
+			/// <param name="chunk"></param>
+      public LuaTraceChunk(Lua lua, string name, Delegate chunk)
+        : base(lua, name, chunk)
       {
       } // ctor
     } // class LuaTraceChunk
@@ -209,14 +198,21 @@ namespace Neo.IronLua
       pipeline.TraceCallback = callback;
     } // ctor
 
-    #region -- ILuaDebug members ------------------------------------------------------
+		#region -- ILuaDebug members ------------------------------------------------------
 
-    LuaChunk ILuaDebug.CreateChunk(Lua lua, LambdaExpression expr)
+		/// <summary></summary>
+		/// <param name="lua"></param>
+		/// <param name="expr"></param>
+		/// <returns></returns>
+		protected virtual LuaTraceChunk CreateChunk(Lua lua, LambdaExpression expr)
+			=> new LuaTraceChunk(lua, expr.Name, expr.Compile());
+
+		LuaChunk ILuaDebug.CreateChunk(Lua lua, LambdaExpression expr)
     {
       var transform = new TransformAllLambda(context);
       expr = (LambdaExpression)transform.Visit(expr);
 
-      return new LuaTraceChunk(lua, expr.Name, expr.Compile());
+      return CreateChunk(lua, expr);
     } // func CreateCunk
 
     LuaDebugLevel ILuaDebug.Level { get { return LuaDebugLevel.Line; } }
