@@ -731,7 +731,7 @@ namespace Neo.IronLua
 				table.ArrayOnlyCopyTo(array, arrayIndex);
 			} // proc CopyTo
 
-			public int Count { get { return table.iArrayLength; } }
+			public int Count { get { return table.arrayLength; } }
 			public bool IsReadOnly { get { return true; } }
 			public bool IsSynchronized { get { return false; } }
 			public bool IsFixedSize { get { return false; } }
@@ -1565,7 +1565,7 @@ namespace Neo.IronLua
 
 		private int iFreeTop = -1;																// Start of the free lists
 
-		private int iArrayLength = 0;															// Current length of the array list
+		private int arrayLength = 0;															// Current length of the array list
 		private int iMemberCount = 0;															// Current length of the member list 
 
 		private int iCount = 0;																		// Number of element in the Key/Value part
@@ -1591,8 +1591,8 @@ namespace Neo.IronLua
 			Array.Copy(values, 0, arrayList, 0, values.Length);
 
 			// count the elements
-			while (arrayList[iArrayLength] != null)
-				iArrayLength++;
+			while (arrayList[arrayLength] != null)
+				arrayLength++;
 		} // ctor
 
 		/// <summary></summary>
@@ -1861,7 +1861,7 @@ namespace Neo.IronLua
 		public void Clear()
 		{
 			iCount = 0;
-			iArrayLength = 0;
+			arrayLength = 0;
 			iMemberCount = 0;
 			iFreeTop = -1;
 			iVersion = 0;
@@ -2108,8 +2108,8 @@ namespace Neo.IronLua
 					if (oldValue != null)
 					{
 						arrayList[iArrayIndex] = null;
-						if (iArrayIndex < iArrayLength)
-							iArrayLength = iArrayIndex; // iArrayLength = iIndex - 1
+						if (iArrayIndex < arrayLength)
+							arrayLength = iArrayIndex; // iArrayLength = iIndex - 1
 
 						iCount--;
 						iVersion++;
@@ -2126,40 +2126,40 @@ namespace Neo.IronLua
 					iVersion++;
 
 					// correct the array length
-					if (iArrayLength == iArrayIndex) // iArrayLength == iIndex - 1
+					if (arrayLength == iArrayIndex) // iArrayLength == iIndex - 1
 					{
 						// search for the end of the array
-						iArrayLength = iIndex;
-						while (iArrayLength + 1 <= arrayList.Length && arrayList[iArrayLength] != null)
-							iArrayLength++;
+						arrayLength = iIndex;
+						while (arrayLength + 1 <= arrayList.Length && arrayList[arrayLength] != null)
+							arrayLength++;
 
 						// are the more values behind the array
-						if (iArrayLength == arrayList.Length)
+						if (arrayLength == arrayList.Length)
 						{
 							List<object> collected = new List<object>();
 
 							// collect values
 							int iEntryIndex;
-							while ((iEntryIndex = FindKey(iArrayLength + 1)) >= 0)
+							while ((iEntryIndex = FindKey(arrayLength + 1)) >= 0)
 							{
 								collected.Add(entries[iEntryIndex].value);
 								RemoveValue(iEntryIndex);
 								iCount++;
 
-								iArrayLength++;
+								arrayLength++;
 							}
 
 							// append the values to the array
 							if (collected.Count > 0)
 							{
 								// enlarge array part, with the new values
-								object[] newArray = new object[NextArraySize(arrayList.Length, iArrayLength)];
+								object[] newArray = new object[NextArraySize(arrayList.Length, arrayLength)];
 								// copy the old array
 								Array.Copy(arrayList, 0, newArray, 0, arrayList.Length);
 								// copy the new array content
 								collected.CopyTo(newArray, arrayList.Length);
 								// collect values for buffer
-								SetIndexCopyValuesToArray(newArray, iArrayLength);
+								SetIndexCopyValuesToArray(newArray, arrayLength);
 
 								arrayList = newArray;
 							}
@@ -2167,7 +2167,7 @@ namespace Neo.IronLua
 					}
 				}
 			}
-			else if (iArrayIndex == iArrayLength && value != null) // enlarge array part
+			else if (iArrayIndex == arrayLength && value != null) // enlarge array part
 			{
 				if (value != null && (lRawSet || !OnNewIndex(iIndex, value)))
 				{
@@ -2216,7 +2216,7 @@ namespace Neo.IronLua
 			int iArrayIndex = iIndex - 1;
 			if (unchecked((uint)iArrayIndex < arrayList.Length)) // part of array
 			{
-				if (lRawGet || iArrayIndex < iArrayLength)
+				if (lRawGet || iArrayIndex < arrayLength)
 					return arrayList[iArrayIndex];
 				else
 					return arrayList[iArrayIndex] ?? OnIndex(iIndex);
@@ -2294,13 +2294,13 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		private int ArrayOnlyIndexOf(object value)
 		{
-			return Array.IndexOf(arrayList, value, 0, iArrayLength);
+			return Array.IndexOf(arrayList, value, 0, arrayLength);
 		} // func ArrayOnlyIndexOf
 
 		private int ArrayOnlyAdd(object value)
 		{
-			int iTmp = iArrayLength;
-			SetArrayValue(iArrayLength + 1, value, true);
+			int iTmp = arrayLength;
+			SetArrayValue(arrayLength + 1, value, true);
 			return iTmp;
 		} // func ArrayOnlyAdd
 
@@ -2309,35 +2309,35 @@ namespace Neo.IronLua
 		/// <param name="value"></param>
 		private void ArrayOnlyInsert(int iIndex, object value)
 		{
-			if (iIndex < 0 || iIndex > iArrayLength)
+			if (iIndex < 0 || iIndex > arrayLength)
 				throw new ArgumentOutOfRangeException();
 
 			object last;
-			if (iIndex == iArrayLength)
+			if (iIndex == arrayLength)
 				last = value;
 			else
 			{
-				last = arrayList[iArrayLength - 1];
-				if (iIndex != iArrayLength - 1)
-					Array.Copy(arrayList, iIndex, arrayList, iIndex + 1, iArrayLength - iIndex - 1);
+				last = arrayList[arrayLength - 1];
+				if (iIndex != arrayLength - 1)
+					Array.Copy(arrayList, iIndex, arrayList, iIndex + 1, arrayLength - iIndex - 1);
 				arrayList[iIndex] = value;
 			}
 
-			SetArrayValue(iArrayLength + 1, last, true);
+			SetArrayValue(arrayLength + 1, last, true);
 		} // proc ArrayOnlyInsert 
 
 		private void ArrayOnlyCopyTo(Array array, int arrayIndex)
 		{
-			if (arrayIndex + iArrayLength > array.Length)
+			if (arrayIndex + arrayLength > array.Length)
 				throw new ArgumentOutOfRangeException();
 
-			Array.Copy(arrayList, 0, array, arrayIndex, iArrayLength);
+			Array.Copy(arrayList, 0, array, arrayIndex, arrayLength);
 		} // proc ArrayOnlyCopyTo
 
 		private void ArrayOnlyClear()
 		{
-			Array.Clear(arrayList, 0, iArrayLength);
-			iArrayLength = 0;
+			Array.Clear(arrayList, 0, arrayLength);
+			arrayLength = 0;
 			iVersion++;
 		} // ArrayOnlyClear
 
@@ -2345,11 +2345,11 @@ namespace Neo.IronLua
 		/// <param name="iIndex"></param>
 		private void ArrayOnlyRemoveAt(int iIndex)
 		{
-			if (iIndex < 0 || iIndex >= iArrayLength)
+			if (iIndex < 0 || iIndex >= arrayLength)
 				throw new ArgumentOutOfRangeException();
 
-			Array.Copy(arrayList, iIndex + 1, arrayList, iIndex, iArrayLength - iIndex - 1);
-			arrayList[--iArrayLength] = null;
+			Array.Copy(arrayList, iIndex + 1, arrayList, iIndex, arrayLength - iIndex - 1);
+			arrayList[--arrayLength] = null;
 
 			iVersion++;
 		} // func ArrayOnlyRemoveAt
@@ -2369,7 +2369,7 @@ namespace Neo.IronLua
 		private IEnumerator<object> ArrayOnlyGetEnumerator()
 		{
 			int iVersion = this.iVersion;
-			for (int i = 0; i < iArrayLength; i++)
+			for (int i = 0; i < arrayLength; i++)
 			{
 				if (iVersion != this.iVersion)
 					throw new InvalidOperationException();
@@ -2380,14 +2380,14 @@ namespace Neo.IronLua
 
 		private object ArrayOnlyGetIndex(int iIndex)
 		{
-			if (iIndex >= 0 && iIndex >= iArrayLength)
+			if (iIndex >= 0 && iIndex >= arrayLength)
 				throw new ArgumentOutOfRangeException();
 			return arrayList[iIndex];
 		} // func ArrayOnlyGetIndex
 
 		private void ArrayOnlySetIndex(int iIndex, object value)
 		{
-			if (iIndex >= 0 && iIndex >= iArrayLength)
+			if (iIndex >= 0 && iIndex >= arrayLength)
 				throw new ArgumentOutOfRangeException();
 			arrayList[iIndex] = value;
 		} // proc ArrayOnlySetIndex
@@ -3450,48 +3450,48 @@ namespace Neo.IronLua
 			set { SetValue(key, value, true); }
 		} // prop IDictionary<object, object>.this
 
-		internal object NextKey(object next)
+		/// <summary>Implementation of the lua next.</summary>
+		/// <param name="next"></param>
+		/// <returns></returns>
+		public object NextKey(object next)
 		{
 			if (next == null)
 			{
-				if (iArrayLength == 0)
+				if (arrayLength == 0)
 					return NextHashKey(HiddenMemberCount);
 				else
 					return 1;
 			}
 			else if (next is int)
 			{
-				int iKey = (int)next;
-				if (iKey < iArrayLength)
-					return iKey + 1;
+				var key = (int)next;
+				if (key < arrayLength)
+					return key + 1;
 				else
 				{
-					iKey--;
-					while (iKey < arrayList.Length)
+					key--;
+					while (key < arrayList.Length)
 					{
-						if (arrayList[iKey] != null)
-							return iKey + 1;
-						iKey++;
+						if (arrayList[key] != null)
+							return key + 1;
+						key++;
 					}
 				}
 				return NextHashKey(HiddenMemberCount);
 			}
 			else
 			{
-				int iCurrentEntryIndex = Array.FindIndex(entries, c => comparerObject.Equals(c.key, next));
-				if (iCurrentEntryIndex == -1 || iCurrentEntryIndex == entries.Length - 1)
+				var currentEntryIndex = Array.FindIndex(entries, c => comparerObject.Equals(c.key, next));
+				if (currentEntryIndex == -1 || currentEntryIndex == entries.Length - 1)
 					return null;
-				return NextHashKey(iCurrentEntryIndex + 1);
+				return NextHashKey(currentEntryIndex + 1);
 			}
 		} // func NextKey
 
-		private object NextHashKey(int iStartIndex)
+		private object NextHashKey(int startIndex)
 		{
-			int iEntryIndex = Array.FindIndex(entries, iStartIndex, c => c.hashCode != -1);
-			if (iEntryIndex == -1)
-				return null;
-			else
-				return entries[iEntryIndex].key;
+			var entryIndex = Array.FindIndex(entries, startIndex, c => c.hashCode != -1);
+			return entryIndex == -1 ?  null : entries[entryIndex].key;
 		} // func FirstHashKey
 
 		#endregion
@@ -3632,7 +3632,7 @@ namespace Neo.IronLua
 		public IDictionary<object, object> Values { get { return this; } }
 
 		/// <summary>Length if it is an array.</summary>
-		public int Length { get { return iArrayLength; } }
+		public int Length { get { return arrayLength; } }
 		/// <summary>Access to the __metatable</summary>
 		[LuaMember(csMetaTable)]
 		public LuaTable MetaTable { get { return metaTable; } set { metaTable = value; } }
@@ -3663,7 +3663,7 @@ namespace Neo.IronLua
 			if (!i.HasValue)
 				i = 1;
 			if (!j.HasValue)
-				j = t.iArrayLength;
+				j = t.arrayLength;
 
 			var r = collect<string>(t, i.Value, j.Value, null);
 			return r == null ? String.Empty : String.Join(sep == null ? String.Empty : sep, r);
@@ -3690,7 +3690,7 @@ namespace Neo.IronLua
 		{
 			// insert the value at the position
 			int iIndex;
-			if (IsIndexKey(pos, out iIndex) && iIndex >= 1 && iIndex <= t.iArrayLength + 1)
+			if (IsIndexKey(pos, out iIndex) && iIndex >= 1 && iIndex <= t.arrayLength + 1)
 				t.ArrayOnlyInsert(iIndex - 1, value);
 			else
 				t.SetValue(pos, value, true);
@@ -3776,7 +3776,7 @@ namespace Neo.IronLua
 			int iIndex;
 			if (IsIndexKey(pos, out iIndex))
 			{
-				if (iIndex >= 1 && iIndex <= t.iArrayLength)  // remove the element and shift the follower
+				if (iIndex >= 1 && iIndex <= t.arrayLength)  // remove the element and shift the follower
 				{
 					r = t.arrayList[iIndex - 1];
 					t.ArrayOnlyRemoveAt(iIndex - 1);
@@ -3841,7 +3841,7 @@ namespace Neo.IronLua
 		/// <param name="sort"></param>
 		public static void sort(LuaTable t, object sort = null)
 		{
-			Array.Sort(t.arrayList, 0, t.iArrayLength, new SortComparer(t, sort));
+			Array.Sort(t.arrayList, 0, t.arrayLength, new SortComparer(t, sort));
 		} // proc sort
 
 		#endregion
@@ -3935,7 +3935,7 @@ namespace Neo.IronLua
 			if (j < i)
 				return empty;
 
-			if (i >= 1 && i <= t.iArrayLength && j >= 1 && j <= t.iArrayLength) // within the array
+			if (i >= 1 && i <= t.arrayLength && j >= 1 && j <= t.arrayLength) // within the array
 			{
 
 				var list = new T[j - i + 1];

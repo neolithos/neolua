@@ -59,9 +59,13 @@ NeoLua is a .net portable assembly (IL) for
 * Windows Phone 8.1
 * Windows Store Apps 8.1
 * Xamarin.Android
-* Xamarin.iOS.
 
 There will be no support for .net frameworks lower than 4.5. 
+
+It does not work with
+* Xamarin.iOS.
+and every .net runtime that does not support code generation.
+
 
 ### What NeoLua is useful for
 

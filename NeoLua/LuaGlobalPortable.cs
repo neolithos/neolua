@@ -23,15 +23,15 @@ namespace Neo.IronLua
 
 		private class LuaIndexPairEnumerator : System.Collections.IEnumerator
 		{
-			private LuaTable t;
-			private int[] indexes;
-			private int iCurrent = -1;
+			private readonly LuaTable t;
+			private readonly int[] indexes;
+			private int current = -1;
 
 			public LuaIndexPairEnumerator(LuaTable t)
 			{
 				this.t = t;
 
-				List<int> lst = new List<int>();
+				var lst = new List<int>();
 				foreach (var c in t)
 				{
 					if (c.Key is int)
@@ -45,9 +45,9 @@ namespace Neo.IronLua
 			{
 				get
 				{
-					if (iCurrent >= 0 && iCurrent < indexes.Length)
+					if (current >= 0 && current < indexes.Length)
 					{
-						int i = indexes[iCurrent];
+						int i = indexes[current];
 						return new KeyValuePair<object, object>(i, t[i]);
 					}
 					else
@@ -56,20 +56,17 @@ namespace Neo.IronLua
 			} // prop Current
 
 			public bool MoveNext()
-			{
-				iCurrent++;
-				return iCurrent < indexes.Length;
-			} // func MoveNext
+				=> ++current < indexes.Length;
 
 			public void Reset()
 			{
-				iCurrent = -1;
+				current = -1;
 			} // proc Reset
 		} // class LuaIndexPairEnumerator
 
 		#endregion
 
-		private Lua lua;
+		private readonly Lua lua;
 
 		#region -- Ctor/Dtor --------------------------------------------------------------
 
