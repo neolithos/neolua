@@ -858,8 +858,13 @@ namespace Neo.IronLua
 		private static Expression BinaryOperationConditionExpression(Lua lua, ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2)
 		{
 			Type typeOp;
+			bool isExact;
 			if (type1 == type2)
 				typeOp = type1;
+			else if (TypesMatch(type1, type2, out isExact) && isExact)
+				typeOp = type1;
+			else if (TypesMatch(type2, type1, out isExact) && isExact)
+				typeOp = type2;
 			else
 				typeOp = typeof(object);
 
