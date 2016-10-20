@@ -136,6 +136,7 @@ return t1 + t2;
 |              | `:(key, value) : object`            |
 | `__call`     | `(table, object, ...) : result`     |
 |              | `:(object, ...) : result`           |
+| `__changed` | `:(object):void`               |
 
 ## Garbage Collection
 

@@ -839,7 +839,7 @@ namespace Neo.IronLua
 				void ICollection<string>.Clear() { throw new NotSupportedException(); }
 
 				/// <summary></summary>
-				public int Count { get { return t.iMemberCount - HiddenMemberCount; } }
+				public int Count { get { return t.memberCount - HiddenMemberCount; } }
 				/// <summary>Always true</summary>
 				public bool IsReadOnly { get { return true; } }
 			} // class LuaTableStringKeyCollection
@@ -912,7 +912,7 @@ namespace Neo.IronLua
 				void ICollection<object>.Clear() { throw new NotSupportedException(); }
 
 				/// <summary></summary>
-				public int Count { get { return t.iMemberCount - HiddenMemberCount; } }
+				public int Count { get { return t.memberCount - HiddenMemberCount; } }
 				/// <summary>Always true</summary>
 				public bool IsReadOnly { get { return true; } }
 			} // class LuaTableStringValueCollection
@@ -1008,7 +1008,7 @@ namespace Neo.IronLua
 
 			public int Count
 			{
-				get { return table.iMemberCount - HiddenMemberCount; }
+				get { return table.memberCount - HiddenMemberCount; }
 			} // func Count
 
 			public bool IsReadOnly { get { return false; } }
@@ -1566,7 +1566,7 @@ namespace Neo.IronLua
 		private int iFreeTop = -1;																// Start of the free lists
 
 		private int arrayLength = 0;															// Current length of the array list
-		private int iMemberCount = 0;															// Current length of the member list 
+		private int memberCount = 0;															// Current length of the member list 
 
 		private int iCount = 0;																		// Number of element in the Key/Value part
 
@@ -1636,7 +1636,7 @@ namespace Neo.IronLua
 		private void InitDefinition(int iIndex, LuaTableDefine define)
 		{
 			// Reserve the entry for the member
-			iMemberCount++;
+			memberCount++;
 			int iEntryIndex = InsertValue(define.MemberName, GetMemberHashCode(define.MemberName), null, define.IsMemberCall);
 #if DEBUG
 			if (iEntryIndex != iIndex)
@@ -1862,7 +1862,7 @@ namespace Neo.IronLua
 		{
 			iCount = 0;
 			arrayLength = 0;
-			iMemberCount = 0;
+			memberCount = 0;
 			iFreeTop = -1;
 			iVersion = 0;
 
@@ -1880,109 +1880,113 @@ namespace Neo.IronLua
 		#region -- Get/SetMemberValue -----------------------------------------------------
 
 		/// <summary>Notify property changed</summary>
-		/// <param name="sPropertyName">Name of property</param>
-		protected virtual void OnPropertyChanged(string sPropertyName)
+		/// <param name="propertyName">Name of property</param>
+		protected virtual void OnPropertyChanged(string propertyName)
 		{
-			if (PropertyChanged != null)
-				PropertyChanged(this, new PropertyChangedEventArgs(sPropertyName));
+			if (!Object.ReferenceEquals(metaTable, null))
+			{
+				var o = metaTable["__changed"];
+				if (Lua.RtInvokeable(o))
+					RtInvokeSite(o, this, propertyName);
+			}
+
+			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 		} // proc OnPropertyChanged
 
 		private static int GetMemberHashCode(string sMemberName)
-		{
-			return compareStringIgnoreCase.GetHashCode(sMemberName) & 0x7FFFFFFF;
-		} // func GetMemberHashCode
+			=> compareStringIgnoreCase.GetHashCode(sMemberName) & 0x7FFFFFFF;
 
 		/// <summary>Set a value string key value</summary>
-		/// <param name="sMemberName">Key</param>
+		/// <param name="memberName">Key</param>
 		/// <param name="value">Value, <c>null</c> deletes the value.</param>
-		/// <param name="lIgnoreCase">Ignore case of the member name</param>
-		/// <param name="lRawSet">If the value not exists, should we call OnNewIndex.</param>
+		/// <param name="ignoreCase">Ignore case of the member name</param>
+		/// <param name="rawSet">If the value not exists, should we call OnNewIndex.</param>
 		/// <returns>value</returns>
-		public object SetMemberValue(string sMemberName, object value, bool lIgnoreCase = false, bool lRawSet = false)
+		public object SetMemberValue(string memberName, object value, bool ignoreCase = false, bool rawSet = false)
 		{
-			if (sMemberName == null)
+			if (memberName == null)
 				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
 
-			SetMemberValueIntern(sMemberName, value, lIgnoreCase, lRawSet, false, false);
+			SetMemberValueIntern(memberName, value, ignoreCase, rawSet, false, false);
 			return value;
 		} // func SetMemberValue
 
-		private int SetMemberValueIntern(string sMemberName, object value, bool lIgnoreCase, bool lRawSet, bool lAdd, bool lMarkAsMethod)
+		private int SetMemberValueIntern(string memberName, object value, bool ignoreCase, bool rawSet, bool add, bool markAsMethod)
 		{
 			// look up the key in the member list
-			int hashCode = GetMemberHashCode(sMemberName);
-			int iEntryIndex = FindKey(sMemberName, hashCode, lIgnoreCase ? compareStringIgnoreCase : compareString);
+			var hashCode = GetMemberHashCode(memberName);
+			var entryIndex = FindKey(memberName, hashCode, ignoreCase ? compareStringIgnoreCase : compareString);
 
 			if (value == null) // key will be removed
 			{
-				if (iEntryIndex >= 0)
+				if (entryIndex >= 0)
 				{
-					if (iEntryIndex < classDefinition.Count)
+					if (entryIndex < classDefinition.Count)
 					{
-						SetClassMemberValue(iEntryIndex, null, value, false);
+						SetClassMemberValue(entryIndex, null, value, false);
 					}
 					else
 					{
 						// remove the value
-						RemoveValue(iEntryIndex);
+						RemoveValue(entryIndex);
 						// remove the item
-						iMemberCount--;
+						memberCount--;
 					}
 					return RemovedIndex;
 				}
 				else
 					return IndexNotFound;
 			}
-			else if (iEntryIndex >= 0) // key will be setted
+			else if (entryIndex >= 0) // key will be setted
 			{
 				// only add is allowed
-				if (lAdd)
-					throw new ArgumentException(String.Format(Properties.Resources.rsTableAddDuplicate, sMemberName));
+				if (add)
+					throw new ArgumentException(String.Format(Properties.Resources.rsTableAddDuplicate, memberName));
 
-				if (iEntryIndex < classDefinition.Count && SetClassMemberValue(iEntryIndex, lRawSet ? null : entries[iEntryIndex].key, value, lMarkAsMethod) ||
-					entries[iEntryIndex].SetValue(value, lMarkAsMethod))
+				if (entryIndex < classDefinition.Count && SetClassMemberValue(entryIndex, rawSet ? null : entries[entryIndex].key, value, markAsMethod) ||
+					entries[entryIndex].SetValue(value, markAsMethod))
 				{
 					// notify that the property is changed
-					OnPropertyChanged(lIgnoreCase ? (string)entries[iEntryIndex].key : sMemberName);
+					OnPropertyChanged(ignoreCase ? (string)entries[entryIndex].key : memberName);
 				}
 
-				return iEntryIndex;
+				return entryIndex;
 			}
-			else if (lRawSet || !OnNewIndex(sMemberName, value)) // key will be added
+			else if (rawSet || !OnNewIndex(memberName, value)) // key will be added
 			{
 				// insert the value
-				iMemberCount++;
-				InsertValue(sMemberName, hashCode, value, lMarkAsMethod);
+				memberCount++;
+				InsertValue(memberName, hashCode, value, markAsMethod);
 
 				// notify that the property is changed
-				OnPropertyChanged(sMemberName);
+				OnPropertyChanged(memberName);
 
-				return iEntryIndex;
+				return entryIndex;
 			}
 			else
 				return IndexNotFound;
 		} // func SetMemberValueIntern
 
-		private void SetClassMemberValue(int iEntryIndex, object value)
+		private void SetClassMemberValue(int entryIndex, object value)
 		{
-			object key = entries[iEntryIndex].key;
-			if (SetClassMemberValue(iEntryIndex, key, value, false))
+			object key = entries[entryIndex].key;
+			if (SetClassMemberValue(entryIndex, key, value, false))
 				OnPropertyChanged((string)key);
 		} // proc SetClassMemberValue
 
-		private bool SetClassMemberValue(int iEntryIndex, object key, object value, bool lMarkAsMethod)
+		private bool SetClassMemberValue(int entryIndex, object key, object value, bool markAsMethod)
 		{
-			switch (classDefinition[iEntryIndex].mode)
+			switch (classDefinition[entryIndex].mode)
 			{
 				case LuaTableDefineMode.Default:
-					return entries[iEntryIndex].SetValue(value, lMarkAsMethod);
+					return entries[entryIndex].SetValue(value, markAsMethod);
 				case LuaTableDefineMode.Direct:
-					classDefinition[iEntryIndex].setValue(this, value); // direct properties have to handle OnPropertyChanged on her own
+					classDefinition[entryIndex].setValue(this, value); // direct properties have to handle OnPropertyChanged on her own
 					return false;
 				default:
-					if (key == null || entries[iEntryIndex].value != null || !OnNewIndex(key, value))
+					if (key == null || entries[entryIndex].value != null || !OnNewIndex(key, value))
 					{
-						entries[iEntryIndex].SetValue(value, lMarkAsMethod);
+						entries[entryIndex].SetValue(value, markAsMethod);
 						return true;
 					}
 					else
@@ -1991,27 +1995,27 @@ namespace Neo.IronLua
 		} // proc SetClassMemberValue
 
 		/// <summary>Returns the value of a key.</summary>
-		/// <param name="sMemberName">Key</param>
-		/// <param name="lIgnoreCase">Ignore case of the member name</param>
-		/// <param name="lRawGet">Is OnIndex called, if no member exists.</param>
+		/// <param name="memberName">Key</param>
+		/// <param name="ignoreCase">Ignore case of the member name</param>
+		/// <param name="rawGet">Is OnIndex called, if no member exists.</param>
 		/// <returns>The value or <c>null</c></returns>
-		public object GetMemberValue(string sMemberName, bool lIgnoreCase = false, bool lRawGet = false)
+		public object GetMemberValue(string memberName, bool ignoreCase = false, bool rawGet = false)
 		{
-			if (sMemberName == null)
+			if (memberName == null)
 				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
 
 			// find the member
-			int iEntryIndex = FindKey(sMemberName, GetMemberHashCode(sMemberName), lIgnoreCase ? compareStringIgnoreCase : comparerObject);
+			int iEntryIndex = FindKey(memberName, GetMemberHashCode(memberName), ignoreCase ? compareStringIgnoreCase : comparerObject);
 			if (iEntryIndex < 0)
 			{
-				if (lRawGet)
+				if (rawGet)
 					return null;
 				else
-					return OnIndex(sMemberName);
+					return OnIndex(memberName);
 			}
 			else if (iEntryIndex < classDefinition.Count)
 			{
-				return GetClassMemberValue(iEntryIndex, sMemberName, lRawGet);
+				return GetClassMemberValue(iEntryIndex, memberName, rawGet);
 			}
 			else
 				return entries[iEntryIndex].value;
@@ -2038,15 +2042,15 @@ namespace Neo.IronLua
 		} // func GetClassMemberValue
 
 		/// <summary>Checks if the Member exists.</summary>
-		/// <param name="sMemberName">Membername</param>
-		/// <param name="lIgnoreCase">Ignore case of the member name</param>
+		/// <param name="memberName">Membername</param>
+		/// <param name="ignoreCase">Ignore case of the member name</param>
 		/// <returns><c>true</c>, if the member is in the table.</returns>
-		public bool ContainsMember(string sMemberName, bool lIgnoreCase = false)
+		public bool ContainsMember(string memberName, bool ignoreCase = false)
 		{
-			if (sMemberName == null)
+			if (memberName == null)
 				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
 
-			return FindKey(sMemberName, GetMemberHashCode(sMemberName), lIgnoreCase ? compareStringIgnoreCase : compareString) >= 0;
+			return FindKey(memberName, GetMemberHashCode(memberName), ignoreCase ? compareStringIgnoreCase : compareString) >= 0;
 		} // func ContainsMember
 
 		#endregion
@@ -2250,7 +2254,7 @@ namespace Neo.IronLua
 
 		private void MembersCopyTo(KeyValuePair<string, object>[] array, int arrayIndex)
 		{
-			if (arrayIndex < 0 || arrayIndex + iMemberCount - HiddenMemberCount > array.Length)
+			if (arrayIndex < 0 || arrayIndex + memberCount - HiddenMemberCount > array.Length)
 				throw new ArgumentOutOfRangeException();
 
 			for (int i = HiddenMemberCount; i < entries.Length; i++)
@@ -2927,11 +2931,11 @@ namespace Neo.IronLua
 
 		#region -- Metatable --------------------------------------------------------------
 
-		private bool TryInvokeMetaTableOperator<TRETURN>(string sKey, bool lRaise, out TRETURN r, params object[] args)
+		private bool TryInvokeMetaTableOperator<TRETURN>(string key, bool raise, out TRETURN r, params object[] args)
 		{
 			if (metaTable != null)
 			{
-				object o = metaTable[sKey];
+				object o = metaTable[key];
 				if (o != null)
 				{
 					if (Lua.RtInvokeable(o))
@@ -2939,35 +2943,35 @@ namespace Neo.IronLua
 						r = (TRETURN)Lua.RtConvertValue(RtInvokeSite(o, args), typeof(TRETURN));
 						return true;
 					}
-					if (lRaise)
-						throw new LuaRuntimeException(String.Format(Properties.Resources.rsTableOperatorIncompatible, sKey, "function"), 0, true);
+					if (raise)
+						throw new LuaRuntimeException(String.Format(Properties.Resources.rsTableOperatorIncompatible, key, "function"), 0, true);
 				}
 			}
-			if (lRaise)
-				throw new LuaRuntimeException(String.Format(Properties.Resources.rsTableOperatorNotFound, sKey), 0, true);
+			if (raise)
+				throw new LuaRuntimeException(String.Format(Properties.Resources.rsTableOperatorNotFound, key), 0, true);
 
 			r = default(TRETURN);
 			return false;
 		} // func GetMetaTableOperator
 
-		private object UnaryOperation(string sKey)
+		private object UnaryOperation(string key)
 		{
 			object o;
-			TryInvokeMetaTableOperator<object>(sKey, true, out o, this);
+			TryInvokeMetaTableOperator<object>(key, true, out o, this);
 			return o;
 		} // proc UnaryOperation
 
-		private object BinaryOperation(string sKey, object arg)
+		private object BinaryOperation(string key, object arg)
 		{
 			object o;
-			TryInvokeMetaTableOperator<object>(sKey, true, out o, this, arg);
+			TryInvokeMetaTableOperator<object>(key, true, out o, this, arg);
 			return o;
 		} // proc BinaryOperation
 
-		private bool BinaryBoolOperation(string sKey, object arg)
+		private bool BinaryBoolOperation(string key, object arg)
 		{
 			bool o;
-			TryInvokeMetaTableOperator<bool>(sKey, true, out o, this, arg);
+			TryInvokeMetaTableOperator<bool>(key, true, out o, this, arg);
 			return o;
 		} // proc BinaryBoolOperation
 
