@@ -957,11 +957,21 @@ namespace LuaDLR.Test
 		[TestMethod]
 		public void TestLogic18() { TestCode("return not nil", true); }
 
-    #endregion
+		[TestMethod]
+		public void TestLogic19() { TestExpr("true and 10 or 20", 10); }
 
-    #region -- Compare ----------------------------------------------------------------
+		[TestMethod]
+		public void TestLogic20()
+		{
+			TestExpr("false and 10 or 20", 20);
+			TestExpr("false and '10' or '20'", "20");
+		}
 
-    [TestMethod]
+		#endregion
+
+		#region -- Compare ----------------------------------------------------------------
+
+		[TestMethod]
     public void TestCompare01() { TestExpr("1 < 2", true); }
 
     [TestMethod]
