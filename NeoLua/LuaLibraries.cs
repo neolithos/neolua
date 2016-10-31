@@ -14,7 +14,7 @@ namespace Neo.IronLua
 	/// <summary>Reimplements methods of the string package.</summary>
 	public static class LuaLibraryString
 	{
-		private static bool lTranslateRegEx = true;
+		private static bool translateRegEx = true;
 
 		private static void NormalizeStringArguments(string s, int i, int j, out int iStart, out int iLen)
 		{
@@ -43,7 +43,7 @@ namespace Neo.IronLua
 
 		private static string TranslateRegularExpression(string regEx)
 		{
-			if (!lTranslateRegEx)
+			if (!translateRegEx)
 				return regEx;
 
 			var sb = new StringBuilder();
@@ -666,7 +666,7 @@ namespace Neo.IronLua
 		// todo: unpack
 
 		/// <summary>Set this member to <c>false</c> to use native (.net) regex syntax.</summary>
-		public static bool __TranslateRegEx { get { return lTranslateRegEx; } set { lTranslateRegEx = value; } }
+		public static bool __TranslateRegEx { get { return translateRegEx; } set { translateRegEx = value; } }
 	} // class LuaLibraryString
 
 	#endregion

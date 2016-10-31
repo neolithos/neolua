@@ -17,17 +17,28 @@ namespace Neo.IronLua
 	[AttributeUsage(AttributeTargets.Property | AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
 	public sealed class LuaMemberAttribute : Attribute
 	{
-		private string sName;
+		private readonly bool useDefault;
+		private readonly string name;
 
-		/// <summary>Marks global Members, they act normally as library</summary>
-		/// <param name="sName"></param>
-		public LuaMemberAttribute(string sName)
+		/// <summary></summary>
+		public LuaMemberAttribute()
 		{
-			this.sName = sName;
+			this.useDefault = true;
+			this.name = "__default";
 		} // ctor
 
+		/// <summary>Marks global Members, they act normally as library</summary>
+		/// <param name="name"></param>
+		public LuaMemberAttribute(string name)
+		{
+			this.useDefault = false;
+			this.name = name;
+		} // ctor
+
+		/// <summary>Use the name of the  method.</summary>
+		public bool UseDefault => useDefault;
 		/// <summary>Global name of the function.</summary>
-		public string Name { get { return sName; } }
+		public string Name => name;
 	} // class LuaLibraryAttribute
 
 	#endregion
@@ -568,7 +579,7 @@ namespace Neo.IronLua
 			#endregion
 
 			#region -- BindInvokeMember -----------------------------------------------------
-			
+
 			private Expression GetDynamicCallExpression(LuaTable t, InvokeMemberBinder binder, ParameterExpression variableMethodExpresion, bool isDynamicCall, bool isMemberCall, DynamicMetaObject[] args)
 			{
 				var lua = Lua.GetRuntime(binder);
@@ -583,7 +594,7 @@ namespace Neo.IronLua
 					expressionArgs[hiddenArguments + i] = args[i].Expression;
 
 				return DynamicExpression.Dynamic(
-					lua == null ? 
+					lua == null ?
 						t.GetInvokeBinder(binder.CallInfo) :
 						lua.GetInvokeBinder(binder.CallInfo),
 					binder.ReturnType,
@@ -677,82 +688,56 @@ namespace Neo.IronLua
 			#region -- IList<object>, IList, ICollection<object>, ICollection ---------------
 
 			public int Add(object value)
-			{
-				return table.ArrayOnlyAdd(value);
-			} // func IList.Add
+				=> table.ArrayOnlyAdd(value);
 
 			void ICollection<object>.Add(object item)
-			{
-				table.ArrayOnlyAdd(item);
-			} // proc ICollection<object>.Add
+				=> table.ArrayOnlyAdd(item);
 
 			public void Insert(int index, object item)
-			{
-				table.ArrayOnlyInsert(index, item);
-			} // proc Insert
-
+				=> table.ArrayOnlyInsert(index, item);
+			
 			public bool Remove(object item)
-			{
-				return table.ArrayOnlyRemove(item);
-			} // func Remove
+				=> table.ArrayOnlyRemove(item);
 
 			void IList.Remove(object value)
-			{
-				table.ArrayOnlyRemove(value);
-			} // func IList.Remove
-
+				=> table.ArrayOnlyRemove(value);
+			
 			public void RemoveAt(int index)
-			{
-				table.ArrayOnlyRemoveAt(index);
-			} // proc RemoveAt
+				=> table.ArrayOnlyRemoveAt(index);
 
 			public void Clear()
-			{
-				table.ArrayOnlyClear();
-			} // proc Clear
+				=> table.ArrayOnlyClear();
 
 			public bool Contains(object item)
-			{
-				return table.ArrayOnlyIndexOf(item) >= 0;
-			} // func Contains
-
+				=> table.ArrayOnlyIndexOf(item) >= 0;
+			
 			public int IndexOf(object item)
-			{
-				return table.ArrayOnlyIndexOf(item);
-			} // func IndexOf
-
+				=> table.ArrayOnlyIndexOf(item);
+			
 			public void CopyTo(Array array, int index)
-			{
-				table.ArrayOnlyCopyTo(array, index);
-			} // func CopyTo
-
+				=> table.ArrayOnlyCopyTo(array, index);
+			
 			public void CopyTo(object[] array, int arrayIndex)
-			{
-				table.ArrayOnlyCopyTo(array, arrayIndex);
-			} // proc CopyTo
+				=> table.ArrayOnlyCopyTo(array, arrayIndex);
 
-			public int Count { get { return table.arrayLength; } }
-			public bool IsReadOnly { get { return true; } }
-			public bool IsSynchronized { get { return false; } }
-			public bool IsFixedSize { get { return false; } }
-			public object SyncRoot { get { return null; } }
+			public int Count => table.arrayLength;
+			public bool IsReadOnly => true;
+			public bool IsSynchronized => false;
+			public bool IsFixedSize => false;
+			public object SyncRoot => null;
 
-			public object this[int iIndex] { get { return table.ArrayOnlyGetIndex(iIndex); } set { table.ArrayOnlySetIndex(iIndex, value); } }
+			public object this[int index] { get { return table.ArrayOnlyGetIndex(index); } set { table.ArrayOnlySetIndex(index, value); } }
 
 			#endregion
 
 			#region -- IEnumerable<object> --------------------------------------------------
 
 			public IEnumerator<object> GetEnumerator()
-			{
-				return table.ArrayOnlyGetEnumerator();
-			} // func GetEnumerator
-
+				=> table.ArrayOnlyGetEnumerator();
+			
 			IEnumerator IEnumerable.GetEnumerator()
-			{
-				return table.ArrayOnlyGetEnumerator();
-			} // func IEnumerable.GetEnumerator
-
+				=> table.ArrayOnlyGetEnumerator();
+			
 			#endregion
 		} // class ArrayImplementation
 
@@ -794,9 +779,7 @@ namespace Neo.IronLua
 				/// <param name="item"></param>
 				/// <returns></returns>
 				public bool Contains(string item)
-				{
-					return t.ContainsMember(item);
-				} // func Contains
+					=> t.ContainsMember(item);
 
 				/// <summary></summary>
 				/// <param name="array"></param>
@@ -806,7 +789,7 @@ namespace Neo.IronLua
 					if (arrayIndex < 0 || arrayIndex + Count > array.Length)
 						throw new ArgumentOutOfRangeException();
 
-					for (int i = HiddenMemberCount; i < t.entries.Length; i++)
+					for (var i = HiddenMemberCount; i < t.entries.Length; i++)
 					{
 						object key = t.entries[i].key;
 						if (key is string)
@@ -818,10 +801,10 @@ namespace Neo.IronLua
 				/// <returns></returns>
 				public IEnumerator<string> GetEnumerator()
 				{
-					int iVersion = t.iVersion;
-					for (int i = HiddenMemberCount; i < t.entries.Length; i++)
+					var version = t.version;
+					for (var i = HiddenMemberCount; i < t.entries.Length; i++)
 					{
-						if (iVersion != t.iVersion)
+						if (version != t.version)
 							throw new InvalidOperationException("table changed");
 						object key = t.entries[i].key;
 						if (key is string)
@@ -830,18 +813,16 @@ namespace Neo.IronLua
 				} // func GetEnumerator
 
 				IEnumerator IEnumerable.GetEnumerator()
-				{
-					return GetEnumerator();
-				} // func IEnumerable.GetEnumerator
+					=> GetEnumerator();
 
 				void ICollection<string>.Add(string item) { throw new NotSupportedException(); }
 				bool ICollection<string>.Remove(string item) { throw new NotSupportedException(); }
 				void ICollection<string>.Clear() { throw new NotSupportedException(); }
 
 				/// <summary></summary>
-				public int Count { get { return t.memberCount - HiddenMemberCount; } }
+				public int Count => t.memberCount - HiddenMemberCount;
 				/// <summary>Always true</summary>
-				public bool IsReadOnly { get { return true; } }
+				public bool IsReadOnly => true;
 			} // class LuaTableStringKeyCollection
 
 			#endregion
@@ -864,7 +845,7 @@ namespace Neo.IronLua
 				/// <returns></returns>
 				public bool Contains(object value)
 				{
-					for (int i = 0; i < t.entries.Length; i++)
+					for (var i = 0; i < t.entries.Length; i++)
 					{
 						if (comparerObject.Equals(t.entries[i].value))
 							return true;
@@ -880,7 +861,7 @@ namespace Neo.IronLua
 					if (arrayIndex < 0 || arrayIndex + Count > array.Length)
 						throw new ArgumentOutOfRangeException();
 
-					for (int i = HiddenMemberCount; i < t.entries.Length; i++)
+					for (var i = HiddenMemberCount; i < t.entries.Length; i++)
 					{
 						if (t.entries[i].key is string)
 							array[arrayIndex++] = t.entries[i].value;
@@ -891,10 +872,10 @@ namespace Neo.IronLua
 				/// <returns></returns>
 				public IEnumerator<object> GetEnumerator()
 				{
-					int iVersion = t.iVersion;
-					for (int i = HiddenMemberCount; i < t.entries.Length; i++)
+					var version = t.version;
+					for (var i = HiddenMemberCount; i < t.entries.Length; i++)
 					{
-						if (iVersion != t.iVersion)
+						if (version != t.version)
 							throw new InvalidOperationException("table changed");
 
 						if (t.entries[i].key is string)
@@ -912,9 +893,9 @@ namespace Neo.IronLua
 				void ICollection<object>.Clear() { throw new NotSupportedException(); }
 
 				/// <summary></summary>
-				public int Count { get { return t.memberCount - HiddenMemberCount; } }
+				public int Count  => t.memberCount - HiddenMemberCount;
 				/// <summary>Always true</summary>
-				public bool IsReadOnly { get { return true; } }
+				public bool IsReadOnly => true;
 			} // class LuaTableStringValueCollection
 
 			#endregion
@@ -923,20 +904,14 @@ namespace Neo.IronLua
 			private LuaTableStringValueCollection stringValueCollection = null;
 
 			public void Add(string key, object value)
-			{
-				table.SetMemberValue(key, value, false, true);
-			} // proc Add
+				=> table.SetMemberValue(key, value, false, true);
 
 			public bool TryGetValue(string key, out object value)
-			{
-				return (value = table.GetMemberValue(key, false, true)) != null;
-			} // func TryGetValue
-
+				=> (value = table.GetMemberValue(key, false, true)) != null;
+			
 			public bool ContainsKey(string key)
-			{
-				return table.ContainsMember(key, false);
-			} // func ContainsKey
-
+				=> table.ContainsMember(key, false);
+			
 			public bool Remove(string key)
 			{
 				if (key == null)
@@ -992,41 +967,27 @@ namespace Neo.IronLua
 			} // func Remove
 
 			public void Clear()
-			{
-				table.ClearMembers();
-			} // proc Clear
+				=> table.ClearMembers();
 
 			public bool Contains(KeyValuePair<string, object> item)
-			{
-				return table.ContainsMember(item.Key);
-			} // func Contains
+				=> table.ContainsMember(item.Key);
 
 			public void CopyTo(KeyValuePair<string, object>[] array, int arrayIndex)
-			{
-				table.MembersCopyTo(array, arrayIndex);
-			} // proc CopyTo
+				=> table.MembersCopyTo(array, arrayIndex);
 
-			public int Count
-			{
-				get { return table.memberCount - HiddenMemberCount; }
-			} // func Count
-
-			public bool IsReadOnly { get { return false; } }
+			public int Count => table.memberCount - HiddenMemberCount;
+			public bool IsReadOnly => false; 
 
 			#endregion
 
 			#region -- IEnumerator<KeyValuePair<string, object>> members --------------------
 
 			public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
-			{
-				return table.MembersGetEnumerator();
-			} // func GetEnumerator
-
+				=> table.MembersGetEnumerator();
+			
 			IEnumerator IEnumerable.GetEnumerator()
-			{
-				return table.MembersGetEnumerator();
-			} // func IEnumerable.GetEnumerator
-
+				=> table.MembersGetEnumerator();
+			
 			#endregion
 		} // MemberImplementation
 
@@ -1086,7 +1047,7 @@ namespace Neo.IronLua
 			public Func<LuaTable, object> getValue;
 			public Action<LuaTable, object> setValue;
 
-			private LuaMemberAttribute info;
+			private readonly LuaMemberAttribute info;
 
 			protected LuaTableDefine(LuaMemberAttribute info)
 			{
@@ -1103,7 +1064,8 @@ namespace Neo.IronLua
 
 			protected abstract void CollectMember(List<LuaCollectedMember> collected, LuaMemberAttribute info);
 
-			public string MemberName { get { return info.Name; } }
+			public abstract string DefaultMemberName { get; }
+			public string MemberName => info.UseDefault ? DefaultMemberName : info.Name;
 			public abstract Type DeclaredType { get; }
 			public virtual bool IsMemberCall => false;
 		} // class LuaTableDefine
@@ -1196,6 +1158,7 @@ namespace Neo.IronLua
 
 			public PropertyInfo PropertyInfo => pi;
 			public override Type DeclaredType => pi.DeclaringType;
+			public override string DefaultMemberName => pi.Name;
 		} // class LuaTablePropertyDefine
 
 		#endregion
@@ -1216,13 +1179,11 @@ namespace Neo.IronLua
 			} // ctor
 
 			public override string ToString()
-			{
-				return String.Format("DefineMethod[{0}]: {1}", methods.Length, methods[0]);
-			} // func ToString
+				=> String.Format("DefineMethod[{0}]: {1}", methods.Length, methods[0]);
 
 			public override object GetInitialValue(LuaTable table)
 			{
-				object instance = methods[0].IsStatic ? null : table;
+				var instance = methods[0].IsStatic ? null : table;
 				if (methods.Length == 1)
 					return new LuaMethod(instance, methods[0]);
 				else
@@ -1235,7 +1196,7 @@ namespace Neo.IronLua
 					collected.Add(new LuaCollectedMember { Define = this, Info = info, Member = mi });
 			} // proc CollectMember
 
-			public MethodInfo[] Methods { get { return methods; } }
+			public MethodInfo[] Methods => methods;
 
 			public override Type DeclaredType
 			{
@@ -1251,6 +1212,8 @@ namespace Neo.IronLua
 					return type;
 				}
 			} // prop DeclaredType
+
+			public override string DefaultMemberName => methods[0].Name;
 		} // class LuaTableMethodDefine
 
 		#endregion
@@ -1266,9 +1229,7 @@ namespace Neo.IronLua
 			public LuaTableDefine Define;
 
 			public override string ToString()
-			{
-				return String.Format("{0}{1} ==> {2}", Info.Name, Define == null ? String.Empty : "*", Member);
-			} // func ToString
+				=> String.Format("{0}{1} ==> {2}", Info.Name, Define == null ? String.Empty : "*", Member);
 		} // struct LuaCollectedMember
 
 		#endregion
@@ -1313,21 +1274,21 @@ namespace Neo.IronLua
 			private void Collect(Type type, List<LuaCollectedMember> collected)
 			{
 				// is the type collected
-				TypeInfo ti = type.GetTypeInfo();
+				var ti = type.GetTypeInfo();
 				if (ti.BaseType != typeof(object))
 				{
-					LuaTableClass baseClass = GetClass(ti.BaseType);  // collect recursive
+					var baseClass = GetClass(ti.BaseType);  // collect recursive
 
 					// dump current defines
-					for (int i = 0; i < baseClass.defines.Length; i++)
+					for (var i = 0; i < baseClass.defines.Length; i++)
 						baseClass.defines[i].CollectMember(collected);
 				}
 
 				// collect current level
 				foreach (var mi in ti.DeclaredMembers)
 				{
-					MethodInfo method = mi as MethodInfo;
-					PropertyInfo property = mi as PropertyInfo;
+					var method = mi as MethodInfo;
+					var property = mi as PropertyInfo;
 
 					if (property == null && method == null) // test on properties and methods
 						continue;
@@ -1345,28 +1306,28 @@ namespace Neo.IronLua
 						}
 						else
 						{
-							int iStartIndex = FindMember(collected, info.Name);
-							if (iStartIndex == -1)
+							var startIndex = FindMember(collected, info.Name);
+							if (startIndex == -1)
 							{
 								collected.Add(new LuaCollectedMember { Info = info, Member = mi, Define = null });
 							}
 							else
 							{
 								// count the overloaded elements
-								int iNextIndex = iStartIndex;
-								while (iNextIndex < collected.Count && collected[iNextIndex].Info.Name == info.Name)
-									iNextIndex++;
+								var nextIndex = startIndex;
+								while (nextIndex < collected.Count && collected[nextIndex].Info.Name == info.Name)
+									nextIndex++;
 
 								// properties it can only exists one property
 								if (property != null)
 								{
-									collected.RemoveRange(iStartIndex, iNextIndex - iStartIndex);
+									collected.RemoveRange(startIndex, nextIndex - startIndex);
 									collected.Add(new LuaCollectedMember { Info = info, Member = property });
 								}
 								else if (method != null) // generate overload list
 								{
-									RemoveUseLessOverloads(collected, (MethodInfo)mi, iStartIndex, ref iNextIndex);
-									collected.Insert(iNextIndex, new LuaCollectedMember { Info = info, Member = method });
+									RemoveUseLessOverloads(collected, (MethodInfo)mi, startIndex, ref nextIndex);
+									collected.Insert(nextIndex, new LuaCollectedMember { Info = info, Member = method });
 								}
 							}
 						}
@@ -1374,20 +1335,20 @@ namespace Neo.IronLua
 				} // for member
 			} // proc Collect
 
-			private void RemoveUseLessOverloads(List<LuaCollectedMember> collected, MethodInfo mi, int iStartIndex, ref int iNextIndex)
+			private void RemoveUseLessOverloads(List<LuaCollectedMember> collected, MethodInfo mi, int startIndex, ref int nextIndex)
 			{
-				while (iStartIndex < iNextIndex)
+				while (startIndex < nextIndex)
 				{
-					MethodInfo miTest = collected[iStartIndex].Member as MethodInfo;
+					var miTest = collected[startIndex].Member as MethodInfo;
 
 					if (miTest == null || IsOverrideOf(mi, miTest) || SameArguments(mi, miTest))
 					{
-						collected.RemoveAt(iStartIndex);
-						iNextIndex--;
+						collected.RemoveAt(startIndex);
+						nextIndex--;
 						continue;
 					}
 
-					iStartIndex++;
+					startIndex++;
 				}
 			} // proc RemoveUseLessOverloads
 
@@ -1407,13 +1368,11 @@ namespace Neo.IronLua
 			} // func IsOverrideOf
 
 			private bool IsOverridePropertyOf(PropertyInfo pi, PropertyInfo piTest)
-			{
-				return IsOverrideMethodOf(pi.GetMethod, piTest.GetMethod);
-			} // func IsOverridePropertyOf
+				=> IsOverrideMethodOf(pi.GetMethod, piTest.GetMethod);
 
 			private bool IsOverrideMethodOf(MethodInfo mi, MethodInfo miTest)
 			{
-				MethodInfo miCur = mi;
+				var miCur = mi;
 				while (true)
 				{
 					if (miCur == miTest)
@@ -1426,14 +1385,16 @@ namespace Neo.IronLua
 
 			private bool SameArguments(MethodInfo mi1, MethodInfo mi2)
 			{
-				ParameterInfo[] parameterInfo1 = mi1.GetParameters();
-				ParameterInfo[] parameterInfo2 = mi2.GetParameters();
+				var parameterInfo1 = mi1.GetParameters();
+				var parameterInfo2 = mi2.GetParameters();
 				if (parameterInfo1.Length == parameterInfo2.Length)
 				{
-					for (int i = 0; i < parameterInfo1.Length; i++)
+					for (var i = 0; i < parameterInfo1.Length; i++)
+					{
 						if (parameterInfo1[i].ParameterType != parameterInfo2[i].ParameterType ||
 								parameterInfo1[i].Attributes != parameterInfo2[i].Attributes)
 							return false;
+					}
 
 					return true;
 				}
@@ -1443,7 +1404,7 @@ namespace Neo.IronLua
 
 			private int FindMember(List<LuaCollectedMember> collected, string sName)
 			{
-				for (int i = 0; i < collected.Count; i++)
+				for (var i = 0; i < collected.Count; i++)
 					if (collected[i].Info.Name == sName)
 						return i;
 				return -1;
@@ -1455,30 +1416,30 @@ namespace Neo.IronLua
 
 			private LuaTableDefine[] CreateDefines(List<LuaCollectedMember> collected)
 			{
-				List<LuaTableDefine> defineList = new List<LuaTableDefine>(collected.Capacity);
+				var defineList = new List<LuaTableDefine>(collected.Capacity);
 
-				int i = 0;
+				var i = 0;
 				while (i < collected.Count)
 				{
-					int iStart = i;
-					int iCount = 1;
-					string sCurrentName = collected[i].Info.Name;
+					var startAt = i;
+					var count = 1;
+					var currentName = collected[i].Info.Name;
 
 					// count same elements
-					while (++i < collected.Count && sCurrentName == collected[i].Info.Name)
-						iCount++;
+					while (++i < collected.Count && currentName == collected[i].Info.Name)
+						count++;
 
-					if (iCount == 1) // create single member
+					if (count == 1) // create single member
 					{
-						if (collected[iStart].Define != null) // already collected
-							defineList.Add(collected[iStart].Define);
+						if (collected[startAt].Define != null) // already collected
+							defineList.Add(collected[startAt].Define);
 						else
 						{
-							MemberInfo mi = collected[iStart].Member;
+							var mi = collected[startAt].Member;
 							if (mi is PropertyInfo)
-								defineList.Add(new LuaTablePropertyDefine(collected[iStart].Info, (PropertyInfo)mi));
+								defineList.Add(new LuaTablePropertyDefine(collected[startAt].Info, (PropertyInfo)mi));
 							else if (mi is MethodInfo)
-								defineList.Add(new LuaTableMethodDefine(collected[iStart].Info, new MethodInfo[] { (MethodInfo)mi }));
+								defineList.Add(new LuaTableMethodDefine(collected[startAt].Info, new MethodInfo[] { (MethodInfo)mi }));
 							else
 								throw new ArgumentException();
 						}
@@ -1486,29 +1447,29 @@ namespace Neo.IronLua
 					else // create overloaded member
 					{
 						// create method array
-						MethodInfo[] methods = new MethodInfo[iCount];
-						for (int j = 0; j < iCount; j++)
-							methods[j] = (MethodInfo)collected[iStart + j].Member;
+						var methods = new MethodInfo[count];
+						for (var j = 0; j < count; j++)
+							methods[j] = (MethodInfo)collected[startAt + j].Member;
 
 						// check if they are all static/instance
-						bool lCreateNewDefine = collected[iStart].Define == null;
-						for (int j = 1; j < methods.Length; j++)
+						var createNewDefine = collected[startAt].Define == null;
+						for (var j = 1; j < methods.Length; j++)
 						{
 							if (methods[0].IsStatic != methods[j].IsStatic)
 								throw new ArgumentException(String.Format(Properties.Resources.rsMethodStaticMix, methods[0]));
 
-							if (!lCreateNewDefine && collected[iStart].Define != collected[iStart + j].Define)
+							if (!createNewDefine && collected[startAt].Define != collected[startAt + j].Define)
 							{
-								lCreateNewDefine |= true;
+								createNewDefine |= true;
 								break;
 							}
 						}
 
 						// create the define
-						if (lCreateNewDefine)
-							defineList.Add(new LuaTableMethodDefine(collected[iStart].Info, methods));
+						if (createNewDefine)
+							defineList.Add(new LuaTableMethodDefine(collected[startAt].Info, methods));
 						else
-							defineList.Add(collected[iStart].Define);
+							defineList.Add(collected[startAt].Define);
 					}
 				}
 
@@ -1556,21 +1517,21 @@ namespace Neo.IronLua
 		/// <summary>Value has changed.</summary>
 		public event PropertyChangedEventHandler PropertyChanged;
 
-		private LuaTable metaTable = null;												// Currently attached metatable
+		private LuaTable metaTable = null;                        // Currently attached metatable
 
-		private LuaTableEntry[] entries = emptyLuaEntries;				// Key/Value part of the lua-table
-		private LuaTableClass classDefinition = null;							// Class part of the lua table
-		private int[] hashLists = emptyIntArray;									// Hashcode entry point
-		private object[] arrayList = emptyObjectArray;						// List with the array elements (this array is ZERO-based)
+		private LuaTableEntry[] entries = emptyLuaEntries;        // Key/Value part of the lua-table
+		private LuaTableClass classDefinition = null;             // Class part of the lua table
+		private int[] hashLists = emptyIntArray;                  // Hashcode entry point
+		private object[] arrayList = emptyObjectArray;            // List with the array elements (this array is ZERO-based)
 
-		private int iFreeTop = -1;																// Start of the free lists
+		private int freeTopIndex = -1;                            // Start of the free lists
 
-		private int arrayLength = 0;															// Current length of the array list
-		private int memberCount = 0;															// Current length of the member list 
+		private int arrayLength = 0;                              // Current length of the array list
+		private int memberCount = 0;                              // Current length of the member list 
 
-		private int iCount = 0;																		// Number of element in the Key/Value part
+		private int count = 0;                                    // Number of element in the Key/Value part
 
-		private int iVersion = 0;																	// version for the data
+		private int version = 0;                                  // version for the data
 
 		private Dictionary<int, CallSite> callSites = new Dictionary<int, CallSite>(); // call site for calls
 
@@ -1616,9 +1577,7 @@ namespace Neo.IronLua
 		/// <summary></summary>
 		/// <returns></returns>
 		public override int GetHashCode()
-		{
-			return base.GetHashCode();
-		} // func GetHashCode
+			=> base.GetHashCode();
 
 		private void InitClass()
 		{
@@ -1629,22 +1588,22 @@ namespace Neo.IronLua
 			ResizeEntryList(classDefinition.Count);
 
 			// generate the memberset
-			for (int i = 0; i < classDefinition.Count; i++)
+			for (var i = 0; i < classDefinition.Count; i++)
 				InitDefinition(i, classDefinition[i]);
 		} // proc InitClass
 
-		private void InitDefinition(int iIndex, LuaTableDefine define)
+		private void InitDefinition(int index, LuaTableDefine define)
 		{
 			// Reserve the entry for the member
 			memberCount++;
-			int iEntryIndex = InsertValue(define.MemberName, GetMemberHashCode(define.MemberName), null, define.IsMemberCall);
+			var entryIndex = InsertValue(define.MemberName, GetMemberHashCode(define.MemberName), null, define.IsMemberCall);
 #if DEBUG
-			if (iEntryIndex != iIndex)
+			if (entryIndex != index)
 				throw new InvalidOperationException("entryIndex");
 #endif
 
 			// Set the init value
-			entries[iEntryIndex].value = define.GetInitialValue(this);
+			entries[entryIndex].value = define.GetInitialValue(this);
 		} // proc InitDefinition
 
 		#endregion
@@ -1655,17 +1614,13 @@ namespace Neo.IronLua
 		/// <param name="parameter"></param>
 		/// <returns></returns>
 		public DynamicMetaObject GetMetaObject(Expression parameter)
-		{
-			return new LuaTableMetaObject(this, parameter);
-		} // func GetMetaObject
+			=> new LuaTableMetaObject(this, parameter);
 
 		/// <summary>Get the invoke binder.</summary>
 		/// <param name="callInfo">CallInfo</param>
 		/// <returns>Binder</returns>
 		protected virtual CallSiteBinder GetInvokeBinder(CallInfo callInfo)
-		{
-			return new Lua.LuaInvokeBinder(null, callInfo);
-		} // func GetInvokeBinder
+			=> new Lua.LuaInvokeBinder(null, callInfo);
 
 		/// <summary></summary>
 		/// <returns></returns>
@@ -1681,58 +1636,58 @@ namespace Neo.IronLua
 
 		#region -- Core hash functionality ------------------------------------------------
 
-		private static int NextArraySize(int iCurrentLength, int iCapacity)
+		private static int NextArraySize(int currentLength, int capacity)
 		{
-			if (iCurrentLength == Int32.MaxValue)
+			if (currentLength == Int32.MaxValue)
 				throw new OverflowException();
-			if (iCurrentLength == 0)
-				iCurrentLength = 16;
+			if (currentLength == 0)
+				currentLength = 16;
 
-		Resize:
-			iCurrentLength = unchecked(iCurrentLength << 1);
+			Resize:
+			currentLength = unchecked(currentLength << 1);
 
-			if (iCurrentLength == Int32.MinValue)
-				iCurrentLength = Int32.MaxValue;
-			else if (iCapacity > iCurrentLength)
+			if (currentLength == Int32.MinValue)
+				currentLength = Int32.MaxValue;
+			else if (capacity > currentLength)
 				goto Resize;
 
-			return iCurrentLength;
+			return currentLength;
 		} // func NextArraySize
 
 		/// <summary>Insert a value in the hash list</summary>
 		/// <param name="key">Key of the item</param>
 		/// <param name="hashCode">Hashcode of the key</param>
 		/// <param name="value">Value that will be setted</param>
-		/// <param name="lIsMethod">Is the value a method</param>
+		/// <param name="isMethod">Is the value a method</param>
 		/// <returns>Index of the setted entry</returns>
-		private int InsertValue(object key, int hashCode, object value, bool lIsMethod)
+		private int InsertValue(object key, int hashCode, object value, bool isMethod)
 		{
 #if DEBUG
 			if (key == null)
 				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
 #endif
 
-			if (iFreeTop == -1) // entry list is full -> enlarge
+			if (freeTopIndex == -1) // entry list is full -> enlarge
 				ResizeEntryList();
 
 			// get free item
-			int iFreeItem = iFreeTop;
-			iFreeTop = entries[iFreeTop].nextHash;
+			var freeItemIndex = freeTopIndex;
+			freeTopIndex = entries[freeTopIndex].nextHash;
 
 			// set the values
-			entries[iFreeItem].key = key;
-			entries[iFreeItem].value = value;
-			entries[iFreeItem].isMethod = lIsMethod;
+			entries[freeItemIndex].key = key;
+			entries[freeItemIndex].value = value;
+			entries[freeItemIndex].isMethod = isMethod;
 
 			// create the hash list
-			int iHashIndex = (entries[iFreeItem].hashCode = hashCode) % hashLists.Length;
-			entries[iFreeItem].nextHash = hashLists[iHashIndex];
-			hashLists[iHashIndex] = iFreeItem;
+			var hashIndex = (entries[freeItemIndex].hashCode = hashCode) % hashLists.Length;
+			entries[freeItemIndex].nextHash = hashLists[hashIndex];
+			hashLists[hashIndex] = freeItemIndex;
 
-			iCount++;
-			iVersion++;
+			count++;
+			version++;
 
-			return iFreeItem;
+			return freeItemIndex;
 		} // func InsertValue
 
 		/// <summary>Search the key in the list</summary>
@@ -1746,110 +1701,110 @@ namespace Neo.IronLua
 			//if (key == null)
 			//	throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
 #endif
-			int iHashLength = hashLists.Length;
-			if (iHashLength == 0)
+			var hashLength = hashLists.Length;
+			if (hashLength == 0)
 				return -1;
 
-			int iHashIndex = hashCode % iHashLength;
-			int iLastIndex = -1;
+			var hashIndex = hashCode % hashLength;
+			var lastIndex = -1;
 			if (comparer == compareStringIgnoreCase)
 			{
-				for (int i = hashLists[iHashIndex]; i >= 0; i = entries[i].nextHash)
+				for (var i = hashLists[hashIndex]; i >= 0; i = entries[i].nextHash)
 				{
 					if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key))
-						iLastIndex = i;
+						lastIndex = i;
 				}
-				if (iLastIndex >= 0)
-					return iLastIndex;
+				if (lastIndex >= 0)
+					return lastIndex;
 			}
 			else
 			{
-				for (int i = hashLists[iHashIndex]; i >= 0; i = entries[i].nextHash)
+				for (int i = hashLists[hashIndex]; i >= 0; i = entries[i].nextHash)
 				{
 					if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key))
 						return i;
 				}
 			}
-			return ~iHashIndex;
+			return ~hashIndex;
 		} // func FindKey
 
-		private void RemoveValue(int iIndex)
+		private void RemoveValue(int index)
 		{
 #if DEBUG
 			if (hashLists.Length == 0)
 				throw new InvalidOperationException();
 #endif
 
-			int iHashCode = entries[iIndex].hashCode;
-			int iHashIndex = iHashCode % hashLists.Length;
+			var hashCode = entries[index].hashCode;
+			var hashIndex = hashCode % hashLists.Length;
 
 			// remove the item from hash list
-			int iCurrentIndex = hashLists[iHashIndex];
-			if (iCurrentIndex == iIndex)
+			var currentIndex = hashLists[hashIndex];
+			if (currentIndex == index)
 			{
-				hashLists[iHashIndex] = entries[iIndex].nextHash;
+				hashLists[hashIndex] = entries[index].nextHash;
 			}
 			else
 			{
 				while (true)
 				{
-					int iNext = entries[iCurrentIndex].nextHash;
-					if (iNext == iIndex)
+					var nextIndex = entries[currentIndex].nextHash;
+					if (nextIndex == index)
 					{
-						entries[iCurrentIndex].nextHash = entries[iIndex].nextHash; // remove item from lest
+						entries[currentIndex].nextHash = entries[index].nextHash; // remove item from lest
 						break;
 					}
-					iCurrentIndex = iNext;
+					currentIndex = nextIndex;
 
-					if (iCurrentIndex == -1)
+					if (currentIndex == -1)
 						throw new InvalidOperationException();
 				}
 			}
 
 			// add to free list
-			entries[iIndex].hashCode = -1;
-			entries[iIndex].key = null;
-			entries[iIndex].value = null;
-			entries[iIndex].isMethod = false;
-			entries[iIndex].nextHash = iFreeTop;
-			iFreeTop = iIndex;
+			entries[index].hashCode = -1;
+			entries[index].key = null;
+			entries[index].value = null;
+			entries[index].isMethod = false;
+			entries[index].nextHash = freeTopIndex;
+			freeTopIndex = index;
 
-			iCount--;
-			iVersion++;
+			count--;
+			version++;
 		} // proc RemoveValue
 
-		private void ResizeEntryList(int iCapacity = 0)
+		private void ResizeEntryList(int capacity = 0)
 		{
-			LuaTableEntry[] newEntries = new LuaTableEntry[NextArraySize(entries.Length, iCapacity)];
+			var newEntries = new LuaTableEntry[NextArraySize(entries.Length, capacity)];
 
 			// copy the old values
 			Array.Copy(entries, 0, newEntries, 0, entries.Length);
 
 			// create the free list for the new entries
-			iFreeTop = entries.Length;
-			int iLength = newEntries.Length - 1;
-			for (int i = iFreeTop; i < iLength; i++)
+			freeTopIndex = entries.Length;
+			var length = newEntries.Length - 1;
+			for (var i = freeTopIndex; i < length; i++)
 			{
 				newEntries[i].hashCode = -1;
 				newEntries[i].nextHash = i + 1;
 			}
 			// set the last element
-			newEntries[iLength].hashCode = -1;
-			newEntries[iLength].nextHash = -1;
+			newEntries[length].hashCode = -1;
+			newEntries[length].nextHash = -1;
 
 			// real length
-			iLength++;
+			length++;
 
 			// update the array
 			entries = newEntries;
 
 			// create the hash table new
-			hashLists = new int[iLength];
-			for (int i = 0; i < hashLists.Length; i++)
+			hashLists = new int[length];
+			for (var i = 0; i < hashLists.Length; i++)
 				hashLists[i] = -1;
 
 			// rehash all entries
-			for (int i = 0; i < iFreeTop; i++)
+			for (var i = 0; i < freeTopIndex; i++)
 			{
 				int iIndex = entries[i].hashCode % hashLists.Length;
 				entries[i].nextHash = hashLists[iIndex];
@@ -1860,11 +1815,11 @@ namespace Neo.IronLua
 		/// <summary>Empty the table</summary>
 		public void Clear()
 		{
-			iCount = 0;
+			count = 0;
 			arrayLength = 0;
 			memberCount = 0;
-			iFreeTop = -1;
-			iVersion = 0;
+			freeTopIndex = -1;
+			version = 0;
 
 			metaTable = null;
 
@@ -2022,9 +1977,7 @@ namespace Neo.IronLua
 		} // func GetMemberValue
 
 		private object GetClassMemberValue(int iEntryIndex, bool lRawGet)
-		{
-			return GetClassMemberValue(iEntryIndex, entries[iEntryIndex].key, lRawGet);
-		} // func GetClassMemberValue
+			=> GetClassMemberValue(iEntryIndex, entries[iEntryIndex].key, lRawGet);
 
 		private object GetClassMemberValue(int iEntryIndex, object key, bool lRawGet)
 		{
@@ -2057,39 +2010,37 @@ namespace Neo.IronLua
 
 		#region -- Get/SetArrayValue ------------------------------------------------------
 
-		private int FindKey(int iIndex)
-		{
-			return FindKey(iIndex, iIndex.GetHashCode() & 0x7FFFFFFF, comparerInt);
-		} // func FindKey
+		private int FindKey(int index)
+			=> FindKey(index, index.GetHashCode() & 0x7FFFFFFF, comparerInt);
 
-		private void SetIndexCopyValuesToArray(object[] newArray, int iStart)
+		private void SetIndexCopyValuesToArray(object[] newArray, int startAt)
 		{
-			if (newArray.Length - iStart < entries.Length) // choose the less expensive way to copy the values, try to find values
+			if (newArray.Length - startAt < entries.Length) // choose the less expensive way to copy the values, try to find values
 			{
-				for (int i = iStart; i < newArray.Length; i++)
+				for (var i = startAt; i < newArray.Length; i++)
 				{
-					int iEntryIndex = FindKey(i + 1);
-					if (iEntryIndex >= 0)
+					var entryIndex = FindKey(i + 1);
+					if (entryIndex >= 0)
 					{
-						newArray[i] = entries[iEntryIndex].value;
-						RemoveValue(iEntryIndex);
-						iCount++;
+						newArray[i] = entries[entryIndex].value;
+						RemoveValue(entryIndex);
+						count++;
 					}
 				}
 			}
 			else // go through the array
 			{
-				for (int i = 0; i < entries.Length; i++)
+				for (var i = 0; i < entries.Length; i++)
 				{
 					if (entries[i].key is int)
 					{
-						int k = (int)entries[i].key;
+						var k = (int)entries[i].key;
 
-						if (iStart < k && k <= newArray.Length)
+						if (startAt < k && k <= newArray.Length)
 						{
 							newArray[k - 1] = entries[i].value;
 							RemoveValue(i);
-							iCount++;
+							count++;
 						}
 					}
 				}
@@ -2097,58 +2048,58 @@ namespace Neo.IronLua
 		} // func SetIndexCopyValuesToArray
 
 		/// <summary>Set the value in the array part of the table (if the index is greater Length + 1 it is set to the hash part)</summary>
-		/// <param name="iIndex">Index of the element</param>
+		/// <param name="index">Index of the element</param>
 		/// <param name="value">Value, <c>null</c> deletes the value.</param>
-		/// <param name="lRawSet">If the value not exists, should we call OnNewIndex.</param>
+		/// <param name="rawSet">If the value not exists, should we call OnNewIndex.</param>
 		/// <returns>value</returns>
-		public object SetArrayValue(int iIndex, object value, bool lRawSet = false)
+		public object SetArrayValue(int index, object value, bool rawSet = false)
 		{
-			int iArrayIndex = iIndex - 1;
-			if (unchecked((uint)iArrayIndex < arrayList.Length)) // with in the current allocated array
+			var arrayIndex = index - 1;
+			if (unchecked((uint)arrayIndex < arrayList.Length)) // with in the current allocated array
 			{
-				object oldValue = arrayList[iArrayIndex];
+				var oldValue = arrayList[arrayIndex];
 				if (value == null) // remove the value
 				{
 					if (oldValue != null)
 					{
-						arrayList[iArrayIndex] = null;
-						if (iArrayIndex < arrayLength)
-							arrayLength = iArrayIndex; // iArrayLength = iIndex - 1
+						arrayList[arrayIndex] = null;
+						if (arrayIndex < arrayLength)
+							arrayLength = arrayIndex; // iArrayLength = iIndex - 1
 
-						iCount--;
-						iVersion++;
+						count--;
+						version++;
 					}
 				}
-				else if (lRawSet || // always set a value
+				else if (rawSet || // always set a value
 					oldValue != null || // reset the value
-					!OnNewIndex(iIndex, value)) // no value, notify __newindex to set the array element
+					!OnNewIndex(index, value)) // no value, notify __newindex to set the array element
 				{
 					if (oldValue == null)
-						iCount++;
+						count++;
 
-					arrayList[iArrayIndex] = value;
-					iVersion++;
+					arrayList[arrayIndex] = value;
+					version++;
 
 					// correct the array length
-					if (arrayLength == iArrayIndex) // iArrayLength == iIndex - 1
+					if (arrayLength == arrayIndex) // iArrayLength == iIndex - 1
 					{
 						// search for the end of the array
-						arrayLength = iIndex;
+						arrayLength = index;
 						while (arrayLength + 1 <= arrayList.Length && arrayList[arrayLength] != null)
 							arrayLength++;
 
 						// are the more values behind the array
 						if (arrayLength == arrayList.Length)
 						{
-							List<object> collected = new List<object>();
+							var collected = new List<object>();
 
 							// collect values
-							int iEntryIndex;
-							while ((iEntryIndex = FindKey(arrayLength + 1)) >= 0)
+							int entryIndex;
+							while ((entryIndex = FindKey(arrayLength + 1)) >= 0)
 							{
-								collected.Add(entries[iEntryIndex].value);
-								RemoveValue(iEntryIndex);
-								iCount++;
+								collected.Add(entries[entryIndex].value);
+								RemoveValue(entryIndex);
+								count++;
 
 								arrayLength++;
 							}
@@ -2157,7 +2108,7 @@ namespace Neo.IronLua
 							if (collected.Count > 0)
 							{
 								// enlarge array part, with the new values
-								object[] newArray = new object[NextArraySize(arrayList.Length, arrayLength)];
+								var newArray = new object[NextArraySize(arrayList.Length, arrayLength)];
 								// copy the old array
 								Array.Copy(arrayList, 0, newArray, 0, arrayList.Length);
 								// copy the new array content
@@ -2171,12 +2122,12 @@ namespace Neo.IronLua
 					}
 				}
 			}
-			else if (iArrayIndex == arrayLength && value != null) // enlarge array part
+			else if (arrayIndex == arrayLength && value != null) // enlarge array part
 			{
-				if (value != null && (lRawSet || !OnNewIndex(iIndex, value)))
+				if (value != null && (rawSet || !OnNewIndex(index, value)))
 				{
 					// create a new enlarged array
-					object[] newArray = new object[NextArraySize(arrayList.Length, 0)];
+					var newArray = new object[NextArraySize(arrayList.Length, 0)];
 					Array.Copy(arrayList, 0, newArray, 0, arrayList.Length);
 
 					// copy the values from the key/value part to the array part
@@ -2185,67 +2136,67 @@ namespace Neo.IronLua
 					arrayList = newArray;
 
 					// set the value in the index
-					SetArrayValue(iIndex, value, true);
+					SetArrayValue(index, value, true);
 				}
 			}
 			else // set the value in key/value part
 			{
-				int hashCode = iIndex.GetHashCode() & 0x7FFFFFFF;
-				int iEntryIndex = FindKey(iIndex, hashCode, comparerInt);
-				if (iEntryIndex >= 0)
+				var hashCode = index.GetHashCode() & 0x7FFFFFFF;
+				var entryIndex = FindKey(index, hashCode, comparerInt);
+				if (entryIndex >= 0)
 				{
 					if (value == null)
 					{
-						RemoveValue(iEntryIndex);
+						RemoveValue(entryIndex);
 					}
 					else
 					{
-						entries[iEntryIndex].value = value;
-						iVersion++;
+						entries[entryIndex].value = value;
+						version++;
 					}
 				}
-				else if (lRawSet || !OnNewIndex(iIndex, value))
-					InsertValue(iIndex, hashCode, value, false);
+				else if (rawSet || !OnNewIndex(index, value))
+					InsertValue(index, hashCode, value, false);
 			}
 
 			return value;
 		} // func SetArrayValue
 
 		/// <summary>Get the value from the array part or from the hash part.</summary>
-		/// <param name="iIndex">Index of the element</param>
-		/// <param name="lRawGet">Is OnIndex called, if no index exists.</param>
+		/// <param name="index">Index of the element</param>
+		/// <param name="rawGet">Is OnIndex called, if no index exists.</param>
 		/// <returns></returns>
-		public object GetArrayValue(int iIndex, bool lRawGet = false)
+		public object GetArrayValue(int index, bool rawGet = false)
 		{
-			int iArrayIndex = iIndex - 1;
-			if (unchecked((uint)iArrayIndex < arrayList.Length)) // part of array
+			var arrayIndex = index - 1;
+			if (unchecked((uint)arrayIndex < arrayList.Length)) // part of array
 			{
-				if (lRawGet || iArrayIndex < arrayLength)
-					return arrayList[iArrayIndex];
+				if (rawGet || arrayIndex < arrayLength)
+					return arrayList[arrayIndex];
 				else
-					return arrayList[iArrayIndex] ?? OnIndex(iIndex);
+					return arrayList[arrayIndex] ?? OnIndex(index);
 			}
 			else // check the hash part
 			{
-				int iEntryIndex = FindKey(iIndex);
-				if (iEntryIndex >= 0) // get the hashed value
-					return entries[iEntryIndex].value;
-				else if (lRawGet) // get the default value
+				var entryIndex = FindKey(index);
+				if (entryIndex >= 0) // get the hashed value
+					return entries[entryIndex].value;
+				else if (rawGet) // get the default value
 					return null;
 				else // ask for a value
-					return OnIndex(iIndex);
+					return OnIndex(index);
 			}
 		} // func SetArrayValue
 
 		/// <summary>Checks if the index is set.</summary>
-		/// <param name="iIndex">Index</param>
+		/// <param name="index">Index</param>
 		/// <returns><c>true</c>, if the index is in the table.</returns>
-		public bool ContainsIndex(int iIndex)
+		public bool ContainsIndex(int index)
 		{
-			if (iIndex >= 1 && iIndex <= arrayList.Length) // part of array
-				return arrayList[iIndex - 1] != null;
+			if (index >= 1 && index <= arrayList.Length) // part of array
+				return arrayList[index - 1] != null;
 			else // hashed index
-				return FindKey(iIndex) >= 0;
+				return FindKey(index) >= 0;
 		} // func ContainsIndex
 
 		#endregion
@@ -2267,10 +2218,10 @@ namespace Neo.IronLua
 
 		private IEnumerator<KeyValuePair<string, object>> MembersGetEnumerator()
 		{
-			int iVersion = this.iVersion;
+			int iVersion = this.version;
 			for (int i = HiddenMemberCount; i < entries.Length; i++)
 			{
-				if (iVersion != this.iVersion)
+				if (iVersion != this.version)
 					throw new InvalidOperationException();
 
 				object key = entries[i].key;
@@ -2297,9 +2248,7 @@ namespace Neo.IronLua
 		/// <param name="value"></param>
 		/// <returns></returns>
 		private int ArrayOnlyIndexOf(object value)
-		{
-			return Array.IndexOf(arrayList, value, 0, arrayLength);
-		} // func ArrayOnlyIndexOf
+			=> Array.IndexOf(arrayList, value, 0, arrayLength);
 
 		private int ArrayOnlyAdd(object value)
 		{
@@ -2342,28 +2291,28 @@ namespace Neo.IronLua
 		{
 			Array.Clear(arrayList, 0, arrayLength);
 			arrayLength = 0;
-			iVersion++;
+			version++;
 		} // ArrayOnlyClear
 
 		/// <summary>zero based</summary>
-		/// <param name="iIndex"></param>
-		private void ArrayOnlyRemoveAt(int iIndex)
+		/// <param name="index"></param>
+		private void ArrayOnlyRemoveAt(int index)
 		{
-			if (iIndex < 0 || iIndex >= arrayLength)
+			if (index < 0 || index >= arrayLength)
 				throw new ArgumentOutOfRangeException();
 
-			Array.Copy(arrayList, iIndex + 1, arrayList, iIndex, arrayLength - iIndex - 1);
+			Array.Copy(arrayList, index + 1, arrayList, index, arrayLength - index - 1);
 			arrayList[--arrayLength] = null;
 
-			iVersion++;
+			version++;
 		} // func ArrayOnlyRemoveAt
 
 		private bool ArrayOnlyRemove(object value)
 		{
-			int iIndex = ArrayOnlyIndexOf(value);
-			if (iIndex >= 0)
+			var index = ArrayOnlyIndexOf(value);
+			if (index >= 0)
 			{
-				ArrayOnlyRemoveAt(iIndex);
+				ArrayOnlyRemoveAt(index);
 				return true;
 			}
 			else
@@ -2372,28 +2321,28 @@ namespace Neo.IronLua
 
 		private IEnumerator<object> ArrayOnlyGetEnumerator()
 		{
-			int iVersion = this.iVersion;
+			var version = this.version;
 			for (int i = 0; i < arrayLength; i++)
 			{
-				if (iVersion != this.iVersion)
+				if (version != this.version)
 					throw new InvalidOperationException();
 
 				yield return arrayList[i];
 			}
 		} // func ArrayOnlyGetEnumerator
 
-		private object ArrayOnlyGetIndex(int iIndex)
+		private object ArrayOnlyGetIndex(int index)
 		{
-			if (iIndex >= 0 && iIndex >= arrayLength)
+			if (index >= 0 && index >= arrayLength)
 				throw new ArgumentOutOfRangeException();
-			return arrayList[iIndex];
+			return arrayList[index];
 		} // func ArrayOnlyGetIndex
 
-		private void ArrayOnlySetIndex(int iIndex, object value)
+		private void ArrayOnlySetIndex(int index, object value)
 		{
-			if (iIndex >= 0 && iIndex >= arrayLength)
+			if (index >= 0 && index >= arrayLength)
 				throw new ArgumentOutOfRangeException();
-			arrayList[iIndex] = value;
+			arrayList[index] = value;
 		} // proc ArrayOnlySetIndex
 
 		#endregion
@@ -2409,25 +2358,25 @@ namespace Neo.IronLua
 			return tc >= LuaEmitTypeCode.SByte && tc <= LuaEmitTypeCode.Int32;
 		} // func IsIndexKey
 
-		private static bool IsIndexKey(object item, out int iIndex)
+		private static bool IsIndexKey(object item, out int index)
 		{
 			#region -- IsIndexKey --
 			switch (LuaEmit.GetTypeCode(item.GetType()))
 			{
 				case LuaEmitTypeCode.Int32:
-					iIndex = (int)item;
+					index = (int)item;
 					return true;
 				case LuaEmitTypeCode.Byte:
-					iIndex = (byte)item;
+					index = (byte)item;
 					return true;
 				case LuaEmitTypeCode.SByte:
-					iIndex = (sbyte)item;
+					index = (sbyte)item;
 					return true;
 				case LuaEmitTypeCode.UInt16:
-					iIndex = (ushort)item;
+					index = (ushort)item;
 					return true;
 				case LuaEmitTypeCode.Int16:
-					iIndex = (short)item;
+					index = (short)item;
 					return true;
 				case LuaEmitTypeCode.UInt32:
 					unchecked
@@ -2435,12 +2384,12 @@ namespace Neo.IronLua
 						uint t = (uint)item;
 						if (t < Int32.MaxValue)
 						{
-							iIndex = (int)t;
+							index = (int)t;
 							return true;
 						}
 						else
 						{
-							iIndex = 0;
+							index = 0;
 							return false;
 						}
 					}
@@ -2450,12 +2399,12 @@ namespace Neo.IronLua
 						long t = (uint)item;
 						if (t < Int32.MaxValue)
 						{
-							iIndex = (int)t;
+							index = (int)t;
 							return true;
 						}
 						else
 						{
-							iIndex = 0;
+							index = 0;
 							return false;
 						}
 					}
@@ -2465,12 +2414,12 @@ namespace Neo.IronLua
 						ulong t = (uint)item;
 						if (t < Int32.MaxValue)
 						{
-							iIndex = (int)t;
+							index = (int)t;
 							return true;
 						}
 						else
 						{
-							iIndex = 0;
+							index = 0;
 							return false;
 						}
 					}
@@ -2479,12 +2428,12 @@ namespace Neo.IronLua
 						float f = (float)item;
 						if (f % 1 == 0 && f >= 1 && f <= Int32.MaxValue)
 						{
-							iIndex = Convert.ToInt32(f);
+							index = Convert.ToInt32(f);
 							return true;
 						}
 						else
 						{
-							iIndex = 0;
+							index = 0;
 							return false;
 						}
 					}
@@ -2493,12 +2442,12 @@ namespace Neo.IronLua
 						double f = (double)item;
 						if (f % 1 == 0 && f >= 1 && f <= Int32.MaxValue)
 						{
-							iIndex = Convert.ToInt32(f);
+							index = Convert.ToInt32(f);
 							return true;
 						}
 						else
 						{
-							iIndex = 0;
+							index = 0;
 							return false;
 						}
 					}
@@ -2507,17 +2456,17 @@ namespace Neo.IronLua
 						decimal f = (decimal)item;
 						if (f % 1 == 0 && f >= 1 && f <= Int32.MaxValue)
 						{
-							iIndex = Convert.ToInt32(f);
+							index = Convert.ToInt32(f);
 							return true;
 						}
 						else
 						{
-							iIndex = 0;
+							index = 0;
 							return false;
 						}
 					}
 				default:
-					iIndex = 0;
+					index = 0;
 					return false;
 			}
 			#endregion
@@ -2526,37 +2475,37 @@ namespace Neo.IronLua
 		/// <summary>Set a value in of the table</summary>
 		/// <param name="key">Key</param>
 		/// <param name="value">Value, <c>null</c> deletes the value.</param>
-		/// <param name="lRawSet">If the value not exists, should we call OnNewIndex.</param>
+		/// <param name="rawSet">If the value not exists, should we call OnNewIndex.</param>
 		/// <returns>value</returns>
-		public object SetValue(object key, object value, bool lRawSet = false)
+		public object SetValue(object key, object value, bool rawSet = false)
 		{
-			int iIndex;
-			string sKey;
+			int index;
+			string keyString;
 
 			if (key == null)
 			{
 				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
 			}
-			else if (IsIndexKey(key, out iIndex)) // is a array element
+			else if (IsIndexKey(key, out index)) // is a array element
 			{
-				return SetArrayValue(iIndex, value, lRawSet);
+				return SetArrayValue(index, value, rawSet);
 			}
-			else if ((sKey = (key as string)) != null) // belongs to the member list
+			else if ((keyString = (key as string)) != null) // belongs to the member list
 			{
-				SetMemberValueIntern(sKey, value, false, lRawSet, false, false);
+				SetMemberValueIntern(keyString, value, false, rawSet, false, false);
 				return value;
 			}
 			else // something else
 			{
 				int hashCode = key.GetHashCode() & 0x7FFFFFFF;
-				iIndex = FindKey(key, hashCode, comparerObject); // find the value
+				index = FindKey(key, hashCode, comparerObject); // find the value
 
 				if (value == null) // remove value
-					RemoveValue(iIndex);
-				else if (iIndex < 0 && (lRawSet || !OnNewIndex(key, value))) // insert value
+					RemoveValue(index);
+				else if (index < 0 && (rawSet || !OnNewIndex(key, value))) // insert value
 					InsertValue(key, hashCode, value, false);
 				else // update value
-					entries[iIndex].value = value;
+					entries[index].value = value;
 
 				return value;
 			}
@@ -2564,76 +2513,76 @@ namespace Neo.IronLua
 
 		/// <summary>Set multi indexed values.</summary>
 		/// <param name="keyList">Keys</param>
-		/// <param name="lRawSet">If the value not exists, should we call OnNewIndex.</param>
+		/// <param name="rawSet">If the value not exists, should we call OnNewIndex.</param>
 		/// <param name="value"></param>
-		public void SetValue(object[] keyList, object value, bool lRawSet = false)
+		public void SetValue(object[] keyList, object value, bool rawSet = false)
 		{
-			SetValue(keyList, 0, value, lRawSet);
+			SetValue(keyList, 0, value, rawSet);
 		} // func SetValue
 
-		private void SetValue(object[] keyList, int iIndex, object value, bool lRawSet)
+		private void SetValue(object[] keyList, int index, object value, bool rawSet)
 		{
-			if (iIndex == keyList.Length - 1)
+			if (index == keyList.Length - 1)
 			{
-				SetValue(keyList[iIndex], value, false);
+				SetValue(keyList[index], value, false);
 			}
 			else
 			{
-				LuaTable tNext = GetValue(keyList[iIndex], false) as LuaTable;
+				LuaTable tNext = GetValue(keyList[index], false) as LuaTable;
 				if (tNext == null)
 				{
 					tNext = new LuaTable();
-					SetValue(keyList[iIndex], tNext, lRawSet); // set it, as it is
+					SetValue(keyList[index], tNext, rawSet); // set it, as it is
 				}
-				tNext.SetValue(keyList, iIndex++, value, lRawSet);
+				tNext.SetValue(keyList, index++, value, rawSet);
 			}
 		} // func SetValue
 
 		/// <summary>Gets the value of a key</summary>
 		/// <param name="key">Key</param>
-		/// <param name="lRawGet">Is OnIndex called, if no key exists.</param>
+		/// <param name="rawGet">Is OnIndex called, if no key exists.</param>
 		/// <returns>The value or <c>null</c>.</returns>
-		public object GetValue(object key, bool lRawGet = false)
+		public object GetValue(object key, bool rawGet = false)
 		{
-			int iIndex;
-			string sKey;
+			int index;
+			string keyString;
 
 			if (key == null)
 			{
 				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
 			}
-			else if (IsIndexKey(key, out iIndex))
+			else if (IsIndexKey(key, out index))
 			{
-				return GetArrayValue(iIndex, lRawGet);
+				return GetArrayValue(index, rawGet);
 			}
-			else if ((sKey = (key as string)) != null)
+			else if ((keyString = (key as string)) != null)
 			{
-				return GetMemberValue(sKey, false, lRawGet);
+				return GetMemberValue(keyString, false, rawGet);
 			}
 			else
 			{
-				iIndex = FindKey(key, key.GetHashCode() & 0x7FFFFFFF, comparerObject);
-				if (iIndex < 0)
-					return lRawGet ? null : OnIndex(key);
+				index = FindKey(key, key.GetHashCode() & 0x7FFFFFFF, comparerObject);
+				if (index < 0)
+					return rawGet ? null : OnIndex(key);
 				else
-					return entries[iIndex].value;
+					return entries[index].value;
 			}
 		} // func GetValue
 
 		/// <summary>Get multi indexed values</summary>
 		/// <param name="keyList">Keys</param>
-		/// <param name="lRawGet">Is OnIndex called, if no key exists.</param>
+		/// <param name="rawGet">Is OnIndex called, if no key exists.</param>
 		/// <returns>Value</returns>
-		public object GetValue(object[] keyList, bool lRawGet = false)
+		public object GetValue(object[] keyList, bool rawGet = false)
 		{
-			return GetValue(keyList, 0, lRawGet);
+			return GetValue(keyList, 0, rawGet);
 		} // func GetValue
 
-		private object GetValue(object[] keyList, int iIndex, bool lRawGet)
+		private object GetValue(object[] keyList, int index, bool rawGet)
 		{
-			object o = GetValue(keyList[iIndex], lRawGet);
+			object o = GetValue(keyList[index], rawGet);
 
-			if (iIndex == keyList.Length - 1)
+			if (index == keyList.Length - 1)
 				return o;
 			else
 			{
@@ -2641,7 +2590,7 @@ namespace Neo.IronLua
 				if (tNext == null)
 					return null;
 				else
-					return tNext.GetValue(keyList, iIndex + 1, lRawGet);
+					return tNext.GetValue(keyList, index + 1, rawGet);
 			}
 		} // func GetValue
 
@@ -2687,46 +2636,46 @@ namespace Neo.IronLua
 		#region -- DefineFunction, DefineMethod -------------------------------------------
 
 		/// <summary>Defines a normal function attached to a table.</summary>
-		/// <param name="sFunctionName">Name of the member for the function.</param>
+		/// <param name="functionName">Name of the member for the function.</param>
 		/// <param name="function">function definition</param>
-		/// <param name="lIgnoreCase">Ignore case of the member name</param>
+		/// <param name="ignoreCase">Ignore case of the member name</param>
 		/// <returns>function</returns>
 		/// <remarks>If you want to delete the define, call SetMemberValue with the function name and set the value to <c>null</c>.</remarks>
-		public Delegate DefineFunction(string sFunctionName, Delegate function, bool lIgnoreCase = false)
+		public Delegate DefineFunction(string functionName, Delegate function, bool ignoreCase = false)
 		{
-			if (String.IsNullOrEmpty(sFunctionName))
+			if (String.IsNullOrEmpty(functionName))
 				throw new ArgumentNullException("functionName");
 			if (function == null)
 				throw new ArgumentNullException("function");
 
-			SetMemberValueIntern(sFunctionName, function, lIgnoreCase, false, false, false);
+			SetMemberValueIntern(functionName, function, ignoreCase, false, false, false);
 			return function;
 		} // func DefineFunction
 
 		/// <summary>Defines a new method on the table.</summary>
-		/// <param name="sMethodName">Name of the member/name.</param>
+		/// <param name="methodName">Name of the member/name.</param>
 		/// <param name="method">Method that has as a first parameter a LuaTable.</param>
-		/// <param name="lIgnoreCase">Ignore case of the member name</param>
+		/// <param name="ignoreCase">Ignore case of the member name</param>
 		/// <returns>method</returns>
 		/// <remarks>If you want to delete the define, call SetMemberValue with the function name and set the value to <c>null</c>.</remarks>
-		public Delegate DefineMethod(string sMethodName, Delegate method, bool lIgnoreCase = false)
+		public Delegate DefineMethod(string methodName, Delegate method, bool ignoreCase = false)
 		{
-			if (String.IsNullOrEmpty(sMethodName))
+			if (String.IsNullOrEmpty(methodName))
 				throw new ArgumentNullException("methodName");
 			if (method == null)
 				throw new ArgumentNullException("method");
 
 			Type typeFirstParameter = method.GetMethodInfo().GetParameters()[0].ParameterType;
 			if (!typeFirstParameter.GetTypeInfo().IsAssignableFrom(typeof(LuaTable).GetTypeInfo()))
-				throw new ArgumentException(String.Format(Properties.Resources.rsTableMethodExpected, sMethodName));
+				throw new ArgumentException(String.Format(Properties.Resources.rsTableMethodExpected, methodName));
 
-			SetMemberValueIntern(sMethodName, method, lIgnoreCase, false, false, true);
+			SetMemberValueIntern(methodName, method, ignoreCase, false, false, true);
 			return method;
 		} // func DefineMethod
 
-		internal Delegate DefineMethodLight(string sMethodName, Delegate method)
+		internal Delegate DefineMethodLight(string methodName, Delegate method)
 		{
-			SetMemberValueIntern(sMethodName, method, false, false, false, true);
+			SetMemberValueIntern(methodName, method, false, false, false, true);
 			return method;
 		} // func DefineMethodLight
 
@@ -2775,11 +2724,11 @@ namespace Neo.IronLua
 			=> CallMemberDirect(memberName, emptyObjectArray);
 
 		/// <summary>Call a member</summary>
-		/// <param name="sMemberName">Name of the member</param>
+		/// <param name="memberName">Name of the member</param>
 		/// <param name="arg0">first argument</param>
 		/// <returns>Result of the function call.</returns>
-		public LuaResult CallMember(string sMemberName, object arg0)
-			=> CallMemberDirect(sMemberName, new object[] { arg0, });
+		public LuaResult CallMember(string memberName, object arg0)
+			=> CallMemberDirect(memberName, new object[] { arg0, });
 
 		/// <summary>Call a member</summary>
 		/// <param name="memberName">Name of the member</param>
@@ -2797,7 +2746,7 @@ namespace Neo.IronLua
 		/// <returns>Result of the function call.</returns>
 		public LuaResult CallMember(string memberName, object arg0, object arg1, object arg2)
 			=> CallMemberDirect(memberName, new object[] { arg0, arg1, arg2 });
-		
+
 		/// <summary>Call a member</summary>
 		/// <param name="memberName">Name of the member</param>
 		/// <param name="args">Arguments</param>
@@ -2811,8 +2760,9 @@ namespace Neo.IronLua
 		/// <param name="ignoreCase">Ignore case of the member name</param>
 		/// <param name="rawGet"></param>
 		/// <param name="throwExceptions"><c>true</c>, throws a exception if something is going wrong. <c>false</c>, on a exception a empty LuaResult will be returned.</param>
+		/// <param name="ignoreNilFunction"><c>true</c>, throws no exception n nil value.</param>
 		/// <returns></returns>
-		public LuaResult CallMemberDirect(string memberName, object[] args, bool ignoreCase = false, bool rawGet = false, bool throwExceptions = true)
+		public LuaResult CallMemberDirect(string memberName, object[] args, bool ignoreCase = false, bool rawGet = false, bool throwExceptions = true, bool ignoreNilFunction = false)
 		{
 			if (memberName == null)
 				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
@@ -2824,7 +2774,7 @@ namespace Neo.IronLua
 				switch (GetCallMember(memberName, ignoreCase, rawGet, out method))
 				{
 					case CallMethod.Nil:
-						if (throwExceptions)
+						if (throwExceptions && !ignoreNilFunction)
 							throw new ArgumentNullException(String.Format(Properties.Resources.rsMemberNotResolved, "table", memberName));
 						else
 							return LuaResult.Empty;
@@ -2878,7 +2828,7 @@ namespace Neo.IronLua
 		internal object RtInvokeSite(object target, params object[] args)
 		{
 			// create the argument array
-			object[] newArgs = new object[args.Length + 2];
+			var newArgs = new object[args.Length + 2];
 			newArgs[1] = target;
 			Array.Copy(args, 0, newArgs, 2, args.Length);
 
@@ -2906,10 +2856,10 @@ namespace Neo.IronLua
 			if (obj == null)
 				return obj;
 
-			Type type = obj.GetType();
+			var type = obj.GetType();
 
 			// set all fields
-			foreach (FieldInfo field in type.GetRuntimeFields().Where(fi => fi.IsPublic && !fi.IsStatic && !fi.IsInitOnly))
+			foreach (var field in type.GetRuntimeFields().Where(fi => fi.IsPublic && !fi.IsStatic && !fi.IsInitOnly))
 			{
 				int iEntryIndex = FindKey(field.Name, GetMemberHashCode(field.Name), compareString);
 				if (iEntryIndex >= 0)
@@ -2917,7 +2867,7 @@ namespace Neo.IronLua
 			}
 
 			// set all properties
-			foreach (PropertyInfo property in type.GetRuntimeProperties().Where(pi => pi.SetMethod != null && pi.SetMethod.IsPublic && !pi.SetMethod.IsStatic))
+			foreach (var property in type.GetRuntimeProperties().Where(pi => pi.SetMethod != null && pi.SetMethod.IsPublic && !pi.SetMethod.IsStatic))
 			{
 				int iEntryIndex = FindKey(property.Name, GetMemberHashCode(property.Name), compareString);
 				if (iEntryIndex >= 0)
@@ -2979,137 +2929,103 @@ namespace Neo.IronLua
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		protected virtual object OnAdd(object arg)
-		{
-			return BinaryOperation("__add", arg);
-		} // func OnAdd
+			=> BinaryOperation("__add", arg);
 
 		/// <summary></summary>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		protected virtual object OnSub(object arg)
-		{
-			return BinaryOperation("__sub", arg);
-		} // func OnSub
+			=> BinaryOperation("__sub", arg);
 
 		/// <summary></summary>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		protected virtual object OnMul(object arg)
-		{
-			return BinaryOperation("__mul", arg);
-		} // func OnMul
+			=> BinaryOperation("__mul", arg);
 
 		/// <summary></summary>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		protected virtual object OnDiv(object arg)
-		{
-			return BinaryOperation("__div", arg);
-		} // func OnDiv
+			=> BinaryOperation("__div", arg);
 
 		/// <summary></summary>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		protected virtual object OnMod(object arg)
-		{
-			return BinaryOperation("__mod", arg);
-		} // func OnMod
+			=> BinaryOperation("__mod", arg);
 
 		/// <summary></summary>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		protected virtual object OnPow(object arg)
-		{
-			return BinaryOperation("__pow", arg);
-		} // func OnPow
+			=> BinaryOperation("__pow", arg);
 
 		/// <summary></summary>
 		/// <returns></returns>
 		protected virtual object OnUnMinus()
-		{
-			return UnaryOperation("__unm");
-		} // func OnUnMinus
+			=> UnaryOperation("__unm");
 
 		/// <summary></summary>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		protected virtual object OnIDiv(object arg)
-		{
-			return BinaryOperation("__idiv", arg);
-		} // func OnIDiv
+			=> BinaryOperation("__idiv", arg);
 
 		/// <summary></summary>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		protected virtual object OnBAnd(object arg)
-		{
-			return BinaryOperation("__band", arg);
-		} // func OnBAnd
+			=> BinaryOperation("__band", arg);
 
 		/// <summary></summary>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		protected virtual object OnBOr(object arg)
-		{
-			return BinaryOperation("__bor", arg);
-		} // func OnBOr
+			=> BinaryOperation("__bor", arg);
 
 		/// <summary></summary>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		protected virtual object OnBXor(object arg)
-		{
-			return BinaryOperation("__bxor", arg);
-		} // func OnBXor
+			=> BinaryOperation("__bxor", arg);
 
 		/// <summary></summary>
 		/// <returns></returns>
 		protected virtual object OnBNot()
-		{
-			return UnaryOperation("__bnot");
-		} // func OnBNot
+			=> UnaryOperation("__bnot");
 
 		/// <summary></summary>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		protected virtual object OnShl(object arg)
-		{
-			return BinaryOperation("__shl", arg);
-		} // func OnShl
+			=> BinaryOperation("__shl", arg);
 
 		/// <summary></summary>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		protected virtual object OnShr(object arg)
-		{
-			return BinaryOperation("__shr", arg);
-		} // func OnShr
+			=> BinaryOperation("__shr", arg);
 
 		internal object InternConcat(object arg)
-		{
-			return OnConcat(arg);
-		} // func InternConcat
+			=> OnConcat(arg);
 
 		/// <summary></summary>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		protected virtual object OnConcat(object arg)
-		{
-			return BinaryOperation("__concat", arg);
-		} // func OnShr
+			=> BinaryOperation("__concat", arg);
 
 		internal int InternLen()
-		{
-			return OnLen();
-		} // func InternLen
+			=> OnLen();
 
 		/// <summary></summary>
 		/// <returns></returns>
 		protected virtual int OnLen()
 		{
-			int iLen;
-			if (TryInvokeMetaTableOperator<int>("__len", false, out iLen, this))
-				return iLen;
+			int l;
+			if (TryInvokeMetaTableOperator<int>("__len", false, out l, this))
+				return l;
 			return Length;
 		} // func OnLen
 
@@ -3117,25 +3033,19 @@ namespace Neo.IronLua
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		protected virtual bool OnEqual(object arg)
-		{
-			return Equals(arg);
-		} // func OnEqual
+			=> Equals(arg);
 
 		/// <summary></summary>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		protected virtual bool OnLessThan(object arg)
-		{
-			return BinaryBoolOperation("__lt", arg);
-		} // func OnLessThan
+			=> BinaryBoolOperation("__lt", arg);
 
 		/// <summary></summary>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		protected virtual bool OnLessEqual(object arg)
-		{
-			return BinaryBoolOperation("__le", arg);
-		} // func OnLessEqual
+			=> BinaryBoolOperation("__le", arg);
 
 		/// <summary></summary>
 		/// <param name="key"></param>
@@ -3145,7 +3055,7 @@ namespace Neo.IronLua
 			if (Object.ReferenceEquals(metaTable, null))
 				return null;
 
-			object index = metaTable["__index"];
+			var index = metaTable["__index"];
 			LuaTable t;
 
 			if ((t = index as LuaTable) != null) // default table
@@ -3165,7 +3075,7 @@ namespace Neo.IronLua
 			if (Object.ReferenceEquals(metaTable, null))
 				return false;
 
-			object o = metaTable["__newindex"];
+			var o = metaTable["__newindex"];
 			if (Lua.RtInvokeable(o))
 			{
 				RtInvokeSite(o, this, key, value);
@@ -3189,7 +3099,7 @@ namespace Neo.IronLua
 			}
 			else
 			{
-				object[] argsEnlarged = new object[args.Length + 1];
+				var argsEnlarged = new object[args.Length + 1];
 				argsEnlarged[0] = this;
 				Array.Copy(args, 0, argsEnlarged, 1, args.Length);
 				LuaResult o;
@@ -3221,22 +3131,20 @@ namespace Neo.IronLua
 			/// <param name="item"></param>
 			/// <returns></returns>
 			public bool Contains(object item)
-			{
-				return t.ContainsKey(item);
-			} // func Contains
+				=> t.ContainsKey(item);
 
 			/// <summary></summary>
 			/// <param name="array"></param>
 			/// <param name="arrayIndex"></param>
 			public void CopyTo(object[] array, int arrayIndex)
 			{
-				if (arrayIndex < 0 || arrayIndex + t.iCount > array.Length)
+				if (arrayIndex < 0 || arrayIndex + t.count > array.Length)
 					throw new ArgumentOutOfRangeException();
 
-				for (int i = 0; i < t.arrayList.Length; i++)
+				for (var i = 0; i < t.arrayList.Length; i++)
 					array[arrayIndex++] = i + 1;
 
-				for (int i = HiddenMemberCount; i < t.entries.Length; i++)
+				for (var i = HiddenMemberCount; i < t.entries.Length; i++)
 					if (t.entries[i].hashCode != -1)
 						array[arrayIndex++] = t.entries[i].key;
 			} // proc CopyTo
@@ -3245,18 +3153,18 @@ namespace Neo.IronLua
 			/// <returns></returns>
 			public IEnumerator<object> GetEnumerator()
 			{
-				int iVersion = t.iVersion;
+				var version = t.version;
 
-				for (int i = 0; i < t.arrayList.Length; i++)
+				for (var i = 0; i < t.arrayList.Length; i++)
 				{
-					if (iVersion != t.iVersion)
+					if (version != t.version)
 						throw new InvalidOperationException("table changed");
 
 					yield return i + 1;
 				}
-				for (int i = HiddenMemberCount; i < t.entries.Length; i++)
+				for (var i = HiddenMemberCount; i < t.entries.Length; i++)
 				{
-					if (iVersion != t.iVersion)
+					if (version != t.version)
 						throw new InvalidOperationException("table changed");
 
 					if (t.entries[i].hashCode != -1)
@@ -3265,18 +3173,16 @@ namespace Neo.IronLua
 			} // func GetEnumerator
 
 			IEnumerator IEnumerable.GetEnumerator()
-			{
-				return GetEnumerator();
-			} // func IEnumerable.GetEnumerator
+				=> GetEnumerator();
 
 			void ICollection<object>.Add(object item) { throw new NotSupportedException(); }
 			bool ICollection<object>.Remove(object item) { throw new NotSupportedException(); }
 			void ICollection<object>.Clear() { throw new NotSupportedException(); }
 
 			/// <summary></summary>
-			public int Count { get { return t.iCount - HiddenMemberCount; } }
+			public int Count => t.count - HiddenMemberCount;
 			/// <summary>Always true</summary>
-			public bool IsReadOnly { get { return true; } }
+			public bool IsReadOnly => true;
 		} // class LuaTableHashKeyCollection
 
 		#endregion
@@ -3299,19 +3205,19 @@ namespace Neo.IronLua
 			/// <returns></returns>
 			public bool Contains(object value)
 			{
-				for (int i = 0; i < t.arrayList.Length; i++)
+				for (var i = 0; i < t.arrayList.Length; i++)
 				{
 					if (t.arrayList[i] != null && comparerObject.Equals(t.arrayList[i], value))
 						return true;
 				}
 
-				for (int i = HiddenMemberCount; i < t.classDefinition.Count; i++)
+				for (var i = HiddenMemberCount; i < t.classDefinition.Count; i++)
 				{
 					if (comparerObject.Equals(t.GetClassMemberValue(i, t.entries[i].key, true), value))
 						return true;
 				}
 
-				for (int i = t.classDefinition.Count; i < t.entries.Length; i++)
+				for (var i = t.classDefinition.Count; i < t.entries.Length; i++)
 				{
 					if (t.entries[i].hashCode != -1 && comparerObject.Equals(t.entries[i].value, value))
 						return true;
@@ -3325,21 +3231,21 @@ namespace Neo.IronLua
 			/// <param name="arrayIndex"></param>
 			public void CopyTo(object[] array, int arrayIndex)
 			{
-				if (arrayIndex < 0 || arrayIndex + t.iCount > array.Length)
+				if (arrayIndex < 0 || arrayIndex + t.count > array.Length)
 					throw new ArgumentOutOfRangeException();
 
-				for (int i = 0; i < t.arrayList.Length; i++)
+				for (var i = 0; i < t.arrayList.Length; i++)
 				{
 					if (t.arrayList[i] != null)
 						array[arrayIndex++] = t.arrayList[i];
 				}
 
-				for (int i = HiddenMemberCount; i < t.classDefinition.Count; i++)
+				for (var i = HiddenMemberCount; i < t.classDefinition.Count; i++)
 				{
 					array[arrayIndex++] = t.GetClassMemberValue(i, t.entries[i].key, true);
 				}
 
-				for (int i = t.classDefinition.Count; i < t.entries.Length; i++)
+				for (var i = t.classDefinition.Count; i < t.entries.Length; i++)
 				{
 					if (t.entries[i].hashCode != -1)
 						array[arrayIndex++] = t.entries[i].value;
@@ -3350,28 +3256,28 @@ namespace Neo.IronLua
 			/// <returns></returns>
 			public IEnumerator<object> GetEnumerator()
 			{
-				int iVersion = t.iVersion;
+				var version = t.version;
 
-				for (int i = 0; i < t.arrayList.Length; i++)
+				for (var i = 0; i < t.arrayList.Length; i++)
 				{
-					if (iVersion != t.iVersion)
+					if (version != t.version)
 						throw new InvalidOperationException("table changed");
 
 					if (t.arrayList[i] != null)
 						yield return t.arrayList[i];
 				}
 
-				for (int i = HiddenMemberCount; i < t.classDefinition.Count; i++)
+				for (var i = HiddenMemberCount; i < t.classDefinition.Count; i++)
 				{
-					if (iVersion != t.iVersion)
+					if (version != t.version)
 						throw new InvalidOperationException("table changed");
 
 					yield return t.GetClassMemberValue(i, t.entries[i].key, true);
 				}
 
-				for (int i = t.classDefinition.Count; i < t.entries.Length; i++)
+				for (var i = t.classDefinition.Count; i < t.entries.Length; i++)
 				{
-					if (iVersion != t.iVersion)
+					if (version != t.version)
 						throw new InvalidOperationException("table changed");
 
 					if (t.entries[i].hashCode != -1)
@@ -3380,18 +3286,16 @@ namespace Neo.IronLua
 			} // func GetEnumerator
 
 			IEnumerator IEnumerable.GetEnumerator()
-			{
-				return GetEnumerator();
-			} // func IEnumerable.GetEnumerator
+				=> GetEnumerator();
 
 			void ICollection<object>.Add(object item) { throw new NotSupportedException(); }
 			bool ICollection<object>.Remove(object item) { throw new NotSupportedException(); }
 			void ICollection<object>.Clear() { throw new NotSupportedException(); }
 
 			/// <summary></summary>
-			public int Count { get { return t.iCount - HiddenMemberCount; } }
+			public int Count => t.count - HiddenMemberCount;
 			/// <summary>Always true</summary>
-			public bool IsReadOnly { get { return true; } }
+			public bool IsReadOnly => true;
 		} // class LuaTableHashValueCollection
 
 		#endregion
@@ -3408,14 +3312,10 @@ namespace Neo.IronLua
 		} // proc IDictionary<object, object>.Add
 
 		bool IDictionary<object, object>.TryGetValue(object key, out object value)
-		{
-			return (value = GetValue(key, true)) != null;
-		} // func IDictionary<object, object>.TryGetValue
+			=> (value = GetValue(key, true)) != null;
 
 		bool IDictionary<object, object>.ContainsKey(object key)
-		{
-			return ContainsKey(key);
-		} // func IDictionary<object, object>.ContainsKey
+			=> ContainsKey(key);
 
 		bool IDictionary<object, object>.Remove(object key)
 		{
@@ -3495,7 +3395,7 @@ namespace Neo.IronLua
 		private object NextHashKey(int startIndex)
 		{
 			var entryIndex = Array.FindIndex(entries, startIndex, c => c.hashCode != -1);
-			return entryIndex == -1 ?  null : entries[entryIndex].key;
+			return entryIndex == -1 ? null : entries[entryIndex].key;
 		} // func FirstHashKey
 
 		#endregion
@@ -3527,24 +3427,22 @@ namespace Neo.IronLua
 		} // proc ICollection<KeyValuePair<object, object>>.Clear
 
 		bool ICollection<KeyValuePair<object, object>>.Contains(KeyValuePair<object, object> item)
-		{
-			return ContainsKey(item.Key);
-		} // func ICollection<KeyValuePair<object, object>>.Contains
+			=> ContainsKey(item.Key);
 
 		void ICollection<KeyValuePair<object, object>>.CopyTo(KeyValuePair<object, object>[] array, int arrayIndex)
 		{
-			if (arrayIndex + iCount > array.Length)
+			if (arrayIndex + count > array.Length)
 				throw new ArgumentOutOfRangeException();
 
 			// copy the array part
-			for (int i = 0; i < arrayList.Length; i++)
+			for (var i = 0; i < arrayList.Length; i++)
 			{
 				if (arrayList[i] != null)
 					array[arrayIndex++] = new KeyValuePair<object, object>(i + 1, arrayList[i]);
 			}
 
 			// copy the class part
-			for (int i = HiddenMemberCount; i < classDefinition.Count; i++)
+			for (var i = HiddenMemberCount; i < classDefinition.Count; i++)
 			{
 				object value = GetClassMemberValue(i, null, true);
 				if (value != null)
@@ -3552,15 +3450,15 @@ namespace Neo.IronLua
 			}
 
 			// copy the  hash part
-			for (int i = classDefinition.Count; i < entries.Length; i++)
+			for (var i = classDefinition.Count; i < entries.Length; i++)
 			{
 				if (entries[i].hashCode != -1)
 					array[arrayIndex++] = new KeyValuePair<object, object>(entries[i].key, entries[i].value);
 			}
 		} // proc ICollection<KeyValuePair<object, object>>.CopyTo
 
-		int ICollection<KeyValuePair<object, object>>.Count { get { return iCount - HiddenMemberCount; } }
-		bool ICollection<KeyValuePair<object, object>>.IsReadOnly { get { return false; } }
+		int ICollection<KeyValuePair<object, object>>.Count => count - HiddenMemberCount;
+		bool ICollection<KeyValuePair<object, object>>.IsReadOnly => false;
 
 		#endregion
 
@@ -3570,12 +3468,12 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public IEnumerator<KeyValuePair<object, object>> GetEnumerator()
 		{
-			int iVersion = this.iVersion;
+			int iVersion = this.version;
 
 			// enumerate the array part
 			for (int i = 0; i < arrayList.Length; i++)
 			{
-				if (iVersion != this.iVersion)
+				if (iVersion != this.version)
 					throw new InvalidOperationException();
 
 				if (arrayList[i] != null)
@@ -3585,7 +3483,7 @@ namespace Neo.IronLua
 			// enumerate the class part
 			for (int i = HiddenMemberCount; i < classDefinition.Count; i++)
 			{
-				if (iVersion != this.iVersion)
+				if (iVersion != this.version)
 					throw new InvalidOperationException();
 
 				object value = GetClassMemberValue(i, null, true);
@@ -3596,7 +3494,7 @@ namespace Neo.IronLua
 			// enumerate the hash part
 			for (int i = classDefinition.Count; i < entries.Length; i++)
 			{
-				if (iVersion != this.iVersion)
+				if (iVersion != this.version)
 					throw new InvalidOperationException();
 
 				if (entries[i].hashCode != -1)
@@ -3605,20 +3503,18 @@ namespace Neo.IronLua
 		} // func IEnumerator<KeyValuePair<object, object>>
 
 		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-		{
-			return GetEnumerator();
-		} // func System.Collections.IEnumerable.GetEnumerator
+			=> GetEnumerator();
 
 		#endregion
 
 		/// <summary>Returns or sets an value in the lua-table.</summary>
-		/// <param name="iIndex">Index.</param>
+		/// <param name="index">Index.</param>
 		/// <returns>Value or <c>null</c></returns>
-		public object this[int iIndex] { get { return GetArrayValue(iIndex, false); } set { SetArrayValue(iIndex, value, false); } }
+		public object this[int index] { get { return GetArrayValue(index, false); } set { SetArrayValue(index, value, false); } }
 		/// <summary>Returns or sets an value in the lua-table.</summary>
-		/// <param name="sName">Index.</param>
+		/// <param name="key">Index.</param>
 		/// <returns>Value or <c>null</c></returns>
-		public object this[string sName] { get { return GetMemberValue(sName, false, false); } set { SetMemberValue(sName, value, false, false); } }
+		public object this[string key] { get { return GetMemberValue(key, false, false); } set { SetMemberValue(key, value, false, false); } }
 		/// <summary>Returns or sets an value in the lua-table.</summary>
 		/// <param name="key">Index.</param>
 		/// <returns>Value or <c>null</c></returns>
@@ -3629,14 +3525,14 @@ namespace Neo.IronLua
 		public object this[params object[] keyList] { get { return GetValue(keyList, false); } set { SetValue(keyList, value, false); } }
 
 		/// <summary>Access to the array part</summary>
-		public IList<object> ArrayList { get { return new ArrayImplementation(this); } }
+		public IList<object> ArrayList => new ArrayImplementation(this);
 		/// <summary>Access to all members</summary>
-		public IDictionary<string, object> Members { get { return new MemberImplementation(this); } }
+		public IDictionary<string, object> Members => new MemberImplementation(this);
 		/// <summary>Access to all values.</summary>
-		public IDictionary<object, object> Values { get { return this; } }
+		public IDictionary<object, object> Values => this;
 
 		/// <summary>Length if it is an array.</summary>
-		public int Length { get { return arrayLength; } }
+		public int Length => arrayLength;
 		/// <summary>Access to the __metatable</summary>
 		[LuaMember(csMetaTable)]
 		public LuaTable MetaTable { get { return metaTable; } set { metaTable = value; } }
@@ -3693,9 +3589,9 @@ namespace Neo.IronLua
 		public static void insert(LuaTable t, object pos, object value)
 		{
 			// insert the value at the position
-			int iIndex;
-			if (IsIndexKey(pos, out iIndex) && iIndex >= 1 && iIndex <= t.arrayLength + 1)
-				t.ArrayOnlyInsert(iIndex - 1, value);
+			int index;
+			if (IsIndexKey(pos, out index) && index >= 1 && index <= t.arrayLength + 1)
+				t.ArrayOnlyInsert(index - 1, value);
 			else
 				t.SetValue(pos, value, true);
 		} // proc insert
@@ -3743,7 +3639,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static LuaTable pack(object[] values)
 		{
-			LuaTable t = new LuaTable(values);
+			var t = new LuaTable(values);
 			t.SetMemberValueIntern("n", values.Length, false, true, false, false); // set the element count, because it can be different
 			return t;
 		} // func pack
@@ -3754,8 +3650,8 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static LuaTable pack<T>(T[] values)
 		{
-			object[] v = new object[values.Length];
-			for (int i = 0; i < values.Length; i++)
+			var v = new object[values.Length];
+			for (var i = 0; i < values.Length; i++)
 				v[i] = values[i];
 			return pack(v);
 		} // func pack
@@ -3767,9 +3663,7 @@ namespace Neo.IronLua
 		/// <summary>Removes from list the last element.</summary>
 		/// <param name="t"></param>
 		public static object remove(LuaTable t)
-		{
-			return remove(t, t.Length);
-		} // proc remove
+			=> remove(t, t.Length);
 
 		/// <summary>Removes from list the element at position pos, returning the value of the removed element.</summary>
 		/// <param name="t"></param>
@@ -3777,18 +3671,18 @@ namespace Neo.IronLua
 		public static object remove(LuaTable t, int pos)
 		{
 			object r;
-			int iIndex;
-			if (IsIndexKey(pos, out iIndex))
+			int index;
+			if (IsIndexKey(pos, out index))
 			{
-				if (iIndex >= 1 && iIndex <= t.arrayLength)  // remove the element and shift the follower
+				if (index >= 1 && index <= t.arrayLength)  // remove the element and shift the follower
 				{
-					r = t.arrayList[iIndex - 1];
-					t.ArrayOnlyRemoveAt(iIndex - 1);
+					r = t.arrayList[index - 1];
+					t.ArrayOnlyRemoveAt(index - 1);
 				}
 				else
 				{
-					r = t.GetArrayValue(iIndex, true);
-					t.SetArrayValue(iIndex, null, true); // just remove the element
+					r = t.GetArrayValue(index, true);
+					t.SetArrayValue(index, null, true); // just remove the element
 				}
 			}
 			else
@@ -3823,7 +3717,7 @@ namespace Neo.IronLua
 				else
 				{
 					// Call the comparer
-					object r = t.RtInvokeSite(compare, x, y);
+					var r = t.RtInvokeSite(compare, x, y);
 					if (r is LuaResult)
 						r = ((LuaResult)r)[0];
 
@@ -3856,18 +3750,14 @@ namespace Neo.IronLua
 		/// <param name="t"></param>
 		/// <returns></returns>
 		public static LuaResult unpack(LuaTable t)
-		{
-			return unpack(t, 1, t.Length);
-		} // func unpack
+			=> unpack(t, 1, t.Length);
 
 		/// <summary>Returns the elements from the given table.</summary>
 		/// <param name="t"></param>
 		/// <param name="i"></param>
 		/// <returns></returns>
 		public static LuaResult unpack(LuaTable t, int i)
-		{
-			return unpack(t, i, t.Length);
-		} // func unpack
+			=> unpack(t, i, t.Length);
 
 		/// <summary>Returns the elements from the given table.</summary>
 		/// <param name="t"></param>
@@ -3875,9 +3765,7 @@ namespace Neo.IronLua
 		/// <param name="j"></param>
 		/// <returns></returns>
 		public static LuaResult unpack(LuaTable t, int i, int j)
-		{
-			return new LuaResult(LuaResult.CopyMode.None, unpack(t, i, j, LuaResult.Empty.Values));
-		} // func unpack
+			=> new LuaResult(LuaResult.CopyMode.None, unpack(t, i, j, LuaResult.Empty.Values));
 
 		/// <summary>Returns the elements from the given table as a sequence.</summary>
 		/// <param name="t"></param>
@@ -3905,18 +3793,14 @@ namespace Neo.IronLua
 		/// <param name="t"></param>
 		/// <returns></returns>
 		public static LuaResult collect(LuaTable t)
-		{
-			return collect(t, 1, t.Length);
-		} // func unpack
+			=> collect(t, 1, t.Length);
 
 		/// <summary>Returns the elements from the given table as a sequence.</summary>
 		/// <param name="t"></param>
 		/// <param name="i"></param>
 		/// <returns></returns>
 		public static LuaResult collect(LuaTable t, int i)
-		{
-			return collect(t, i, t.Length);
-		} // func unpack
+			=> collect(t, i, t.Length);
 
 		/// <summary>Returns the elements from the given table as a sequence.</summary>
 		/// <param name="t"></param>
@@ -3924,9 +3808,7 @@ namespace Neo.IronLua
 		/// <param name="j"></param>
 		/// <returns></returns>
 		public static LuaResult collect(LuaTable t, int i, int j)
-		{
-			return new LuaResult(LuaResult.CopyMode.None, collect(t, i, j, LuaResult.Empty.Values));
-		} // func unpack
+			=> new LuaResult(LuaResult.CopyMode.None, collect(t, i, j, LuaResult.Empty.Values));
 
 		/// <summary>Returns the elements from the given table as a sequence.</summary>
 		/// <param name="t"></param>
@@ -3953,7 +3835,7 @@ namespace Neo.IronLua
 			}
 			else
 			{
-				var indexList = new List<KeyValuePair<int, T>>(Math.Max(Math.Min(j - i + 1, t.iCount), 1));
+				var indexList = new List<KeyValuePair<int, T>>(Math.Max(Math.Min(j - i + 1, t.count), 1));
 
 				// scan array part
 				if (i <= t.arrayList.Length && j >= 1)
@@ -3966,7 +3848,7 @@ namespace Neo.IronLua
 				}
 
 				// scan hash part
-				for (int k = 0; k < t.entries.Length; k++)
+				for (var k = 0; k < t.entries.Length; k++)
 				{
 					if (t.entries[k].key is int)
 					{
@@ -3984,7 +3866,7 @@ namespace Neo.IronLua
 					indexList.Sort((a, b) => a.Key - b.Key);
 
 					// create the result array
-					T[] result = new T[indexList.Count];
+					var result = new T[indexList.Count];
 					for (int k = 0; k < result.Length; k++)
 						result[k] = indexList[k].Value;
 
@@ -4004,166 +3886,124 @@ namespace Neo.IronLua
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static object operator +(LuaTable table, object arg)
-		{
-			return table.OnAdd(arg);
-		} // operator +
+			=> table.OnAdd(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static object operator -(LuaTable table, object arg)
-		{
-			return table.OnSub(arg);
-		} // operator -
+			=> table.OnSub(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static object operator *(LuaTable table, object arg)
-		{
-			return table.OnMul(arg);
-		} // operator *
+			=> table.OnMul(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static object operator /(LuaTable table, object arg)
-		{
-			return table.OnDiv(arg);
-		} // operator /
+			=> table.OnDiv(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static object operator %(LuaTable table, object arg)
-		{
-			return table.OnMod(arg);
-		} // operator %
+			=> table.OnMod(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <returns></returns>
 		public static object operator -(LuaTable table)
-		{
-			return table.OnUnMinus();
-		} // operator -
+			=> table.OnUnMinus();
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static bool operator ==(LuaTable table, object arg)
-		{
-			if (Object.ReferenceEquals(table, null))
-				return Object.ReferenceEquals(arg, null);
-			else
-				return table.Equals(arg);
-		} // operator ==
+			=> Object.ReferenceEquals(table, null) ? Object.ReferenceEquals(arg, null) : table.Equals(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static bool operator !=(LuaTable table, object arg)
-		{
-			if (Object.ReferenceEquals(table, null))
-				return !Object.ReferenceEquals(arg, null);
-			else
-				return !table.Equals(arg);
-		} // operator !=
+			=> Object.ReferenceEquals(table, null) ? !Object.ReferenceEquals(arg, null) : !table.Equals(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static object operator <(LuaTable table, object arg)
-		{
-			return table.OnLessThan(arg);
-		} // operator <
+			=> table.OnLessThan(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static object operator >(LuaTable table, object arg)
-		{
-			return !table.OnLessThan(arg);
-		} // operator >
+			=> !table.OnLessThan(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static object operator <=(LuaTable table, object arg)
-		{
-			return table.OnLessEqual(arg);
-		} // operator <=
+			=> table.OnLessEqual(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static object operator >=(LuaTable table, object arg)
-		{
-			return !table.OnLessEqual(arg);
-		} // operator >=
+			=> !table.OnLessEqual(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static object operator >>(LuaTable table, int arg)
-		{
-			return table.OnShr(arg);
-		} // operator >>
+			=> table.OnShr(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static object operator <<(LuaTable table, int arg)
-		{
-			return table.OnShl(arg);
-		} // operator <<
+			=> table.OnShl(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static object operator &(LuaTable table, object arg)
-		{
-			return table.OnBAnd(arg);
-		} // operator &
+			=> table.OnBAnd(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static object operator |(LuaTable table, object arg)
-		{
-			return table.OnBOr(arg);
-		} // operator |
+			=> table.OnBOr(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static object operator ^(LuaTable table, object arg)
-		{
-			return table.OnBXor(arg);
-		} // operator ^
+			=> table.OnBXor(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <returns></returns>
 		public static object operator ~(LuaTable table)
-		{
-			return table.OnBNot();
-		} // operator ~
+			=> table.OnBNot();
 
 		#endregion
 	} // class LuaTable
