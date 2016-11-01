@@ -3051,7 +3051,7 @@ namespace Neo.IronLua
 		/// <param name="self"></param>
 		/// <param name="key"></param>
 		/// <returns></returns>
-		protected virtual object OnIndex(LuaTable self, object key)
+		public virtual object OnIndex(LuaTable self, object key)
 		{
 			if (Object.ReferenceEquals(metaTable, null))
 				return null;
