@@ -64,22 +64,22 @@ namespace Neo.IronLua
 		#region -- DoChunk ----------------------------------------------------------------
 
 		/// <summary>Compiles and executes code.</summary>
-		/// <param name="sCode">Lua-Code</param>
-		/// <param name="sName">Name of the lua-code</param>
+		/// <param name="code">Lua-Code</param>
+		/// <param name="name">Name of the lua-code</param>
 		/// <param name="args">Parameter definition for the lua-code.</param>
 		/// <returns>Return values of the lua-code.</returns>
-		public LuaResult DoChunk(string sCode, string sName, params KeyValuePair<string, object>[] args)
+		public LuaResult DoChunk(string code, string name, params KeyValuePair<string, object>[] args)
 		{
-			using (var tr = new StringReader(sCode))
-				return DoChunk(tr, sName, args);
+			using (var tr = new StringReader(code))
+				return DoChunk(tr, name, args);
 		} // func DoChunk
 
 		/// <summary>Compiles and execute the stream.</summary>
 		/// <param name="tr">Stream</param>
-		/// <param name="sName">Name of the stream</param>
+		/// <param name="name">Name of the stream</param>
 		/// <param name="args">Parameter definition for the stream.</param>
 		/// <returns>Return values of the stream.</returns>
-		public LuaResult DoChunk(TextReader tr, string sName, params KeyValuePair<string, object>[] args)
+		public LuaResult DoChunk(TextReader tr, string name, params KeyValuePair<string, object>[] args)
 		{
 			// Erzeuge die Parameter
 			object[] callArgs;
@@ -101,7 +101,7 @@ namespace Neo.IronLua
 			}
 
 			// Führe den Block aus
-			return DoChunk(lua.CompileChunk(sName, null, tr, callTypes), callArgs);
+			return DoChunk(lua.CompileChunk(name, null, tr, callTypes), callArgs);
 		} // proc DoChunk
 
 		/// <summary>Executes a precompiled chunk on the lua environment.</summary>

@@ -28,12 +28,12 @@ namespace Neo.IronLua
 				this.global = global;
 			} // ctor
 
-			protected override object OnIndex(object key)
+			protected override object OnIndex(LuaTable self, object key)
 			{
 				object value;
 				if (global.loaded != null && global.loaded.TryGetValue(key, out value))
 					return value;
-				return base.OnIndex(key);
+				return base.OnIndex(self, key);
 			} // func OnIndex
 		} // class LuaLoadedTable
 

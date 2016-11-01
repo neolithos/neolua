@@ -1966,7 +1966,7 @@ namespace Neo.IronLua
 				if (rawGet)
 					return null;
 				else
-					return OnIndex(memberName);
+					return OnIndex(this, memberName);
 			}
 			else if (iEntryIndex < classDefinition.Count)
 			{
@@ -1979,18 +1979,18 @@ namespace Neo.IronLua
 		private object GetClassMemberValue(int iEntryIndex, bool lRawGet)
 			=> GetClassMemberValue(iEntryIndex, entries[iEntryIndex].key, lRawGet);
 
-		private object GetClassMemberValue(int iEntryIndex, object key, bool lRawGet)
+		private object GetClassMemberValue(int entryIndex, object key, bool rawGet)
 		{
-			switch (classDefinition[iEntryIndex].mode)
+			switch (classDefinition[entryIndex].mode)
 			{
 				case LuaTableDefineMode.Default:
-					return (entries[iEntryIndex].value ?? classDefinition[iEntryIndex].getValue(this)) ?? (lRawGet ? null : OnIndex(key));
+					return (entries[entryIndex].value ?? classDefinition[entryIndex].getValue(this)) ?? (rawGet ? null : OnIndex(this, key));
 
 				case LuaTableDefineMode.Direct:
-					return classDefinition[iEntryIndex].getValue(this) ?? (lRawGet ? null : OnIndex(key));
+					return classDefinition[entryIndex].getValue(this) ?? (rawGet ? null : OnIndex(this, key));
 
 				default:
-					return entries[iEntryIndex].value ?? (lRawGet ? null : OnIndex(key));
+					return entries[entryIndex].value ?? (rawGet ? null : OnIndex(this, key));
 			}
 		} // func GetClassMemberValue
 
@@ -2174,7 +2174,7 @@ namespace Neo.IronLua
 				if (rawGet || arrayIndex < arrayLength)
 					return arrayList[arrayIndex];
 				else
-					return arrayList[arrayIndex] ?? OnIndex(index);
+					return arrayList[arrayIndex] ?? OnIndex(this, index);
 			}
 			else // check the hash part
 			{
@@ -2184,7 +2184,7 @@ namespace Neo.IronLua
 				else if (rawGet) // get the default value
 					return null;
 				else // ask for a value
-					return OnIndex(index);
+					return OnIndex(this, index);
 			}
 		} // func SetArrayValue
 
@@ -2563,7 +2563,7 @@ namespace Neo.IronLua
 			{
 				index = FindKey(key, key.GetHashCode() & 0x7FFFFFFF, comparerObject);
 				if (index < 0)
-					return rawGet ? null : OnIndex(key);
+					return rawGet ? null : OnIndex(this, key);
 				else
 					return entries[index].value;
 			}
@@ -2699,7 +2699,7 @@ namespace Neo.IronLua
 
 			var entryIndex = FindKey(memberName, GetMemberHashCode(memberName), ignoreCase ? compareStringIgnoreCase : compareString);
 			if (entryIndex < 0)
-				method = rawGet ? null : OnIndex(memberName);
+				method = rawGet ? null : OnIndex(this, memberName);
 			else
 			{
 				memberCall = entries[entryIndex].isMethod;
@@ -3048,9 +3048,10 @@ namespace Neo.IronLua
 			=> BinaryBoolOperation("__le", arg);
 
 		/// <summary></summary>
+		/// <param name="self"></param>
 		/// <param name="key"></param>
 		/// <returns></returns>
-		protected virtual object OnIndex(object key)
+		protected virtual object OnIndex(LuaTable self, object key)
 		{
 			if (Object.ReferenceEquals(metaTable, null))
 				return null;
@@ -3061,7 +3062,7 @@ namespace Neo.IronLua
 			if ((t = index as LuaTable) != null) // default table
 				return t.GetValue(key, false);
 			else if (Lua.RtInvokeable(index)) // default function
-				return new LuaResult(RtInvokeSite(index, this, key))[0];
+				return new LuaResult(RtInvokeSite(index, self, key))[0];
 			else
 				return null;
 		} // func OnIndex
