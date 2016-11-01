@@ -18,27 +18,34 @@ namespace Neo.IronLua
 	public sealed class LuaMemberAttribute : Attribute
 	{
 		private readonly bool useDefault;
+		private readonly bool isMethod;
 		private readonly string name;
 
 		/// <summary></summary>
-		public LuaMemberAttribute()
+		/// <param name="isMethod"></param>
+		public LuaMemberAttribute(bool isMethod = false)
 		{
 			this.useDefault = true;
+			this.isMethod = isMethod;
 			this.name = "__default";
 		} // ctor
 
 		/// <summary>Marks global Members, they act normally as library</summary>
 		/// <param name="name"></param>
-		public LuaMemberAttribute(string name)
+		/// <param name="isMethod"></param>
+		public LuaMemberAttribute(string name, bool isMethod = false)
 		{
 			this.useDefault = false;
+			this.isMethod = isMethod;
 			this.name = name;
 		} // ctor
 
 		/// <summary>Use the name of the  method.</summary>
 		public bool UseDefault => useDefault;
+		/// <summary>Register this member as method.</summary>
+		public bool IsMethod => isMethod;
 		/// <summary>Global name of the function.</summary>
-		public string Name => name;
+		public string LuaName => name;
 	} // class LuaLibraryAttribute
 
 	#endregion
@@ -1064,8 +1071,10 @@ namespace Neo.IronLua
 
 			protected abstract void CollectMember(List<LuaCollectedMember> collected, LuaMemberAttribute info);
 
+			protected LuaMemberAttribute Info => info;
+
 			public abstract string DefaultMemberName { get; }
-			public string MemberName => info.UseDefault ? DefaultMemberName : info.Name;
+			public string MemberName => info.UseDefault ? DefaultMemberName : info.LuaName;
 			public abstract Type DeclaredType { get; }
 			public virtual bool IsMemberCall => false;
 		} // class LuaTableDefine
@@ -1184,10 +1193,9 @@ namespace Neo.IronLua
 			public override object GetInitialValue(LuaTable table)
 			{
 				var instance = methods[0].IsStatic ? null : table;
-				if (methods.Length == 1)
-					return new LuaMethod(instance, methods[0]);
-				else
-					return new LuaOverloadedMethod(instance, methods);
+				return methods.Length == 1 ? 
+					(object)new LuaMethod(instance, methods[0], IsMemberCall) :
+					(object)new LuaOverloadedMethod(instance, methods, IsMemberCall);
 			} // func GetInitialValue
 
 			protected override void CollectMember(List<LuaCollectedMember> collected, LuaMemberAttribute info)
@@ -1202,9 +1210,9 @@ namespace Neo.IronLua
 			{
 				get
 				{
-					Type type = methods[0].DeclaringType;
-					TypeInfo typeInfo = type.GetTypeInfo();
-					for (int i = 1; i < methods.Length; i++)
+					var type = methods[0].DeclaringType;
+					var typeInfo = type.GetTypeInfo();
+					for (var i = 1; i < methods.Length; i++)
 					{
 						if (typeInfo.IsSubclassOf(methods[i].DeclaringType))
 							type = methods[i].DeclaringType;
@@ -1214,6 +1222,7 @@ namespace Neo.IronLua
 			} // prop DeclaredType
 
 			public override string DefaultMemberName => methods[0].Name;
+			public override bool IsMemberCall => Info.IsMethod;
 		} // class LuaTableMethodDefine
 
 		#endregion
@@ -1229,7 +1238,10 @@ namespace Neo.IronLua
 			public LuaTableDefine Define;
 
 			public override string ToString()
-				=> String.Format("{0}{1} ==> {2}", Info.Name, Define == null ? String.Empty : "*", Member);
+				=> string.Format("{0}{1} ==> {2}", MemberName, Define == null ? string.Empty : "*", Member);
+
+			public string MemberName
+				=> LuaTableClass.GetEntryName(Info, Member);
 		} // struct LuaCollectedMember
 
 		#endregion
@@ -1254,7 +1266,7 @@ namespace Neo.IronLua
 				Collect(type, collected);
 
 				// metatable must be first
-				int iIndex = collected.FindIndex(c => String.CompareOrdinal(c.Info.Name, csMetaTable) == 0);
+				int iIndex = collected.FindIndex(c => String.CompareOrdinal(c.MemberName, csMetaTable) == 0);
 				if (iIndex == -1)
 					throw new InvalidOperationException();
 				else if (iIndex > 0)
@@ -1295,7 +1307,8 @@ namespace Neo.IronLua
 
 					foreach (var info in mi.GetCustomAttributes<LuaMemberAttribute>())
 					{
-						if (info.Name == null) // remove all member
+						var memberName = GetEntryName(info, mi);
+						if (memberName == null) // remove all member
 						{
 							for (int j = 0; j < collected.Count - 1; j++)
 								if (IsOverrideOf(mi, collected[j].Member))
@@ -1306,7 +1319,7 @@ namespace Neo.IronLua
 						}
 						else
 						{
-							var startIndex = FindMember(collected, info.Name);
+							var startIndex = FindMember(collected, memberName);
 							if (startIndex == -1)
 							{
 								collected.Add(new LuaCollectedMember { Info = info, Member = mi, Define = null });
@@ -1315,7 +1328,7 @@ namespace Neo.IronLua
 							{
 								// count the overloaded elements
 								var nextIndex = startIndex;
-								while (nextIndex < collected.Count && collected[nextIndex].Info.Name == info.Name)
+								while (nextIndex < collected.Count && collected[nextIndex].MemberName == memberName)
 									nextIndex++;
 
 								// properties it can only exists one property
@@ -1402,11 +1415,13 @@ namespace Neo.IronLua
 					return false;
 			} // func SameArguments
 
-			private int FindMember(List<LuaCollectedMember> collected, string sName)
+			private int FindMember(List<LuaCollectedMember> collected, string memberName)
 			{
 				for (var i = 0; i < collected.Count; i++)
-					if (collected[i].Info.Name == sName)
+				{
+					if (collected[i].MemberName == memberName)
 						return i;
+				}
 				return -1;
 			} // func FindMember
 
@@ -1423,10 +1438,10 @@ namespace Neo.IronLua
 				{
 					var startAt = i;
 					var count = 1;
-					var currentName = collected[i].Info.Name;
+					var currentName = collected[i].MemberName;
 
 					// count same elements
-					while (++i < collected.Count && currentName == collected[i].Info.Name)
+					while (++i < collected.Count && currentName == collected[i].MemberName)
 						count++;
 
 					if (count == 1) // create single member
@@ -1487,6 +1502,9 @@ namespace Neo.IronLua
 			private static int iClassCount = 0;
 			private static LuaTableClass[] classes = new LuaTableClass[0];
 			private static object lockClass = new object();
+
+			public static string GetEntryName(LuaMemberAttribute attribute, MemberInfo member)
+				 => attribute.UseDefault ? member.Name : attribute.LuaName;
 
 			public static LuaTableClass GetClass(Type type)
 			{
@@ -2695,11 +2713,14 @@ namespace Neo.IronLua
 
 		internal CallMethod GetCallMember(string memberName, bool ignoreCase, bool rawGet, out object method)
 		{
-			var memberCall = false;
+			bool memberCall;
 
 			var entryIndex = FindKey(memberName, GetMemberHashCode(memberName), ignoreCase ? compareStringIgnoreCase : compareString);
 			if (entryIndex < 0)
+			{
 				method = rawGet ? null : OnIndex(memberName);
+				memberCall = (method as ILuaMethod)?.IsMemberCall ?? false;
+			}
 			else
 			{
 				memberCall = entries[entryIndex].isMethod;

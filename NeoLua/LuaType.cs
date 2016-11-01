@@ -1168,7 +1168,7 @@ namespace Neo.IronLua
 					} while (true);
 
 					sbTypeName.Append(']');
-										
+
 					// is a array following
 					var lastElement = fullName.Length <= offset;
 
@@ -1427,6 +1427,8 @@ namespace Neo.IronLua
 		Type Type { get; }
 		/// <summary>Instance, that belongs to the member.</summary>
 		object Instance { get; }
+		/// <summary>Is the first parameter a self parameter.</summary>
+		bool IsMemberCall { get; }
 	} // interface ILuaMethod
 
 	#endregion
@@ -1480,14 +1482,16 @@ namespace Neo.IronLua
 		#endregion
 
 		private readonly object instance;
+		private readonly bool isMemberCall;
 		private readonly MethodInfo method;
 
 		#region -- Ctor/Dtor --------------------------------------------------------------
 
-		internal LuaMethod(object instance, MethodInfo method)
+		internal LuaMethod(object instance, MethodInfo method, bool isMemberCall = false)
 		{
 			this.instance = instance;
 			this.method = method;
+			this.isMemberCall = isMemberCall;
 
 			if (method == null)
 				throw new ArgumentNullException();
@@ -1513,11 +1517,13 @@ namespace Neo.IronLua
 			=> method.CreateDelegate(typeDelegate, instance);
 
 		/// <summary>Name of the member.</summary>
-		public string Name=> method.Name; 
+		public string Name => method.Name;
 		/// <summary>Type that is the owner of the member list</summary>
-		public Type Type => method.DeclaringType; 
+		public Type Type => method.DeclaringType;
 		/// <summary>Instance, that belongs to the member.</summary>
-		public object Instance => instance; 
+		public object Instance => instance;
+		/// <summary>Use self parameter</summary>
+		public bool IsMemberCall => isMemberCall;
 		/// <summary>Access to the method.</summary>
 		public MethodInfo Method => method;
 		/// <summary>Delegate of the Method</summary>
@@ -1548,7 +1554,7 @@ namespace Neo.IronLua
 				expr = Lua.ThrowExpression(e.Message, typeReturn);
 			}
 			return new DynamicMetaObject(
-				expr, 
+				expr,
 				BindInvokeRestrictions(methodExpression, methodValue).Merge(Lua.GetMethodSignatureRestriction(null, args))
 			);
 		} // func BindInvoke
@@ -1740,14 +1746,16 @@ namespace Neo.IronLua
 		#endregion
 
 		private readonly object instance;
+		private readonly bool isMemberCall;
 		private readonly MethodInfo[] methods;
 
 		#region -- Ctor/Dtor --------------------------------------------------------------
 
-		internal LuaOverloadedMethod(object instance, MethodInfo[] methods)
+		internal LuaOverloadedMethod(object instance, MethodInfo[] methods, bool isMemberCall = false)
 		{
 			this.instance = instance;
 			this.methods = methods;
+			this.isMemberCall = isMemberCall;
 
 			if (methods.Length == 0)
 				throw new ArgumentOutOfRangeException();
@@ -1831,7 +1839,7 @@ namespace Neo.IronLua
 		public LuaMethod GetMethod(bool exactMatchesOnly, params Type[] types)
 		{
 			var mi = FindMethod(exactMatchesOnly, new CallInfo(types.Length), types);
-			return mi == null ? null : new LuaMethod(instance, mi);
+			return mi == null ? null : new LuaMethod(instance, mi, false);
 		} // func GetMethod
 
 		/// <summary>Finds the method from the signature.</summary>
@@ -1841,14 +1849,14 @@ namespace Neo.IronLua
 		public LuaMethod GetMethod(CallInfo callInfo, params Type[] types)
 		{
 			var mi = FindMethod(false, callInfo, types);
-			return mi == null ? null : new LuaMethod(instance, mi);
+			return mi == null ? null : new LuaMethod(instance, mi, false);
 		} // func GetMethod
 
 		/// <summary>Gets the method from the index</summary>
 		/// <param name="index">Index</param>
 		/// <returns></returns>
 		public LuaMethod GetMethod(int index)
-			=> index >= 0 && index < methods.Length ? new LuaMethod(instance, methods[index]) : null;
+			=> index >= 0 && index < methods.Length ? new LuaMethod(instance, methods[index], false) : null;
 
 		#endregion
 
@@ -1880,6 +1888,8 @@ namespace Neo.IronLua
 		public Type Type => methods[0].DeclaringType;
 		/// <summary>Instance, that belongs to the member.</summary>
 		public object Instance => instance;
+		/// <summary>Self parameter</summary>
+		public bool IsMemberCall => isMemberCall;
 		/// <summary>Count of overloade members.</summary>
 		public int Count => methods.Length;
 	} // class LuaOverloadedMethod
@@ -1926,7 +1936,8 @@ namespace Neo.IronLua
 					Lua.EnsureType(
 						Expression.New(Lua.MethodConstructorInfo,
 							Expression.Property(Lua.EnsureType(Expression, typeof(ILuaMethod)), Lua.MethodInstancePropertyInfo),
-							Expression.Property(Lua.EnsureType(Expression, typeof(LuaEvent)), piMethodGet)
+							Expression.Property(Lua.EnsureType(Expression, typeof(LuaEvent)), piMethodGet),
+							Expression.Constant(false)
 						),
 						binder.ReturnType
 					),
@@ -2012,9 +2023,7 @@ namespace Neo.IronLua
 		/// <summary></summary>
 		/// <returns></returns>
 		public override string ToString()
-		{
-			return "event: " + eventInfo.Name;
-		} // func ToString
+			=> "event: " + eventInfo.Name;
 
 		/// <summary>Name of the event.</summary>
 		public string Name { get { return eventInfo.Name; } }
@@ -2022,6 +2031,8 @@ namespace Neo.IronLua
 		public Type Type { get { return eventInfo.DeclaringType; } }
 		/// <summary>Instance, that belongs to the member.</summary>
 		public object Instance { get { return instance; } }
+
+		bool ILuaMethod.IsMemberCall => false;
 
 		internal MethodInfo AddMethodInfo { get { return eventInfo.AddMethod; } }
 		internal MethodInfo RemoveMethodInfo { get { return eventInfo.RemoveMethod; } }

@@ -1702,7 +1702,8 @@ namespace Neo.IronLua
 					{
 						result = Expression.New(Lua.OverloadedMethodConstructorInfo,
 							target ?? Expression.Default(typeof(object)),
-							Expression.Constant(luaTargetType.EnumerateMembers<MethodInfo>(enumerateType, memberName, ignoreCase).ToArray())
+							Expression.Constant(luaTargetType.EnumerateMembers<MethodInfo>(enumerateType, memberName, ignoreCase).ToArray()),
+							Expression.Constant(false)
 						);
 						return LuaTryGetMemberReturn.ValidExpression;
 					}
@@ -1710,7 +1711,8 @@ namespace Neo.IronLua
 					{
 						result = Expression.New(Lua.MethodConstructorInfo,
 							target ?? Expression.Default(typeof(object)),
-							Expression.Constant(methodInfo, typeof(MethodInfo))
+							Expression.Constant(methodInfo, typeof(MethodInfo)),
+							Expression.Constant(false)
 						);
 						return LuaTryGetMemberReturn.ValidExpression;
 					}

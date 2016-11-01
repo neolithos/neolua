@@ -645,10 +645,30 @@ namespace LuaDLR.Test
 			{
 				Console.WriteLine("{0}:Foo() called", GetType().Name);
 			}
+
+			[LuaMember()]
+			private void TestDef()
+			{
+				Console.WriteLine("{0}:TestDef() called", GetType().Name);
+			}
+
+			[LuaMember(true)]
+			private string Bar(LuaTable self)
+			{
+				return self?.GetType().Name;
+			}
 		}
 
 		public class LuaTableSecond : LuaTableFirst
 		{
+		}
+
+		public class LuaTableParent : LuaTable
+		{
+			private readonly LuaTable f = new LuaTableFirst();
+
+			protected override object OnIndex(object key)
+				=> base.OnIndex(key) ?? f.GetValue(key);
 		}
 
 		[TestMethod]
@@ -663,7 +683,27 @@ namespace LuaDLR.Test
 				g["a"] = a;
 				g["b"] = b;
 
-				g.DoChunk("b.Foo(); a.Foo()", "test.lua");
+				g.DoChunk("b.Foo(); a.Foo(); a.TestDef()", "test.lua");
+			}
+		}
+
+		[TestMethod]
+		public void TestGetMemberBind02()
+		{
+			var a = new LuaTableFirst();
+			var b = new LuaTableParent();
+
+			using (var l = new Lua())
+			{
+				var g = l.CreateEnvironment();
+				g["a"] = a;
+				g["b"] = b;
+
+				l.PrintExpressionTree = Console.Out;
+				TestResult(
+					g.DoChunk("return a:Bar(), b:Bar(), b.Bar(b), b.Bar(a)", "test.lua"),
+					"LuaTableFirst", "LuaTableParent", "LuaTableParent", "LuaTableFirst"
+				);
 			}
 		}
 
