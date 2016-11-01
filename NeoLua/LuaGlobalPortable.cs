@@ -278,17 +278,27 @@ namespace Neo.IronLua
 		[LuaMember("getmetatable")]
 		private static LuaTable LuaGetMetaTable(object obj)
 		{
-			LuaTable t = obj as LuaTable;
+			var t = obj as LuaTable;
 			return t == null ? null : t.MetaTable;
 		} // func LuaGetMetaTable
 
 		[LuaMember("rawmembers")]
 		private IEnumerable<KeyValuePair<string, object>> LuaRawMembers(LuaTable t)
-			=> t.Members;
+		{
+			if (t == null)
+				throw new ArgumentNullException("#1");
+
+			return t.Members;
+		} // func LuaRawMembers
 
 		[LuaMember("rawarray")]
 		private IList<object> LuaRawArray(LuaTable t)
-			=> t.ArrayList;
+		{
+			if (t == null)
+				throw new ArgumentNullException("#1");
+
+			return t.ArrayList;
+		} // func LuaRawArray
 
 		private static LuaResult pairsEnum<TKey>(object s, object current)
 		{
@@ -314,6 +324,9 @@ namespace Neo.IronLua
 		[LuaMember("ipairs")]
 		private LuaResult LuaIPairs(LuaTable t)
 		{
+			if (t == null)
+				throw new ArgumentNullException("#1");
+
 			var e = new ArrayIndexEnumerator(t.ArrayList).GetEnumerator();
 			return new LuaResult(new Func<object, object, LuaResult>(pairsEnum<int>), e, e);
 		} // func ipairs
@@ -324,6 +337,9 @@ namespace Neo.IronLua
 		[LuaMember("mpairs")]
 		private LuaResult LuaMPairs(LuaTable t)
 		{
+			if (t == null)
+				throw new ArgumentNullException("#1");
+
 			var e = t.Members.GetEnumerator();
 			return new LuaResult(new Func<object, object, LuaResult>(pairsEnum<string>), e, e);
 		} // func LuaPairs
@@ -334,6 +350,9 @@ namespace Neo.IronLua
 		[LuaMember("pairs")]
 		private LuaResult LuaPairs(LuaTable t)
 		{
+			if (t == null)
+				throw new ArgumentNullException("#1");
+
 			var e = ((System.Collections.IEnumerable)t).GetEnumerator();
 			return new LuaResult(new Func<object, object, LuaResult>(pairsEnum<object>), e, e);
 		} // func LuaPairs
