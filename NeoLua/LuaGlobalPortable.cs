@@ -581,6 +581,10 @@ namespace Neo.IronLua
 			{
 				return new LuaResult(true, RtInvokeSite(target, args));
 			}
+			catch (TargetInvocationException e)
+			{
+				return new LuaResult(false, e.InnerException.Message, e.InnerException);
+			}
 			catch (Exception e)
 			{
 				return new LuaResult(false, e.Message, e);
