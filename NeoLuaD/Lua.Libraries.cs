@@ -28,7 +28,7 @@ namespace Neo.IronLua
 				this.global = global;
 			} // ctor
 
-			protected override object OnIndex(LuaTable self, object key)
+			public override object OnIndex(LuaTable self, object key)
 			{
 				object value;
 				if (global.loaded != null && global.loaded.TryGetValue(key, out value))
