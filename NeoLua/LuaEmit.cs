@@ -209,7 +209,7 @@ namespace Neo.IronLua
 			}
 		} // func GetTypeCode
 
-		internal static bool TypesMatch(Type typeTo, Type typeFrom, out bool isExcact)
+		internal static bool TypesMatch(Type typeTo, Type typeFrom, out bool isExcact, bool stringAutoConvert = true)
 		{
 			if (typeTo == typeFrom)
 			{
@@ -237,13 +237,12 @@ namespace Neo.IronLua
 
 				isExcact = false;
 
-				if (tcTo == LuaEmitTypeCode.String && tcFrom != LuaEmitTypeCode.Object)
+				if (stringAutoConvert && tcTo == LuaEmitTypeCode.String && tcFrom != LuaEmitTypeCode.Object)
 					return true;
 				else if (tcTo >= LuaEmitTypeCode.SByte && tcTo <= LuaEmitTypeCode.Double &&
 							(tcFrom >= LuaEmitTypeCode.SByte && tcFrom <= tcTo || tcTo == LuaEmitTypeCode.Single && tcFrom == LuaEmitTypeCode.Double)) // exception for single -> double
 					return true;
-				else if (tcFrom == LuaEmitTypeCode.String &&
-					tcTo >= LuaEmitTypeCode.SByte && tcTo <= LuaEmitTypeCode.Double)
+				else if (stringAutoConvert && tcFrom == LuaEmitTypeCode.String && tcTo >= LuaEmitTypeCode.SByte && tcTo <= LuaEmitTypeCode.Double)
 					return true;
 
 				return false;
@@ -956,20 +955,20 @@ namespace Neo.IronLua
 			return op == ExpressionType.NotEqual ? Expression.Not(expr) : expr;
 		} // func BinaryOperationCompareToExpression
 
-		private static Type GetComparableInterface(Type type1, Type Type2, ref bool lExact)
+		private static Type GetComparableInterface(Type type1, Type type2, ref bool isExact)
 		{
 			Type compareInterface = null;
-			foreach (Type typeTest in type1.GetTypeInfo().ImplementedInterfaces)
+			foreach (var typeTest in type1.GetTypeInfo().ImplementedInterfaces)
 			{
-				if (compareInterface == null && typeTest == typeof(IComparable) && TypesMatch(type1, Type2, out lExact))
+				if (compareInterface == null && typeTest == typeof(IComparable) && TypesMatch(type1, type2, out isExact, false))
 					return typeTest;
-				else if (!lExact && IsGenericCompare(typeTest))
+				else if (!isExact && IsGenericCompare(typeTest))
 				{
 					var p = typeTest.GenericTypeArguments[0];
-					if (TypesMatch(p, Type2, out lExact))
+					if (TypesMatch(p, type2, out isExact, false))
 					{
 						compareInterface = typeTest;
-						if (lExact)
+						if (isExact)
 							break;
 					}
 				}
@@ -988,7 +987,7 @@ namespace Neo.IronLua
 				if (!isExact && typeTest.IsConstructedGenericType && typeTest.GetGenericTypeDefinition() == typeof(IEquatable<>))
 				{
 					Type p = typeTest.GenericTypeArguments[0];
-					if (TypesMatch(p, Type2, out isExact))
+					if (TypesMatch(p, Type2, out isExact, false))
 					{
 						equalableInterface = typeTest;
 						if (isExact)
@@ -1244,6 +1243,7 @@ namespace Neo.IronLua
 
 		private static Expression BinaryOperationArithmeticExpression(Lua lua, ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2, Type type1org, Type type2org)
 		{
+			var liftAllowed = true;
 			var tc1 = GetTypeCode(type1);
 			var tc2 = GetTypeCode(type2);
 			var isArithmetic1 = IsArithmeticType(tc1);
@@ -1460,11 +1460,11 @@ namespace Neo.IronLua
 				case ExpressionType.GreaterThanOrEqual:
 					{
 						var isExact = false;
-						Type compareInterface = GetComparableInterface(type1, type2, ref isExact);
+						var compareInterface = GetComparableInterface(type1, type2, ref isExact);
 						if (!isExact)
 						{
 							var isExact2 = false;
-							Type compareInterface2 = GetComparableInterface(type2, type1, ref isExact2);
+							var compareInterface2 = GetComparableInterface(type2, type1, ref isExact2);
 							if (isExact2)
 							{
 								switch (op)
@@ -1487,6 +1487,13 @@ namespace Neo.IronLua
 						}
 						if (compareInterface != null)
 							return BinaryOperationCompareToExpression(lua, compareInterface, op, expr1, type1, expr2, type2);
+
+						// ignore lift for string <-> number converts
+						if (tc1 == LuaEmitTypeCode.String && tc2 >= LuaEmitTypeCode.SByte && tc2 <= LuaEmitTypeCode.Double)
+							liftAllowed = false;
+						else if (tc2 == LuaEmitTypeCode.String && tc1 != LuaEmitTypeCode.Object)
+							liftAllowed = false;
+
 					}
 					break;
 			}
@@ -1543,7 +1550,7 @@ namespace Neo.IronLua
 
 			#region -- Try to lift type --
 
-			if (type1 != type2)
+			if (liftAllowed && type1 != type2)
 			{
 				if (TryConvertWithRuntime(lua, ref expr1, ref type1, type2))
 					return BinaryOperationArithmeticExpression(lua, op, expr1, type1, expr2, type2, type1org, type2org);

@@ -49,97 +49,97 @@ namespace LuaDLR.Test
         return i.GetHashCode();
       }
 
-      //public static int operator +(CompareMe a, CompareMe b)
-      //{
-      //  return a.i + b.i;
-      //}
+			//public static int operator +(CompareMe a, CompareMe b)
+			//{
+			//	return a.i + b.i;
+			//}
 
-      //public static implicit operator CompareMe(int a)
-      //{
-      //  return new CompareMe(a);
-      //}
+			//public static implicit operator CompareMe(int a)
+			//{
+			//	return new CompareMe(a);
+			//}
 
-      //public static implicit operator int(CompareMe a)
-      //{
-      //  return a.i;
-      //}
+			//public static implicit operator int(CompareMe a)
+			//{
+			//	return a.i;
+			//}
 
-      //public static CompareMe operator -(CompareMe a, CompareMe b)
-      //{
-      //  return new CompareMe(a.i - b.i);
-      //}
+			//public static CompareMe operator -(CompareMe a, CompareMe b)
+			//{
+			//	return new CompareMe(a.i - b.i);
+			//}
 
-      //public static CompareMe operator *(CompareMe a, CompareMe b)
-      //{
-      //  return new CompareMe(a.i * b.i);
-      //}
+			//public static CompareMe operator *(CompareMe a, CompareMe b)
+			//{
+			//	return new CompareMe(a.i * b.i);
+			//}
 
-      //public static CompareMe operator /(CompareMe a, CompareMe b)
-      //{
-      //  return new CompareMe(a.i / b.i);
-      //}
+			//public static CompareMe operator /(CompareMe a, CompareMe b)
+			//{
+			//	return new CompareMe(a.i / b.i);
+			//}
 
-      //public static CompareMe operator %(CompareMe a, CompareMe b)
-      //{
-      //  return new CompareMe(a.i % b.i);
-      //}
+			//public static CompareMe operator %(CompareMe a, CompareMe b)
+			//{
+			//	return new CompareMe(a.i % b.i);
+			//}
 
-      //public static bool operator ==(CompareMe a, CompareMe b)
-      //{
-      //  return a.i == b.i;
-      //}
+			//public static bool operator ==(CompareMe a, CompareMe b)
+			//{
+			//	return a.i == b.i;
+			//}
 
-      //public static bool operator !=(CompareMe a, CompareMe b)
-      //{
-      //  return a.i != b.i;
-      //}
+			//public static bool operator !=(CompareMe a, CompareMe b)
+			//{
+			//	return a.i != b.i;
+			//}
 
-      //public static bool operator <=(CompareMe a, CompareMe b)
-      //{
-      //  return a.i <= b.i;
-      //}
+			//public static bool operator <=(CompareMe a, CompareMe b)
+			//{
+			//	return a.i <= b.i;
+			//}
 
-      //public static bool operator >=(CompareMe a, CompareMe b)
-      //{
-      //  return a.i >= b.i;
-      //}
+			//public static bool operator >=(CompareMe a, CompareMe b)
+			//{
+			//	return a.i >= b.i;
+			//}
 
-      //public static bool operator <(CompareMe a, CompareMe b)
-      //{
-      //  return a.i < b.i;
-      //}
+			//public static bool operator <(CompareMe a, CompareMe b)
+			//{
+			//	return a.i < b.i;
+			//}
 
-      //public static bool operator >(CompareMe a, CompareMe b)
-      //{
-      //  return a.i > b.i;
-      //}
+			//public static bool operator >(CompareMe a, CompareMe b)
+			//{
+			//	return a.i > b.i;
+			//}
 
-      //public static CompareMe operator &(CompareMe a, CompareMe b)
-      //{
-      //  return a.i & b.i;
-      //}
+			//public static CompareMe operator &(CompareMe a, CompareMe b)
+			//{
+			//	return a.i & b.i;
+			//}
 
-      //public static CompareMe operator |(CompareMe a, CompareMe b)
-      //{
-      //  return a.i | b.i;
-      //}
+			//public static CompareMe operator |(CompareMe a, CompareMe b)
+			//{
+			//	return a.i | b.i;
+			//}
 
-      ////+, -, !, ~, ++, --, true, false
-      ////+, -, *, /, %, &, | , ^, <<, >>
-      ////==, !=, <, >, <=, >=
+			////+, -, !, ~, ++, --, true, false
+			////+, -, *, /, %, &, | , ^, <<, >>
+			////==, !=, <, >, <=, >=
 
-      //public static CompareMe operator ++(CompareMe a)
-      //{
-      //  a.i++;
-      //  return a;
-      //}
+			//public static CompareMe operator ++(CompareMe a)
+			//{
+			//	a.i++;
+			//	return a;
+			//}
 
-      //public static CompareMe operator --(CompareMe a)
-      //{
-      //  a.i--;
-      //  return a;
-      //}
-    }
+			//public static CompareMe operator --(CompareMe a)
+			//{
+			//	a.i--;
+			//	return a;
+			//}
+		}
 
     [TestMethod]
     public void Control01()

@@ -967,6 +967,20 @@ namespace LuaDLR.Test
 			TestExpr("false and '10' or '20'", "20");
 		}
 
+		[TestMethod]
+		public void TestLogic21()
+		{
+			TestExpr("511 == '511'", false);
+			try
+			{
+				TestExpr("511 < '512'", true); // should: input:1: attempt to compare number with string
+				Assert.Fail();
+			}
+			catch
+			{
+			}
+		}
+
 		#endregion
 
 		#region -- Compare ----------------------------------------------------------------
