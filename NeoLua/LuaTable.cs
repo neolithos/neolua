@@ -362,7 +362,7 @@ namespace Neo.IronLua
 
 					if (arg.Value == null)
 					{
-						expr = Lua.ThrowExpression(Properties.Resources.rsTableKeyNotNullable, typeof(object));
+						expr =  Expression.Default(typeof(object));
 						restrictions = restrictions.Merge(BindingRestrictions.GetInstanceRestriction(arg.Expression, null));
 					}
 					else if (IsIndexKey(arg.LimitType)) // integer access
@@ -1975,23 +1975,23 @@ namespace Neo.IronLua
 		public object GetMemberValue(string memberName, bool ignoreCase = false, bool rawGet = false)
 		{
 			if (memberName == null)
-				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
+				return null;
 
 			// find the member
-			int iEntryIndex = FindKey(memberName, GetMemberHashCode(memberName), ignoreCase ? compareStringIgnoreCase : comparerObject);
-			if (iEntryIndex < 0)
+			var entryIndex = FindKey(memberName, GetMemberHashCode(memberName), ignoreCase ? compareStringIgnoreCase : comparerObject);
+			if (entryIndex < 0)
 			{
 				if (rawGet)
 					return null;
 				else
 					return OnIndex(memberName);
 			}
-			else if (iEntryIndex < classDefinition.Count)
+			else if (entryIndex < classDefinition.Count)
 			{
-				return GetClassMemberValue(iEntryIndex, memberName, rawGet);
+				return GetClassMemberValue(entryIndex, memberName, rawGet);
 			}
 			else
-				return entries[iEntryIndex].value;
+				return entries[entryIndex].value;
 		} // func GetMemberValue
 
 		private object GetClassMemberValue(int iEntryIndex, bool lRawGet)
@@ -2019,7 +2019,7 @@ namespace Neo.IronLua
 		public bool ContainsMember(string memberName, bool ignoreCase = false)
 		{
 			if (memberName == null)
-				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
+				return false;
 
 			return FindKey(memberName, GetMemberHashCode(memberName), ignoreCase ? compareStringIgnoreCase : compareString) >= 0;
 		} // func ContainsMember
@@ -2567,7 +2567,7 @@ namespace Neo.IronLua
 
 			if (key == null)
 			{
-				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
+				return null;
 			}
 			else if (IsIndexKey(key, out index))
 			{
@@ -2640,7 +2640,7 @@ namespace Neo.IronLua
 			int iIndex;
 			string sKey;
 			if (key == null)
-				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
+				return false;
 			else if (IsIndexKey(key, out iIndex))
 				return ContainsIndex(iIndex);
 			else if ((sKey = (key as string)) != null)

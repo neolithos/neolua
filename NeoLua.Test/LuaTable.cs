@@ -168,6 +168,14 @@ namespace LuaDLR.Test
 			for (int i = 1; i <= 18; i++)
 				Assert.AreEqual(t[i], i);
 			Assert.AreEqual(t[20], 20);
+
+			Assert.IsNull(t[(object)null]);
+			Assert.IsNull(t[(string)null]);
+
+			try { t[(object)null] = 0; Assert.Fail(); }
+			catch (ArgumentNullException) { }
+			try { t[(string)null] = 0; Assert.Fail(); }
+			catch (ArgumentNullException) { }
 		}
 
 		[TestMethod]
