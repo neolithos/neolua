@@ -429,7 +429,15 @@ namespace Neo.IronLua
 				if (isValueType && args.Length == 0) // value-types with zero arguments always constructable
 					constructorInfo = null;
 				else
-					constructorInfo = LuaEmit.FindMember<ConstructorInfo, DynamicMetaObject>(luaType.EnumerateMembers<ConstructorInfo>(LuaMethodEnumerate.Typed), callInfo, args, mo => mo.LimitType, false);
+				{
+					constructorInfo = LuaEmit.FindMember<ConstructorInfo, DynamicMetaObject>(
+						luaType.EnumerateMembers<ConstructorInfo>(
+							LuaMethodEnumerate.Typed,
+							declaredMembers => declaredMembers.OfType<ConstructorInfo>().Where(c => c.DeclaringType == type)
+						),
+						callInfo, args, mo => mo.LimitType, false
+					);
+				}
 
 				var restrictions = BindingRestrictions.GetInstanceRestriction(Expression, Value).Merge(Lua.GetMethodSignatureRestriction(null, args));
 
@@ -801,7 +809,7 @@ namespace Neo.IronLua
 		#region -- EnumerateMembers -------------------------------------------------------
 
 		private static bool IsCallableMethod(MethodBase methodInfo, bool searchStatic)
-			=> methodInfo.IsPublic && !methodInfo.IsAbstract && (methodInfo.CallingConvention & CallingConventions.VarArgs) == 0 && methodInfo.IsStatic == searchStatic;
+			=> methodInfo.IsPublic && (methodInfo.CallingConvention & CallingConventions.VarArgs) == 0 && methodInfo.IsStatic == searchStatic;
 
 		private static bool IsCallableField(FieldInfo fieldInfo, bool searchStatic)
 			=> fieldInfo.IsPublic && fieldInfo.IsStatic == searchStatic;
@@ -895,12 +903,13 @@ namespace Neo.IronLua
 		/// <summary></summary>
 		/// <typeparam name="T"></typeparam>
 		/// <param name="searchType"></param>
+		/// <param name="getDeclaredMembers"></param>
 		/// <returns></returns>
-		public IEnumerable<T> EnumerateMembers<T>(LuaMethodEnumerate searchType)
+		public IEnumerable<T> EnumerateMembers<T>(LuaMethodEnumerate searchType, Func<IEnumerable<MemberInfo>, IEnumerable<MemberInfo>> getDeclaredMembers = null)
 			where T : MemberInfo
 		{
 			var enumeratedTyped = new List<Type>();
-			return EnumerateMembers<T>(enumeratedTyped, searchType, null);
+			return EnumerateMembers<T>(enumeratedTyped, searchType, getDeclaredMembers);
 		} // func EnumerateMembers
 
 		/// <summary></summary>

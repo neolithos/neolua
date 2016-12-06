@@ -16,6 +16,22 @@ namespace LuaDLR.Test
   [TestClass]
   public class LuaTypeTests : TestHelper
   {
+		public interface ITestIntf
+		{
+			int Foo();
+		}
+
+		public abstract class TestAbstract : ITestIntf
+		{
+			public abstract int Foo();
+		}
+
+		public class TestImpl  : TestAbstract
+		{
+			public override int Foo()
+				=> 42;
+		}
+
 		public class DataTypeTest
 		{
 			public Type DataType;
@@ -607,6 +623,71 @@ namespace LuaDLR.Test
 				Assert.AreEqual(1, testo.called);
 				g.DoChunk("testo:NamedVsUnamed{n1='test'};", "test");
 				Assert.AreEqual(2, testo.called);
+			}
+		}
+
+		[TestMethod]
+		public void AbstractCall01()
+		{
+			var c = new TestImpl();
+
+			using (var l = new Lua())
+			{
+				var g = l.CreateEnvironment();
+				TestResult(g.DoChunk("return cast(LuaDLR.Test.LuaTypeTests.ITestIntf, a):Foo()", "test.lua", new KeyValuePair<string, object>("a", c)), 42);
+			}
+		}
+
+		[TestMethod]
+		public void AbstractCall02()
+		{
+			var c = new TestImpl();
+
+			using (var l = new Lua())
+			{
+				var g = l.CreateEnvironment();
+				TestResult(g.DoChunk(
+					Lines
+					(
+						"local a = clr.LuaDLR.Test.LuaTypeTests.TestImpl();",
+						"return cast(LuaDLR.Test.LuaTypeTests.ITestIntf, a):Foo()"
+					), "test.lua"), 42);
+
+				try
+				{
+					g.DoChunk(
+						Lines
+						(
+							"local a = clr.LuaDLR.Test.LuaTypeTests.TestAbstract();",
+							"return cast(LuaDLR.Test.LuaTypeTests.ITestIntf, a):Foo()"
+						), "test.lua");
+					Assert.Fail();
+				}
+				catch (LuaRuntimeException)
+				{
+				}
+				catch (Exception)
+				{
+					Assert.Fail();
+				}
+
+				try
+				{
+					g.DoChunk(
+						Lines
+						(
+							"local a = clr.LuaDLR.Test.LuaTypeTests.ITestIntf();",
+							"return cast(LuaDLR.Test.LuaTypeTests.ITestIntf, a):Foo()"
+						), "test.lua");
+					Assert.Fail();
+				}
+				catch (LuaRuntimeException)
+				{
+				}
+				catch (Exception)
+				{
+					Assert.Fail();
+				}
 			}
 		}
 
