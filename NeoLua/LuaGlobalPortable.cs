@@ -112,8 +112,6 @@ namespace Neo.IronLua
 		{
 			if (chunk == null)
 				throw new ArgumentException(Properties.Resources.rsChunkNotCompiled, "chunk");
-			if (lua != chunk.Lua)
-				throw new ArgumentException(Properties.Resources.rsChunkWrongScriptManager, "chunk");
 
 			return chunk.Run(this, callArgs);
 		} // func DoChunk
@@ -263,13 +261,16 @@ namespace Neo.IronLua
 		/// <param name="message"></param>
 		/// <param name="level"></param>
 		[LuaMember("error")]
-		private static void LuaError(string message, int level)
+		private static void LuaError(object message, int level)
 		{
 			if (level == 0)
 				level = 1;
 
 			// level ist der StackTrace
-			throw new LuaRuntimeException(message, level, true);
+			if (message is Exception)
+				throw (Exception)message;
+			else
+				throw new LuaRuntimeException(message?.ToString() ?? String.Empty, level, true);
 		} // proc LuaError
 
 		/// <summary></summary>

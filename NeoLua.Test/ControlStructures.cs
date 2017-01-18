@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Neo.IronLua;
 
 namespace LuaDLR.Test
 {
@@ -217,7 +218,144 @@ namespace LuaDLR.Test
 				"end;",
 				"return s;"), 50045.5);
 		}
-		
+
+		[TestMethod]
+		public void Control13()
+		{
+			TestCode(Lines(
+				"do",
+				"  error('test');",
+				"end(",
+				"  function (e)",
+				"    return e.Message;",
+				"  end",
+				")"), "test"
+			);
+		}
+
+		[TestMethod]
+		public void Control14()
+		{
+			TestCode(Lines(
+				"do",
+				"  error('test');",
+				"end(",
+				"  function (e : System.ArgumentException)",
+				"    return 'err1';",
+				"  end,",
+				"  function (e)",
+				"    return 'err2';",
+				"  end,",
+				")"), "err2"
+			);
+			TestCode(Lines(
+				"do",
+				"  return 'test':Substring(-10);",
+				"end(",
+				"  function (e : System.ArgumentException)",
+				"    return 'err1';",
+				"  end,",
+				"  function (e)",
+				"    return 'err2';",
+				"  end,",
+				")"), "err1"
+			);
+
+			// 2. catch will ignored
+			TestCode(Lines(
+			"do",
+			"  return 'test':Substring(-10);",
+			"end(",
+			"  function (e)",
+			"    return 'err2';",
+			"  end,",
+			"  function (e : System.ArgumentException)",
+			"    return 'err1';",
+			"  end",
+			")"), "err2"
+		);
+		}
+
+		[TestMethod]
+		public void Control15()
+		{
+			try
+			{
+				TestCode(Lines(
+					"do",
+					"  error('test');",
+					"end(",
+					"  function (e)",
+					"    rethrow;",
+					"  end",
+					")"), "test"
+				);
+				Assert.Fail();
+			}
+			catch (LuaRuntimeException)
+			{
+			}
+			catch
+			{
+				Assert.Fail();
+			}
+		}
+
+		[TestMethod]
+		public void Control16()
+		{
+			TestCode(Lines(
+				"do",
+				"  error('test');",
+				"  return 'noerr';",
+				"end(",
+				"  function (e)",
+				"    return 'err'",
+				"  end",
+				")"), "err"
+			);
+		}
+
+		[TestMethod]
+		public void Control17()
+		{
+			TestCode(Lines(
+				"local a = 'a1';",
+				"do",
+				"  error('test');",
+				"end(",
+				"  function (e)",
+				"    a = 'a2'",
+				"  end,",
+				"  function",
+				"    a = 'a3'",
+				"  end",
+				")",
+				"  return a;"
+				), "a3"
+			);
+		}
+
+		[TestMethod]
+		public void Control18()
+		{
+			TestCode(Lines(
+				"local a = 'a1';",
+				"do (b = 'aaaa')",
+				"  error('test');",
+				"end(",
+				"  function (e)",
+				"    a = 'a2'",
+				"  end,",
+				"  function",
+				"    a = 'a3'",
+				"  end",
+				")",
+				"  return a;"
+				), "a3"
+			);
+		}
+
 		[TestMethod]
 		public void TestVariableAssign01()
 		{

@@ -118,7 +118,7 @@ namespace Neo.IronLua
 	{
 		private TextWriter printExpressionTree = null;
 
-		private int iNumberType = (int)LuaIntegerType.Int32 | (int)LuaFloatType.Double;
+		private int numberType = (int)LuaIntegerType.Int32 | (int)LuaFloatType.Double;
 
 		#region -- Ctor/Dtor --------------------------------------------------------------
 
@@ -168,18 +168,14 @@ namespace Neo.IronLua
 		/// <summary>Creates a Environment</summary>
 		/// <returns></returns>
 		public LuaGlobalPortable CreateEnvironment()
-		{
-			return new LuaGlobalPortable(this);
-		} // func CreateEnvironment
+			=> new LuaGlobalPortable(this);
 
 		/// <summary>Create an empty environment</summary>
 		/// <typeparam name="T"></typeparam>
 		/// <returns></returns>
 		public T CreateEnvironment<T>()
 			where T : LuaTable
-		{
-			return (T)Activator.CreateInstance(typeof(T), this);
-		} // func CreateEnvironment
+			=> (T)Activator.CreateInstance(typeof(T), this);
 
 		#endregion
 
@@ -187,41 +183,41 @@ namespace Neo.IronLua
 
 		/// <summary>Erzeugt ein Delegate aus dem Code, ohne ihn auszuführen.</summary>
 		/// <param name="tr">Inhalt</param>
-		/// <param name="sName">Name der Datei</param>
+		/// <param name="name">Name der Datei</param>
 		/// <param name="options">Options for the compile process.</param>
 		/// <param name="args">Parameter für den Codeblock</param>
 		/// <returns>Compiled chunk.</returns>
-		public LuaChunk CompileChunk(TextReader tr, string sName, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
+		public LuaChunk CompileChunk(TextReader tr, string name, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
 		{
-			return CompileChunk(sName, options, tr, args);
+			return CompileChunk(name, options, tr, args);
 		} // func CompileChunk
 
 		/// <summary>Erzeugt ein Delegate aus dem Code, ohne ihn auszuführen.</summary>
-		/// <param name="sCode">Code, der das Delegate darstellt.</param>
-		/// <param name="sName">Name des Delegates</param>
+		/// <param name="code">Code, der das Delegate darstellt.</param>
+		/// <param name="name">Name des Delegates</param>
 		/// <param name="options">Options for the compile process.</param>
 		/// <param name="args">Argumente</param>
 		/// <returns>Compiled chunk.</returns>
-		public LuaChunk CompileChunk(string sCode, string sName, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
+		public LuaChunk CompileChunk(string code, string name, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
 		{
-			return CompileChunk(sName, options, new StringReader(sCode), args);
+			return CompileChunk(name, options, new StringReader(code), args);
 		} // func CompileChunk
 
-		internal LuaChunk CompileChunk(string sChunkName, LuaCompileOptions options, TextReader tr, IEnumerable<KeyValuePair<string, Type>> args)
+		internal LuaChunk CompileChunk(string chunkName, LuaCompileOptions options, TextReader tr, IEnumerable<KeyValuePair<string, Type>> args)
 		{
-			if (String.IsNullOrEmpty(sChunkName))
+			if (String.IsNullOrEmpty(chunkName))
 				throw new ArgumentNullException("chunkname");
 			if (options == null)
 				options = new LuaCompileOptions();
 
-			using (LuaLexer l = new LuaLexer(sChunkName, tr))
+			using (var l = new LuaLexer(chunkName, tr))
 			{
-				bool lRegisterMethods = options.DebugEngine != null && (options.DebugEngine.Level & LuaDebugLevel.RegisterMethods) == LuaDebugLevel.RegisterMethods;
-				if (lRegisterMethods)
+				var registerMethods = options.DebugEngine != null && (options.DebugEngine.Level & LuaDebugLevel.RegisterMethods) == LuaDebugLevel.RegisterMethods;
+				if (registerMethods)
 					BeginCompile();
 				try
 				{
-					LambdaExpression expr = Parser.ParseChunk(this, options, true, l, null, typeof(LuaResult), args);
+					var expr = Parser.ParseChunk(this, options, true, l, null, typeof(LuaResult), args);
 
 					if (printExpressionTree != null)
 					{
@@ -237,7 +233,7 @@ namespace Neo.IronLua
 				}
 				finally
 				{
-					if (lRegisterMethods)
+					if (registerMethods)
 						EndCompile();
 				}
 			}
@@ -252,9 +248,9 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public Delegate CreateLambda(string sName, string sCode, Type typeDelegate, Type returnType, params KeyValuePair<string, Type>[] arguments)
 		{
-			using (LuaLexer l = new LuaLexer(sName, new StringReader(sCode)))
+			using (var l = new LuaLexer(sName, new StringReader(sCode)))
 			{
-				LambdaExpression expr = Parser.ParseChunk(this, new LuaCompileOptions(), false, l, typeDelegate, returnType, arguments);
+				var expr = Parser.ParseChunk(this, new LuaCompileOptions(), false, l, typeDelegate, returnType, arguments);
 
 				if (printExpressionTree != null)
 				{
@@ -267,22 +263,22 @@ namespace Neo.IronLua
 		} // func CreateLambda
 
 		/// <summary>Creates a simple lua-delegate without any environment.</summary>
-		/// <param name="sName">Name of the delegate</param>
-		/// <param name="sCode">Code of the delegate.</param>
+		/// <param name="name">Name of the delegate</param>
+		/// <param name="code">Code of the delegate.</param>
 		/// <param name="argumentNames">Possible to override the argument names.</param>
 		/// <returns></returns>
-		public T CreateLambda<T>(string sName, string sCode, params string[] argumentNames)
+		public T CreateLambda<T>(string name, string code, params string[] argumentNames)
 			where T : class
 		{
-			Type typeDelegate = typeof(T);
-			MethodInfo mi = typeDelegate.GetTypeInfo().FindDeclaredMethod("Invoke", ReflectionFlag.Instance | ReflectionFlag.NoArguments);
-			ParameterInfo[] parameters = mi.GetParameters();
-			KeyValuePair<string, Type>[] arguments = new KeyValuePair<string, Type>[parameters.Length];
+			var typeDelegate = typeof(T);
+			var mi = typeDelegate.GetTypeInfo().FindDeclaredMethod("Invoke", ReflectionFlag.Instance | ReflectionFlag.NoArguments);
+			var parameters = mi.GetParameters();
+			var arguments = new KeyValuePair<string, Type>[parameters.Length];
 
 			// create the argument list
-			for (int i = 0; i < parameters.Length; i++)
+			for (var i = 0; i < parameters.Length; i++)
 			{
-				ParameterInfo p = parameters[i];
+				var p = parameters[i];
 
 				if (p.ParameterType.IsByRef)
 					throw new ArgumentException(Properties.Resources.rsDelegateCouldNotHaveOut);
@@ -292,16 +288,16 @@ namespace Neo.IronLua
 					p.ParameterType);
 			}
 
-			return (T)(object)CreateLambda(sName, sCode, typeDelegate, mi.ReturnParameter.ParameterType, arguments);
+			return (T)(object)CreateLambda(name, code, typeDelegate, mi.ReturnParameter.ParameterType, arguments);
 		} // func CreateLambda
 
 		#endregion
 
 		#region -- Numbers ----------------------------------------------------------------
 
-		internal static Type GetIntegerType(int iNumberType)
+		internal static Type GetIntegerType(int numberType)
 		{
-			switch ((LuaIntegerType)(iNumberType & (int)LuaIntegerType.Mask))
+			switch ((LuaIntegerType)(numberType & (int)LuaIntegerType.Mask))
 			{
 				case LuaIntegerType.Int16:
 					return typeof(short);
@@ -314,9 +310,9 @@ namespace Neo.IronLua
 			}
 		} // func GetIntegerType
 
-		internal static Type GetFloatType(int iNumberType)
+		internal static Type GetFloatType(int numberType)
 		{
-			switch ((LuaFloatType)(iNumberType & (int)LuaFloatType.Mask))
+			switch ((LuaFloatType)(numberType & (int)LuaFloatType.Mask))
 			{
 				case LuaFloatType.Float:
 					return typeof(float);
@@ -328,34 +324,34 @@ namespace Neo.IronLua
 		} // func GetFloatType
 
 		/// <summary>Parses a string to a lua number.</summary>
-		/// <param name="sNumber">String representation of the number.</param>
+		/// <param name="number">String representation of the number.</param>
 		/// <returns></returns>
-		public object ParseNumber(string sNumber)
+		public object ParseNumber(string number)
 		{
-			return Lua.RtParseNumber(sNumber, FloatType == LuaFloatType.Double, false);
+			return Lua.RtParseNumber(number, FloatType == LuaFloatType.Double, false);
 		} // func ParseNumber
 
 		/// <summary>Parses a string to a lua number.</summary>
-		/// <param name="sNumber">String representation of the number.</param>
+		/// <param name="number">String representation of the number.</param>
 		/// <param name="iBase">Base fore the number</param>
 		/// <returns></returns>
-		public object ParseNumber(string sNumber, int iBase)
+		public object ParseNumber(string number, int iBase)
 		{
-			return Lua.RtParseNumber(null, sNumber, 0, iBase, FloatType == LuaFloatType.Double, false);
+			return Lua.RtParseNumber(null, number, 0, iBase, FloatType == LuaFloatType.Double, false);
 		} // func ParseNumber
 
-		internal int NumberType { get { return iNumberType; } }
+		internal int NumberType => numberType;
 
 		/// <summary>Default type for the non floating point numbers. Only short, int, long is allowed.</summary>
 		public LuaIntegerType IntegerType
 		{
-			get { return (LuaIntegerType)(iNumberType & (int)LuaIntegerType.Mask); }
+			get { return (LuaIntegerType)(numberType & (int)LuaIntegerType.Mask); }
 			private set
 			{
 				if (value == LuaIntegerType.Int16 ||
 					value == LuaIntegerType.Int32 ||
 					value == LuaIntegerType.Int64)
-					iNumberType = (iNumberType & (int)LuaFloatType.Mask) | (int)value;
+					numberType = (numberType & (int)LuaFloatType.Mask) | (int)value;
 				else
 					throw new ArgumentException();
 			}
@@ -364,12 +360,12 @@ namespace Neo.IronLua
 		/// <summary>Default type for the floating point numbers. Only float, double, decimal is allowed.</summary>
 		public LuaFloatType FloatType
 		{
-			get { return (LuaFloatType)(iNumberType & (int)LuaFloatType.Mask); }
+			get { return (LuaFloatType)(numberType & (int)LuaFloatType.Mask); }
 			private set
 			{
 				if (value == LuaFloatType.Float ||
 					value == LuaFloatType.Double)
-					iNumberType = (iNumberType & (int)LuaIntegerType.Mask) | (int)value;
+					numberType = (numberType & (int)LuaIntegerType.Mask) | (int)value;
 				else
 					throw new ArgumentException();
 			}
@@ -402,13 +398,13 @@ namespace Neo.IronLua
 				if (iRegisteredChunkLock <= 0) // clean up
 				{
 					// collect all chunks they have ne reference or target
-					List<string> deletes = new List<string>();
+					var deletes = new List<string>();
 					foreach (var c in registeredChunks)
 						if (c.Value == null || c.Value.Target == null)
 							deletes.Remove(c.Key);
 
 					// remove them
-					for (int i = 0; i < deletes.Count; i++)
+					for (var i = 0; i < deletes.Count; i++)
 						registeredChunks.Remove(deletes[i]);
 				}
 			}

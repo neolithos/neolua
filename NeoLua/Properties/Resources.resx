@@ -126,9 +126,6 @@
   <data name="rsChunkNotCompiled" xml:space="preserve">
     <value>Chunk is not compiled.</value>
   </data>
-  <data name="rsChunkWrongScriptManager" xml:space="preserve">
-    <value>Chunk is compiled in a differend script-manager.</value>
-  </data>
   <data name="rsClrGenericNoType" xml:space="preserve">
     <value>No type for the generic argument {0}.</value>
   </data>
@@ -215,6 +212,9 @@
   </data>
   <data name="rsParseAssignmentExpected" xml:space="preserve">
     <value>Assignment expected.</value>
+  </data>
+  <data name="rsParseCatchVarTypeMustAssignableToException" xml:space="preserve">
+    <value>The argument type must be assignable to Exception (unexpected type: {0})</value>
   </data>
   <data name="rsParseConvertNumberError" xml:space="preserve">
     <value>Number expected ('{0}' not converted).</value>

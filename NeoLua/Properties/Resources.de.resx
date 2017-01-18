@@ -126,9 +126,6 @@
   <data name="rsChunkNotCompiled" xml:space="preserve">
     <value>Chunk ist nicht übersetzt.</value>
   </data>
-  <data name="rsChunkWrongScriptManager" xml:space="preserve">
-    <value>Chunk wurde in einem anderen ScriptManager übersetzt.</value>
-  </data>
   <data name="rsClrGenericNoType" xml:space="preserve">
     <value>Kein Type für den generischen Parameter {0} gefunden.</value>
   </data>
@@ -215,6 +212,9 @@
   </data>
   <data name="rsParseAssignmentExpected" xml:space="preserve">
     <value>Zuweisung erwartet.</value>
+  </data>
+  <data name="rsParseCatchVarTypeMustAssignableToException" xml:space="preserve">
+    <value>Das Argument muss kompatible zu Exception sein (unerwarteter type: {0})</value>
   </data>
   <data name="rsParseConvertNumberError" xml:space="preserve">
     <value>Zahl erwartet ('{0}' nicht konvertiert).</value>

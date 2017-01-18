@@ -89,15 +89,6 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Chunk is compiled in a differend script-manager..
-        /// </summary>
-        internal static string rsChunkWrongScriptManager {
-            get {
-                return ResourceManager.GetString("rsChunkWrongScriptManager", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to No type for the generic argument {0}..
         /// </summary>
         internal static string rsClrGenericNoType {
@@ -355,6 +346,15 @@ namespace Neo.IronLua.Properties {
         internal static string rsParseAssignmentExpected {
             get {
                 return ResourceManager.GetString("rsParseAssignmentExpected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The argument type must be assignable to Exception (unexpected type: {0}).
+        /// </summary>
+        internal static string rsParseCatchVarTypeMustAssignableToException {
+            get {
+                return ResourceManager.GetString("rsParseCatchVarTypeMustAssignableToException", resourceCulture);
             }
         }
         

@@ -160,10 +160,11 @@ end;
 ## `do` loop
 
 ```
-doloop ::= ‘do’ ‘(‘ vardecl { ‘,’ vardecl } ‘=’ expr { ‘,’ expr }) block ‘end’
+doloop ::= ‘do’ ‘(’ vardecl { ‘,’ vardecl } ‘=’ expr { ‘,’ expr }) block ‘end’
+           ‘(’ { ‘function’ [ ‘(’ vardecl [ ‘:’ type ] ‘)’ ] block ‘end’ ‘,’ } ‘)’
 ```
 
-NeoLua extents the `do` to an using statement. Every variable, that is declared between the braces will automatically disposed at the end of the loop.
+NeoLua extents the `do` to a try statement. Every variable, that is declared between the braces will automatically disposed in a finally block at the end of the loop.
 
 ```Lua
 do (sw = clr.System.IO.StreamReader([[C:\Projects\NeoLua\trunk\NeoCmd\Samples\FileRead.lua]]))
@@ -172,8 +173,22 @@ do (sw = clr.System.IO.StreamReader([[C:\Projects\NeoLua\trunk\NeoCmd\Samples\Fi
 end;
 ```
 
-The file handle will be released, also when a error is thrown.
-Functions
+The file handle will be released, also when an exception is thrown.
+
+Example for a catch statement.
+```lua
+do 
+	error("test");
+end(
+	function (e)
+		print(e.Message);
+		-- rethrow; -- to rethrow the exception, or error(e) to set a new stacktrace
+	end,
+	function
+		print("finally");
+	end
+)
+```
 
 ## function signatures
 
