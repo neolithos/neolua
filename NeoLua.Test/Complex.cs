@@ -115,5 +115,25 @@ namespace LuaDLR.Test
 				TestResult(g.DoChunk("return values[0]:ToString(\"G\", clr.System.Globalization.CultureInfo.InvariantCulture);", "test0.lua"), ((double)values[0]).ToString("G", System.Globalization.CultureInfo.InvariantCulture));
 			}
 		}
+
+		[TestMethod]
+		public void StackTracer01()
+		{
+			using (var l = new Lua())
+			{
+				l.PrintExpressionTree = Console.Out;
+				var c = l.CompileChunk(Lines(
+						"a = {};",
+						"function a:m(a, b)",
+							"return a .. ' - ' .. b;",
+						"end;",
+
+						"return a:m(1, 'a'),a:m('1', 2);"), "test.lua", LuaDeskop.StackTraceCompileOptions);
+				var g = l.CreateEnvironment();
+				TestResult(g.DoChunk(c), "1 - a", "1 - 2");
+			}
+		}
+
+		
 	} // class ComplexStructures
 }

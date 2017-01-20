@@ -22,42 +22,40 @@ namespace Neo.IronLua
 		/// <summary></summary>
 		private sealed class LuaDebugInfo : IComparable<LuaDebugInfo>, ILuaDebugInfo
 		{
-			private string sChunkName;
-			private string sMethodName;
-			private string sFileName;
-			private int ilOffset;
-			private int iLine;
-			private int iColumn;
+			private readonly string chunkName;
+			private readonly string methodName;
+			private readonly string fileName;
+			private readonly int ilOffset;
+			private readonly int line;
+			private readonly int column;
 
-			public LuaDebugInfo(string sChunkName, string sMethodName, SymbolDocumentInfo document, int ilOffset, int iLine, int iColumn)
+			public LuaDebugInfo(string chunkName, string methodName, SymbolDocumentInfo document, int ilOffset, int line, int column)
 			{
-				this.sChunkName = sChunkName;
-				this.sMethodName = sMethodName;
-				this.sFileName = document.FileName;
+				this.chunkName = chunkName;
+				this.methodName = methodName;
+				this.fileName = document.FileName;
 				this.ilOffset = ilOffset;
-				this.iLine = iLine;
-				this.iColumn = iColumn;
+				this.line = line;
+				this.column = column;
 			} // ctor
 
 			public int CompareTo(LuaDebugInfo other)
 			{
-				int iTmp = String.Compare(sMethodName, other.MethodName);
-				return iTmp == 0 ? ilOffset - other.ILOffset : iTmp;
+				var tmp = String.Compare(methodName, other.MethodName);
+				return tmp == 0 ? ilOffset - other.ILOffset : tmp;
 			} // func CompareTo
 
 			public override string ToString()
-			{
-				return IsClear ? String.Format("{0}:{1}# Clear", sMethodName, ilOffset) : String.Format("{0}:{1}# {2}:{3},{4}", sMethodName, ilOffset, FileName, iLine, iColumn);
-			} // func ToString
+				=> IsClear ? String.Format("{0}:{1}# Clear", methodName, ilOffset) : String.Format("{0}:{1}# {2}:{3},{4}", methodName, ilOffset, FileName, line, column);
 
-			public string ChunkName { get { return sChunkName; } }
-			public string MethodName { get { return sMethodName; } }
-			public string FileName { get { return sFileName; } }
-			public int ILOffset { get { return ilOffset; } }
-			public int Line { get { return iLine; } }
-			public int Column { get { return iColumn; } }
+			public string ChunkName => chunkName;
+			public string MethodName => methodName;
+			public string FileName => fileName;
+			public int ILOffset => ilOffset;
+			public int Line => line;
+			public int Column => column;
 
-			public bool IsClear { get { return iLine == 16707566; } }
+			public bool IsClear => line == 16707566;
 		} // class LuaDebugInfo
 
 		#endregion
@@ -68,7 +66,7 @@ namespace Neo.IronLua
 		/// <summary></summary>
 		private class LuaDebugInfoGenerator : DebugInfoGenerator
 		{
-			private LuaStackTraceChunk chunk;
+			private readonly LuaStackTraceChunk chunk;
 
 			public LuaDebugInfoGenerator(LuaStackTraceChunk chunk)
 			{
@@ -95,11 +93,29 @@ namespace Neo.IronLua
 				public object InitValue;
 			} // struct FieldDefine
 
-			private Lua lua;
-			private LuaStackTraceDebugger debug;
-			private TypeBuilder type;
+			private struct CallSiteToken : IEquatable<CallSiteToken>
+			{
+				public CallSiteBinder Binder;
+				public Type DelegateType;
 
-			private bool lFirstLambdaDone = false;
+				public override string ToString()
+					=> nameof(CallSiteToken) + ": " + DelegateType.FullName;
+
+				public override int GetHashCode()
+					=> Binder.GetHashCode() ^ DelegateType.GetHashCode();
+
+				public override bool Equals(object obj)
+					=> obj is CallSiteToken ? Equals((CallSiteToken)obj) : false;
+
+				public bool Equals(CallSiteToken other)
+					=> Binder == other.Binder && DelegateType == other.DelegateType;
+			} // struct CallSiteToken
+
+			private readonly Lua lua;
+			private readonly LuaStackTraceDebugger debug;
+			private readonly TypeBuilder type;
+
+			private bool isFirstLambdaDone = false;
 			private Dictionary<object, FieldDefine> fields;
 
 			#region -- Ctor/Dtor ------------------------------------------------------------
@@ -118,17 +134,10 @@ namespace Neo.IronLua
 			#region -- IEqualityComparer<object> --------------------------------------------
 
 			bool IEqualityComparer<object>.Equals(object x, object y)
-			{
-				if (Object.ReferenceEquals(x, y))
-					return true;
-				else
-					return Object.Equals(x, y);
-			} // func Equals
+				=> Object.ReferenceEquals(x, y) ? true : Object.Equals(x, y);
 
 			int IEqualityComparer<object>.GetHashCode(object obj)
-			{
-				return obj.GetHashCode();
-			} // func GetHashCode
+				=> obj.GetHashCode();
 
 			#endregion
 
@@ -158,7 +167,7 @@ namespace Neo.IronLua
 			{
 				if (node.Value != null)
 				{
-					Type type = node.Value.GetType();
+					var type = node.Value.GetType();
 					if (Type.GetTypeCode(type) < TypeCode.Boolean && !typeof(Type).IsAssignableFrom(type))
 						return Visit(CreateField(node.Value, type, null));
 					else if (node.Type == typeof(object))
@@ -173,18 +182,22 @@ namespace Neo.IronLua
 
 			protected override Expression VisitDynamic(DynamicExpression node)
 			{
-				Type callSiteType = typeof(CallSite<>).MakeGenericType(node.DelegateType);
-				Expression[] callSiteArguments = new Expression[node.Arguments.Count + 1];
+				var callSiteType = typeof(CallSite<>).MakeGenericType(node.DelegateType);
+				var callSiteArguments = new Expression[node.Arguments.Count + 1];
 
 				// create the callsite
-				Expression getConstant = CreateField(node.Binder, callSiteType, () => CallSite.Create(node.DelegateType, node.Binder));
+				var getConstant = CreateField(
+					new CallSiteToken() { Binder = node.Binder, DelegateType = callSiteType },
+					callSiteType,
+					() => CallSite.Create(node.DelegateType, node.Binder)
+				);
 
 				//
 				// site.Target.Invoke(s, targetObject, set)
 				//
 				// create the callsite replacement
-				FieldInfo fiTarget = callSiteType.GetField("Target");
-				MethodInfo miTargetInvoke = fiTarget.FieldType.GetMethod("Invoke");
+				var fiTarget = callSiteType.GetField("Target");
+				var miTargetInvoke = fiTarget.FieldType.GetMethod("Invoke");
 
 				callSiteArguments[0] = getConstant;
 				node.Arguments.CopyTo(callSiteArguments, 1);
@@ -196,10 +209,10 @@ namespace Neo.IronLua
 
 			protected override Expression VisitLambda<T>(Expression<T> node)
 			{
-				if (!lFirstLambdaDone)
+				if (!isFirstLambdaDone) // first block should be a try catch
 				{
-					lFirstLambdaDone = true;
-					ParameterExpression exceptionE = Expression.Parameter(typeof(Exception), "$e");
+					isFirstLambdaDone = true;
+					var exceptionE = Expression.Parameter(typeof(Exception), "$e");
 					return Visit(
 						Expression.Lambda<T>(
 							Expression.TryCatch(
@@ -225,9 +238,9 @@ namespace Neo.IronLua
 			{
 				foreach (var c in fields)
 				{
-					FieldDefine fd = c.Value;
+					var fd = c.Value;
 
-					//Debug.Print("Init: {0} : {1} = {2}", fd.Field.Name, fd.Field.FieldType.Name, fd.InitValue);
+					// Debug.Print("Init: {0} : {1} = {2}", fd.Field.Name, fd.Field.FieldType.Name, fd.InitValue);
 					typeFinished.GetField(fd.Field.Name, BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, fd.InitValue);
 				}
 			} // proc CompileInitMethod
@@ -241,8 +254,8 @@ namespace Neo.IronLua
 		{
 			private List<LuaDebugInfo> debugInfos = null;
 
-			public LuaStackTraceChunk(Lua lua, string sName)
-				: base(lua, sName, null)
+			public LuaStackTraceChunk(Lua lua, string name)
+				: base(lua, name, null)
 			{
 			} // ctor
 
@@ -251,12 +264,12 @@ namespace Neo.IronLua
 				this.Chunk = chunk;
 
 				// register the debug infos
-				string sCurrentMethodName = null;
+				var currentMethodName = (string)null;
 				debugInfos.ForEach(
 					info =>
 					{
-						if (sCurrentMethodName != info.MethodName)
-							RegisterMethod(sCurrentMethodName = info.MethodName);
+						if (currentMethodName != info.MethodName)
+							RegisterMethod(currentMethodName = info.MethodName);
 					});
 
 				return this;
@@ -267,66 +280,70 @@ namespace Neo.IronLua
 				if (debugInfos == null)
 					debugInfos = new List<LuaDebugInfo>();
 
-				LuaDebugInfo info = new LuaDebugInfo(ChunkName, method.Name, sequencePoint.Document, ilOffset, sequencePoint.StartLine, sequencePoint.StartColumn);
-				int iPos = debugInfos.BinarySearch(info);
-				if (iPos < 0)
-					debugInfos.Insert(~iPos, info);
+				var info = new LuaDebugInfo(ChunkName, method.Name, sequencePoint.Document, ilOffset, sequencePoint.StartLine, sequencePoint.StartColumn);
+				var pos = debugInfos.BinarySearch(info);
+				if (pos < 0)
+					debugInfos.Insert(~pos, info);
 				else
-					debugInfos[iPos] = info;
+					debugInfos[pos] = info;
 			} // proc AddDebugInfo
 
-			private bool GetMethodRange(string sMethodName, out int iStart, out int iEnd)
+			private bool GetMethodRange(string sMethodName, out int startAt, out int endAt)
 			{
-				iStart = -1;
-				iEnd = -1;
+				startAt = -1;
+				endAt = -1;
 				if (debugInfos == null)
 					return false;
 
-				int iLength = debugInfos.Count;
+				var length = debugInfos.Count;
 
 				// search the start
-				for (int i = 0; i < iLength; i++)
+				for (int i = 0; i < length; i++)
 				{
 					if (debugInfos[i].MethodName == sMethodName)
 					{
-						iStart = i;
+						startAt = i;
 						break;
 					}
 				}
-				if (iStart == -1)
+				if (startAt == -1)
 					return false;
 
 				// search the end
-				for (int i = iStart; i < iLength; i++)
+				for (var i = startAt; i < length; i++)
 				{
 					if (debugInfos[i].MethodName != sMethodName)
 					{
-						iEnd = i - 1;
+						endAt = i - 1;
 						return true;
 					}
 				}
 
-				iEnd = debugInfos.Count - 1;
+				endAt = debugInfos.Count - 1;
 				return true;
 			} // func GetMethodRange
 
 			protected internal override ILuaDebugInfo GetDebugInfo(MethodBase method, int ilOffset)
 			{
-				LuaDebugInfo info = null;
+				var info = (LuaDebugInfo)null;
 
 				// find method range
-				int iStart;
-				int iEnd;
-				if (!GetMethodRange(method.Name, out iStart, out iEnd))
+				int startAt;
+				int endAt;
+				if (!GetMethodRange(method.Name, out startAt, out endAt))
 					return null;
 
 				// find debug info
 				if (debugInfos != null)
-					for (int i = iStart; i <= iEnd; i++)
+				{
+					for (var i = startAt; i <= endAt; i++)
+					{
 						if (debugInfos[i].ILOffset <= ilOffset)
 							info = debugInfos[i];
 						else if (debugInfos[i].ILOffset > ilOffset)
 							break;
+					}
+				}
 
 				// clear debug
 				if (info != null && info.IsClear)
@@ -335,7 +352,7 @@ namespace Neo.IronLua
 				return info;
 			} // func GetDebugInfo
 
-			public override bool HasDebugInfo { get { return debugInfos != null; } }
+			public override bool HasDebugInfo => debugInfos != null;
 		} // class LuabStackTraceChunk
 
 		#endregion
@@ -354,16 +371,16 @@ namespace Neo.IronLua
 
 		#region -- CreateChunk ------------------------------------------------------------
 
-		private string CreateUniqueTypeName(string sName)
+		private string CreateUniqueTypeName(string name)
 		{
-			int iIndex = 0;
-			string sTypeName = sName;
+			var index = 0;
+			var typeName = name;
 
-			Type[] types = module.GetTypes();
-			while (Array.Exists(types, c => c.Name == sTypeName))
-				sTypeName = sName + (++iIndex).ToString();
+			var types = module.GetTypes();
+			while (Array.Exists(types, c => c.Name == typeName))
+				typeName = name + (++index).ToString();
 
-			return sTypeName;
+			return typeName;
 		} // func CreateUniqueTypeName
 
 		LuaChunk ILuaDebug.CreateChunk(Lua lua, LambdaExpression expr)
@@ -378,20 +395,20 @@ namespace Neo.IronLua
 				}
 
 				// create a type for the expression
-				TypeBuilder type = module.DefineType(CreateUniqueTypeName(expr.Name), TypeAttributes.NotPublic | TypeAttributes.Sealed);
+				var type = module.DefineType(CreateUniqueTypeName(expr.Name), TypeAttributes.NotPublic | TypeAttributes.Sealed);
 
 				// transform the expression
 				var reduce = new ReduceDynamic(lua, this, type);
 				expr = (LambdaExpression)reduce.Visit(expr);
 
 				// compile the function
-				MethodBuilder method = type.DefineMethod(expr.Name, MethodAttributes.Static | MethodAttributes.Public);
+				var method = type.DefineMethod(expr.Name, MethodAttributes.Static | MethodAttributes.Public);
 				var chunk = new LuaStackTraceChunk(lua, expr.Name);
 				var collectedDebugInfo = new LuaDebugInfoGenerator(chunk);
 				expr.CompileToMethod(method, collectedDebugInfo);
 
 				// create the type and build the delegate
-				Type typeFinished = type.CreateType();
+				var typeFinished = type.CreateType();
 
 				// Initialize fields, create the static callsite's
 				reduce.InitMethods(typeFinished);
@@ -451,4 +468,3 @@ namespace Neo.IronLua
 
 	#endregion
 }
-// todo: LuaExceptionData.GetData(e.InnerException); // secure the stacktrace
