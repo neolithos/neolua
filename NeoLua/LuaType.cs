@@ -1496,7 +1496,11 @@ namespace Neo.IronLua
 
 		#region -- Ctor/Dtor --------------------------------------------------------------
 
-		internal LuaMethod(object instance, MethodInfo method, bool isMemberCall = false)
+		/// <summary></summary>
+		/// <param name="instance"></param>
+		/// <param name="method"></param>
+		/// <param name="isMemberCall"></param>
+		public LuaMethod(object instance, MethodInfo method, bool isMemberCall = false)
 		{
 			this.instance = instance;
 			this.method = method;
@@ -1760,7 +1764,11 @@ namespace Neo.IronLua
 
 		#region -- Ctor/Dtor --------------------------------------------------------------
 
-		internal LuaOverloadedMethod(object instance, MethodInfo[] methods, bool isMemberCall = false)
+		/// <summary></summary>
+		/// <param name="instance"></param>
+		/// <param name="methods"></param>
+		/// <param name="isMemberCall"></param>
+		public LuaOverloadedMethod(object instance, MethodInfo[] methods, bool isMemberCall = false)
 		{
 			this.instance = instance;
 			this.methods = methods;

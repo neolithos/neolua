@@ -3090,7 +3090,7 @@ namespace Neo.IronLua
 		/// <summary></summary>
 		/// <param name="key"></param>
 		/// <param name="value"></param>
-		/// <returns></returns>
+		/// <returns><c>true</c>, if __newindex is defined.</returns>
 		protected virtual bool OnNewIndex(object key, object value)
 		{
 			if (Object.ReferenceEquals(metaTable, null))
