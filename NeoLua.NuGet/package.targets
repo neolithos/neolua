@@ -67,10 +67,10 @@
 		<Zip Files="@(ZipFileCmd)" WorkingDirectory="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release" ZipFileName="$(TargetDir)\$(Version)\NeoLuaCmd-$(Version).zip" />
 
 		<!-- Create NuGet Package -->
-		<Exec Command="c:\Projects\Bin\NuGet.exe pack NeoLua.nuspec -OutputDirectory $(TargetDir)\$(Version) -Version $(Version)" />
-		<Exec Command="c:\Projects\Bin\NuGet.exe pack NeoLuaDebug.nuspec -OutputDirectory $(TargetDir)\$(Version) -Version $(Version)" />
-		<Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir)\$(Version)\NeoLua.$(Version).nupkg" />
-		<Exec Command="c:\Projects\Bin\NuGet.exe push $(TargetDir)\$(Version)\NeoLuaDebug.$(Version).nupkg" />
+		<Exec Command="c:\Tools\NuGet.exe pack NeoLua.nuspec -OutputDirectory $(TargetDir)\$(Version) -Version $(Version)" />
+		<Exec Command="c:\Tools\NuGet.exe pack NeoLuaDebug.nuspec -OutputDirectory $(TargetDir)\$(Version) -Version $(Version)" />
+		<Exec Command="c:\Tools\NuGet.exe push $(TargetDir)\$(Version)\NeoLua.$(Version).nupkg -source https://www.nuget.org/api/v2/package" />
+		<Exec Command="c:\Tools\NuGet.exe push $(TargetDir)\$(Version)\NeoLuaDebug.$(Version).nupkg -source https://www.nuget.org/api/v2/package" />
 	</Target>
 </Project>
 <!--<Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
