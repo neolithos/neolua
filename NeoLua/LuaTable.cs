@@ -1900,10 +1900,13 @@ namespace Neo.IronLua
 					}
 					else
 					{
+						var keyName = entries[entryIndex].key;
 						// remove the value
 						RemoveValue(entryIndex);
 						// remove the item
 						memberCount--;
+						// notify that the property is changed
+						OnPropertyChanged(ignoreCase ? (string)keyName : memberName);
 					}
 					return RemovedIndex;
 				}
