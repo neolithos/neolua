@@ -3327,6 +3327,17 @@ namespace Neo.IronLua
 		private LuaTableHashKeyCollection hashKeyCollection = null;
 		private LuaTableHashValueCollection hashValueCollection = null;
 
+		/// <summary>Support for the array initalizer.</summary>
+		/// <param name="value">Value that is added to the array part.</param>
+		public void Add(object value)
+			=> ArrayOnlyAdd(value);
+
+		/// <summary>Support for a key value initializer.</summary>
+		/// <param name="key">key of the value.</param>
+		/// <param name="value">value</param>
+		public void Add(object key, object value)
+			=> SetValue(key, value, true);
+
 		void IDictionary<object, object>.Add(object key, object value)
 		{
 			if (ContainsKey(key))

@@ -803,5 +803,30 @@ namespace LuaDLR.Test
 			foreach (var c in t.Values)
 				Console.WriteLine("Key [{0}] = {1}", c.Key, c.Value);
 		}
+
+		[TestMethod]
+		public void TestInitializer01()
+		{
+			var t = new LuaTable
+			{
+				1,
+				2,
+				{ "t1", 42 },
+				3,
+				4,
+				{ "t2", 23 }
+			};
+
+			Assert.AreEqual(4, t.ArrayList.Count);
+			Assert.AreEqual(2, t.Members.Count);
+
+			Assert.AreEqual(1, t.ArrayList[0]);
+			Assert.AreEqual(2, t[2]);
+			Assert.AreEqual(3, t.ArrayList[2]);
+			Assert.AreEqual(4, t.ArrayList[3]);
+
+			Assert.AreEqual(42, t["t1"]);
+			Assert.AreEqual(23, t["t2"]);
+		} // proc TestInitializer01
 	} // class LuaTableTests
 }
