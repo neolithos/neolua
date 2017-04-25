@@ -5,9 +5,9 @@
     <version>$version$</version>
     <title>NeoLua for MSBuild</title>
     <authors>Neolithos</authors>
-    <projectUrl>https://neolua.codeplex.com/</projectUrl>
-    <licenseUrl>https://neolua.codeplex.com/license</licenseUrl>
-    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+		<projectUrl>https://github.com/neolithos/neolua</projectUrl>
+		<licenseUrl>https://github.com/neolithos/neolua/blob/master/LICENSE.md</licenseUrl>
+		<requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>Write msbuild tasks with NeoLua.</description>
     <summary>      
     </summary>
