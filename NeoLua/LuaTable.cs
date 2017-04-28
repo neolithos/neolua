@@ -668,9 +668,7 @@ namespace Neo.IronLua
 			/// <summary></summary>
 			/// <returns></returns>
 			public override IEnumerable<string> GetDynamicMemberNames()
-			{
-				return ((IDictionary<string, object>)Value).Keys;
-			} // func GetDynamicMemberNames
+				=> ((LuaTable)Value).Members.Keys;
 		} // class LuaTableMetaObject
 
 		#endregion
