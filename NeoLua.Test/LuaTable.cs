@@ -828,5 +828,28 @@ namespace LuaDLR.Test
 			Assert.AreEqual(42, t["t1"]);
 			Assert.AreEqual(23, t["t2"]);
 		} // proc TestInitializer01
+
+		[TestMethod]
+		public void TestInitializer02()
+		{
+			var cmd = new LuaTable
+			{
+				{ "select", "dbo.ObjK" },
+				{ "selectList", new LuaTable { "IsRev", "HeadRevId", } },
+				new LuaTable
+				{
+					{ "Id", -1 }
+				}
+			};
+
+			Assert.AreEqual("dbo.ObjK", cmd["select"]);
+
+			var table = (LuaTable)cmd["selectList"];
+			Assert.AreEqual("IsRev", table[1]);
+			Assert.AreEqual("HeadRevId", table[2]);
+
+			table = (LuaTable)cmd[1];
+			Assert.AreEqual(-1, table["Id"]);
+		}
 	} // class LuaTableTests
 }
