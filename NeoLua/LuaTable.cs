@@ -59,10 +59,10 @@ namespace Neo.IronLua
 	{
 		/// <summary>Member name of the metatable</summary>
 		public const string csMetaTable = "__metatable";
-		private const int HiddenMemberCount = 1; // do not enumerate __metatable
+		private const int hiddenMemberCount = 1; // do not enumerate __metatable
 
-		private const int IndexNotFound = -1;
-		private const int RemovedIndex = -3;
+		private const int indexNotFound = -1;
+		private const int removedIndex = -3;
 
 		#region -- class LuaTableMetaObject -----------------------------------------------
 
@@ -794,7 +794,7 @@ namespace Neo.IronLua
 					if (arrayIndex < 0 || arrayIndex + Count > array.Length)
 						throw new ArgumentOutOfRangeException();
 
-					for (var i = HiddenMemberCount; i < t.entries.Length; i++)
+					for (var i = hiddenMemberCount; i < t.entries.Length; i++)
 					{
 						object key = t.entries[i].key;
 						if (key is string)
@@ -807,7 +807,7 @@ namespace Neo.IronLua
 				public IEnumerator<string> GetEnumerator()
 				{
 					var version = t.version;
-					for (var i = HiddenMemberCount; i < t.entries.Length; i++)
+					for (var i = hiddenMemberCount; i < t.entries.Length; i++)
 					{
 						if (version != t.version)
 							throw new InvalidOperationException("table changed");
@@ -825,7 +825,7 @@ namespace Neo.IronLua
 				void ICollection<string>.Clear() { throw new NotSupportedException(); }
 
 				/// <summary></summary>
-				public int Count => t.memberCount - HiddenMemberCount;
+				public int Count => t.memberCount - hiddenMemberCount;
 				/// <summary>Always true</summary>
 				public bool IsReadOnly => true;
 			} // class LuaTableStringKeyCollection
@@ -866,7 +866,7 @@ namespace Neo.IronLua
 					if (arrayIndex < 0 || arrayIndex + Count > array.Length)
 						throw new ArgumentOutOfRangeException();
 
-					for (var i = HiddenMemberCount; i < t.entries.Length; i++)
+					for (var i = hiddenMemberCount; i < t.entries.Length; i++)
 					{
 						if (t.entries[i].key is string)
 							array[arrayIndex++] = t.entries[i].value;
@@ -878,7 +878,7 @@ namespace Neo.IronLua
 				public IEnumerator<object> GetEnumerator()
 				{
 					var version = t.version;
-					for (var i = HiddenMemberCount; i < t.entries.Length; i++)
+					for (var i = hiddenMemberCount; i < t.entries.Length; i++)
 					{
 						if (version != t.version)
 							throw new InvalidOperationException("table changed");
@@ -898,7 +898,7 @@ namespace Neo.IronLua
 				void ICollection<object>.Clear() { throw new NotSupportedException(); }
 
 				/// <summary></summary>
-				public int Count  => t.memberCount - HiddenMemberCount;
+				public int Count  => t.memberCount - hiddenMemberCount;
 				/// <summary>Always true</summary>
 				public bool IsReadOnly => true;
 			} // class LuaTableStringValueCollection
@@ -922,7 +922,7 @@ namespace Neo.IronLua
 				if (key == null)
 					throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
 
-				return table.SetMemberValueIntern(key, null, false, true, false, false) == RemovedIndex;
+				return table.SetMemberValueIntern(key, null, false, true, false, false) == removedIndex;
 			} // func Remove
 
 			public ICollection<string> Keys
@@ -968,7 +968,7 @@ namespace Neo.IronLua
 				if (item.Key == null)
 					throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
 
-				return table.SetMemberValueIntern(item.Key, null, false, true, false, false) == RemovedIndex;
+				return table.SetMemberValueIntern(item.Key, null, false, true, false, false) == removedIndex;
 			} // func Remove
 
 			public void Clear()
@@ -980,7 +980,7 @@ namespace Neo.IronLua
 			public void CopyTo(KeyValuePair<string, object>[] array, int arrayIndex)
 				=> table.MembersCopyTo(array, arrayIndex);
 
-			public int Count => table.memberCount - HiddenMemberCount;
+			public int Count => table.memberCount - hiddenMemberCount;
 			public bool IsReadOnly => false; 
 
 			#endregion
@@ -1906,10 +1906,10 @@ namespace Neo.IronLua
 						// notify that the property is changed
 						OnPropertyChanged(ignoreCase ? (string)keyName : memberName);
 					}
-					return RemovedIndex;
+					return removedIndex;
 				}
 				else
-					return IndexNotFound;
+					return indexNotFound;
 			}
 			else if (entryIndex >= 0) // key will be setted
 			{
@@ -1938,7 +1938,7 @@ namespace Neo.IronLua
 				return entryIndex;
 			}
 			else
-				return IndexNotFound;
+				return indexNotFound;
 		} // func SetMemberValueIntern
 
 		private void SetClassMemberValue(int entryIndex, object value)
@@ -2224,10 +2224,10 @@ namespace Neo.IronLua
 
 		private void MembersCopyTo(KeyValuePair<string, object>[] array, int arrayIndex)
 		{
-			if (arrayIndex < 0 || arrayIndex + memberCount - HiddenMemberCount > array.Length)
+			if (arrayIndex < 0 || arrayIndex + memberCount - hiddenMemberCount > array.Length)
 				throw new ArgumentOutOfRangeException();
 
-			for (int i = HiddenMemberCount; i < entries.Length; i++)
+			for (int i = hiddenMemberCount; i < entries.Length; i++)
 			{
 				object key = entries[i].key;
 				if (key is string)
@@ -2238,7 +2238,7 @@ namespace Neo.IronLua
 		private IEnumerator<KeyValuePair<string, object>> MembersGetEnumerator()
 		{
 			int iVersion = this.version;
-			for (int i = HiddenMemberCount; i < entries.Length; i++)
+			for (int i = hiddenMemberCount; i < entries.Length; i++)
 			{
 				if (iVersion != this.version)
 					throw new InvalidOperationException();
@@ -2251,7 +2251,7 @@ namespace Neo.IronLua
 
 		private void ClearMembers()
 		{
-			for (int i = HiddenMemberCount; i < entries.Length; i++)
+			for (int i = hiddenMemberCount; i < entries.Length; i++)
 			{
 				if (i < classDefinition.Count)
 					if (classDefinition[i].mode == LuaTableDefineMode.Init)
@@ -3166,7 +3166,7 @@ namespace Neo.IronLua
 				for (var i = 0; i < t.arrayList.Length; i++)
 					array[arrayIndex++] = i + 1;
 
-				for (var i = HiddenMemberCount; i < t.entries.Length; i++)
+				for (var i = hiddenMemberCount; i < t.entries.Length; i++)
 					if (t.entries[i].hashCode != -1)
 						array[arrayIndex++] = t.entries[i].key;
 			} // proc CopyTo
@@ -3184,7 +3184,7 @@ namespace Neo.IronLua
 
 					yield return i + 1;
 				}
-				for (var i = HiddenMemberCount; i < t.entries.Length; i++)
+				for (var i = hiddenMemberCount; i < t.entries.Length; i++)
 				{
 					if (version != t.version)
 						throw new InvalidOperationException("table changed");
@@ -3202,7 +3202,7 @@ namespace Neo.IronLua
 			void ICollection<object>.Clear() { throw new NotSupportedException(); }
 
 			/// <summary></summary>
-			public int Count => t.count - HiddenMemberCount;
+			public int Count => t.count - hiddenMemberCount;
 			/// <summary>Always true</summary>
 			public bool IsReadOnly => true;
 		} // class LuaTableHashKeyCollection
@@ -3233,7 +3233,7 @@ namespace Neo.IronLua
 						return true;
 				}
 
-				for (var i = HiddenMemberCount; i < t.classDefinition.Count; i++)
+				for (var i = hiddenMemberCount; i < t.classDefinition.Count; i++)
 				{
 					if (comparerObject.Equals(t.GetClassMemberValue(i, t.entries[i].key, true), value))
 						return true;
@@ -3262,7 +3262,7 @@ namespace Neo.IronLua
 						array[arrayIndex++] = t.arrayList[i];
 				}
 
-				for (var i = HiddenMemberCount; i < t.classDefinition.Count; i++)
+				for (var i = hiddenMemberCount; i < t.classDefinition.Count; i++)
 				{
 					array[arrayIndex++] = t.GetClassMemberValue(i, t.entries[i].key, true);
 				}
@@ -3289,7 +3289,7 @@ namespace Neo.IronLua
 						yield return t.arrayList[i];
 				}
 
-				for (var i = HiddenMemberCount; i < t.classDefinition.Count; i++)
+				for (var i = hiddenMemberCount; i < t.classDefinition.Count; i++)
 				{
 					if (version != t.version)
 						throw new InvalidOperationException("table changed");
@@ -3315,7 +3315,7 @@ namespace Neo.IronLua
 			void ICollection<object>.Clear() { throw new NotSupportedException(); }
 
 			/// <summary></summary>
-			public int Count => t.count - HiddenMemberCount;
+			public int Count => t.count - hiddenMemberCount;
 			/// <summary>Always true</summary>
 			public bool IsReadOnly => true;
 		} // class LuaTableHashValueCollection
@@ -3402,7 +3402,7 @@ namespace Neo.IronLua
 			{
 				case null:
 					if (arrayLength == 0)
-						return NextHashKey(HiddenMemberCount);
+						return NextHashKey(hiddenMemberCount);
 					else
 						return 1;
 				case int key:
@@ -3417,7 +3417,7 @@ namespace Neo.IronLua
 								return key + 1;
 							key++;
 						}
-						return NextHashKey(HiddenMemberCount);
+						return NextHashKey(hiddenMemberCount);
 					}
 					else
 						goto default;
@@ -3473,7 +3473,7 @@ namespace Neo.IronLua
 			}
 
 			// copy the class part
-			for (var i = HiddenMemberCount; i < classDefinition.Count; i++)
+			for (var i = hiddenMemberCount; i < classDefinition.Count; i++)
 			{
 				object value = GetClassMemberValue(i, null, true);
 				if (value != null)
@@ -3488,7 +3488,7 @@ namespace Neo.IronLua
 			}
 		} // proc ICollection<KeyValuePair<object, object>>.CopyTo
 
-		int ICollection<KeyValuePair<object, object>>.Count => count - HiddenMemberCount;
+		int ICollection<KeyValuePair<object, object>>.Count => count - hiddenMemberCount;
 		bool ICollection<KeyValuePair<object, object>>.IsReadOnly => false;
 
 		#endregion
@@ -3512,7 +3512,7 @@ namespace Neo.IronLua
 			}
 
 			// enumerate the class part
-			for (int i = HiddenMemberCount; i < classDefinition.Count; i++)
+			for (int i = hiddenMemberCount; i < classDefinition.Count; i++)
 			{
 				if (iVersion != this.version)
 					throw new InvalidOperationException();
