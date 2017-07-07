@@ -10,8 +10,8 @@ using Neo.IronLua;
 
 namespace LuaDLR.Test
 {
-  [TestClass]
-  public class LuaLibs : TestHelper
+	[TestClass]
+	public class LuaLibs : TestHelper
 	{
 		[TestMethod]
 		public void TestExecute01()
@@ -97,7 +97,7 @@ namespace LuaDLR.Test
 					"(A Line)",
 					"(Inside)",
 					"(found)",
-					"(found2)", 
+					"(found2)",
 					""
 				)
 			);
@@ -126,5 +126,94 @@ namespace LuaDLR.Test
 		{
 			TestCode("return string.find('   abc', '%a+');", 4, 6);
 		} // proc TestRuntimeLua13
+
+		[TestMethod]
+		public void TestNext01()
+		{
+			var t = new LuaTable
+			{
+				[1] = 1,
+				[2] = 2,
+				[3] = 3,
+				[4] = 4,
+				[14] = 14,
+				[100] = 100,
+				["a"] = "a"
+			};
+
+			var n = t.NextKey(null);
+			Assert.AreEqual(1, n);
+			n = t.NextKey(n);
+			Assert.AreEqual(2, n);
+			n = t.NextKey(n);
+			Assert.AreEqual(3, n);
+			n = t.NextKey(n);
+			Assert.AreEqual(4, n);
+			n = t.NextKey(n);
+			Assert.AreEqual(14, n);
+			n = t.NextKey(n);
+			Assert.AreEqual(100, n);
+			n = t.NextKey(n);
+			Assert.AreEqual("a", n);
+			n = t.NextKey(n);
+			Assert.AreEqual(null, n);
+		}
+
+		[TestMethod]
+		public void TestNext02()
+		{
+			var t = new LuaTable
+			{
+				[100] = 100,
+				["a"] = "a"
+			};
+
+			var n = t.NextKey(null);
+			Assert.AreEqual(100, n);
+			n = t.NextKey(n);
+			Assert.AreEqual("a", n);
+			n = t.NextKey(n);
+			Assert.AreEqual(null, n);
+		}
+
+		[TestMethod]
+		public void TestNext03()
+		{
+			var t = new LuaTable
+			{
+				[1] = 1,
+				[2] = 2,
+				[3] = 3,
+				[4] = 4,
+				["a"] = "a"
+			};
+
+			var n = t.NextKey(null);
+			Assert.AreEqual(1, n);
+			n = t.NextKey(n);
+			Assert.AreEqual(2, n);
+			n = t.NextKey(n);
+			Assert.AreEqual(3, n);
+			n = t.NextKey(n);
+			Assert.AreEqual(4, n);
+			n = t.NextKey(n);
+			Assert.AreEqual("a", n);
+			n = t.NextKey(n);
+			Assert.AreEqual(null, n);
+		}
+
+		[TestMethod]
+		public void TestNext04()
+		{
+			var t = new LuaTable
+			{
+				["a"] = "a"
+			};
+
+			var n = t.NextKey(null);
+			Assert.AreEqual("a", n);
+			n = t.NextKey(n);
+			Assert.AreEqual(null, n);
+		}
 	}
 }

@@ -3392,45 +3392,43 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public object NextKey(object next)
 		{
-			if (next == null)
+			object NextHashKey(int startIndex)
 			{
-				if (arrayLength == 0)
-					return NextHashKey(HiddenMemberCount);
-				else
-					return 1;
-			}
-			else if (next is int)
+				var entryIndex = Array.FindIndex(entries, startIndex, c => c.hashCode != -1);
+				return entryIndex == -1 ? null : entries[entryIndex].key;
+			} // func NextHashKey
+
+			switch (next)
 			{
-				var key = (int)next;
-				if (key < arrayLength)
-					return key + 1;
-				else
-				{
-					key--;
-					while (key < arrayList.Length)
+				case null:
+					if (arrayLength == 0)
+						return NextHashKey(HiddenMemberCount);
+					else
+						return 1;
+				case int key:
+					if (key < arrayLength)
+						return key + 1;
+					else if (key < arrayList.Length)
 					{
-						if (arrayList[key] != null)
-							return key + 1;
-						key++;
+						// zero based until, now
+						while (key < arrayList.Length)
+						{
+							if (arrayList[key] != null)
+								return key + 1;
+							key++;
+						}
+						return NextHashKey(HiddenMemberCount);
 					}
-				}
-				return NextHashKey(HiddenMemberCount);
-			}
-			else
-			{
-				var currentEntryIndex = Array.FindIndex(entries, c => comparerObject.Equals(c.key, next));
-				if (currentEntryIndex == -1 || currentEntryIndex == entries.Length - 1)
-					return null;
-				return NextHashKey(currentEntryIndex + 1);
+					else
+						goto default;
+				default:
+					var currentEntryIndex = Array.FindIndex(entries, c => c.key != null && comparerObject.Equals(c.key, next));
+					if (currentEntryIndex == -1 || currentEntryIndex == entries.Length - 1)
+						return null;
+					return NextHashKey(currentEntryIndex + 1);
 			}
 		} // func NextKey
-
-		private object NextHashKey(int startIndex)
-		{
-			var entryIndex = Array.FindIndex(entries, startIndex, c => c.hashCode != -1);
-			return entryIndex == -1 ? null : entries[entryIndex].key;
-		} // func FirstHashKey
-
+		
 		#endregion
 
 		#region -- ICollection<KeyValuePair<object, object>> ------------------------------

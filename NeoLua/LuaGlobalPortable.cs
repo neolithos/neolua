@@ -363,8 +363,21 @@ namespace Neo.IronLua
 		/// <param name="next"></param>
 		/// <returns></returns>
 		[LuaMember("next")]
-		private static object LuaNext(LuaTable t, object next)
-			=> t == null ? null : t.NextKey(next);
+		private static LuaResult LuaNext(LuaTable t, object next)
+		{
+			if (t == null)
+				return null;
+			var n = t.NextKey(next);
+			return new LuaResult(n, t[n]);
+		} // func LuaNext
+
+		/// <summary></summary>
+		/// <param name="t"></param>
+		/// <param name="next"></param>
+		/// <returns></returns>
+		[LuaMember("nextKey")]
+		private static object LuaNextKey(LuaTable t, object next)
+			=> t?.NextKey(next);
 
 		/// <summary></summary>
 		/// <param name="target"></param>
