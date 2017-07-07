@@ -852,6 +852,50 @@ namespace LuaDLR.Test
 			Assert.AreEqual(-1, table["Id"]);
 		}
 
+		#region -- Next Key -------------------------------------------------------------
+
+		private void ForEachTest(LuaTable t, object[] expected)
+		{
+			var i = 0;
+			foreach (var k in ((IDictionary<object, object>)t).Keys)
+			{
+				Assert.AreEqual(expected[i], k, $"KeyIndex = {i}");
+				i++;
+			}
+			i = 0;
+			foreach (var v in ((IDictionary<object, object>)t).Values)
+			{
+				Assert.AreEqual(expected[i], v, $"ValueIndex = {i}");
+				i++;
+			}
+		}
+
+		private void ToArrayTest(LuaTable t, object[] expected)
+		{
+			var keys = ((IDictionary<object, object>)t).Keys.ToArray();
+			var values = ((IDictionary<object, object>)t).Values.ToArray();
+
+			Assert.AreEqual(expected.Length, keys.Length);
+			Assert.AreEqual(expected.Length, values.Length);
+
+			for (var i = 0; i < keys.Length; i++)
+			{
+				Assert.AreEqual(expected[i], keys[i], $"KeyIndex = {i}");
+				Assert.AreEqual(expected[i], values[i], $"ValueIndex = {i}");
+			}
+		}
+
+		private void NextKeyTest(LuaTable t, object[] expected)
+		{
+			var n = t.NextKey(null);
+			var i = 0;
+			while(n != null)
+			{
+				Assert.AreEqual(expected[i], n, $"KeyIndex = {i}");
+				n = t.NextKey(n);
+				i++;
+			}
+		}
 
 		[TestMethod]
 		public void TestNext01()
@@ -867,22 +911,10 @@ namespace LuaDLR.Test
 				["a"] = "a"
 			};
 
-			var n = t.NextKey(null);
-			Assert.AreEqual(1, n);
-			n = t.NextKey(n);
-			Assert.AreEqual(2, n);
-			n = t.NextKey(n);
-			Assert.AreEqual(3, n);
-			n = t.NextKey(n);
-			Assert.AreEqual(4, n);
-			n = t.NextKey(n);
-			Assert.AreEqual(14, n);
-			n = t.NextKey(n);
-			Assert.AreEqual(100, n);
-			n = t.NextKey(n);
-			Assert.AreEqual("a", n);
-			n = t.NextKey(n);
-			Assert.AreEqual(null, n);
+			var expected = new object[] { 1, 2, 3, 4, 14, 100, "a" };
+			NextKeyTest(t, expected);
+			ForEachTest(t, expected);
+			ToArrayTest(t, expected);
 		}
 
 		[TestMethod]
@@ -894,12 +926,10 @@ namespace LuaDLR.Test
 				["a"] = "a"
 			};
 
-			var n = t.NextKey(null);
-			Assert.AreEqual(100, n);
-			n = t.NextKey(n);
-			Assert.AreEqual("a", n);
-			n = t.NextKey(n);
-			Assert.AreEqual(null, n);
+			var expected = new object[] { 100, "a" };
+			NextKeyTest(t, expected);
+			ForEachTest(t, expected);
+			ToArrayTest(t, expected);
 		}
 
 		[TestMethod]
@@ -914,18 +944,10 @@ namespace LuaDLR.Test
 				["a"] = "a"
 			};
 
-			var n = t.NextKey(null);
-			Assert.AreEqual(1, n);
-			n = t.NextKey(n);
-			Assert.AreEqual(2, n);
-			n = t.NextKey(n);
-			Assert.AreEqual(3, n);
-			n = t.NextKey(n);
-			Assert.AreEqual(4, n);
-			n = t.NextKey(n);
-			Assert.AreEqual("a", n);
-			n = t.NextKey(n);
-			Assert.AreEqual(null, n);
+			var expected = new object[] { 1, 2, 3, 4, "a" };
+			NextKeyTest(t, expected);
+			ForEachTest(t, expected);
+			ToArrayTest(t, expected);
 		}
 
 		[TestMethod]
@@ -936,10 +958,32 @@ namespace LuaDLR.Test
 				["a"] = "a"
 			};
 
-			var n = t.NextKey(null);
-			Assert.AreEqual("a", n);
-			n = t.NextKey(n);
-			Assert.AreEqual(null, n);
+			var expected = new object[] { "a" };
+			NextKeyTest(t, expected);
+			ForEachTest(t, expected);
+			ToArrayTest(t, expected);
 		}
+
+		private class ClassTable : LuaTable
+		{
+			[LuaMember]
+			public object B { get; set; } = "B";
+		}
+
+		[TestMethod]
+		public void TestNext05()
+		{
+			var t = new ClassTable
+			{
+				["a"] = "a"
+			};
+
+			var expected = new object[] { "B", "a" };
+			NextKeyTest(t, expected);
+			ForEachTest(t, expected);
+			ToArrayTest(t, expected);
+		}
+
+		#endregion
 	} // class LuaTableTests
 }

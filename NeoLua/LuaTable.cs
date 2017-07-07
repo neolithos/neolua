@@ -3160,15 +3160,20 @@ namespace Neo.IronLua
 			/// <param name="arrayIndex"></param>
 			public void CopyTo(object[] array, int arrayIndex)
 			{
-				if (arrayIndex < 0 || arrayIndex + t.count > array.Length)
+				if (arrayIndex < 0 || arrayIndex + Count > array.Length)
 					throw new ArgumentOutOfRangeException();
 
 				for (var i = 0; i < t.arrayList.Length; i++)
-					array[arrayIndex++] = i + 1;
+				{
+					if (t.arrayList[i] != null)
+						array[arrayIndex++] = i + 1;
+				}
 
 				for (var i = hiddenMemberCount; i < t.entries.Length; i++)
+				{
 					if (t.entries[i].hashCode != -1)
 						array[arrayIndex++] = t.entries[i].key;
+				}
 			} // proc CopyTo
 
 			/// <summary></summary>
@@ -3182,7 +3187,8 @@ namespace Neo.IronLua
 					if (version != t.version)
 						throw new InvalidOperationException("table changed");
 
-					yield return i + 1;
+					if (t.arrayList[i] != null)
+						yield return i + 1;
 				}
 				for (var i = hiddenMemberCount; i < t.entries.Length; i++)
 				{
@@ -3253,7 +3259,7 @@ namespace Neo.IronLua
 			/// <param name="arrayIndex"></param>
 			public void CopyTo(object[] array, int arrayIndex)
 			{
-				if (arrayIndex < 0 || arrayIndex + t.count > array.Length)
+				if (arrayIndex < 0 || arrayIndex + Count > array.Length)
 					throw new ArgumentOutOfRangeException();
 
 				for (var i = 0; i < t.arrayList.Length; i++)
