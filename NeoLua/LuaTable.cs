@@ -1735,7 +1735,7 @@ namespace Neo.IronLua
 			}
 			else
 			{
-				for (int i = hashLists[hashIndex]; i >= 0; i = entries[i].nextHash)
+				for (var i = hashLists[hashIndex]; i >= 0; i = entries[i].nextHash)
 				{
 					if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key))
 						return i;
@@ -1864,8 +1864,8 @@ namespace Neo.IronLua
 			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 		} // proc OnPropertyChanged
 
-		private static int GetMemberHashCode(string sMemberName)
-			=> compareStringIgnoreCase.GetHashCode(sMemberName) & 0x7FFFFFFF;
+		private static int GetMemberHashCode(string memberName)
+			=> compareStringIgnoreCase.GetHashCode(memberName) & 0x7FFFFFFF;
 
 		/// <summary>Set a value string key value</summary>
 		/// <param name="memberName">Key</param>
@@ -2498,25 +2498,18 @@ namespace Neo.IronLua
 		/// <returns>value</returns>
 		public object SetValue(object key, object value, bool rawSet = false)
 		{
-			int index;
-			string keyString;
-
 			if (key == null)
-			{
 				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
-			}
-			else if (IsIndexKey(key, out index)) // is a array element
-			{
+			else if (IsIndexKey(key, out var index)) // is a array element
 				return SetArrayValue(index, value, rawSet);
-			}
-			else if ((keyString = (key as string)) != null) // belongs to the member list
+			else if (key is string memberKey) // belongs to the member list
 			{
-				SetMemberValueIntern(keyString, value, false, rawSet, false, false);
+				SetMemberValueIntern(memberKey, value, false, rawSet, false, false);
 				return value;
 			}
 			else // something else
 			{
-				int hashCode = key.GetHashCode() & 0x7FFFFFFF;
+				var hashCode = key.GetHashCode() & 0x7FFFFFFF;
 				index = FindKey(key, hashCode, comparerObject); // find the value
 
 				if (value == null) // remove value
@@ -2535,9 +2528,7 @@ namespace Neo.IronLua
 		/// <param name="rawSet">If the value not exists, should we call OnNewIndex.</param>
 		/// <param name="value"></param>
 		public void SetValue(object[] keyList, object value, bool rawSet = false)
-		{
-			SetValue(keyList, 0, value, rawSet);
-		} // func SetValue
+			=> SetValue(keyList, 0, value, rawSet);
 
 		private void SetValue(object[] keyList, int index, object value, bool rawSet)
 		{
@@ -2547,7 +2538,7 @@ namespace Neo.IronLua
 			}
 			else
 			{
-				LuaTable tNext = GetValue(keyList[index], false) as LuaTable;
+				var tNext = GetValue(keyList[index], false) as LuaTable;
 				if (tNext == null)
 				{
 					tNext = new LuaTable();
@@ -2563,21 +2554,12 @@ namespace Neo.IronLua
 		/// <returns>The value or <c>null</c>.</returns>
 		public object GetValue(object key, bool rawGet = false)
 		{
-			int index;
-			string keyString;
-
 			if (key == null)
-			{
 				return null;
-			}
-			else if (IsIndexKey(key, out index))
-			{
+			else if (IsIndexKey(key, out var index))
 				return GetArrayValue(index, rawGet);
-			}
-			else if ((keyString = (key as string)) != null)
-			{
-				return GetMemberValue(keyString, false, rawGet);
-			}
+			else if (key is string memberKey)
+				return GetMemberValue(memberKey, false, rawGet);
 			else
 			{
 				index = FindKey(key, key.GetHashCode() & 0x7FFFFFFF, comparerObject);
@@ -2593,24 +2575,16 @@ namespace Neo.IronLua
 		/// <param name="rawGet">Is OnIndex called, if no key exists.</param>
 		/// <returns>Value</returns>
 		public object GetValue(object[] keyList, bool rawGet = false)
-		{
-			return GetValue(keyList, 0, rawGet);
-		} // func GetValue
+			=> GetValue(keyList, 0, rawGet);
 
 		private object GetValue(object[] keyList, int index, bool rawGet)
 		{
-			object o = GetValue(keyList[index], rawGet);
+			var o = GetValue(keyList[index], rawGet);
 
 			if (index == keyList.Length - 1)
 				return o;
 			else
-			{
-				LuaTable tNext = o as LuaTable;
-				if (tNext == null)
-					return null;
-				else
-					return tNext.GetValue(keyList, index + 1, rawGet);
-			}
+				return o is LuaTable tNext ? tNext.GetValue(keyList, index + 1, rawGet) : null;
 		} // func GetValue
 
 		/// <summary>Returns the value of the table.</summary>
@@ -2624,7 +2598,7 @@ namespace Neo.IronLua
 		{
 			try
 			{
-				object o = GetMemberValue(name, ignoreCase, rawGet);
+				var o = GetMemberValue(name, ignoreCase, rawGet);
 				return o != null ? (T)Lua.RtConvertValue(o, typeof(T)) : @default;
 			}
 			catch
@@ -2638,14 +2612,12 @@ namespace Neo.IronLua
 		/// <returns><c>true</c>, if the key is in the listtable</returns>
 		public bool ContainsKey(object key)
 		{
-			int iIndex;
-			string sKey;
 			if (key == null)
 				return false;
-			else if (IsIndexKey(key, out iIndex))
+			else if (IsIndexKey(key, out var iIndex))
 				return ContainsIndex(iIndex);
-			else if ((sKey = (key as string)) != null)
-				return ContainsMember(sKey, false);
+			else if (key is string memberKey)
+				return ContainsMember(memberKey, false);
 			else
 				return FindKey(key, key.GetHashCode() & 0x7FFFFFFF, comparerObject) >= 0;
 		} // func ContainsKey
@@ -3428,8 +3400,8 @@ namespace Neo.IronLua
 					else
 						goto default;
 				default:
-					var currentEntryIndex = Array.FindIndex(entries, c => c.key != null && comparerObject.Equals(c.key, next));
-					if (currentEntryIndex == -1 || currentEntryIndex == entries.Length - 1)
+					var currentEntryIndex = FindKey(next, next.GetHashCode() & 0x7FFFFFFF, comparerObject);
+					if (currentEntryIndex < 0 || currentEntryIndex == entries.Length - 1)
 						return null;
 					return NextHashKey(currentEntryIndex + 1);
 			}
