@@ -673,15 +673,15 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class ArrayImplementation ----------------------------------------------
+		#region -- class ArrayImplementation --------------------------------------------
 
 		///////////////////////////////////////////////////////////////////////////////
 		/// <summary>Proxy for a interface to the array part of a table.</summary>
 		private sealed class ArrayImplementation : IList<object>, IList, IReadOnlyList<object>
 		{
-			private LuaTable table;
+			private readonly LuaTable table;
 
-			#region -- Ctor/Dtor ------------------------------------------------------------
+			#region -- Ctor/Dtor --------------------------------------------------------
 
 			public ArrayImplementation(LuaTable table)
 			{
@@ -690,7 +690,7 @@ namespace Neo.IronLua
 
 			#endregion
 
-			#region -- IList<object>, IList, ICollection<object>, ICollection ---------------
+			#region -- IList<object>, IList, ICollection<object>, ICollection -----------
 
 			public int Add(object value)
 				=> table.ArrayOnlyAdd(value);
@@ -735,7 +735,7 @@ namespace Neo.IronLua
 
 			#endregion
 
-			#region -- IEnumerable<object> --------------------------------------------------
+			#region -- IEnumerable<object> ----------------------------------------------
 
 			public IEnumerator<object> GetEnumerator()
 				=> table.ArrayOnlyGetEnumerator();
@@ -748,15 +748,15 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class MemberImplementation ---------------------------------------------
+		#region -- class MemberImplementation -------------------------------------------
 
 		///////////////////////////////////////////////////////////////////////////////
 		/// <summary>Proxy for a interface to the members of a table.</summary>
 		private sealed class MemberImplementation : IDictionary<string, object>
 		{
-			private LuaTable table;
+			private readonly LuaTable table;
 
-			#region -- Ctor/Dtor ------------------------------------------------------------
+			#region -- Ctor/Dtor --------------------------------------------------------
 
 			public MemberImplementation(LuaTable table)
 			{
@@ -765,15 +765,14 @@ namespace Neo.IronLua
 
 			#endregion
 
-			#region -- IDictionary<string, object> members ----------------------------------
+			#region -- IDictionary<string, object> members ------------------------------
 
-			#region -- class LuaTableStringKeyCollection ------------------------------------
+			#region -- class LuaTableStringKeyCollection --------------------------------
 
-			///////////////////////////////////////////////////////////////////////////////
 			/// <summary></summary>
-			public class LuaTableStringKeyCollection : ICollection<string>
+			public sealed class LuaTableStringKeyCollection : ICollection<string>
 			{
-				private LuaTable t;
+				private readonly LuaTable t;
 
 				internal LuaTableStringKeyCollection(LuaTable t)
 				{
@@ -796,9 +795,8 @@ namespace Neo.IronLua
 
 					for (var i = hiddenMemberCount; i < t.entries.Length; i++)
 					{
-						object key = t.entries[i].key;
-						if (key is string)
-							array[arrayIndex++] = (string)key;
+						if (t.entries[i].key is string memberName)
+							array[arrayIndex++] = memberName;
 					}
 				} // proc CopyTo
 
@@ -811,18 +809,22 @@ namespace Neo.IronLua
 					{
 						if (version != t.version)
 							throw new InvalidOperationException("table changed");
-						object key = t.entries[i].key;
-						if (key is string)
-							yield return (string)key;
+
+						if (t.entries[i].key is string memberName)
+							yield return memberName;
 					}
 				} // func GetEnumerator
 
 				IEnumerator IEnumerable.GetEnumerator()
 					=> GetEnumerator();
 
-				void ICollection<string>.Add(string item) { throw new NotSupportedException(); }
-				bool ICollection<string>.Remove(string item) { throw new NotSupportedException(); }
-				void ICollection<string>.Clear() { throw new NotSupportedException(); }
+				void ICollection<string>.Add(string item)
+					=> throw new NotSupportedException();
+
+				bool ICollection<string>.Remove(string item)
+					=> throw new NotSupportedException();
+				void ICollection<string>.Clear() 
+					=> throw new NotSupportedException();
 
 				/// <summary></summary>
 				public int Count => t.memberCount - hiddenMemberCount;
@@ -832,13 +834,13 @@ namespace Neo.IronLua
 
 			#endregion
 
-			#region -- class LuaTableStringValueCollection ----------------------------------
+			#region -- class LuaTableStringValueCollection ------------------------------
 
 			///////////////////////////////////////////////////////////////////////////////
 			/// <summary></summary>
-			public class LuaTableStringValueCollection : ICollection<object>
+			public sealed class LuaTableStringValueCollection : ICollection<object>
 			{
-				private LuaTable t;
+				private readonly LuaTable t;
 
 				internal LuaTableStringValueCollection(LuaTable t)
 				{
@@ -889,13 +891,15 @@ namespace Neo.IronLua
 				} // func GetEnumerator
 
 				IEnumerator IEnumerable.GetEnumerator()
-				{
-					return GetEnumerator();
-				} // func IEnumerable.GetEnumerator
+					=> GetEnumerator();
 
-				void ICollection<object>.Add(object item) { throw new NotSupportedException(); }
-				bool ICollection<object>.Remove(object item) { throw new NotSupportedException(); }
-				void ICollection<object>.Clear() { throw new NotSupportedException(); }
+				void ICollection<object>.Add(object item) 
+					=> throw new NotSupportedException();
+				bool ICollection<object>.Remove(object item)
+					=> throw new NotSupportedException();
+
+				void ICollection<object>.Clear() 
+					=> throw new NotSupportedException();
 
 				/// <summary></summary>
 				public int Count  => t.memberCount - hiddenMemberCount;
@@ -953,7 +957,7 @@ namespace Neo.IronLua
 
 			#endregion
 
-			#region -- ICollection<KeyValuePair<string, object>> members --------------------
+			#region -- ICollection<KeyValuePair<string, object>> members ----------------
 
 			public void Add(KeyValuePair<string, object> item)
 			{
@@ -985,7 +989,7 @@ namespace Neo.IronLua
 
 			#endregion
 
-			#region -- IEnumerator<KeyValuePair<string, object>> members --------------------
+			#region -- IEnumerator<KeyValuePair<string, object>> members ----------------
 
 			public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
 				=> table.MembersGetEnumerator();
@@ -998,7 +1002,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- struct LuaTableEntry ---------------------------------------------------
+		#region -- struct LuaTableEntry -------------------------------------------------
 
 		private struct LuaTableEntry
 		{
@@ -1011,9 +1015,7 @@ namespace Neo.IronLua
 			public int nextHash;
 
 			public override string ToString()
-			{
-				return hashCode == -1 ? String.Format("_empty_ next: {0}", nextHash) : String.Format("key: {0}; value: {1}; next:{2}", key ?? "null", value ?? "null", nextHash);
-			} // func ToString
+				=> hashCode == -1 ? String.Format("_empty_ next: {0}", nextHash) : String.Format("key: {0}; value: {1}; next:{2}", key ?? "null", value ?? "null", nextHash);
 
 			public bool SetValue(object newValue, bool markAsMethod)
 			{
@@ -1028,9 +1030,8 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- enum LuaTableDefineMode ------------------------------------------------
+		#region -- enum LuaTableDefineMode ----------------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
 		/// <summary></summary>
 		private enum LuaTableDefineMode
 		{
@@ -1041,9 +1042,8 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class LuaTableDefine ---------------------------------------------------
+		#region -- class LuaTableDefine -------------------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
 		/// <summary></summary>
 		private abstract class LuaTableDefine
 		{
@@ -1063,10 +1063,8 @@ namespace Neo.IronLua
 			public abstract object GetInitialValue(LuaTable table);
 
 			public void CollectMember(List<LuaCollectedMember> collected)
-			{
-				CollectMember(collected, info);
-			} // proc CollectMember
-
+				=> CollectMember(collected, info);
+			
 			protected abstract void CollectMember(List<LuaCollectedMember> collected, LuaMemberAttribute info);
 
 			protected LuaMemberAttribute Info => info;
@@ -1079,15 +1077,14 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class LuaTablePropertyDefine -------------------------------------------
+		#region -- class LuaTablePropertyDefine -----------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
 		/// <summary></summary>
 		private sealed class LuaTablePropertyDefine : LuaTableDefine
 		{
 			private readonly PropertyInfo pi;
 
-			#region -- Ctor/Dtor ------------------------------------------------------------
+			#region -- Ctor/Dtor --------------------------------------------------------
 
 			public LuaTablePropertyDefine(LuaMemberAttribute info, PropertyInfo pi)
 				: base(info)
@@ -1129,13 +1126,11 @@ namespace Neo.IronLua
 				=> $"Property: {pi}";
 
 			protected override void CollectMember(List<LuaCollectedMember> collected, LuaMemberAttribute info)
-			{
-				collected.Add(new LuaCollectedMember { Define = this, Info = info, Member = pi });
-			} // proc CollectMember
-
+				=> collected.Add(new LuaCollectedMember { Define = this, Info = info, Member = pi });
+			
 			#endregion
 
-			#region -- Get/Set/Default ------------------------------------------------------
+			#region -- Get/Set/Default --------------------------------------------------
 
 			public override object GetInitialValue(LuaTable table)
 			{
@@ -1170,9 +1165,8 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class LuaTableMethodDefine ---------------------------------------------
+		#region -- class LuaTableMethodDefine -------------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
 		/// <summary></summary>
 		private sealed class LuaTableMethodDefine : LuaTableDefine
 		{
@@ -1186,7 +1180,7 @@ namespace Neo.IronLua
 			} // ctor
 
 			public override string ToString()
-				=> String.Format("DefineMethod[{0}]: {1}", methods.Length, methods[0]);
+				=> $"DefineMethod[{methods.Length}]: {methods[0]}";
 
 			public override object GetInitialValue(LuaTable table)
 			{
@@ -1225,7 +1219,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- struct LuaCollectedMember ----------------------------------------------
+		#region -- struct LuaCollectedMember --------------------------------------------
 
 		///////////////////////////////////////////////////////////////////////////////
 		/// <summary></summary>
@@ -1236,7 +1230,7 @@ namespace Neo.IronLua
 			public LuaTableDefine Define;
 
 			public override string ToString()
-				=> string.Format("{0}{1} ==> {2}", MemberName, Define == null ? string.Empty : "*", Member);
+				=> $"{MemberName}{(Define == null ? String.Empty : "*")} ==> {Member}";
 
 			public string MemberName
 				=> LuaTableClass.GetEntryName(Info, Member);
@@ -1244,16 +1238,15 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class LuaTableClass ----------------------------------------------------
+		#region -- class LuaTableClass --------------------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
 		/// <summary></summary>
 		private sealed class LuaTableClass
 		{
-			private Type type;
-			private LuaTableDefine[] defines = null;
+			private readonly Type type;
+			private readonly LuaTableDefine[] defines = null;
 
-			#region -- Ctor/Dtor ------------------------------------------------------------
+			#region -- Ctor/Dtor --------------------------------------------------------
 
 			public LuaTableClass(Type type)
 			{
@@ -1264,13 +1257,13 @@ namespace Neo.IronLua
 				Collect(type, collected);
 
 				// metatable must be first
-				int iIndex = collected.FindIndex(c => String.CompareOrdinal(c.MemberName, csMetaTable) == 0);
-				if (iIndex == -1)
+				var index = collected.FindIndex(c => String.CompareOrdinal(c.MemberName, csMetaTable) == 0);
+				if (index == -1)
 					throw new InvalidOperationException();
-				else if (iIndex > 0)
+				else if (index > 0)
 				{
-					collected.Insert(0, collected[iIndex]);
-					collected.RemoveAt(iIndex + 1);
+					collected.Insert(0, collected[index]);
+					collected.RemoveAt(index + 1);
 				}
 
 				// create the defines
@@ -1279,7 +1272,7 @@ namespace Neo.IronLua
 
 			#endregion
 
-			#region -- Collect --------------------------------------------------------------
+			#region -- Collect ----------------------------------------------------------
 
 			private void Collect(Type type, List<LuaCollectedMember> collected)
 			{
@@ -1308,7 +1301,7 @@ namespace Neo.IronLua
 						var memberName = GetEntryName(info, mi);
 						if (memberName == null) // remove all member
 						{
-							for (int j = 0; j < collected.Count - 1; j++)
+							for (var j = 0; j < collected.Count - 1; j++)
 								if (IsOverrideOf(mi, collected[j].Member))
 								{
 									collected.RemoveAt(j);
@@ -1425,7 +1418,7 @@ namespace Neo.IronLua
 
 			#endregion
 
-			#region -- CreateDefines --------------------------------------------------------
+			#region -- CreateDefines ----------------------------------------------------
 
 			private LuaTableDefine[] CreateDefines(List<LuaCollectedMember> collected)
 			{
@@ -1491,9 +1484,9 @@ namespace Neo.IronLua
 
 			#endregion
 
-			public Type Type { get { return type; } }
-			public int Count { get { return defines.Length; } }
-			public LuaTableDefine this[int iIndex] { get { return defines[iIndex]; } }
+			public Type Type => type;
+			public int Count => defines.Length; 
+			public LuaTableDefine this[int iIndex] => defines[iIndex];
 
 			// -- Static ------------------------------------------------------------
 
@@ -1509,14 +1502,14 @@ namespace Neo.IronLua
 				lock (lockClass)
 				{
 					// is the type collected
-					LuaTableClass cls = Array.Find(classes, c => c != null && c.Type == type);
+					var cls = Array.Find(classes, c => c != null && c.Type == type);
 					if (cls == null) // collect the infomration
 					{
 						cls = new LuaTableClass(type);
 
 						if (iClassCount == classes.Length)
 						{
-							LuaTableClass[] newClasses = new LuaTableClass[classes.Length + 4];
+							var newClasses = new LuaTableClass[classes.Length + 4];
 							Array.Copy(classes, 0, newClasses, 0, classes.Length);
 							classes = newClasses;
 						}
@@ -1549,7 +1542,7 @@ namespace Neo.IronLua
 
 		private int version = 0;                                  // version for the data
 
-		private Dictionary<int, CallSite> callSites = new Dictionary<int, CallSite>(); // call site for calls
+		private readonly Dictionary<int, CallSite> callSites = new Dictionary<int, CallSite>(); // call site for calls
 
 		#region -- Ctor/Dtor --------------------------------------------------------------
 
