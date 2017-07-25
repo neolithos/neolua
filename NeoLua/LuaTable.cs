@@ -2755,10 +2755,9 @@ namespace Neo.IronLua
 				throw new ArgumentNullException(Properties.Resources.rsTableKeyNotNullable);
 
 			// look up the member
-			object method;
 			try
 			{
-				switch (GetCallMember(memberName, ignoreCase, rawGet, out method))
+				switch (GetCallMember(memberName, ignoreCase, rawGet, out var method))
 				{
 					case CallMethod.Nil:
 						if (throwExceptions && !ignoreNilFunction)
@@ -2769,7 +2768,7 @@ namespace Neo.IronLua
 					case CallMethod.Delegate:
 					case CallMethod.Dynamic:
 						{
-							if (args.Length == 0)
+							if (args == null || args.Length == 0)
 							{
 								args = new object[] { null, method };
 							}
@@ -2785,7 +2784,7 @@ namespace Neo.IronLua
 					case CallMethod.DelegateMember:
 					case CallMethod.DynamicMember:
 						{
-							if (args.Length == 0)
+							if (args == null || args.Length == 0)
 							{
 								args = new object[] { null, method, this };
 							}
@@ -2815,9 +2814,10 @@ namespace Neo.IronLua
 		internal object RtInvokeSite(object target, params object[] args)
 		{
 			// create the argument array
-			var newArgs = new object[args.Length + 2];
+			var newArgs = new object[args == null ? 2 : args.Length + 2];
 			newArgs[1] = target;
-			Array.Copy(args, 0, newArgs, 2, args.Length);
+			if (args != null)
+				Array.Copy(args, 0, newArgs, 2, args.Length);
 
 			return RtInvokeSiteCached(newArgs);
 		} // func RtInvokeSite
@@ -2825,9 +2825,9 @@ namespace Neo.IronLua
 		private LuaResult RtInvokeSiteCached(object[] args)
 		{
 			// get cached call site
-			CallSite site;
-			if (callSites.TryGetValue(args.Length, out site))
+			if (callSites.TryGetValue(args.Length, out var site))
 				args[0] = site;
+
 			// call site
 			return new LuaResult(Lua.RtInvokeSite(GetInvokeBinder, (callInfo, callSite) => callSites[callInfo.ArgumentCount + 1] = callSite, args));
 		} // func RtInvokeSiteCached

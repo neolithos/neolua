@@ -986,33 +986,30 @@ namespace Neo.IronLua
 		/// <param name="ld"></param>
 		/// <returns></returns>
 		public static bool RtInvokeable(object ld)
-		{
-			return ld is Delegate || ld is ILuaMethod || ld is IDynamicMetaObjectProvider;
-		} // func RtInvokeable
+			=> ld is Delegate || ld is ILuaMethod || ld is IDynamicMetaObjectProvider;
 
 		internal static object RtInvokeSite(Func<CallInfo, CallSiteBinder> createInvokeBinder, Action<CallInfo, CallSite> updateCache, object[] args)
 		{
 			if (args[0] == null)
 			{
 				// create the delegate
-				Type[] signature = new Type[args.Length + 1];
+				var signature = new Type[args.Length + 1];
 				signature[0] = typeof(CallSite); // CallSite
-				for (int i = 1; i < args.Length; i++) // target + arguments
+				for (var i = 1; i < args.Length; i++) // target + arguments
 					signature[i] = typeof(object);
 				signature[signature.Length - 1] = typeof(object); // return type
 
 				// create a call site
-				CallInfo callInfo = new CallInfo(args.Length - 1);
-				CallSite site;
-				args[0] = site = CallSite.Create(Expression.GetFuncType(signature), createInvokeBinder(callInfo));
-				if (updateCache != null)
-					updateCache(callInfo, site);
+				var callInfo = new CallInfo(args.Length - 1);
+				var site = CallSite.Create(Expression.GetFuncType(signature), createInvokeBinder(callInfo));
+				args[0] = site;
+				updateCache?.Invoke(callInfo, site);
 			}
 
 			// call the site
-			object o = args[0];
-			FieldInfo fi = o.GetType().GetTypeInfo().FindDeclaredField("Target", ReflectionFlag.None);
-			Delegate dlg = (Delegate)fi.GetValue(o);
+			var o = args[0];
+			var fi = o.GetType().GetTypeInfo().FindDeclaredField("Target", ReflectionFlag.None);
+			var dlg = (Delegate)fi.GetValue(o);
 			return new LuaResult(dlg.DynamicInvoke(args));
 		} // func RtInvokeSite
 
@@ -1021,17 +1018,16 @@ namespace Neo.IronLua
 		/// <param name="args"></param>
 		/// <returns></returns>
 		public static object RtInvoke(object target, params object[] args)
-		{
-			return RtInvokeSite(null, callInfo => new Lua.LuaInvokeBinder(null, callInfo), null, target, args);
-		} // func RtInvokeSite
-
+			=> RtInvokeSite(null, callInfo => new LuaInvokeBinder(null, callInfo), null, target, args);
+		
 		internal static object RtInvokeSite(CallSite site, Func<CallInfo, CallSiteBinder> createInvokeBinder, Action<CallInfo, CallSite> updateCache, object target, params object[] args)
 		{
 			// expand args for callsite and target
-			object[] newArgs = new object[args.Length + 2];
+			var newArgs = new object[args == null ? 2 : args.Length + 2];
 			newArgs[0] = site;
 			newArgs[1] = target;
-			Array.Copy(args, 0, newArgs, 2, args.Length);
+			if (args != null)
+				Array.Copy(args, 0, newArgs, 2, args.Length);
 
 			// call site
 			return RtInvokeSite(createInvokeBinder, updateCache, newArgs);
