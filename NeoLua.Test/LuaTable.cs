@@ -852,6 +852,19 @@ namespace LuaDLR.Test
 			Assert.AreEqual(-1, table["Id"]);
 		}
 
+		[TestMethod]
+		public void Issue53()
+		{
+			TestCode(Lines(
+				"local tbl = { { 1, 2 }, { 2, 3 }, { 2, 0 } }",
+				"table.sort(tbl, function(a, b)",
+				"  return false",
+				"end)",
+				"return #tbl")
+				, 3
+			);
+		}
+
 		#region -- Next Key -------------------------------------------------------------
 
 		private void ForEachTest(LuaTable t, object[] expected)

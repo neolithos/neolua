@@ -3731,6 +3731,8 @@ namespace Neo.IronLua
 					// check the value
 					if (r is int)
 						return (int)r;
+					else if (r is bool b)
+						return b ? -1 : 0;
 					else if ((bool)Lua.RtConvertValue(r, typeof(bool)))
 						return -1;
 					else if (Comparer<object>.Default.Compare(x, y) == 0)
