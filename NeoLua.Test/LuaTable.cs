@@ -997,6 +997,12 @@ namespace LuaDLR.Test
 			ToArrayTest(t, expected);
 		}
 
+		[TestMethod]
+		public void TestTableInitializer01()
+		{
+			TestCode("local t = { a = { b = 1, c = 2}, ['b'] = { b = 1, c = 2 }, { 1, 2 }, { 3, 4 } }; return t.a.c;", 2);
+		}
+
 		#endregion
 	} // class LuaTableTests
 }

@@ -964,17 +964,15 @@ namespace Neo.IronLua
 
 		#region -- RtTableSetObjects ------------------------------------------------------
 
-		internal static object RtTableSetObjects(LuaTable t, object value, int iStartIndex)
+		internal static object RtTableSetObjects(LuaTable t, object value, int startIndex)
 		{
-			if (value != null && value is LuaResult)
+			if (value is LuaResult r)
 			{
-				LuaResult v = (LuaResult)value;
-
-				for (int i = 0; i < v.Count; i++)
-					t.SetArrayValue(iStartIndex++, v[i], true);
+				for (var i = 0; i < r.Count; i++)
+					t.SetArrayValue(startIndex++, r[i], true);
 			}
-			else
-				t.SetArrayValue(iStartIndex, value, true);
+			else if (value != null)
+				t.SetArrayValue(startIndex, value, true);
 			return t;
 		} // func RtTableSetObjects
 
