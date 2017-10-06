@@ -2373,7 +2373,6 @@ namespace Neo.IronLua
 						ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug)
 					)
 				);
-
 			}
 			else if (code.Current.Typ == LuaToken.Identifier && code.LookAhead.Typ == LuaToken.Assign)
 			{
