@@ -265,7 +265,7 @@ namespace Neo.IronLua
 
 			public override DynamicMetaObject FallbackInvoke(DynamicMetaObject target, DynamicMetaObject[] args, DynamicMetaObject errorSuggestion)
 			{
-				//defer the target and all arguments
+				// defer the target and all arguments
 				if (!target.HasValue || args.Any(c => !c.HasValue))
 					return Defer(target, args);
 
@@ -291,9 +291,9 @@ namespace Neo.IronLua
 					}
 					else
 					{
-						ParameterInfo[] methodParameters = invokeTarget.GetMethodInfo().GetParameters();
-						ParameterInfo[] parameters = null;
-						MethodInfo mi = target.LimitType.GetTypeInfo().FindDeclaredMethod("Invoke", ReflectionFlag.Public | ReflectionFlag.Instance | ReflectionFlag.NoException | ReflectionFlag.NoArguments);
+						var methodParameters = invokeTarget.GetMethodInfo().GetParameters();
+						var parameters = (ParameterInfo[])null;
+						var mi = target.LimitType.GetTypeInfo().FindDeclaredMethod("Invoke", ReflectionFlag.Public | ReflectionFlag.Instance | ReflectionFlag.NoException | ReflectionFlag.NoArguments);
 						if (mi != null)
 						{
 							var typeParameters = mi.GetParameters();
