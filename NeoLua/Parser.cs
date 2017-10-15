@@ -653,11 +653,6 @@ namespace Neo.IronLua
 						ParseReturn(scope, code);
 						break;
 
-					case LuaToken.KwBreak: // The break-statement is only allowed on the end of a scope
-						ParseBreak(scope, code);
-						inLoop = false;
-						break;
-
 					case LuaToken.Semicolon: // End of statement => ignore
 						code.Next();
 						break;
@@ -703,7 +698,7 @@ namespace Neo.IronLua
 				}
 				else
 				{
-					List<Expression> exprList = new List<Expression>(ParseExpressionList(scope, code));
+					var exprList = new List<Expression>(ParseExpressionList(scope, code));
 
 					if (exprList.Count == 1)
 						exprReturnValue = ConvertExpression(scope.Runtime, code.Current, exprList[0], scope.ReturnType);
@@ -792,6 +787,10 @@ namespace Neo.IronLua
 
 				case LuaToken.ColonColon: // Start of a label
 					ParseLabel(scope, code);
+					return true;
+
+				case LuaToken.KwBreak:
+					ParseBreak(scope, code);
 					return true;
 
 				case LuaToken.KwGoto:
