@@ -244,7 +244,7 @@ namespace Neo.IronLua
 					return true;
 				else if (stringAutoConvert && tcFrom == LuaEmitTypeCode.String && tcTo >= LuaEmitTypeCode.SByte && tcTo <= LuaEmitTypeCode.Double)
 					return true;
-
+				
 				return false;
 			}
 		} // bool TypesMatch
@@ -1367,7 +1367,7 @@ namespace Neo.IronLua
 			{
 				// create a list of all operators
 				var members = LuaType.GetType(type1).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static, operationName, false);
-				var operatorMethodInfo = FindMethod<Type>(members, new CallInfo(2), null, new Type[] { type1, type2 }, t => t, false);
+				var operatorMethodInfo = FindMethod(members, new CallInfo(2), null, new Type[] { type1, type2 }, t => t, false);
 
 				if (operatorMethodInfo != null)
 				{
@@ -1384,10 +1384,10 @@ namespace Neo.IronLua
 					else
 					{
 						// Check if the arguments are valid
-						Expression exprOperatorArgument1 = expr1;
-						Type typeOperatorArgument1 = type1;
-						Expression exprOperatorArgument2 = expr2;
-						Type typeOperatorArgument2 = type2;
+						var exprOperatorArgument1 = expr1;
+						var typeOperatorArgument1 = type1;
+						var exprOperatorArgument2 = expr2;
+						var typeOperatorArgument2 = type2;
 
 						if (TryConvertWithRuntime(lua, ref exprOperatorArgument1, ref typeOperatorArgument1, parameters[0].ParameterType) &&
 							TryConvertWithRuntime(lua, ref exprOperatorArgument2, ref typeOperatorArgument2, parameters[1].ParameterType))
@@ -2531,7 +2531,13 @@ namespace Neo.IronLua
 					return exact ? MemberMatchValue.Exact : MemberMatchValue.Implicit;
 				}
 				else
-					return MemberMatchValue.Explicit;
+				{
+					var implicitMatch = false;
+					var isExactFrom = false;
+					var isExactTo = false;
+					FindConvertOperator(argumentType.AsType(), parameterType.AsType(), null, ref implicitMatch, ref isExactFrom, ref isExactTo);
+					return implicitMatch ? MemberMatchValue.Implicit : MemberMatchValue.Explicit;
+				}
 			} // func GetParameterMatch
 		} // class MemberMatch
 

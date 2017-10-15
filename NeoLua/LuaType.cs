@@ -102,7 +102,7 @@ namespace Neo.IronLua
 
 	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Base class for the Type-Wrapper.</summary>
-	public sealed class LuaType : IDynamicMetaObjectProvider
+	public sealed class LuaType : IDynamicMetaObjectProvider, IEquatable<Type>
 	{
 		private const int ResolvedAsNamespace = -1; // type is resolved as a namespace
 		private const int ResolvedAsType = -2; // type resolved
@@ -531,6 +531,30 @@ namespace Neo.IronLua
 			else
 				fullName = parent.fullName + name;
 		} // ctor
+
+		/// <summary></summary>
+		/// <returns></returns>
+		public override int GetHashCode()
+			=> fullName.GetHashCode();
+
+		/// <summary></summary>
+		/// <param name="other"></param>
+		/// <returns></returns>
+		public bool Equals(object other)
+		{
+			if (other is LuaType o)
+				return fullName == o.fullName;
+			else if (other is Type t)
+				return Equals(t);
+			else
+				return false;
+		} // func Equals
+
+		/// <summary></summary>
+		/// <param name="other"></param>
+		/// <returns></returns>
+		public bool Equals(Type other)
+			=> other != null && Type == other;
 
 		/// <summary></summary>
 		/// <returns></returns>
@@ -1031,7 +1055,7 @@ namespace Neo.IronLua
 		/// <param name="type">lua-type that should convert.</param>
 		/// <returns>clr-type</returns>
 		public static implicit operator Type(LuaType type)
-			=> type == null ? null : type.Type;
+			=> type?.Type;
 
 		#endregion
 

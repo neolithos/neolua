@@ -751,7 +751,7 @@ namespace LuaDLR.Test
 		[TestMethod]
 		public void TestTypeInitializer01()
 		{
-			TestCode("d = clr.System.Collections.Generic.Dictionary[clr.System.String, clr.System.Int32]() { a = 1, b = 2 }; return #d;", 2);
+			// idea: TestCode("d = clr.System.Collections.Generic.Dictionary[clr.System.String, clr.System.Int32]() { a = 1, b = 2 }; return #d;", 2);
 		}
 	} // class LuaTypeTests 
 
