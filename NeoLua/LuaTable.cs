@@ -3708,8 +3708,8 @@ namespace Neo.IronLua
 		/// <summary></summary>
 		private sealed class SortComparer : IComparer<object>
 		{
-			private LuaTable t;
-			private object compare;
+			private readonly LuaTable t;
+			private readonly object compare;
 
 			public SortComparer(LuaTable t, object compare)
 			{
@@ -3732,7 +3732,7 @@ namespace Neo.IronLua
 					if (r is int)
 						return (int)r;
 					else if (r is bool b)
-						return b ? -1 : 0;
+						return b ? -1 : 1;
 					else if ((bool)Lua.RtConvertValue(r, typeof(bool)))
 						return -1;
 					else if (Comparer<object>.Default.Compare(x, y) == 0)
@@ -3747,9 +3747,7 @@ namespace Neo.IronLua
 		/// <param name="t"></param>
 		/// <param name="sort"></param>
 		public static void sort(LuaTable t, object sort = null)
-		{
-			Array.Sort(t.arrayList, 0, t.arrayLength, new SortComparer(t, sort));
-		} // proc sort
+			=> Array.Sort(t.arrayList, 0, t.arrayLength, new SortComparer(t, sort));
 
 		#endregion
 

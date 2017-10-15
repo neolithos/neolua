@@ -865,6 +865,41 @@ namespace LuaDLR.Test
 			);
 		}
 
+		[TestMethod]
+		public void Issue55()
+		{
+			TestCode(
+				Lines(
+					"local l = { }",
+					"l[1] = { v = 26}",
+					"l[2] = { v = 20}",
+					"table.sort(l, function(a, b) return a.v < b.v end)",
+					"return l[1].v, l[2].v"
+				), 20, 26
+			);
+
+			TestCode(
+				Lines(
+					"local l = { }",
+					"l[1] = { v = 20}",
+					"l[2] = { v = 26}",
+					"table.sort(l, function(a, b) return a.v < b.v end)",
+					"return l[1].v, l[2].v"
+				), 20, 26
+			);
+
+			TestCode(
+				Lines(
+					"local l = { }",
+					"l[1] = { v = 26}",
+					"l[2] = { v = 26}",
+					"table.sort(l, function(a, b) return a.v < b.v end)",
+					"return l[1].v, l[2].v"
+				), 26, 26
+			);
+
+		}
+
 		#region -- Next Key -------------------------------------------------------------
 
 		private void ForEachTest(LuaTable t, object[] expected)
