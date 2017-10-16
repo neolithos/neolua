@@ -1032,12 +1032,38 @@ namespace LuaDLR.Test
 			ToArrayTest(t, expected);
 		}
 
+		#endregion
+
 		[TestMethod]
 		public void TestTableInitializer01()
 		{
 			TestCode("local t = { a = { b = 1, c = 2}, ['b'] = { b = 1, c = 2 }, { 1, 2 }, { 3, 4 } }; return t.a.c;", 2);
 		}
 
-		#endregion
+		[TestMethod]
+		public void TestJson01()
+		{
+			var t = new LuaTable()
+			{
+				["int"] = 1,
+				[1] = 1,
+				["float"] = 1.0,
+				["byte"] = (byte)1,
+				["str"] = "test",
+				["do"] = true,
+				["t"] = new LuaTable() { 1, 2, 3, 4 },
+				[2] = 2,
+				[3] = 3,
+				[10] = 10
+
+			};
+
+			var s = t.ToLson();
+
+			Console.WriteLine(s);
+			var t2 = LuaTable.FromLson(s);
+
+			Assert.AreEqual(10, t2.Values.Count);
+		}
 	} // class LuaTableTests
 }

@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Dynamic;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -3550,7 +3551,7 @@ namespace Neo.IronLua
 		private static readonly object[] emptyObjectArray = new object[0];
 		private static readonly int[] emptyIntArray = new int[0];
 
-		#region -- Table Manipulation -----------------------------------------------------
+		#region -- Table Manipulation ---------------------------------------------------
 
 		#region -- concat --
 
@@ -3886,7 +3887,292 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- c#/vb.net operators ----------------------------------------------------
+		#region -- Lua Script Object Notation -------------------------------------------
+
+		private static void ToLson(LuaTable table, TextWriter tw, int currentLevel)
+		{
+			//void WriteIndent()
+			//{
+			//	for (var i = 0; i < currentLevel * 2; i++)
+			//		sw.Write(' ');
+			//} // proc WriteIndent
+
+			bool IsMember(string member)
+			{
+				if ((member?.Length ?? 0) == 0)
+					return false;
+
+				if (!Char.IsLetter(member[0]) && member[0] != '_')
+					return false;
+
+				for (var i = 1; i < member.Length; i++)
+				{
+					if (!LuaLexer.IsIdentifierChar(member[i]))
+						return false;
+				}
+
+				if (LuaLexer.IsKeyWord(member))
+					return false;
+
+				return true;
+			} // func IsMember
+
+			void WriteValue(object value)
+			{
+				switch (LuaEmit.GetTypeCode( value.GetType()))
+				{
+					case LuaEmitTypeCode.Boolean:
+						tw.Write((bool)value ? "true" : "false");
+						break;
+					case LuaEmitTypeCode.String:
+						var s = (string)value;
+						tw.Write("\"");
+						for (var i = 0; i < s.Length; i++)
+						{
+							switch (s[i])
+							{
+								case '"':
+									tw.Write("\\\"");
+									break;
+								case '\n':
+									tw.Write("\\n");
+									break;
+								case '\r':
+									tw.Write("\\r");
+									break;
+								case '\t':
+									tw.Write("\\t");
+									break;
+								default:
+									tw.Write(s[i]);
+									break;
+							}
+						}
+						tw.Write("\"");
+						break;
+					case LuaEmitTypeCode.Byte:
+					case LuaEmitTypeCode.SByte:
+					case LuaEmitTypeCode.Int16:
+					case LuaEmitTypeCode.UInt16:
+					case LuaEmitTypeCode.Int32:
+					case LuaEmitTypeCode.UInt32:
+					case LuaEmitTypeCode.Int64:
+					case LuaEmitTypeCode.UInt64:
+						tw.Write(value);
+						break;
+					case LuaEmitTypeCode.Single:
+					case LuaEmitTypeCode.Double:
+					case LuaEmitTypeCode.Decimal:
+						tw.Write(value); // todo: force 0.0
+						break;
+
+					case LuaEmitTypeCode.Object:
+						if (value.GetType() == typeof(LuaTable))
+						{
+							ToLson((LuaTable)value, tw, currentLevel >= 0 ? currentLevel + 1 : currentLevel);
+							break;
+						}
+						else
+							goto default;
+					default:
+						throw new ArgumentException("type?"); // todo:
+				}
+			} // proc WriteValue
+
+			void WriteMember(string member)
+			{
+				tw.Write(member);
+			} // proc WriteMember
+
+			void WriteKey(object key)
+			{
+				tw.Write("[");
+				WriteValue(key);
+				tw.Write("]");
+			} // proc WriteKey
+
+			var lastIndex = 0;
+			if (table.Values.Count > 0)
+			{
+				tw.Write("{");
+				var first = true;
+				var skipCommand = false;
+				foreach (var kv in table.Values)
+				{
+					// comma
+					if (skipCommand)
+						skipCommand = false;
+					else
+					{
+						if (first)
+							first = false;
+						else
+							tw.Write(',');
+					}
+
+					// use array notation
+					var isIndex = false;
+					if ((isIndex = IsIndexKey(kv.Key, out var index)) && lastIndex + 1 == index && kv.Value != null)
+					{
+						lastIndex = index;
+						WriteValue(kv.Value);
+					}
+					else if (kv.Value != null) // use key/value pair notation
+					{
+						if (isIndex)
+							WriteKey(index);
+						else if (kv.Key is string member && IsMember(member))
+							WriteMember(member);
+						else
+							WriteKey(kv.Key);
+						tw.Write("=");
+						WriteValue(kv.Value);
+					}
+					else
+						skipCommand = true;
+				}
+				tw.Write("}");
+			}
+			else
+				tw.Write("{}");
+		} // proc ToLson
+
+		private static LuaTable FromLsonParse(LuaLexer lex)
+		{
+			var result = new LuaTable();
+			
+			object ParserNumber(Token t, bool neg)
+				=> Lua.RtParseNumber(neg,t.Value, 0, 10, true, true);
+
+			object ParseTableValue()
+			{
+				// in this mode we only except one token
+				switch (lex.Current.Typ)
+				{
+					case LuaToken.KwTrue:
+						lex.Next();
+						return true;
+					case LuaToken.KwFalse:
+						lex.Next();
+						return false;
+					case LuaToken.String:
+						return Parser.FetchToken(LuaToken.String, lex).Value;
+					case LuaToken.Minus:
+						lex.Next();
+						return ParserNumber(Parser.FetchToken(LuaToken.Number, lex), true);
+					case LuaToken.Number:
+						return ParserNumber(Parser.FetchToken(LuaToken.Number, lex), false);
+					case LuaToken.BracketCurlyOpen:
+						return FromLsonParse(lex);
+					default:
+						throw Parser.ParseError(lex.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, LuaLexer.GetTokenName(lex.Current.Typ), "string|number"));
+				}
+			} // func ParseTableValue
+
+			void ParseTableField(ref int defaultIndex)
+			{
+				if (lex.Current.Typ == LuaToken.BracketSquareOpen)
+				{
+					// Parse the index
+					lex.Next();
+					var index = ParseTableValue();
+					Parser.FetchToken(LuaToken.BracketSquareClose, lex);
+					Parser.FetchToken(LuaToken.Assign, lex);
+
+					// Expression that results in a value
+					result[index] = ParseTableValue();
+				}
+				else if (lex.Current.Typ == LuaToken.Identifier && lex.LookAhead.Typ == LuaToken.Assign)
+				{
+					// Read the identifier
+					var memberName = lex.Current.Value;
+					lex.Next();
+					Parser.FetchToken(LuaToken.Assign, lex);
+
+					// Expression
+					result[memberName] = ParseTableValue();
+				}
+				else
+				{
+					result[defaultIndex++] = ParseTableValue();
+				}
+			} // proc ParseTableField
+
+			if (Parser.FetchToken(LuaToken.BracketCurlyOpen, lex, true) != null)
+			{
+				if (lex.Current.Typ != LuaToken.BracketCurlyClose)
+				{
+					var index = 1;
+
+					// fiest field
+					ParseTableField(ref index);
+
+					// collect more table fields
+					while (lex.Current.Typ == LuaToken.Comma || lex.Current.Typ == LuaToken.Semicolon)
+					{
+						lex.Next();
+
+						// Optional last separator
+						if (lex.Current.Typ == LuaToken.BracketCurlyClose)
+							break;
+
+						// Parse the field
+						ParseTableField(ref index);
+					}
+
+					// Closing bracket
+					Parser.FetchToken(LuaToken.BracketCurlyClose, lex);
+				}
+				else
+					Parser.FetchToken(LuaToken.BracketCurlyClose, lex, false);
+			}
+
+			return result;
+		} // proc FromLsonParse
+
+		/// <summary></summary>
+		/// <param name="tr"></param>
+		/// <returns></returns>
+		public static LuaTable FromLson(TextReader tr)
+		{
+			using (var lex = new LuaLexer("lson.lua", tr) { SkipComments = true })
+			{
+				lex.Next();
+				return FromLsonParse(lex);
+			}
+		} // proc FromLson
+
+		/// <summary>Parse a lua table</summary>
+		/// <param name="value"></param>
+		/// <returns></returns>
+		public static LuaTable FromLson(string value)
+		{
+			using (var tr = new StringReader(value))
+				return FromLson(tr);
+		} // func FromLson
+
+		/// <summary>Convert the table to a string</summary>
+		/// <param name="table"></param>
+		/// <param name="tw"></param>
+		/// <param name="prettyFormatting"></param>
+		public static void ToLson(LuaTable table, TextWriter tw, bool prettyFormatting = true)
+			=> ToLson(table, tw, prettyFormatting ? 0 : -1);
+
+		/// <summary>Convert the table to a string</summary>
+		/// <param name="prettyFormatting"></param>
+		/// <returns></returns>
+		public string ToLson(bool prettyFormatting = true)
+		{
+			using (var sw = new StringWriter())
+			{
+				ToLson(this, sw, prettyFormatting);
+				return sw.GetStringBuilder().ToString();
+			}
+		} // func ToLson
+
+		#endregion
+
+		#region -- c#/vb.net operators --------------------------------------------------
 
 		/// <summary></summary>
 		/// <param name="table"></param>
