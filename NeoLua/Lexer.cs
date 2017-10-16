@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
@@ -8,26 +9,24 @@ namespace Neo.IronLua
 {
 	#region -- class TokenNameAttribute -------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary></summary>
 	[AttributeUsage(AttributeTargets.Field)]
 	internal sealed class TokenNameAttribute : Attribute
 	{
-		private string sName;
+		private readonly string name;
 
-		public TokenNameAttribute(string sName)
+		public TokenNameAttribute(string name)
 		{
-			this.sName = sName;
+			this.name = name;
 		} // ctor
 
-		public string Name { get { return sName; } }
+		public string Name => name;
 	} // class TokenName
 
 	#endregion
 
 	#region -- enum LuaToken ------------------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Tokens</summary>
 	public enum LuaToken
 	{
@@ -240,135 +239,128 @@ namespace Neo.IronLua
 
 	#region -- struct Position ----------------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Position in the source file</summary>
 	public struct Position
 	{
-		private SymbolDocumentInfo document;
-		private int iColumn;
-		private int iLine;
-		private long iIndex;
+		private readonly SymbolDocumentInfo document;
+		private readonly int line;
+		private readonly int column;
+		private readonly long index;
 
-		internal Position(SymbolDocumentInfo document, int iLine, int iColumn, long iIndex)
+		internal Position(SymbolDocumentInfo document, int line, int column, long index)
 		{
 			this.document = document;
-			this.iLine = iLine;
-			this.iColumn = iColumn;
-			this.iIndex = iIndex;
+			this.line = line;
+			this.column = column;
+			this.index = index;
 		} // ctor
 
 		/// <summary>Umwandlung in ein übersichtliche Darstellung.</summary>
 		/// <returns>Zeichenfolge mit Inhalt</returns>
 		public override string ToString()
-		{
-			return String.Format("({0}; {1}; {2})", Line, Col, Index);
-		} // func ToString
+			=> String.Format("({0}; {1}; {2})", Line, Col, Index);
 
 		/// <summary>Dateiname in der dieser Position sich befindet.</summary>
-		public string FileName { get { return document.FileName; } }
+		public string FileName => document.FileName;
 		/// <summary>Document where the token was found.</summary>
-		internal SymbolDocumentInfo Document { get { return document; } }
+		internal SymbolDocumentInfo Document => document;
 		/// <summary>Zeile, bei 1 beginnent.</summary>
-		public int Line { get { return iLine; } }
+		public int Line => line;
 		/// <summary>Spalte, bei 1 beginnent.</summary>
-		public int Col { get { return iColumn; } }
+		public int Col => column;
 		/// <summary>Index bei 0 beginnend.</summary>
-		public long Index { get { return iIndex; } }
+		public long Index => index;
 	} // struct Position
 
 	#endregion
 
 	#region -- class Token --------------------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Represents a token of the lua source file.</summary>
 	public class Token
 	{
 		// -- Position innerhalb der Datei --
-		private Position fStart;
-		private Position fEnd;
+		private readonly Position start;
+		private readonly Position end;
 		// -- Token-Wert --
-		private LuaToken iKind;
-		private string sValue;
+		private readonly LuaToken kind;
+		private readonly string value;
 
 		/// <summary>Erzeugt einen Token.</summary>
-		/// <param name="iKind">Type des Wertes.</param>
-		/// <param name="sValue">Der Wert.</param>
-		/// <param name="fStart">Beginn des Tokens</param>
-		/// <param name="fEnd">Ende des Tokens</param>
-		internal Token(LuaToken iKind, string sValue, Position fStart, Position fEnd)
+		/// <param name="kind">Type des Wertes.</param>
+		/// <param name="value">Der Wert.</param>
+		/// <param name="start">Beginn des Tokens</param>
+		/// <param name="end">Ende des Tokens</param>
+		internal Token(LuaToken kind, string value, Position start, Position end)
 		{
-			this.iKind = iKind;
-			this.fStart = fStart;
-			this.fEnd = fEnd;
-			this.sValue = sValue;
+			this.kind = kind;
+			this.start = start;
+			this.end = end;
+			this.value = value;
 		} // ctor
 
 		/// <summary>Umwandlung in ein übersichtliche Darstellung.</summary>
 		/// <returns>Zeichenfolge mit Inhalt</returns>
 		public override string ToString()
-		{
-			return String.Format("[{0,4},{1,4} - {2,4},{3,4}] {4}='{5}'", Start.Line, Start.Col, End.Line, End.Col, Typ, Value);
-		} // func ToString
+			=> String.Format("[{0,4},{1,4} - {2,4},{3,4}] {4}='{5}'", Start.Line, Start.Col, End.Line, End.Col, Typ, Value);
 
 		/// <summary>Art des Wertes</summary>
-		public LuaToken Typ { get { return iKind; } }
+		public LuaToken Typ => kind;
 		/// <summary>Wert selbst</summary>
-		public string Value { get { return sValue; } }
+		public string Value => value;
 
 		/// <summary>Start des Tokens</summary>
-		public Position Start { get { return fStart; } }
+		public Position Start => start;
 		/// <summary>Ende des Tokens</summary>
-		public Position End { get { return fEnd; } }
+		public Position End => end;
 		/// <summary>Länge des Tokens</summary>
-		public int Length { get { unchecked { return (int)(fEnd.Index - fStart.Index); } } }
+		public int Length { get { unchecked { return (int)(end.Index - start.Index); } } }
 	} // class Token
 
 	#endregion
 
 	#region -- class LuaLexer -----------------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Lexer for the lua syntax.</summary>
 	public sealed class LuaLexer : IDisposable
 	{
 		private Token lookahead = null;
 		private Token current = null;
 
-		private Position fStart;                  // Start of the current token
-		private Position fEnd;                    // Posible end of the current token
-		private char cCur;                        // Current char
-		private bool lEof;												// End of file reached
-		private int iState;                       // Current state
-		private StringBuilder sbCur = null;       // Currently collected chars
+		private Position startPosition;				// Start of the current token
+		private Position endPosition;				// Posible end of the current token
+		private char cur;							// Current char
+		private bool isEof;							// End of file reached
+		private int state;							// Current state
+		private StringBuilder currentStringBuilder = null; // Currently collected chars
 
-		private TextReader tr;                    // Source for the lexer
-		private SymbolDocumentInfo document;      // Information about the source document
-		private int iCurrentLine;                 // Line in the source file
-		private int iCurrentColumn = 1;           // Column in the source file
-		private long iCurrentIndex = 0;           // Index in the source file
+		private TextReader tr;						// Source for the lexer
+		private readonly SymbolDocumentInfo document; // Information about the source document
+		private int currentLine;					// Line in the source file
+		private int currentColumn = 1;				// Column in the source file
+		private long currentIndex = 0;				// Index in the source file
 
 
-		private bool lSkipComments = true;				// Should the scanner skip comments
+		private bool skipComments = true;              // Should the scanner skip comments
 
 		#region -- Ctor/Dtor --------------------------------------------------------------
 
 		/// <summary>Creates the lexer für the lua parser</summary>
-		/// <param name="sFileName">Filename</param>
+		/// <param name="fileName">Filename</param>
 		/// <param name="tr">Input for the scanner, will be disposed on the lexer dispose.</param>
-		/// <param name="iCurrentLine"></param>
-		/// <param name="iCurrentColumn"></param>
-		public LuaLexer(string sFileName, TextReader tr, int iCurrentLine = 1, int iCurrentColumn = 1)
+		/// <param name="currentLine"></param>
+		/// <param name="currentColumn"></param>
+		public LuaLexer(string fileName, TextReader tr, int currentLine = 1, int currentColumn = 1)
 		{
-			this.document = Expression.SymbolDocument(sFileName);
-			this.iCurrentLine = iCurrentLine;
-			this.iCurrentColumn = iCurrentColumn;
+			this.document = Expression.SymbolDocument(fileName);
+			this.currentLine = currentLine;
+			this.currentColumn = currentColumn;
 			this.tr = tr;
 
-			lEof = false;
-			fStart =
-				fEnd = new Position(document, iCurrentLine, iCurrentColumn, iCurrentIndex);
-			cCur = Read(); // Lies das erste Zeichen aus dem Buffer
+			isEof = false;
+			startPosition =
+				endPosition = new Position(document, currentLine, currentColumn, currentIndex);
+			cur = Read(); // Lies das erste Zeichen aus dem Buffer
 		} // ctor
 
 		/// <summary>Destroy the lexer and the TextReader</summary>
@@ -389,10 +381,10 @@ namespace Neo.IronLua
 		/// <returns>Zeichen oder <c>\0</c>, für das Ende.</returns>
 		private char Read()
 		{
-			int i = -1;
+			var i = -1;
 			if (tr == null) // Source file is readed
 			{
-				lEof = true;
+				isEof = true;
 				return '\0';
 			}
 			else
@@ -402,14 +394,14 @@ namespace Neo.IronLua
 				{
 					tr.Dispose();
 					tr = null;
-					lEof = true;
+					isEof = true;
 					return '\0';
 				}
 				else
 				{
-					char c = (char)i;
+					var c = (char)i;
 
-					iCurrentIndex++;
+					currentIndex++;
 
 					// Normalize new line
 					if (c == '\n')
@@ -417,15 +409,15 @@ namespace Neo.IronLua
 						if (tr.Peek() == 13)
 							tr.Read();
 
-						iCurrentColumn = 1;
-						iCurrentLine++;
+						currentColumn = 1;
+						currentLine++;
 
 						return '\n';
 					}
 					else if (c == '\r')
 					{
-						iCurrentColumn = 1;
-						iCurrentLine++;
+						currentColumn = 1;
+						currentLine++;
 						if (tr.Peek() == 10)
 							tr.Read();
 
@@ -433,8 +425,7 @@ namespace Neo.IronLua
 					}
 					else
 					{
-						iCurrentColumn++;
-
+						currentColumn++;
 						return c;
 					}
 				}
@@ -446,71 +437,71 @@ namespace Neo.IronLua
 		#region -- Scanner Operationen ----------------------------------------------------
 
 		/// <summary>Fügt einen Wert an.</summary>
-		/// <param name="cCur"></param>
-		private void AppendValue(char cCur)
+		/// <param name="cur"></param>
+		private void AppendValue(char cur)
 		{
-			if (sbCur == null)
-				sbCur = new StringBuilder();
+			if (currentStringBuilder == null)
+				currentStringBuilder = new StringBuilder();
 
-			sbCur.Append(cCur);
+			currentStringBuilder.Append(cur);
 		} // proc AppendValue
 
 		/// <summary>Kopiert das Zeichen in den Wert-Buffer</summary>
-		/// <param name="iNewState">Neuer Status des Scanners</param>
-		private void EatChar(int iNewState)
+		/// <param name="newState">Neuer Status des Scanners</param>
+		private void EatChar(int newState)
 		{
-			AppendValue(cCur);
-			NextChar(iNewState);
+			AppendValue(cur);
+			NextChar(newState);
 		} // proc EatChar
 
 		/// <summary>Nächstes Zeichen ohne eine Kopie anzufertigen</summary>
-		/// <param name="iNewState">Neuer Status des Scanners</param>
-		private void NextChar(int iNewState)
+		/// <param name="newState">Neuer Status des Scanners</param>
+		private void NextChar(int newState)
 		{
-			fEnd = new Position(document, iCurrentLine, iCurrentColumn, iCurrentIndex);
-			cCur = Read();
-			iState = iNewState;
+			endPosition = new Position(document, currentLine, currentColumn, currentIndex);
+			cur = Read();
+			state = newState;
 		} // proc NextChar
 
 		/// <summary>Erzeugt einen Token</summary>
-		/// <param name="iKind">Art des Tokens</param>
-		/// <param name="iNewState"></param>
+		/// <param name="kind">Art des Tokens</param>
+		/// <param name="newState"></param>
 		/// <returns>Token</returns>
-		private Token CreateToken(int iNewState, LuaToken iKind)
+		private Token CreateToken(int newState, LuaToken kind)
 		{
-			iState = iNewState;
-			Token tok = new Token(iKind, CurValue, fStart, fEnd);
-			fStart = fEnd;
-			sbCur = null;
+			state = newState;
+			var tok = new Token(kind, CurValue, startPosition, endPosition);
+			startPosition = endPosition;
+			currentStringBuilder = null;
 			return tok;
 		} // func CreateToken
 
 		/// <summary>Erzeugt einen Token</summary>
-		/// <param name="iKind">Art des Tokens</param>
-		/// <param name="iNewState"></param>
+		/// <param name="kind">Art des Tokens</param>
+		/// <param name="newState"></param>
 		/// <returns>Token</returns>
-		private Token NextCharAndCreateToken(int iNewState, LuaToken iKind)
+		private Token NextCharAndCreateToken(int newState, LuaToken kind)
 		{
-			NextChar(iNewState);
-			return CreateToken(iNewState, iKind);
+			NextChar(newState);
+			return CreateToken(newState, kind);
 		} // func CreateToken
 
 		/// <summary>Erzeugt einen Token</summary>
-		/// <param name="iKind">Art des Tokens</param>
-		/// <param name="iNewState"></param>
+		/// <param name="kind">Art des Tokens</param>
+		/// <param name="newState"></param>
 		/// <returns>Token</returns>
-		private Token EatCharAndCreateToken(int iNewState, LuaToken iKind)
+		private Token EatCharAndCreateToken(int newState, LuaToken kind)
 		{
-			EatChar(iNewState);
-			return CreateToken(iNewState, iKind);
+			EatChar(newState);
+			return CreateToken(newState, kind);
 		} // func CreateToken
 
 		/// <summary>Akuelles Zeichen</summary>
-		private char Cur { get { return cCur; } }
+		private char Cur => cur;
 		/// <summary>Aktueller Wert</summary>
-		private string CurValue { get { return sbCur == null ? "" : sbCur.ToString(); } }
+		private string CurValue => currentStringBuilder == null ? "" : currentStringBuilder.ToString();
 		/// <summary>Aktueller Status des Scanners</summary>
-		private int CurState { get { return iState; } }
+		private int CurState => state;
 
 		#endregion
 
@@ -519,7 +510,7 @@ namespace Neo.IronLua
 		private Token NextTokenWithSkipRules()
 		{
 			Token next = NextToken();
-			if (lSkipComments && next.Typ == LuaToken.Comment)
+			if (skipComments && next.Typ == LuaToken.Comment)
 			{
 				next = NextTokenWithSkipRules();
 				if (next.Typ == LuaToken.NewLine)
@@ -553,7 +544,7 @@ namespace Neo.IronLua
 		/// <summary>Current token</summary>
 		public Token Current { get { return current; } }
 		/// <summary>Should the scanner skip comments</summary>
-		public bool SkipComments { get { return lSkipComments; } set { lSkipComments = value; } }
+		public bool SkipComments { get { return skipComments; } set { skipComments = value; } }
 
 		#endregion
 
@@ -561,8 +552,8 @@ namespace Neo.IronLua
 
 		private Token NextToken()
 		{
-			char cStringMode = '\0';
-			byte bChar = 0;
+			var stringMode = '\0';
+			var byteChar = (byte)0;
 			while (true)
 			{
 				char c = Cur;
@@ -571,7 +562,7 @@ namespace Neo.IronLua
 				{
 					#region -- 0 ----------------------------------------------------------------
 					case 0:
-						if (lEof)
+						if (isEof)
 							return CreateToken(0, LuaToken.Eof);
 						else if (c == '\n')
 							return NextCharAndCreateToken(0, LuaToken.NewLine);
@@ -627,12 +618,12 @@ namespace Neo.IronLua
 
 						else if (c == '"')
 						{
-							cStringMode = c;
+							stringMode = c;
 							NextChar(40);
 						}
 						else if (c == '\'')
 						{
-							cStringMode = c;
+							stringMode = c;
 							NextChar(40);
 						}
 
@@ -679,7 +670,7 @@ namespace Neo.IronLua
 					#endregion
 					#region -- 10 Whitespaces ---------------------------------------------------
 					case 10:
-						if (c == '\n' || lEof || !Char.IsWhiteSpace(c))
+						if (c == '\n' || isEof || !Char.IsWhiteSpace(c))
 							return CreateToken(0, LuaToken.Whitespace);
 						else
 							NextChar(10);
@@ -758,11 +749,11 @@ namespace Neo.IronLua
 					#endregion
 					#region -- 40 String --------------------------------------------------------
 					case 40:
-						if (c == cStringMode)
+						if (c == stringMode)
 							return NextCharAndCreateToken(0, LuaToken.String);
 						else if (c == '\\')
 							NextChar(41);
-						else if (lEof || c == '\n')
+						else if (isEof || c == '\n')
 							return CreateToken(0, LuaToken.InvalidString);
 						else
 							EatChar(40);
@@ -785,7 +776,7 @@ namespace Neo.IronLua
 
 						else if (c >= '0' && c <= '9')
 						{
-							bChar = unchecked((byte)(c - '0'));
+							byteChar = unchecked((byte)(c - '0'));
 							NextChar(42);
 						}
 						else
@@ -794,42 +785,42 @@ namespace Neo.IronLua
 					case 42:
 						if (c >= '0' && c <= '9')
 						{
-							bChar = unchecked((byte)(bChar * 10 + (c - '0')));
+							byteChar = unchecked((byte)(byteChar * 10 + (c - '0')));
 							NextChar(43);
 						}
 						else
 						{
-							AppendValue((char)bChar);
+							AppendValue((char)byteChar);
 							goto case 40;
 						}
 						break;
 					case 43:
 						if (c >= '0' && c <= '9')
 						{
-							bChar = unchecked((byte)(bChar * 10 + (c - '0')));
-							AppendValue((char)bChar);
+							byteChar = unchecked((byte)(byteChar * 10 + (c - '0')));
+							AppendValue((char)byteChar);
 							NextChar(40);
 						}
 						else
 						{
-							AppendValue((char)bChar);
+							AppendValue((char)byteChar);
 							goto case 40;
 						}
 						break;
 					case 45:
 						if (c >= '0' && c <= '9')
 						{
-							bChar = unchecked((byte)(c - '0'));
+							byteChar = unchecked((byte)(c - '0'));
 							NextChar(46);
 						}
 						else if (c >= 'a' && c <= 'f')
 						{
-							bChar = unchecked((byte)(c - 'a' + 10));
+							byteChar = unchecked((byte)(c - 'a' + 10));
 							NextChar(46);
 						}
 						else if (c >= 'A' || c <= 'F')
 						{
-							bChar = unchecked((byte)(c - 'A' + 10));
+							byteChar = unchecked((byte)(c - 'A' + 10));
 							NextChar(46);
 						}
 						else
@@ -841,25 +832,25 @@ namespace Neo.IronLua
 					case 46:
 						if (c >= '0' && c <= '9')
 						{
-							bChar = unchecked((byte)((bChar << 4) + (c - '0')));
-							AppendValue((char)bChar);
+							byteChar = unchecked((byte)((byteChar << 4) + (c - '0')));
+							AppendValue((char)byteChar);
 							NextChar(40);
 						}
 						else if (c >= 'a' && c <= 'f')
 						{
-							bChar = unchecked((byte)((bChar << 4) + (c - 'a' + 10)));
-							AppendValue((char)bChar);
+							byteChar = unchecked((byte)((byteChar << 4) + (c - 'a' + 10)));
+							AppendValue((char)byteChar);
 							NextChar(40);
 						}
 						else if (c >= 'A' || c <= 'F')
 						{
-							bChar = unchecked((byte)((bChar << 4) + (c - 'A' + 10)));
-							AppendValue((char)bChar);
+							byteChar = unchecked((byte)((byteChar << 4) + (c - 'A' + 10)));
+							AppendValue((char)byteChar);
 							NextChar(40);
 						}
 						else
 						{
-							AppendValue((char)bChar);
+							AppendValue((char)byteChar);
 							goto case 40;
 						}
 						break;
@@ -889,7 +880,7 @@ namespace Neo.IronLua
 							NextChar(52);
 						break;
 					case 52:
-						if (lEof)
+						if (isEof)
 							return CreateToken(0, LuaToken.Comment);
 						else if (c == '\n')
 							return NextCharAndCreateToken(0, LuaToken.Comment);
@@ -1084,28 +1075,28 @@ namespace Neo.IronLua
 					case 1161: if (c == 's') EatChar(1162); else goto case 1000; break;
 					case 1162: if (c == 't') EatChar(1163); else goto case 1000; break;
 					case 1163: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwConst); else goto case 1000;
-					#endregion
+						#endregion
 				}
 			}
 		} // func NextToken
 
-		private Token ReadTextBlock(bool lStringMode)
+		private Token ReadTextBlock(bool stringMode)
 		{
-			int iSearch = 0;
-			int iFind = 0;
+			var search = 0;
+			var find = 0;
 
 			// Zähle die =
 			while (Cur == '=')
 			{
 				NextChar(0);
-				iSearch++;
+				search++;
 			}
 			if (Cur != '[')
-				return NextCharAndCreateToken(0, lStringMode ? LuaToken.InvalidString : LuaToken.InvalidComment);
+				return NextCharAndCreateToken(0, stringMode ? LuaToken.InvalidString : LuaToken.InvalidComment);
 			NextChar(0);
 
 			// Überspringe WhiteSpace bis zum ersten Zeilenumbruch
-			while (!lEof && Char.IsWhiteSpace(Cur))
+			while (!isEof && Char.IsWhiteSpace(Cur))
 			{
 				if (Cur == '\n')
 				{
@@ -1117,61 +1108,84 @@ namespace Neo.IronLua
 			}
 
 			// Suche das Ende
-		ReadChars:
+			ReadChars:
 			while (Cur != ']')
 			{
-				if (lEof)
-					return NextCharAndCreateToken(0, lStringMode ? LuaToken.InvalidString : LuaToken.InvalidComment);
-				else if (lStringMode)
+				if (isEof)
+					return NextCharAndCreateToken(0, stringMode ? LuaToken.InvalidString : LuaToken.InvalidComment);
+				else if (stringMode)
 					EatChar(0);
 				else
 					NextChar(0);
 			}
 
 			// Zähle die =
-			iFind = 0;
+			find = 0;
 			NextChar(0);
 			while (Cur == '=')
 			{
 				NextChar(0);
-				iFind++;
+				find++;
 			}
-			if (Cur == ']' && iFind == iSearch)
-				return NextCharAndCreateToken(0, lStringMode ? LuaToken.String : LuaToken.Comment);
+			if (Cur == ']' && find == search)
+				return NextCharAndCreateToken(0, stringMode ? LuaToken.String : LuaToken.Comment);
 			else
 			{
 				AppendValue(']');
-				for (int i = 0; i < iFind; i++)
+				for (var i = 0; i < find; i++)
 					AppendValue('=');
 				goto ReadChars;
 			}
 		} // proc ReadTextBlock
 
-		private bool IsIdentifierChar(char c)
-		{
-			return Char.IsLetterOrDigit(c) || c == '_';
-		}
-
 		#endregion
+
+		private static readonly Lazy<string[]> keywords;
+
+		static LuaLexer()
+		{
+			keywords = new Lazy<string[]>(
+				() =>
+				(
+					from fi in typeof(LuaToken).GetTypeInfo().DeclaredFields
+					let a = fi.GetCustomAttribute<TokenNameAttribute>()
+					where a != null && fi.IsStatic && fi.Name.StartsWith("Kw")
+					orderby a.Name
+					select a.Name
+				).ToArray(), true
+			);
+		} // sctor
+
+		/// <summary>Check for A-Z,0-9 and _</summary>
+		/// <param name="c"></param>
+		/// <returns></returns>
+		public static bool IsIdentifierChar(char c)
+			=> Char.IsLetterOrDigit(c) || c == '_';
+
+		/// <summary>Is the given  identifier a keyword.</summary>
+		/// <param name="member"></param>
+		/// <returns></returns>
+		public static bool IsKeyWord(string member)
+			=> Array.BinarySearch(keywords.Value, member) >= 0;
 
 		/// <summary>Resolves the name of the token.</summary>
 		/// <param name="type"></param>
 		/// <returns></returns>
 		public static string GetTokenName(LuaToken type)
 		{
-			Type tokenType = typeof(LuaToken);
-			TypeInfo ti = tokenType.GetTypeInfo();
-			string sName = Enum.GetName(tokenType, type);
+			var tokenType = typeof(LuaToken);
+			var ti = tokenType.GetTypeInfo();
+			var name = Enum.GetName(tokenType, type);
 
-			FieldInfo fi = ti.GetDeclaredField(sName);
+			var fi = ti.GetDeclaredField(name);
 			if (fi != null)
 			{
 				var tokenName = fi.GetCustomAttribute<TokenNameAttribute>();
 				if (tokenName != null)
-					sName = tokenName.Name;
+					name = tokenName.Name;
 			}
 
-			return sName;
+			return name;
 		} // func GetTokenName
 	} // class LuaLexer
 

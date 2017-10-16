@@ -118,8 +118,8 @@ namespace Neo.IronLua
 		// List
 		internal readonly static PropertyInfo ListItemPropertyInfo;
 		internal readonly static PropertyInfo ListCountPropertyInfo;
-    // INotifyPropertyChanged
-    internal readonly static EventInfo NotifyPropertyChangedEventInfo;
+		// INotifyPropertyChanged
+		internal readonly static EventInfo NotifyPropertyChangedEventInfo;
 		// IDispose
 		internal readonly static MethodInfo DisposeDisposeMethodInfo;
 		// IEnumerable
@@ -161,7 +161,7 @@ namespace Neo.IronLua
 			TableGetValueKeyListMethodInfo = tiLuaTable.FindDeclaredMethod("GetValue", ReflectionFlag.None, typeof(object[]), typeof(bool));
 
 			TableDefineMethodLightMethodInfo = tiLuaTable.FindDeclaredMethod("DefineMethodLight", ReflectionFlag.None, typeof(string), typeof(Delegate));
-			TableGetCallMemberMethodInfo = tiLuaTable.FindDeclaredMethod("GetCallMember",  ReflectionFlag.NoArguments);
+			TableGetCallMemberMethodInfo = tiLuaTable.FindDeclaredMethod("GetCallMember", ReflectionFlag.NoArguments);
 			TableSetObjectMemberMethodInfo = tiLuaTable.FindDeclaredMethod("SetObjectMember", ReflectionFlag.None, typeof(object));
 
 			TableEntriesFieldInfo = tiLuaTable.FindDeclaredField("entries", ReflectionFlag.None);
@@ -187,7 +187,7 @@ namespace Neo.IronLua
 			TableEqualMethodInfo = tiLuaTable.FindDeclaredMethod("OnEqual", ReflectionFlag.NoArguments);
 			TableLessThanMethodInfo = tiLuaTable.FindDeclaredMethod("OnLessThan", ReflectionFlag.NoArguments);
 			TableLessEqualMethodInfo = tiLuaTable.FindDeclaredMethod("OnLessEqual", ReflectionFlag.NoArguments);
-			TableIndexMethodInfo = tiLuaTable.FindDeclaredMethod("OnIndex",  ReflectionFlag.NoArguments);
+			TableIndexMethodInfo = tiLuaTable.FindDeclaredMethod("OnIndex", ReflectionFlag.NoArguments);
 			TableNewIndexMethodInfo = tiLuaTable.FindDeclaredMethod("OnNewIndex", ReflectionFlag.NoArguments);
 			TableCallMethodInfo = tiLuaTable.FindDeclaredMethod("OnCall", ReflectionFlag.NoArguments);
 
@@ -267,7 +267,7 @@ namespace Neo.IronLua
 			var tiList = typeof(List<object>).GetTypeInfo();
 			ListItemPropertyInfo = tiList.FindDeclaredProperty("Item", ReflectionFlag.Public | ReflectionFlag.Instance);
 			ListCountPropertyInfo = tiList.FindDeclaredProperty("Count", ReflectionFlag.Public | ReflectionFlag.Instance);
-      
+
 			// INotifyPropertyChanged
 			var tiNotifyPropertyChanged = typeof(INotifyPropertyChanged).GetTypeInfo();
 			NotifyPropertyChangedEventInfo = tiNotifyPropertyChanged.GetDeclaredEvent("PropertyChanged");
@@ -561,31 +561,31 @@ namespace Neo.IronLua
 
 			// return the value
 			if (state == 0) // a integer value
-      {
-        unchecked
-        {
-          if (lNeg)
-          {
-            if (fraction < Int32.MaxValue)
-              return -(int)fraction;
-            else if (fraction < Int64.MaxValue)
-              return -(long)fraction;
-            else
-              return useDouble ? -(double)fraction : -(float)fraction;
-          }
-          else
-          {
-            if (fraction <= Int32.MaxValue)
-              return (int)fraction;
-            else if (fraction <= UInt32.MaxValue)
-              return (uint)fraction;
-            else if (fraction <= Int64.MaxValue)
-              return (long)fraction;
-            else
-              return fraction;
-          }
-        }
-      }
+			{
+				unchecked
+				{
+					if (lNeg)
+					{
+						if (fraction < Int32.MaxValue)
+							return -(int)fraction;
+						else if (fraction < Int64.MaxValue)
+							return -(long)fraction;
+						else
+							return useDouble ? -(double)fraction : -(float)fraction;
+					}
+					else
+					{
+						if (fraction <= Int32.MaxValue)
+							return (int)fraction;
+						else if (fraction <= UInt32.MaxValue)
+							return (uint)fraction;
+						else if (fraction <= Int64.MaxValue)
+							return (long)fraction;
+						else
+							return fraction;
+					}
+				}
+			}
 			else
 			{
 				// check for a exponent
@@ -1017,7 +1017,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static object RtInvoke(object target, params object[] args)
 			=> RtInvokeSite(null, callInfo => new LuaInvokeBinder(null, callInfo), null, target, args);
-		
+
 		internal static object RtInvokeSite(CallSite site, Func<CallInfo, CallSiteBinder> createInvokeBinder, Action<CallInfo, CallSite> updateCache, object target, params object[] args)
 		{
 			// expand args for callsite and target
@@ -1232,10 +1232,10 @@ namespace Neo.IronLua
 			return UpValueChangeEditor(function.Target,
 				locals =>
 				{
-				if (locals != null && index >= 1 && index <= locals.Length)
-					return new UpValueObject(locals[index - 1], 0);
-				else
-					throw new ArgumentOutOfRangeException();
+					if (locals != null && index >= 1 && index <= locals.Length)
+						return new UpValueObject(locals[index - 1], 0);
+					else
+						throw new ArgumentOutOfRangeException();
 				},
 				fields =>
 				{

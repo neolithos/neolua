@@ -2317,15 +2317,15 @@ namespace Neo.IronLua
 
 			if (code.Current.Typ != LuaToken.BracketCurlyClose)
 			{
-				int iIndex = 1;
-				Scope scopeTable = new Scope(scope);
+				var index = 1;
+				var scopeTable = new Scope(scope);
 
 				// Create the variable for the table
-				ParameterExpression tableVar = scopeTable.RegisterVariable(typeof(LuaTable), "#table");
+				var tableVar = scopeTable.RegisterVariable(typeof(LuaTable), "#table");
 				scopeTable.AddExpression(Expression.Assign(tableVar, CreateEmptyTableExpression()));
 
 				// fiest field
-				ParseTableField(tableVar, scopeTable, code, ref iIndex);
+				ParseTableField(tableVar, scopeTable, code, ref index);
 
 				// collect more table fields
 				while (code.Current.Typ == LuaToken.Comma || code.Current.Typ == LuaToken.Semicolon)
@@ -2337,7 +2337,7 @@ namespace Neo.IronLua
 						break;
 
 					// Parse the field
-					ParseTableField(tableVar, scopeTable, code, ref iIndex);
+					ParseTableField(tableVar, scopeTable, code, ref index);
 				}
 
 				scopeTable.AddExpression(tableVar);
@@ -2376,7 +2376,7 @@ namespace Neo.IronLua
 			else if (code.Current.Typ == LuaToken.Identifier && code.LookAhead.Typ == LuaToken.Assign)
 			{
 				// Read the identifier
-				Token tMember = code.Current;
+				var tMember = code.Current;
 				code.Next();
 				FetchToken(LuaToken.Assign, code);
 
@@ -2389,8 +2389,8 @@ namespace Neo.IronLua
 			}
 			else
 			{
-				Token tStart = code.Current;
-				Expression expr = ParseExpression(scope, code, InvokeResult.None, scope.EmitExpressionDebug);
+				var tStart = code.Current;
+				var expr = ParseExpression(scope, code, InvokeResult.None, scope.EmitExpressionDebug);
 
 				// Last assign, enroll parameter
 				if (code.Current.Typ == LuaToken.BracketCurlyClose && LuaEmit.IsDynamicType(expr.Type))
@@ -2421,7 +2421,7 @@ namespace Neo.IronLua
 
 		#region -- FetchToken, ParseError -------------------------------------------------
 
-		private static Token FetchToken(LuaToken typ, LuaLexer code, bool isOptional = false)
+		public static Token FetchToken(LuaToken typ, LuaLexer code, bool isOptional = false)
 		{
 			if (code.Current.Typ == typ)
 			{
@@ -2435,10 +2435,8 @@ namespace Neo.IronLua
 				throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, LuaLexer.GetTokenName(code.Current.Typ), LuaLexer.GetTokenName(typ)));
 		} // proc FetchToken
 
-		private static LuaParseException ParseError(Token start, string sMessage)
-		{
-			return new LuaParseException(start.Start, sMessage, null);
-		} // func ParseError
+		public static LuaParseException ParseError(Token start, string sMessage)
+			=> new LuaParseException(start.Start, sMessage, null);
 
 		#endregion
 
