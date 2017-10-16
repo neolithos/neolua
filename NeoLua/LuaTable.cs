@@ -3887,10 +3887,12 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Lua Script Object Notation -------------------------------------------
+		#region -- Lua Script Object Notation -- To -------------------------------------
 
 		private static void ToLson(LuaTable table, TextWriter tw, int currentLevel)
 		{
+			// recursion, keywords test, special chars
+
 			//void WriteIndent()
 			//{
 			//	for (var i = 0; i < currentLevel * 2; i++)
@@ -3967,6 +3969,7 @@ namespace Neo.IronLua
 						break;
 
 					case LuaEmitTypeCode.Object:
+						// todo: guid, date -> string
 						if (value.GetType() == typeof(LuaTable))
 						{
 							ToLson((LuaTable)value, tw, currentLevel >= 0 ? currentLevel + 1 : currentLevel);
@@ -4036,6 +4039,29 @@ namespace Neo.IronLua
 			else
 				tw.Write("{}");
 		} // proc ToLson
+
+		/// <summary>Convert the table to a string</summary>
+		/// <param name="table"></param>
+		/// <param name="tw"></param>
+		/// <param name="prettyFormatting"></param>
+		public static void ToLson(LuaTable table, TextWriter tw, bool prettyFormatting = true)
+			=> ToLson(table, tw, prettyFormatting ? 0 : -1);
+
+		/// <summary>Convert the table to a string</summary>
+		/// <param name="prettyFormatting"></param>
+		/// <returns></returns>
+		public string ToLson(bool prettyFormatting = true)
+		{
+			using (var sw = new StringWriter())
+			{
+				ToLson(this, sw, prettyFormatting);
+				return sw.GetStringBuilder().ToString();
+			}
+		} // func ToLson
+
+		#endregion
+
+		#region -- Lua Script Object Notation -- From -----------------------------------
 
 		private static LuaTable FromLsonParse(LuaLexer lex)
 		{
@@ -4150,25 +4176,6 @@ namespace Neo.IronLua
 			using (var tr = new StringReader(value))
 				return FromLson(tr);
 		} // func FromLson
-
-		/// <summary>Convert the table to a string</summary>
-		/// <param name="table"></param>
-		/// <param name="tw"></param>
-		/// <param name="prettyFormatting"></param>
-		public static void ToLson(LuaTable table, TextWriter tw, bool prettyFormatting = true)
-			=> ToLson(table, tw, prettyFormatting ? 0 : -1);
-
-		/// <summary>Convert the table to a string</summary>
-		/// <param name="prettyFormatting"></param>
-		/// <returns></returns>
-		public string ToLson(bool prettyFormatting = true)
-		{
-			using (var sw = new StringWriter())
-			{
-				ToLson(this, sw, prettyFormatting);
-				return sw.GetStringBuilder().ToString();
-			}
-		} // func ToLson
 
 		#endregion
 
