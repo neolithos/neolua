@@ -3968,7 +3968,8 @@ namespace Neo.IronLua
 					case LuaEmitTypeCode.Single:
 					case LuaEmitTypeCode.Double:
 					case LuaEmitTypeCode.Decimal:
-						tw.Write(value); // todo: force 0.0
+							var tmp = value.ToString();
+							tw.Write(tmp + (tmp.Contains(".") ? String.Empty : ".0"));
 						break;
 
 					case LuaEmitTypeCode.Object:
