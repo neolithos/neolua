@@ -1095,6 +1095,32 @@ namespace LuaDLR.Test
 
 			t = new LuaTable()
 			{
+				["string_unicode"] = "ⓛ",
+				["string_esc1"] = "\0",
+				["string2"] = "\"",
+				["stringⓛ3"] = "test",
+				["stri\nng4"] = "test",
+				["stri\\nng5"] = "test",
+				["stri\\\nng6"] = "test",
+				["stri{ng7"] = "test",
+				["{[\"stri{ng7\"]=\"test\"}8"] = "test",
+				["stri\x4e00ng9"] = "test"
+			};
+			var result = LuaTable.FromLson(t.ToLson());
+			
+			Assert.AreEqual("ⓛ", result["string_unicode"]);
+			Assert.AreEqual("\0", result["string_esc1"]);
+			Assert.AreEqual("\"", result["string2"]);
+			Assert.AreEqual("test", result["stringⓛ3"]);
+			Assert.AreEqual("test", result["stri\nng4"]);
+			Assert.AreEqual("test", result["stri\\nng5"]);
+			Assert.AreEqual("test", result["stri\\\nng6"]);
+			Assert.AreEqual("test", result["stri{ng7"]);
+			Assert.AreEqual("test", result["{[\"stri{ng7\"]=\"test\"}8"]);
+			Assert.AreEqual("test", result["stri\x4e00ng9"]);
+
+			t = new LuaTable()
+			{
 				["test1"] = "_test"
 			};
 			Assert.AreEqual("_test", LuaTable.FromLson(t.ToLson())["test1"]);
