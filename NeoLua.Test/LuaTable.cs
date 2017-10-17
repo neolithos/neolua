@@ -1289,20 +1289,6 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
-		public void TestLsonPrettyfier()
-		{
-			var t = new LuaTable()
-			{
-				["int64max"] = Int64.MaxValue,
-				["uint64"] = UInt64.MaxValue,
-				["string"] = "test",
-			};
-			var result = t.ToLson();
-			//Assert.Fail(result);
-			System.IO.File.WriteAllLines(@"C:\Temp\lson.txt", result.Split('\n'));
-		}
-
-		[TestMethod]
 		public void TestLsonDateTime()
 		{
 			var timestamp = DateTime.Now;
