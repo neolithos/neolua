@@ -1065,6 +1065,18 @@ namespace LuaDLR.Test
 
 			Assert.AreEqual(10, t2.Values.Count);
 		}
+
+		[TestMethod]
+		public void TestLsonInt64MinValue()
+		{
+			var t = new LuaTable()
+			{
+				["test"] = Int64.MinValue
+			};
+
+			Assert.AreEqual(Int64.MinValue, LuaTable.FromLson(t.ToLson())["test"]);
+		}
+		
 		[TestMethod]
 		public void TestLsonDouble()
 		{
