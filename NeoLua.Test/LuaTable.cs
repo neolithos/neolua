@@ -1209,6 +1209,64 @@ namespace LuaDLR.Test
 			{ }
 		}
 
+		/// <summary>
+		/// Some of the testcases require unpretty Lson to have a standart format
+		/// </summary>
+		[TestMethod]
+		public void TestLsonUnpretty()
+		{
+			LuaTable t;
+
+			t = new LuaTable()
+			{
+				["string_unicode"] = "ⓛ",
+				["string_esc1"] = "\0",
+				["string2"] = "\"",
+				["stringⓛ3"] = "test",
+				["stri\nng4  "] = "test",
+				["stri\\nng5"] = "test  ",
+				["stri\\\nng6"] = "test",
+				["stri{ng7"] = "test",
+				["{[\"stri{ng7\"]=\"test\"}8"] = "test",
+				["stri\x4e00ng9"] = "test"
+			};
+			var s = t.ToLson(false);
+
+			var hyphen = 0;
+
+			for (var i = 0; i < s.Length; i++)
+			{
+				if (s[i] == '"')
+				{
+					hyphen++;
+					continue;
+				}
+
+				if (hyphen % 2 == 1)
+				{
+					// the character is not escaped
+					switch (s[i])
+					{
+						case ' ':
+							Assert.Fail("Unprettyfied Lson must not include whitespaces.");
+							break;
+						case '\t':
+							Assert.Fail("Unprettyfied Lson must not include tabs.");
+							break;
+						case '\v':
+							Assert.Fail("Unprettyfied Lson must not include vertical tabs.");
+							break;
+						case '\r':
+							Assert.Fail("Unprettyfied Lson must not include newline.");
+							break;
+						case '\n':
+							Assert.Fail("Unprettyfied Lson must not include newline.");
+							break;
+					}
+				}
+			}
+
+		}
 
 		[TestMethod]
 		public void TestLsonTypes()
