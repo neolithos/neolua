@@ -1171,5 +1171,17 @@ namespace LuaDLR.Test
 			{ }
 		}
 
+		[TestMethod]
+		public void TestLsonNumberBoundaries()
+		{
+			try
+			{
+				var t = LuaTable.FromLson("{test=" + Double.MaxValue + "0" + "}");
+				Assert.Fail("Illegal number parsed without Error.");
+			}
+			catch (LuaParseException)
+			{ }
+		}
+
 	} // class LuaTableTests
 }
