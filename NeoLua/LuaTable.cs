@@ -3986,7 +3986,6 @@ namespace Neo.IronLua
 						tw.Write("\"");
 						break;
 					case LuaEmitTypeCode.Object:
-						// todo: guid, date -> string
 						if (value.GetType() == typeof(LuaTable))
 						{
 							ToLson((LuaTable)value, tw, currentLevel);
