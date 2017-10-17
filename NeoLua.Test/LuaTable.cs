@@ -1134,5 +1134,42 @@ namespace LuaDLR.Test
 			}
 		}
 
+		[TestMethod]
+		public void TestLsonParser()
+		{
+			LuaTable t;
+
+			t = LuaTable.FromLson("{test=\"1.0\"}");
+			Assert.AreEqual(typeof(string), t["test"].GetType());
+
+			t = LuaTable.FromLson("{test=1.0}");
+			Assert.AreEqual(1.0, t["test"]);
+
+			t = LuaTable.FromLson("{test=1.}");
+			Assert.AreEqual(1.0, t["test"]);
+
+			t = LuaTable.FromLson("{test=1}");
+			Assert.AreEqual(1, t["test"]);
+
+			t = LuaTable.FromLson("{test=" + Int64.MaxValue + "0" + "}");
+			Assert.AreEqual(Int64.MaxValue * 10.0, t["test"]);
+
+			try
+			{
+				t = LuaTable.FromLson("{test=_test}");
+				Assert.Fail("Value starting with underscore must not be parsed");
+			}
+			catch (LuaParseException)
+			{ }
+
+			try
+			{
+				t = LuaTable.FromLson("{test=" + Double.PositiveInfinity.ToString() + "}");
+				Assert.Fail("Illegal number parsed without Error.");
+			}
+			catch (LuaParseException)
+			{ }
+		}
+
 	} // class LuaTableTests
 }
