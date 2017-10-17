@@ -1311,7 +1311,7 @@ namespace LuaDLR.Test
 			{
 				["today"] = timestamp
 			};
-			Assert.IsTrue(t.ToLson().IndexOf(timestamp.ToString(System.Globalization.CultureInfo.InvariantCulture)) >= 0);
+			Assert.IsTrue(t.ToLson().IndexOf("\"" + timestamp.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\"") >= 0);
 		}
 
 		[TestMethod]
