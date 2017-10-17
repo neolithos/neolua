@@ -1209,5 +1209,35 @@ namespace LuaDLR.Test
 			{ }
 		}
 
+
+		[TestMethod]
+		public void TestLsonTypes()
+		{
+			LuaTable t;
+
+			t = new LuaTable()
+			{
+				["int64max"] = Int64.MaxValue,
+				["uint64"] = UInt64.MaxValue,
+				["string"] = "test",
+			};
+			var result = LuaTable.FromLson(t.ToLson());
+
+			Assert.AreEqual(Int64.MaxValue, result["int64max"]);
+			Assert.AreEqual(UInt64.MaxValue, result["uint64"]);
+			Assert.AreEqual("test", result["string"]);
+
+			try
+			{
+				t = new LuaTable()
+				{
+					["char"] = '+'
+				};
+				var s = t.ToLson();
+				Assert.Fail("Char is not supported.");
+			}
+			catch (ArgumentException)
+			{ }
+		}
 	} // class LuaTableTests
 }
