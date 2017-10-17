@@ -1088,5 +1088,51 @@ namespace LuaDLR.Test
 			Assert.AreEqual(1.0, LuaTable.FromLson(t.ToLson())["test"]);
 		}
 
+		[TestMethod]
+		public void TestLsonSpecialChars()
+		{
+			LuaTable t;
+
+			t = new LuaTable()
+			{
+				["test1"] = "_test"
+			};
+			Assert.AreEqual("_test", LuaTable.FromLson(t.ToLson())["test1"]);
+
+			t = new LuaTable()
+			{
+				["_test2"] = "test"
+			};
+			Assert.AreEqual("test", LuaTable.FromLson(t.ToLson())["_test2"]);
+
+
+			var keywords = (
+					from fi in typeof(LuaToken).GetTypeInfo().DeclaredFields
+					let a = fi.GetCustomAttribute<TokenNameAttribute>()
+					where a != null && fi.IsStatic && fi.Name.StartsWith("Kw")
+					orderby a.Name
+					select a.Name
+				).ToArray();
+			foreach (var keyword in keywords)
+			{
+				t = new LuaTable()
+				{
+					[keyword] = "test"
+				};
+				Assert.IsTrue(t.ToLson(false).IndexOf($"[\"{keyword}\"]") >= 0);
+			}
+
+			foreach (var keyword in keywords)
+			{
+				try
+				{
+					var tt = LuaTable.FromLson("{" + keyword + "=\"test\"}");
+					Assert.Fail("A keyword was parsed as a member name.");
+				}
+				catch (LuaParseException)
+				{ }
+			}
+		}
+
 	} // class LuaTableTests
 }
