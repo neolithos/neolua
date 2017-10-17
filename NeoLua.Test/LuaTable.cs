@@ -1041,7 +1041,7 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
-		public void TestJson01()
+		public void TestLson01()
 		{
 			var t = new LuaTable()
 			{
