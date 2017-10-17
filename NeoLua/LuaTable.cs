@@ -3933,6 +3933,9 @@ namespace Neo.IronLua
 						{
 							switch (s[i])
 							{
+								case '\\':
+									tw.Write("\\\\");
+									break;
 								case '"':
 									tw.Write("\\\"");
 									break;
