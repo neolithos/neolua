@@ -3981,7 +3981,7 @@ namespace Neo.IronLua
 						else
 							goto default;
 					default:
-						throw new ArgumentException("type?"); // todo:
+						throw new ArgumentException($"The type \"{value.GetType()}\" is not supported.");
 				}
 			} // proc WriteValue
 
