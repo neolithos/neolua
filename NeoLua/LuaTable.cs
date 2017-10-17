@@ -4053,7 +4053,7 @@ namespace Neo.IronLua
 					else
 						skipCommand = true;
 				}
-				tw.Write("\n}");
+				tw.Write(currentLevel != -1 ? "\n" : String.Empty + "}");
 			}
 			else
 				tw.Write("{}");
