@@ -3893,11 +3893,13 @@ namespace Neo.IronLua
 		{
 			// recursion, keywords test, special chars
 
-			//void WriteIndent()
-			//{
-			//	for (var i = 0; i < currentLevel * 2; i++)
-			//		sw.Write(' ');
-			//} // proc WriteIndent
+			void WriteIndent()
+			{
+				if (currentLevel == -1)
+					return;
+				for (var i = 0; i < currentLevel * 2; i++)
+					tw.Write(' ');
+			} // proc WriteIndent
 
 			bool IsMember(string member)
 			{
@@ -4004,6 +4006,7 @@ namespace Neo.IronLua
 				tw.Write("{");
 				var first = true;
 				var skipCommand = false;
+				currentLevel = currentLevel == -1 ? -1 : currentLevel + 1;
 				foreach (var kv in table.Values)
 				{
 					// comma
@@ -4016,7 +4019,8 @@ namespace Neo.IronLua
 						else
 							tw.Write(',');
 					}
-
+					tw.Write(currentLevel != -1 ? "\n" : String.Empty);
+					WriteIndent();
 					// use array notation
 					var isIndex = false;
 					if ((isIndex = IsIndexKey(kv.Key, out var index)) && lastIndex + 1 == index && kv.Value != null)
@@ -4032,13 +4036,13 @@ namespace Neo.IronLua
 							WriteMember(member);
 						else
 							WriteKey(kv.Key);
-						tw.Write("=");
+						tw.Write(currentLevel == -1 ? "=" : " = ");
 						WriteValue(kv.Value);
 					}
 					else
 						skipCommand = true;
 				}
-				tw.Write("}");
+				tw.Write("\n}");
 			}
 			else
 				tw.Write("{}");
