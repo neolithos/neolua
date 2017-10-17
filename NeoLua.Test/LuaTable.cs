@@ -1065,5 +1065,16 @@ namespace LuaDLR.Test
 
 			Assert.AreEqual(10, t2.Values.Count);
 		}
+		[TestMethod]
+		public void TestLsonDouble()
+		{
+			var t = new LuaTable()
+			{
+				["test"] = 1.0
+			};
+
+			Assert.AreEqual(1.0, LuaTable.FromLson(t.ToLson())["test"]);
+		}
+
 	} // class LuaTableTests
 }
