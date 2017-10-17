@@ -1278,24 +1278,28 @@ namespace LuaDLR.Test
 				["int64max"] = Int64.MaxValue,
 				["uint64"] = UInt64.MaxValue,
 				["string"] = "test",
+				["char"] = '+'
 			};
 			var result = LuaTable.FromLson(t.ToLson());
 
 			Assert.AreEqual(Int64.MaxValue, result["int64max"]);
 			Assert.AreEqual(UInt64.MaxValue, result["uint64"]);
 			Assert.AreEqual("test", result["string"]);
+			Assert.AreEqual("+", result["char"]);
+		}
 
-			try
+		[TestMethod]
+		public void TestLsonPrettyfier()
+		{
+			var t = new LuaTable()
 			{
-				t = new LuaTable()
-				{
-					["char"] = '+'
-				};
-				var s = t.ToLson();
-				Assert.Fail("Char is not supported.");
-			}
-			catch (ArgumentException)
-			{ }
+				["int64max"] = Int64.MaxValue,
+				["uint64"] = UInt64.MaxValue,
+				["string"] = "test",
+			};
+			var result = t.ToLson();
+			//Assert.Fail(result);
+			System.IO.File.WriteAllLines(@"C:\Temp\lson.txt", result.Split('\n'));
 		}
 	} // class LuaTableTests
 }

@@ -3929,7 +3929,8 @@ namespace Neo.IronLua
 						tw.Write((bool)value ? "true" : "false");
 						break;
 					case LuaEmitTypeCode.String:
-						var s = (string)value;
+					case LuaEmitTypeCode.Char:
+						var s = (LuaEmit.GetTypeCode(value.GetType()) == LuaEmitTypeCode.String) ? (string)value : ((char)value).ToString();
 						tw.Write("\"");
 						for (var i = 0; i < s.Length; i++)
 						{
