@@ -3893,11 +3893,11 @@ namespace Neo.IronLua
 		{
 			// recursion, keywords test, special chars
 
-			void WriteIndent()
+			void WriteIndent(bool stepOut = false)
 			{
 				if (currentLevel == -1)
 					return;
-				for (var i = 0; i < currentLevel * 2; i++)
+				for (var i = 0; i < (currentLevel - (stepOut ? 1 : 0)) * 2; i++)
 					tw.Write(' ');
 			} // proc WriteIndent
 
@@ -3923,7 +3923,7 @@ namespace Neo.IronLua
 
 			void WriteValue(object value)
 			{
-				switch (LuaEmit.GetTypeCode( value.GetType()))
+				switch (LuaEmit.GetTypeCode(value.GetType()))
 				{
 					case LuaEmitTypeCode.Boolean:
 						tw.Write((bool)value ? "true" : "false");
@@ -3972,8 +3972,8 @@ namespace Neo.IronLua
 					case LuaEmitTypeCode.Single:
 					case LuaEmitTypeCode.Double:
 					case LuaEmitTypeCode.Decimal:
-							var tmp = value.ToString();
-							tw.Write(tmp + (tmp.Contains(".") ? String.Empty : ".0"));
+						var tmp = value.ToString();
+						tw.Write(tmp + (tmp.Contains(".") ? String.Empty : ".0"));
 						break;
 					case LuaEmitTypeCode.DateTime:
 						tw.Write("\"");
@@ -3989,7 +3989,7 @@ namespace Neo.IronLua
 						// todo: guid, date -> string
 						if (value.GetType() == typeof(LuaTable))
 						{
-							ToLson((LuaTable)value, tw, currentLevel >= 0 ? currentLevel + 1 : currentLevel);
+							ToLson((LuaTable)value, tw, currentLevel);
 							break;
 						}
 						else
@@ -4053,7 +4053,10 @@ namespace Neo.IronLua
 					else
 						skipCommand = true;
 				}
-				tw.Write(currentLevel != -1 ? "\n" : String.Empty + "}");
+
+				tw.Write(currentLevel != -1 ? "\n" : String.Empty);
+				WriteIndent(true);
+				tw.Write("}");
 			}
 			else
 				tw.Write("{}");
