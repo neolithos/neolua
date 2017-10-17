@@ -937,7 +937,7 @@ namespace LuaDLR.Test
 		{
 			var n = t.NextKey(null);
 			var i = 0;
-			while(n != null)
+			while (n != null)
 			{
 				Assert.AreEqual(expected[i], n, $"KeyIndex = {i}");
 				n = t.NextKey(n);
@@ -1076,7 +1076,7 @@ namespace LuaDLR.Test
 
 			Assert.AreEqual(Int64.MinValue, LuaTable.FromLson(t.ToLson())["test"]);
 		}
-		
+
 		[TestMethod]
 		public void TestLsonDouble()
 		{
@@ -1107,7 +1107,7 @@ namespace LuaDLR.Test
 				["stri\x4e00ng9"] = "test"
 			};
 			var result = LuaTable.FromLson(t.ToLson());
-			
+
 			Assert.AreEqual("ⓛ", result["string_unicode"]);
 			Assert.AreEqual("\0", result["string_esc1"]);
 			Assert.AreEqual("\"", result["string2"]);
