@@ -1325,5 +1325,17 @@ namespace LuaDLR.Test
 			};
 			Assert.IsTrue(t.ToLson().IndexOf("\"" + guid.ToString() + "\"") >= 0);
 		}
+
+		[TestMethod]
+		public void TestLsonCharArray()
+		{
+			var chara = "test".ToCharArray();
+
+			var t = new LuaTable()
+			{
+				["chararray"] = chara
+			};
+			Assert.IsTrue(t.ToLson().IndexOf("\"" + chara.ToString() + "\"") >= 0);
+		}
 	} // class LuaTableTests
 }

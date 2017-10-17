@@ -3930,7 +3930,8 @@ namespace Neo.IronLua
 						break;
 					case LuaEmitTypeCode.String:
 					case LuaEmitTypeCode.Char:
-						var s = (LuaEmit.GetTypeCode(value.GetType()) == LuaEmitTypeCode.String) ? (string)value : ((char)value).ToString();
+					case LuaEmitTypeCode.CharArray:
+						var s = (LuaEmit.GetTypeCode(value.GetType()) == LuaEmitTypeCode.String) ? (string)value : (value).ToString();
 						tw.Write("\"");
 						for (var i = 0; i < s.Length; i++)
 						{

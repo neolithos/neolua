@@ -94,6 +94,7 @@ namespace Neo.IronLua
 		Object = 0,
 		Boolean = 0x10,
 		Char = 0x20,
+		CharArray = 0x21,
 		String = 0x30,
 		Guid = 0x31,
 
@@ -168,7 +169,12 @@ namespace Neo.IronLua
 					else
 						return LuaEmitTypeCode.Object;
 				case 'C':
-					return type == typeof(Char) ? LuaEmitTypeCode.Char : LuaEmitTypeCode.Object;
+					if (type == typeof(Char))
+						return LuaEmitTypeCode.Char;
+					else if (type == typeof(Char[]))
+						return LuaEmitTypeCode.CharArray;
+					else
+						return LuaEmitTypeCode.Object;
 				case 'D':
 					if (type == typeof(Double))
 						return LuaEmitTypeCode.Double;
