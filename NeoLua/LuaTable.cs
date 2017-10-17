@@ -3979,6 +3979,11 @@ namespace Neo.IronLua
 						tw.Write(((DateTime)value).ToString(System.Globalization.CultureInfo.InvariantCulture));
 						tw.Write("\"");
 						break;
+					case LuaEmitTypeCode.Guid:
+						tw.Write("\"");
+						tw.Write(((Guid)value).ToString());
+						tw.Write("\"");
+						break;
 					case LuaEmitTypeCode.Object:
 						// todo: guid, date -> string
 						if (value.GetType() == typeof(LuaTable))

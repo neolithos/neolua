@@ -1313,5 +1313,17 @@ namespace LuaDLR.Test
 			};
 			Assert.IsTrue(t.ToLson().IndexOf(timestamp.ToString(System.Globalization.CultureInfo.InvariantCulture)) >= 0);
 		}
+
+		[TestMethod]
+		public void TestLsonGuid()
+		{
+			var guid = Guid.NewGuid();
+
+			var t = new LuaTable()
+			{
+				["guid"] = guid
+			};
+			Assert.IsTrue(t.ToLson().IndexOf("\"" + guid.ToString() + "\"") >= 0);
+		}
 	} // class LuaTableTests
 }

@@ -104,6 +104,7 @@ namespace Neo.IronLua
 		UInt32 = 0x93,
 		Int64 = 0xA1,
 		UInt64 = 0xB3,
+		Guid = 0xBF,
 
 		Single = 0xC0,
 		Double = 0xD0,
@@ -175,6 +176,11 @@ namespace Neo.IronLua
 						return LuaEmitTypeCode.Decimal;
 					else if (type == typeof(DateTime))
 						return LuaEmitTypeCode.DateTime;
+					else
+						return LuaEmitTypeCode.Object;
+				case 'G':
+					if (type == typeof(Guid))
+						return LuaEmitTypeCode.Guid;
 					else
 						return LuaEmitTypeCode.Object;
 				case 'I':
