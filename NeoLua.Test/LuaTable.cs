@@ -1301,5 +1301,17 @@ namespace LuaDLR.Test
 			//Assert.Fail(result);
 			System.IO.File.WriteAllLines(@"C:\Temp\lson.txt", result.Split('\n'));
 		}
+
+		[TestMethod]
+		public void TestLsonDateTime()
+		{
+			var timestamp = DateTime.Now;
+
+			var t = new LuaTable()
+			{
+				["today"] = timestamp
+			};
+			Assert.IsTrue(t.ToLson().IndexOf(timestamp.ToString(System.Globalization.CultureInfo.InvariantCulture)) >= 0);
+		}
 	} // class LuaTableTests
 }
