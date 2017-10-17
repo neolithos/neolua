@@ -95,6 +95,7 @@ namespace Neo.IronLua
 		Boolean = 0x10,
 		Char = 0x20,
 		String = 0x30,
+		Guid = 0x31,
 
 		SByte = 0x41,
 		Byte = 0x53,
@@ -104,7 +105,6 @@ namespace Neo.IronLua
 		UInt32 = 0x93,
 		Int64 = 0xA1,
 		UInt64 = 0xB3,
-		Guid = 0xBF,
 
 		Single = 0xC0,
 		Double = 0xD0,
