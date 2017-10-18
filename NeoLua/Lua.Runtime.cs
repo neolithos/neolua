@@ -812,9 +812,6 @@ namespace Neo.IronLua
 								case LuaEmitTypeCode.Decimal:
 									value = Convert.ToDecimal(value, CultureInfo.InvariantCulture);
 									break;
-								case LuaEmitTypeCode.Guid:
-									value = Guid.Parse((string)value);
-									break;
 
 								default:
 									throw new InvalidOperationException("TypeCode unknown");

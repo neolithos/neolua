@@ -3930,7 +3930,6 @@ namespace Neo.IronLua
 						break;
 					case LuaEmitTypeCode.String:
 					case LuaEmitTypeCode.Char:
-					case LuaEmitTypeCode.CharArray:
 						var s = (LuaEmit.GetTypeCode(value.GetType()) == LuaEmitTypeCode.String) ? (string)value : (value).ToString();
 						tw.Write("\"");
 						for (var i = 0; i < s.Length; i++)
@@ -3980,15 +3979,17 @@ namespace Neo.IronLua
 						tw.Write(((DateTime)value).ToString(System.Globalization.CultureInfo.InvariantCulture));
 						tw.Write("\"");
 						break;
-					case LuaEmitTypeCode.Guid:
-						tw.Write("\"");
-						tw.Write(((Guid)value).ToString());
-						tw.Write("\"");
-						break;
 					case LuaEmitTypeCode.Object:
 						if (value.GetType() == typeof(LuaTable))
 						{
 							ToLson((LuaTable)value, tw, currentLevel);
+							break;
+						}
+						else if (value.GetType() == typeof(Guid))
+						{
+							tw.Write("\"");
+							tw.Write(((Guid)value).ToString());
+							tw.Write("\"");
 							break;
 						}
 						else

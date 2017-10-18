@@ -94,9 +94,7 @@ namespace Neo.IronLua
 		Object = 0,
 		Boolean = 0x10,
 		Char = 0x20,
-		CharArray = 0x21,
 		String = 0x30,
-		Guid = 0x31,
 
 		SByte = 0x41,
 		Byte = 0x53,
@@ -171,8 +169,6 @@ namespace Neo.IronLua
 				case 'C':
 					if (type == typeof(Char))
 						return LuaEmitTypeCode.Char;
-					else if (type == typeof(Char[]))
-						return LuaEmitTypeCode.CharArray;
 					else
 						return LuaEmitTypeCode.Object;
 				case 'D':
@@ -182,11 +178,6 @@ namespace Neo.IronLua
 						return LuaEmitTypeCode.Decimal;
 					else if (type == typeof(DateTime))
 						return LuaEmitTypeCode.DateTime;
-					else
-						return LuaEmitTypeCode.Object;
-				case 'G':
-					if (type == typeof(Guid))
-						return LuaEmitTypeCode.Guid;
 					else
 						return LuaEmitTypeCode.Object;
 				case 'I':

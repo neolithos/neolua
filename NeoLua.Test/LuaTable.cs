@@ -1272,13 +1272,17 @@ namespace LuaDLR.Test
 		public void TestLsonTypes()
 		{
 			LuaTable t;
+			var timestamp = DateTime.Now;
+			var guid = Guid.NewGuid();
 
 			t = new LuaTable()
 			{
 				["int64max"] = Int64.MaxValue,
 				["uint64"] = UInt64.MaxValue,
 				["string"] = "test",
-				["char"] = '+'
+				["char"] = '+',
+				["DateTime"] = timestamp,
+				["Guid"] = guid
 			};
 			var result = LuaTable.FromLson(t.ToLson());
 
@@ -1286,6 +1290,8 @@ namespace LuaDLR.Test
 			Assert.AreEqual(UInt64.MaxValue, result["uint64"]);
 			Assert.AreEqual("test", result["string"]);
 			Assert.AreEqual("+", result["char"]);
+			Assert.AreEqual(timestamp.ToString(System.Globalization.CultureInfo.InvariantCulture), result["DateTime"]);
+			Assert.AreEqual(guid.ToString(), result["Guid"]);
 		}
 
 		[TestMethod]
