@@ -167,7 +167,10 @@ namespace Neo.IronLua
 					else
 						return LuaEmitTypeCode.Object;
 				case 'C':
-					return type == typeof(Char) ? LuaEmitTypeCode.Char : LuaEmitTypeCode.Object;
+					if (type == typeof(Char))
+						return LuaEmitTypeCode.Char;
+					else
+						return LuaEmitTypeCode.Object;
 				case 'D':
 					if (type == typeof(Double))
 						return LuaEmitTypeCode.Double;

@@ -937,7 +937,7 @@ namespace LuaDLR.Test
 		{
 			var n = t.NextKey(null);
 			var i = 0;
-			while(n != null)
+			while (n != null)
 			{
 				Assert.AreEqual(expected[i], n, $"KeyIndex = {i}");
 				n = t.NextKey(n);
@@ -1041,7 +1041,7 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
-		public void TestJson01()
+		public void TestLson01()
 		{
 			var t = new LuaTable()
 			{
@@ -1064,6 +1064,270 @@ namespace LuaDLR.Test
 			var t2 = LuaTable.FromLson(s);
 
 			Assert.AreEqual(10, t2.Values.Count);
+		}
+
+		[TestMethod]
+		public void TestLsonInt64MinValue()
+		{
+			var t = new LuaTable()
+			{
+				["test"] = Int64.MinValue
+			};
+
+			Assert.AreEqual(Int64.MinValue, LuaTable.FromLson(t.ToLson())["test"]);
+		}
+
+		[TestMethod]
+		public void TestLsonDouble()
+		{
+			var t = new LuaTable()
+			{
+				["test"] = 1.0
+			};
+
+			Assert.AreEqual(1.0, LuaTable.FromLson(t.ToLson())["test"]);
+		}
+
+		[TestMethod]
+		public void TestLsonSpecialChars()
+		{
+			LuaTable t;
+
+			t = new LuaTable()
+			{
+				["string_unicode"] = "ⓛ",
+				["string_esc1"] = "\0",
+				["string2"] = "\"",
+				["stringⓛ3"] = "test",
+				["stri\nng4"] = "test",
+				["stri\\nng5"] = "test",
+				["stri\\\nng6"] = "test",
+				["stri{ng7"] = "test",
+				["{[\"stri{ng7\"]=\"test\"}8"] = "test",
+				["stri\x4e00ng9"] = "test"
+			};
+			var result = LuaTable.FromLson(t.ToLson());
+
+			Assert.AreEqual("ⓛ", result["string_unicode"]);
+			Assert.AreEqual("\0", result["string_esc1"]);
+			Assert.AreEqual("\"", result["string2"]);
+			Assert.AreEqual("test", result["stringⓛ3"]);
+			Assert.AreEqual("test", result["stri\nng4"]);
+			Assert.AreEqual("test", result["stri\\nng5"]);
+			Assert.AreEqual("test", result["stri\\\nng6"]);
+			Assert.AreEqual("test", result["stri{ng7"]);
+			Assert.AreEqual("test", result["{[\"stri{ng7\"]=\"test\"}8"]);
+			Assert.AreEqual("test", result["stri\x4e00ng9"]);
+
+			t = new LuaTable()
+			{
+				["test1"] = "_test"
+			};
+			Assert.AreEqual("_test", LuaTable.FromLson(t.ToLson())["test1"]);
+
+			t = new LuaTable()
+			{
+				["_test2"] = "test"
+			};
+			Assert.AreEqual("test", LuaTable.FromLson(t.ToLson())["_test2"]);
+
+
+			var keywords = (
+					from fi in typeof(LuaToken).GetTypeInfo().DeclaredFields
+					let a = fi.GetCustomAttribute<TokenNameAttribute>()
+					where a != null && fi.IsStatic && fi.Name.StartsWith("Kw")
+					orderby a.Name
+					select a.Name
+				).ToArray();
+			foreach (var keyword in keywords)
+			{
+				t = new LuaTable()
+				{
+					[keyword] = "test"
+				};
+				Assert.IsTrue(t.ToLson(false).IndexOf($"[\"{keyword}\"]") >= 0);
+			}
+
+			foreach (var keyword in keywords)
+			{
+				try
+				{
+					var tt = LuaTable.FromLson("{" + keyword + "=\"test\"}");
+					Assert.Fail("A keyword was parsed as a member name.");
+				}
+				catch (LuaParseException)
+				{ }
+			}
+		}
+
+		[TestMethod]
+		public void TestLsonParser()
+		{
+			LuaTable t;
+
+			t = LuaTable.FromLson("{test=\"1.0\"}");
+			Assert.AreEqual(typeof(string), t["test"].GetType());
+
+			t = LuaTable.FromLson("{test=1.0}");
+			Assert.AreEqual(1.0, t["test"]);
+
+			t = LuaTable.FromLson("{test=1.}");
+			Assert.AreEqual(1.0, t["test"]);
+
+			t = LuaTable.FromLson("{test=1}");
+			Assert.AreEqual(1, t["test"]);
+
+			t = LuaTable.FromLson("{test=" + Int64.MaxValue + "0" + "}");
+			Assert.AreEqual(Int64.MaxValue * 10.0, t["test"]);
+
+			try
+			{
+				t = LuaTable.FromLson("{test=_test}");
+				Assert.Fail("Value starting with underscore must not be parsed");
+			}
+			catch (LuaParseException)
+			{ }
+
+			try
+			{
+				t = LuaTable.FromLson("{test=" + Double.PositiveInfinity.ToString() + "}");
+				Assert.Fail("Illegal number parsed without Error.");
+			}
+			catch (LuaParseException)
+			{ }
+		}
+
+		[TestMethod]
+		public void TestLsonNumberBoundaries()
+		{
+			try
+			{
+				var t = LuaTable.FromLson("{test=" + Double.MaxValue + "0" + "}");
+				Assert.Fail("Illegal number parsed without Error.");
+			}
+			catch (LuaParseException)
+			{ }
+		}
+
+		/// <summary>
+		/// Some of the testcases require unpretty Lson to have a standart format
+		/// </summary>
+		[TestMethod]
+		public void TestLsonUnpretty()
+		{
+			LuaTable t;
+
+			t = new LuaTable()
+			{
+				["string_unicode"] = "ⓛ",
+				["string_esc1"] = "\0",
+				["string2"] = "\"",
+				["stringⓛ3"] = "test",
+				["stri\nng4  "] = "test",
+				["stri\\nng5"] = "test  ",
+				["stri\\\nng6"] = "test",
+				["stri{ng7"] = "test",
+				["{[\"stri{ng7\"]=\"test\"}8"] = "test",
+				["stri\x4e00ng9"] = "test"
+			};
+			var s = t.ToLson(false);
+
+			var hyphen = 0;
+
+			for (var i = 0; i < s.Length; i++)
+			{
+				if (s[i] == '"')
+				{
+					hyphen++;
+					continue;
+				}
+
+				if (hyphen % 2 == 1)
+				{
+					// the character is not escaped
+					switch (s[i])
+					{
+						case ' ':
+							Assert.Fail("Unprettyfied Lson must not include whitespaces.");
+							break;
+						case '\t':
+							Assert.Fail("Unprettyfied Lson must not include tabs.");
+							break;
+						case '\v':
+							Assert.Fail("Unprettyfied Lson must not include vertical tabs.");
+							break;
+						case '\r':
+							Assert.Fail("Unprettyfied Lson must not include newline.");
+							break;
+						case '\n':
+							Assert.Fail("Unprettyfied Lson must not include newline.");
+							break;
+					}
+				}
+			}
+
+		}
+
+		[TestMethod]
+		public void TestLsonTypes()
+		{
+			LuaTable t;
+			var timestamp = DateTime.Now;
+			var guid = Guid.NewGuid();
+
+			t = new LuaTable()
+			{
+				["int64max"] = Int64.MaxValue,
+				["uint64"] = UInt64.MaxValue,
+				["string"] = "test",
+				["char"] = '+',
+				["DateTime"] = timestamp,
+				["Guid"] = guid
+			};
+			var result = LuaTable.FromLson(t.ToLson());
+
+			Assert.AreEqual(Int64.MaxValue, result["int64max"]);
+			Assert.AreEqual(UInt64.MaxValue, result["uint64"]);
+			Assert.AreEqual("test", result["string"]);
+			Assert.AreEqual("+", result["char"]);
+			Assert.AreEqual(timestamp.ToString(System.Globalization.CultureInfo.InvariantCulture), result["DateTime"]);
+			Assert.AreEqual(guid.ToString(), result["Guid"]);
+		}
+
+		[TestMethod]
+		public void TestLsonDateTime()
+		{
+			var timestamp = DateTime.Now;
+
+			var t = new LuaTable()
+			{
+				["today"] = timestamp
+			};
+			Assert.IsTrue(t.ToLson().IndexOf("\"" + timestamp.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\"") >= 0);
+		}
+
+		[TestMethod]
+		public void TestLsonGuid()
+		{
+			var guid = Guid.NewGuid();
+
+			var t = new LuaTable()
+			{
+				["guid"] = guid
+			};
+			Assert.IsTrue(t.ToLson().IndexOf("\"" + guid.ToString() + "\"") >= 0);
+		}
+
+		[TestMethod]
+		public void TestLsonCharArray()
+		{
+			var chara = "test".ToCharArray();
+
+			var t = new LuaTable()
+			{
+				["chararray"] = chara
+			};
+			Assert.IsTrue(t.ToLson().IndexOf("\"" + chara.ToString() + "\"") >= 0);
 		}
 	} // class LuaTableTests
 }

@@ -3893,11 +3893,13 @@ namespace Neo.IronLua
 		{
 			// recursion, keywords test, special chars
 
-			//void WriteIndent()
-			//{
-			//	for (var i = 0; i < currentLevel * 2; i++)
-			//		sw.Write(' ');
-			//} // proc WriteIndent
+			void WriteIndent(bool stepOut = false)
+			{
+				if (currentLevel == -1)
+					return;
+				for (var i = 0; i < (currentLevel - (stepOut ? 1 : 0)) * 2; i++)
+					tw.Write(' ');
+			} // proc WriteIndent
 
 			bool IsMember(string member)
 			{
@@ -3921,18 +3923,22 @@ namespace Neo.IronLua
 
 			void WriteValue(object value)
 			{
-				switch (LuaEmit.GetTypeCode( value.GetType()))
+				switch (LuaEmit.GetTypeCode(value.GetType()))
 				{
 					case LuaEmitTypeCode.Boolean:
 						tw.Write((bool)value ? "true" : "false");
 						break;
 					case LuaEmitTypeCode.String:
-						var s = (string)value;
+					case LuaEmitTypeCode.Char:
+						var s = (LuaEmit.GetTypeCode(value.GetType()) == LuaEmitTypeCode.String) ? (string)value : (value).ToString();
 						tw.Write("\"");
 						for (var i = 0; i < s.Length; i++)
 						{
 							switch (s[i])
 							{
+								case '\\':
+									tw.Write("\\\\");
+									break;
 								case '"':
 									tw.Write("\\\"");
 									break;
@@ -3965,20 +3971,31 @@ namespace Neo.IronLua
 					case LuaEmitTypeCode.Single:
 					case LuaEmitTypeCode.Double:
 					case LuaEmitTypeCode.Decimal:
-						tw.Write(value); // todo: force 0.0
+						var tmp = value.ToString();
+						tw.Write(tmp + (tmp.Contains(".") ? String.Empty : ".0"));
 						break;
-
+					case LuaEmitTypeCode.DateTime:
+						tw.Write("\"");
+						tw.Write(((DateTime)value).ToString(System.Globalization.CultureInfo.InvariantCulture));
+						tw.Write("\"");
+						break;
 					case LuaEmitTypeCode.Object:
-						// todo: guid, date -> string
 						if (value.GetType() == typeof(LuaTable))
 						{
-							ToLson((LuaTable)value, tw, currentLevel >= 0 ? currentLevel + 1 : currentLevel);
+							ToLson((LuaTable)value, tw, currentLevel);
+							break;
+						}
+						else if (value.GetType() == typeof(Guid))
+						{
+							tw.Write("\"");
+							tw.Write(((Guid)value).ToString());
+							tw.Write("\"");
 							break;
 						}
 						else
 							goto default;
 					default:
-						throw new ArgumentException("type?"); // todo:
+						throw new ArgumentException($"The type \"{value.GetType()}\" is not supported.");
 				}
 			} // proc WriteValue
 
@@ -4000,6 +4017,7 @@ namespace Neo.IronLua
 				tw.Write("{");
 				var first = true;
 				var skipCommand = false;
+				currentLevel = currentLevel == -1 ? -1 : currentLevel + 1;
 				foreach (var kv in table.Values)
 				{
 					// comma
@@ -4012,7 +4030,8 @@ namespace Neo.IronLua
 						else
 							tw.Write(',');
 					}
-
+					tw.Write(currentLevel != -1 ? "\n" : String.Empty);
+					WriteIndent();
 					// use array notation
 					var isIndex = false;
 					if ((isIndex = IsIndexKey(kv.Key, out var index)) && lastIndex + 1 == index && kv.Value != null)
@@ -4028,12 +4047,15 @@ namespace Neo.IronLua
 							WriteMember(member);
 						else
 							WriteKey(kv.Key);
-						tw.Write("=");
+						tw.Write(currentLevel == -1 ? "=" : " = ");
 						WriteValue(kv.Value);
 					}
 					else
 						skipCommand = true;
 				}
+
+				tw.Write(currentLevel != -1 ? "\n" : String.Empty);
+				WriteIndent(true);
 				tw.Write("}");
 			}
 			else
