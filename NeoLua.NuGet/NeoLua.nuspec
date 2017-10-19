@@ -5,8 +5,8 @@
 		<version>$version$</version>
 		<title>NeoLua</title>
 		<authors>Neolithos</authors>
-		<projectUrl>https://neolua.codeplex.com/</projectUrl>
-		<licenseUrl>https://neolua.codeplex.com/license</licenseUrl>
+		<projectUrl>https://github.com/neolithos/neolua/</projectUrl>
+		<licenseUrl>https://github.com/neolithos/neolua/blob/master/LICENSE.md</licenseUrl>
 		<requireLicenseAcceptance>false</requireLicenseAcceptance>
 		<description>A Lua implementation for the Dynamic Language Runtime (DLR).</description>
 		<summary>
