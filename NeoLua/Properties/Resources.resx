@@ -288,6 +288,9 @@
   <data name="rsTableOperatorNotFound" xml:space="preserve">
     <value>Operator '{0}' is not defined for the table.</value>
   </data>
+  <data name="rsTableRecursionLevelError" xml:space="preserve">
+    <value>Recursion level is to deep.</value>
+  </data>
   <data name="rsTypeAliasInvalidName" xml:space="preserve">
     <value>Name for type alias is invalid '{0}'.</value>
   </data>
@@ -299,6 +302,9 @@
   </data>
   <data name="rsTypeInvalidType" xml:space="preserve">
     <value>'{0}' is a pointer or byref type. These types can not converted to a LuaType.</value>
+  </data>
+  <data name="rsTypeIsNotSupported" xml:space="preserve">
+    <value>The type "{0}" is not supported.</value>
   </data>
   <data name="rsTypeParseError" xml:space="preserve">
     <value>Invalid type format for '{0}' (unexpected: {1} at {2}; expected: {3})</value>

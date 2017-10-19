@@ -20,7 +20,7 @@ namespace Neo.IronLua.Properties {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "4.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "15.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Resources {
@@ -575,6 +575,15 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Recursion level is to deep..
+        /// </summary>
+        internal static string rsTableRecursionLevelError {
+            get {
+                return ResourceManager.GetString("rsTableRecursionLevelError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Name for type alias is invalid &apos;{0}&apos;..
         /// </summary>
         internal static string rsTypeAliasInvalidName {
@@ -607,6 +616,15 @@ namespace Neo.IronLua.Properties {
         internal static string rsTypeInvalidType {
             get {
                 return ResourceManager.GetString("rsTypeInvalidType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The type &quot;{0}&quot; is not supported..
+        /// </summary>
+        internal static string rsTypeIsNotSupported {
+            get {
+                return ResourceManager.GetString("rsTypeIsNotSupported", resourceCulture);
             }
         }
         

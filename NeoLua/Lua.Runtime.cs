@@ -731,8 +731,8 @@ namespace Neo.IronLua
 				}
 				else
 				{
-					TypeInfo typeinfoTo = toType.GetTypeInfo();
-					TypeInfo typeinfoFrom = fromType.GetTypeInfo();
+					var typeinfoTo = toType.GetTypeInfo();
+					var typeinfoFrom = fromType.GetTypeInfo();
 
 					if (typeinfoTo.BaseType == typeof(MulticastDelegate) && typeinfoTo.BaseType == typeinfoFrom.BaseType)
 						return RtConvertDelegate(toType, (Delegate)value);

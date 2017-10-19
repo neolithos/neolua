@@ -215,3 +215,56 @@ o.add(2);
 o.add(3);
 Console.WriteLine(o.sum);
 ```
+
+## Serialize/Deserialize to a Lua Script Object Notation (Lson)
+
+To create a string representation of a `table` use the `ToLson` function. To reparse the string use `FromLson`.
+
+```Lua
+local str = table.ToLson{
+	a = 42,
+	23
+};
+
+local t = table.FromLson(str);
+```
+
+The content of the variable `str` should be look like:
+```
+{
+	a = 42,
+	23
+}
+```
+
+If you do not want the indentation set the secound parameter to `false`,
+
+```Lua
+local str = table.ToLson({
+	a = 42,
+	23
+}, false);
+```
+
+The result will be:
+```
+{a=42,23}
+```
+
+ If you want to change the indentation set the thrid parameter to an pattern.
+```Lua
+local str = table.ToLson({
+	a = 42,
+	23
+}, true, "  ");
+```
+
+Result:
+```
+{
+  a = 42,
+  23
+}
+```
+
+Types supported are the primitive type (e.g. `int`, `long `,`string`, `bool`, `single`, `double`, ...) and `Guid`, `DateTime`, `char[]`.

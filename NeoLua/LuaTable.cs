@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Dynamic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
@@ -3889,16 +3890,16 @@ namespace Neo.IronLua
 
 		#region -- Lua Script Object Notation -- To -------------------------------------
 
-		private static void ToLson(LuaTable table, TextWriter tw, int currentLevel)
+		private static void ToLson(LuaTable table, TextWriter tw, bool prettyFormatted, int currentLevel, string indent)
 		{
-			// recursion, keywords test, special chars
-
-			void WriteIndent(bool stepOut = false)
+			void WriteIndent()
 			{
-				if (currentLevel == -1)
+				if (!prettyFormatted)
 					return;
-				for (var i = 0; i < (currentLevel - (stepOut ? 1 : 0)) * 2; i++)
-					tw.Write(' ');
+
+				tw.WriteLine();
+				for (var i = 0; i < currentLevel; i++)
+					tw.Write(indent);
 			} // proc WriteIndent
 
 			bool IsMember(string member)
@@ -3923,41 +3924,51 @@ namespace Neo.IronLua
 
 			void WriteValue(object value)
 			{
-				switch (LuaEmit.GetTypeCode(value.GetType()))
+				var type = value.GetType();
+				var typeCode = LuaEmit.GetTypeCode(type);
+				switch (typeCode)
 				{
 					case LuaEmitTypeCode.Boolean:
 						tw.Write((bool)value ? "true" : "false");
 						break;
 					case LuaEmitTypeCode.String:
-					case LuaEmitTypeCode.Char:
-						var s = (LuaEmit.GetTypeCode(value.GetType()) == LuaEmitTypeCode.String) ? (string)value : (value).ToString();
-						tw.Write("\"");
-						for (var i = 0; i < s.Length; i++)
 						{
-							switch (s[i])
+							var s = (string)value;
+							tw.Write("\"");
+							for (var i = 0; i < s.Length; i++)
 							{
-								case '\\':
-									tw.Write("\\\\");
-									break;
-								case '"':
-									tw.Write("\\\"");
-									break;
-								case '\n':
-									tw.Write("\\n");
-									break;
-								case '\r':
-									tw.Write("\\r");
-									break;
-								case '\t':
-									tw.Write("\\t");
-									break;
-								default:
-									tw.Write(s[i]);
-									break;
+								switch (s[i])
+								{
+									case '\0':
+										tw.Write("\x00");
+										break;
+									case '\\':
+										tw.Write("\\\\");
+										break;
+									case '"':
+										tw.Write("\\\"");
+										break;
+									case '\n':
+										tw.Write("\\n");
+										break;
+									case '\r':
+										tw.Write("\\r");
+										break;
+									case '\t':
+										tw.Write("\\t");
+										break;
+									default:
+										tw.Write(s[i]);
+										break;
+								}
 							}
+							tw.Write("\"");
 						}
-						tw.Write("\"");
 						break;
+					case LuaEmitTypeCode.Char:
+						value = value.ToString();
+						goto case LuaEmitTypeCode.String;
+
 					case LuaEmitTypeCode.Byte:
 					case LuaEmitTypeCode.SByte:
 					case LuaEmitTypeCode.Int16:
@@ -3968,34 +3979,46 @@ namespace Neo.IronLua
 					case LuaEmitTypeCode.UInt64:
 						tw.Write(value);
 						break;
+
 					case LuaEmitTypeCode.Single:
 					case LuaEmitTypeCode.Double:
 					case LuaEmitTypeCode.Decimal:
-						var tmp = value.ToString();
-						tw.Write(tmp + (tmp.Contains(".") ? String.Empty : ".0"));
-						break;
-					case LuaEmitTypeCode.DateTime:
-						tw.Write("\"");
-						tw.Write(((DateTime)value).ToString(System.Globalization.CultureInfo.InvariantCulture));
-						tw.Write("\"");
-						break;
-					case LuaEmitTypeCode.Object:
-						if (value.GetType() == typeof(LuaTable))
 						{
-							ToLson((LuaTable)value, tw, currentLevel);
+							var num = Convert.ToString(value, CultureInfo.InvariantCulture);
+							if (num.IndexOfAny(new char[] { '.', 'e', 'E' }) == -1)
+							{
+								tw.Write(num);
+								tw.Write(".0");
+							}
+							else
+								tw.Write(num);
+						}
+						break;
+
+					case LuaEmitTypeCode.DateTime:
+						value = ((DateTime)value).ToString("o"); // ISO8601
+						goto case LuaEmitTypeCode.String;
+
+					case LuaEmitTypeCode.Object:
+						if (type == typeof(LuaTable))
+						{
+							ToLson((LuaTable)value, tw, prettyFormatted, currentLevel + 1, indent);
 							break;
 						}
-						else if (value.GetType() == typeof(Guid))
+						else if (type == typeof(Guid))
 						{
-							tw.Write("\"");
-							tw.Write(((Guid)value).ToString());
-							tw.Write("\"");
-							break;
+							value = ((Guid)value).ToString("B");
+							goto case LuaEmitTypeCode.String;
+						}
+						else if(type == typeof(char[]))
+						{
+							value = new string((char[])value);
+							goto case LuaEmitTypeCode.String;
 						}
 						else
 							goto default;
 					default:
-						throw new ArgumentException($"The type \"{value.GetType()}\" is not supported.");
+						throw new ArgumentException(String.Format(Properties.Resources.rsTypeIsNotSupported, type.Name));
 				}
 			} // proc WriteValue
 
@@ -4011,13 +4034,15 @@ namespace Neo.IronLua
 				tw.Write("]");
 			} // proc WriteKey
 
+			if (currentLevel > 100)
+				throw new ArgumentOutOfRangeException(nameof(table), Properties.Resources.rsTableRecursionLevelError);
+
 			var lastIndex = 0;
 			if (table.Values.Count > 0)
 			{
 				tw.Write("{");
 				var first = true;
 				var skipCommand = false;
-				currentLevel = currentLevel == -1 ? -1 : currentLevel + 1;
 				foreach (var kv in table.Values)
 				{
 					// comma
@@ -4030,8 +4055,10 @@ namespace Neo.IronLua
 						else
 							tw.Write(',');
 					}
-					tw.Write(currentLevel != -1 ? "\n" : String.Empty);
+
+					// formatting
 					WriteIndent();
+
 					// use array notation
 					var isIndex = false;
 					if ((isIndex = IsIndexKey(kv.Key, out var index)) && lastIndex + 1 == index && kv.Value != null)
@@ -4047,15 +4074,17 @@ namespace Neo.IronLua
 							WriteMember(member);
 						else
 							WriteKey(kv.Key);
-						tw.Write(currentLevel == -1 ? "=" : " = ");
+						tw.Write(prettyFormatted ? " = " : "=");
 						WriteValue(kv.Value);
 					}
 					else
 						skipCommand = true;
 				}
 
-				tw.Write(currentLevel != -1 ? "\n" : String.Empty);
-				WriteIndent(true);
+				// formatting
+				currentLevel--;
+				WriteIndent();
+
 				tw.Write("}");
 			}
 			else
@@ -4064,22 +4093,31 @@ namespace Neo.IronLua
 
 		/// <summary>Convert the table to a string</summary>
 		/// <param name="table"></param>
-		/// <param name="tw"></param>
 		/// <param name="prettyFormatting"></param>
-		public static void ToLson(LuaTable table, TextWriter tw, bool prettyFormatting = true)
-			=> ToLson(table, tw, prettyFormatting ? 0 : -1);
-
-		/// <summary>Convert the table to a string</summary>
-		/// <param name="prettyFormatting"></param>
-		/// <returns></returns>
-		public string ToLson(bool prettyFormatting = true)
+		/// <param name="indent"></param>
+		public static string ToLson(LuaTable table, bool prettyFormatting = true, string indent = "\t")
 		{
 			using (var sw = new StringWriter())
 			{
-				ToLson(this, sw, prettyFormatting);
+				ToLson(table, sw, prettyFormatting, indent);
 				return sw.GetStringBuilder().ToString();
 			}
 		} // func ToLson
+
+		/// <summary>Convert the table to a string</summary>
+		/// <param name="table"></param>
+		/// <param name="tw"></param>
+		/// <param name="prettyFormatting"></param>
+		/// <param name="indent"></param>
+		public static void ToLson(LuaTable table, TextWriter tw, bool prettyFormatting = true, string indent = "\t")
+			=> ToLson(table, tw, prettyFormatting, 1, indent);
+
+		/// <summary>Convert the table to a string</summary>
+		/// <param name="prettyFormatting"></param>
+		/// <param name="indent"></param>
+		/// <returns></returns>
+		public string ToLson(bool prettyFormatting = true, string indent = "\t")
+			=> ToLson(this, prettyFormatting, indent);
 
 		#endregion
 

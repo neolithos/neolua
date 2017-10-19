@@ -1064,18 +1064,7 @@ namespace LuaDLR.Test
 
 			Assert.AreEqual(10, t2.Values.Count);
 		}
-
-		[TestMethod]
-		public void TestLsonInt64MinValue()
-		{
-			var t = new LuaTable()
-			{
-				["test"] = Int64.MinValue
-			};
-
-			Assert.AreEqual(Int64.MinValue, LuaTable.FromLson(t.ToLson())["test"]);
-		}
-
+		
 		[TestMethod]
 		public void TestLsonDouble()
 		{
@@ -1199,13 +1188,8 @@ namespace LuaDLR.Test
 		[TestMethod]
 		public void TestLsonNumberBoundaries()
 		{
-			try
-			{
-				var t = LuaTable.FromLson("{test=" + Double.MaxValue + "0" + "}");
-				Assert.Fail("Illegal number parsed without Error.");
-			}
-			catch (LuaParseException)
-			{ }
+			var t = LuaTable.FromLson("{test=" + Lua.RtConvertValue(Double.MaxValue, typeof(string)) + "0" + "}");
+			Assert.AreEqual(Double.PositiveInfinity, t["test"]);
 		}
 
 		/// <summary>
@@ -1230,6 +1214,8 @@ namespace LuaDLR.Test
 				["stri\x4e00ng9"] = "test"
 			};
 			var s = t.ToLson(false);
+
+			Console.WriteLine(s);
 
 			var hyphen = 0;
 
@@ -1289,8 +1275,8 @@ namespace LuaDLR.Test
 			Assert.AreEqual(UInt64.MaxValue, result["uint64"]);
 			Assert.AreEqual("test", result["string"]);
 			Assert.AreEqual("+", result["char"]);
-			Assert.AreEqual(timestamp.ToString(System.Globalization.CultureInfo.InvariantCulture), result["DateTime"]);
-			Assert.AreEqual(guid.ToString(), result["Guid"]);
+			Assert.AreEqual(timestamp.ToString("o"), result["DateTime"]);
+			Assert.AreEqual(guid.ToString("B"), result["Guid"]);
 		}
 
 		[TestMethod]
@@ -1300,9 +1286,12 @@ namespace LuaDLR.Test
 
 			var t = new LuaTable()
 			{
-				["today"] = timestamp
+				["today1"] = timestamp,
+				["today2"] = timestamp.ToUniversalTime()
 			};
-			Assert.IsTrue(t.ToLson().IndexOf("\"" + timestamp.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\"") >= 0);
+			var s = t.ToLson(false);
+			Console.WriteLine(s);
+			Assert.AreEqual(String.Format("{{today1=\"{0:o}\",today2=\"{1:o}\"}}", timestamp, timestamp.ToUniversalTime()), s);
 		}
 
 		[TestMethod]
@@ -1314,7 +1303,9 @@ namespace LuaDLR.Test
 			{
 				["guid"] = guid
 			};
-			Assert.IsTrue(t.ToLson().IndexOf("\"" + guid.ToString() + "\"") >= 0);
+			var s = t.ToLson(false);
+			Console.WriteLine(s);
+			Assert.AreEqual(String.Format("{{guid=\"{0:B}\"}}", guid), s);
 		}
 
 		[TestMethod]
@@ -1326,7 +1317,26 @@ namespace LuaDLR.Test
 			{
 				["chararray"] = chara
 			};
-			Assert.IsTrue(t.ToLson().IndexOf("\"" + chara.ToString() + "\"") >= 0);
+			var s = t.ToLson(false);
+			Console.WriteLine(s);
+			Assert.AreEqual("{chararray=\"test\"}", s);
+		}
+
+		[TestMethod]
+		public void TestLsonLevel()
+		{
+			var t = new LuaTable();
+			t["a"] = t;
+
+			try
+			{
+				t.ToLson();
+				Assert.Fail();
+			}
+			catch (Exception e)
+			{
+				Console.WriteLine(e.Message);
+			}
 		}
 
 		[TestMethod]

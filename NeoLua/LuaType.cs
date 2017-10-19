@@ -540,7 +540,7 @@ namespace Neo.IronLua
 		/// <summary></summary>
 		/// <param name="other"></param>
 		/// <returns></returns>
-		public bool Equals(object other)
+		public override bool Equals(object other)
 		{
 			if (other is LuaType o)
 				return fullName == o.fullName;

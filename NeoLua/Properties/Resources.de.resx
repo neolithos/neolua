@@ -288,6 +288,9 @@
   <data name="rsTableOperatorNotFound" xml:space="preserve">
     <value>Operator '{0}' ist für die Table nicht definiert.</value>
   </data>
+  <data name="rsTableRecursionLevelError" xml:space="preserve">
+    <value>Tabelle ist zu tief geschachtelt.</value>
+  </data>
   <data name="rsTypeAliasInvalidName" xml:space="preserve">
     <value>Name für Type ist ungültig '{0}'.</value>
   </data>
@@ -299,6 +302,9 @@
   </data>
   <data name="rsTypeInvalidType" xml:space="preserve">
     <value>Bei '{0}' handelt es sich um einen GenericParamater-, Pointer- oder Byreftyp. Die Typen können nicht in einen LuaType umgewandelt werden.</value>
+  </data>
+  <data name="rsTypeIsNotSupported" xml:space="preserve">
+    <value>Type '{0} wird nicht unterstützt.</value>
   </data>
   <data name="rsTypeParseError" xml:space="preserve">
     <value>Ungültige Typebeschreibung '{0}' (unerwartet: {1} bei {2}; erwartet: {3})</value>
