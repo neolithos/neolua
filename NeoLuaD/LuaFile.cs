@@ -14,6 +14,10 @@ namespace Neo.IronLua
 
 		#region -- Ctor/Dtor --------------------------------------------------------------
 
+		/// <summary></summary>
+		/// <param name="src"></param>
+		/// <param name="tr"></param>
+		/// <param name="tw"></param>
 		protected LuaFileStream(FileStream src, StreamReader tr, StreamWriter tw)
 			: base(tr, tw)
 		{
@@ -151,12 +155,19 @@ namespace Neo.IronLua
 	{
 		private readonly string fileName;
 
+		/// <summary></summary>
+		/// <param name="fileName"></param>
+		/// <param name="src"></param>
+		/// <param name="tr"></param>
+		/// <param name="tw"></param>
 		protected LuaTempFile(string fileName, FileStream src, StreamReader tr, StreamWriter tw)
 			: base(src, tr, tw)
 		{
 			this.fileName = fileName ?? throw new ArgumentNullException(nameof(fileName));
 		} // ctor
 
+		/// <summary></summary>
+		/// <param name="disposing"></param>
 		protected override void Dispose(bool disposing)
 		{
 			base.Dispose(disposing);

@@ -6,6 +6,6 @@
 [assembly: AssemblyTrademark("")]
 
 [assembly: AssemblyVersion("5.3.0.0")]
-[assembly: AssemblyFileVersion("1.2.22.0")]
+[assembly: AssemblyFileVersion("1.2.23.0")]
 [assembly: AssemblyConfiguration("")]
 //[assembly: AssemblyConfiguration("beta")]
