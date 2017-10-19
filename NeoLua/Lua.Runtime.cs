@@ -348,7 +348,7 @@ namespace Neo.IronLua
 					return 0;
 				else
 				{
-					char c = number[offset];
+					var c = number[offset];
 					if (c == 'x' || c == 'X')
 					{
 						numberBase = 16;

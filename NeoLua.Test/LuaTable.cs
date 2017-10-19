@@ -1055,7 +1055,6 @@ namespace LuaDLR.Test
 				[2] = 2,
 				[3] = 3,
 				[10] = 10
-
 			};
 
 			var s = t.ToLson();
@@ -1064,6 +1063,13 @@ namespace LuaDLR.Test
 			var t2 = LuaTable.FromLson(s);
 
 			Assert.AreEqual(10, t2.Values.Count);
+		}
+
+		[TestMethod]
+		public void TestFromLson01()
+		{
+			dynamic t = LuaTable.FromLson("{ a = true, b = false, c = 10, d = 1099511627776, e = 'test', f = 1.0, g = 1.23, h = 1e10 }");
+			TestResult(new LuaResult(t.a, t.b, t.c, t.d, t.e, t.f, t.g, t.h), true, false, 10, 1099511627776L, "test", 1.0, 1.23, 1e10);
 		}
 	} // class LuaTableTests
 }
