@@ -36,7 +36,7 @@ namespace Neo.IronLua
 
 		public bool MoveNext()
 		{
-			if (file.IsClosed || file.TextReader.EndOfStream)
+			if (file.IsClosed || file.IsEndOfStream)
 			{
 				if (closeOnEnd)
 					file.close();
@@ -71,8 +71,8 @@ namespace Neo.IronLua
 	public class LuaFile : IDisposable
 	{
 		private readonly object syncLock = new object();
-		private readonly StreamReader tr;
-		private readonly StreamWriter tw;
+		private readonly TextReader tr;
+		private readonly TextWriter tw;
 		private bool isClosed = false;
 
 		#region -- Ctor/Dtor --------------------------------------------------------------
@@ -80,7 +80,7 @@ namespace Neo.IronLua
 		/// <summary></summary>
 		/// <param name="tr"></param>
 		/// <param name="tw"></param>
-		protected LuaFile(StreamReader tr, StreamWriter tw)
+		public LuaFile(TextReader tr, TextWriter tw)
 		{
 			this.tr = tr;
 			this.tw = tw;
@@ -107,7 +107,7 @@ namespace Neo.IronLua
 		protected virtual void Dispose(bool disposing)
 		{
 			flush();
-			lock (this)
+			lock (syncLock)
 			{
 				isClosed = true;
 				tr?.Dispose();
@@ -130,9 +130,15 @@ namespace Neo.IronLua
 			lock (syncLock)
 			{
 				tw?.Flush();
-				tr?.DiscardBufferedData();
+				DiscardBufferedData();
 			}
 		} // proc flush
+
+		private void DiscardBufferedData()
+		{
+			if (tr is StreamReader sr)
+				sr.DiscardBufferedData();
+		} // proc DiscardBufferedData
 
 		#endregion
 
@@ -141,7 +147,7 @@ namespace Neo.IronLua
 		private string ReadNumber()
 		{
 			var state = 0;
-			StringBuilder sb = new StringBuilder();
+			var sb = new StringBuilder();
 			while (true)
 			{
 				var charIndex = tr.Read();
@@ -250,7 +256,7 @@ namespace Neo.IronLua
 		{
 			if (IsFileIndex(fmt))
 			{
-				if (tr.EndOfStream)
+				if (IsEndOfStream)
 					return null;
 				else
 				{
@@ -265,9 +271,8 @@ namespace Neo.IronLua
 					}
 				}
 			}
-			else if (fmt is string)
+			else if (fmt is string fmtString)
 			{
-				var fmtString = (string)fmt;
 				if (fmtString.Length > 0 && fmtString[0] == '*')
 					fmtString = fmtString.Substring(1);
 
@@ -277,7 +282,7 @@ namespace Neo.IronLua
 				}
 				else if (fmtString == "a")
 				{
-					if (tr.EndOfStream)
+					if (IsEndOfStream)
 						return String.Empty;
 					else
 						return tr.ReadToEnd();
@@ -317,7 +322,7 @@ namespace Neo.IronLua
 					{
 						var r = new object[args.Length];
 
-						for (int i = 0; i < args.Length; i++)
+						for (var i = 0; i < args.Length; i++)
 							r[i] = ReadFormat(args[i]);
 
 						return new LuaResult(r);
@@ -355,7 +360,7 @@ namespace Neo.IronLua
 								tw.Write((string)Lua.RtConvertValue(v, typeof(string)));
 						}
 
-						tr?.DiscardBufferedData();
+						DiscardBufferedData();
 					}
 					return new LuaResult(this);
 				}
@@ -382,13 +387,17 @@ namespace Neo.IronLua
 		{
 		} // proc setvbuf
 
+		/// <summary>Is the end of stream reached.</summary>
+		public bool IsEndOfStream
+			=> isClosed || tr.Peek() == -1;
+
 		/// <summary>Is the file closed.</summary>
 		public bool IsClosed => isClosed;
 
 		/// <summary>Access to the internal TextReader.</summary>
-		public StreamReader TextReader => tr;
+		public TextReader TextReader => tr;
 		/// <summary>Access to the internal TextWriter.</summary>
-		public StreamWriter TextWriter => tw;
+		public TextWriter TextWriter => tw;
 		/// <summary>Length of the file.</summary>
 		public virtual long Length => -1;
 	} // class LuaFile

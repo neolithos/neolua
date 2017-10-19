@@ -7,9 +7,8 @@ namespace Neo.IronLua
 {
 	#region -- class LuaFileStream ------------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary></summary>
-	internal class LuaFileStream : LuaFile
+	public class LuaFileStream : LuaFile
 	{
 		private readonly FileStream src;
 
@@ -18,12 +17,11 @@ namespace Neo.IronLua
 		protected LuaFileStream(FileStream src, StreamReader tr, StreamWriter tw)
 			: base(tr, tw)
 		{
-			if (src == null)
-				throw new ArgumentNullException("src");
-
-			this.src = src;
+			this.src = src ?? throw new ArgumentNullException("src");
 		} // ctor
 
+		/// <summary></summary>
+		/// <param name="disposing"></param>
 		protected override void Dispose(bool disposing)
 		{
 			try
@@ -37,12 +35,17 @@ namespace Neo.IronLua
 			}
 		} // proc Dispose
 
+		/// <summary>Invoke filestream flush.</summary>
 		public override void flush()
 		{
 			base.flush();
 			src.Flush();
 		} // proc flush
 
+		/// <summary>Seek implementation.</summary>
+		/// <param name="whence"></param>
+		/// <param name="offset"></param>
+		/// <returns></returns>
 		public override LuaResult seek(string whence, long offset = 0)
 		{
 			if (src == null || !src.CanSeek)
@@ -72,6 +75,7 @@ namespace Neo.IronLua
 			}
 		} // func seek
 
+		/// <summary>Length of the file</summary>
 		public override long Length => src.Length;
 
 		#endregion
@@ -142,14 +146,15 @@ namespace Neo.IronLua
 
 	#region -- class LuaTempFile --------------------------------------------------------
 
-	internal class LuaTempFile : LuaFileStream
+	/// <summary>Create a temp file, will be deteted on close.</summary>
+	public class LuaTempFile : LuaFileStream
 	{
 		private readonly string fileName;
 
-		public LuaTempFile(string fileName, FileStream src, StreamReader tr, StreamWriter tw)
+		protected LuaTempFile(string fileName, FileStream src, StreamReader tr, StreamWriter tw)
 			: base(src, tr, tw)
 		{
-			this.fileName = fileName;
+			this.fileName = fileName ?? throw new ArgumentNullException(nameof(fileName));
 		} // ctor
 
 		protected override void Dispose(bool disposing)
@@ -159,6 +164,10 @@ namespace Neo.IronLua
 			catch { }
 		} // proc Dispose
 
+		/// <summary>Create the temp file.</summary>
+		/// <param name="fileName"></param>
+		/// <param name="encoding"></param>
+		/// <returns></returns>
 		public static LuaFile Create(string fileName, Encoding encoding)
 		{
 			var src = new FileStream(fileName, FileMode.Create, FileAccess.ReadWrite);
@@ -206,7 +215,6 @@ namespace Neo.IronLua
 
 	#region -- class LuaFilePackage -----------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>default files are not supported.</summary>
 	public sealed class LuaFilePackage
 	{
@@ -238,7 +246,7 @@ namespace Neo.IronLua
 		public LuaResult lines(object[] args)
 		{
 			if (args == null || args.Length == 0)
-				return defaultInput.lines(null);
+				return DefaultInput.lines(null);
 			else
 				return Lua.GetEnumIteratorResult(new LuaLinesEnumerator(LuaFileStream.OpenFile((string)args[0], "r", defaultEncoding), true, args, 1));
 		} // func lines
@@ -264,61 +272,50 @@ namespace Neo.IronLua
 		/// <param name="file"></param>
 		/// <returns></returns>
 		public LuaFile input(object file = null)
-		{
-			if (file is string)
-			{
-				defaultInput?.close();
-				defaultInput = LuaFileStream.OpenFile((string)file, "r", defaultEncoding);
-
-				return defaultInput;
-			}
-			else if (file is LuaFile)
-			{
-				if (defaultInput != null)
-					defaultInput.close();
-				defaultInput = (LuaFile)file;
-			}
-			return defaultInput;
-		} // proc input
+			=> InOutOpen(file, defaultEncoding, ref defaultInput);
 
 		/// <summary></summary>
 		/// <param name="file"></param>
 		/// <returns></returns>
 		public LuaFile output(object file = null)
-		{
-			if (file is string)
-			{
-				defaultOutput?.close();
-				defaultOutput = LuaFileStream.OpenFile((string)file, "w", defaultEncoding);
+			=> InOutOpen(file, defaultEncoding, ref defaultOutput);
 
-				return defaultOutput;
-			}
-			else if (file is LuaFile)
+		private static LuaFile InOutOpen(object file, Encoding defaultEncoding, ref LuaFile fileVar)
+		{
+			switch (file)
 			{
-				defaultOutput?.close();
-				defaultOutput = (LuaFile)file;
+				case string fileName:
+					fileVar?.close();
+					fileVar = LuaFileStream.OpenFile(fileName, "w", defaultEncoding);
+					break;
+				case LuaFile handle:
+					if (handle == defaultInOut.Value)
+						fileVar = null;
+					else
+					{
+						fileVar?.close();
+						fileVar = handle;
+					}
+					break;
 			}
-			return defaultOutput;
-		} // proc output
+			return fileVar ?? defaultInOut.Value;
+		} // func InOutOpen
 
 		/// <summary></summary>
 		public void flush()
-		{
-			if (defaultOutput != null)
-				defaultOutput.flush();
-		} // proc flush
+			=> DefaultOutput.flush();
 
 		/// <summary></summary>
 		/// <param name="args"></param>
 		/// <returns></returns>
 		public LuaResult read(object[] args)
-			=> defaultInput?.read(args) ?? LuaResult.Empty;
+			=> DefaultInput.read(args) ?? LuaResult.Empty;
 
 		/// <summary></summary>
 		/// <param name="args"></param>
 		/// <returns></returns>
 		public LuaResult write(object[] args)
-		 => defaultOutput?.write(args) ?? LuaResult.Empty;
+		 => DefaultOutput.write(args) ?? LuaResult.Empty;
 
 		/// <summary></summary>
 		/// <returns></returns>
@@ -338,7 +335,7 @@ namespace Neo.IronLua
 		/// <param name="obj"></param>
 		/// <returns></returns>
 		public string type(object obj)
-			=> obj is LuaFile && !((LuaFile)obj).IsClosed ? "file" : "file closed";
+			=> obj is LuaFile f && !f.IsClosed ? "file" : "file closed";
 
 		/// <summary></summary>
 		/// <param name="program"></param>
@@ -346,17 +343,18 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public LuaFile popen(string program, string mode = "r")
 		{
-			string fileName;
-			string arguments;
-			LuaLibraryOS.SplitCommand(program, out fileName, out arguments);
+			LuaLibraryOS.SplitCommand(program, out var fileName, out var arguments);
 
-			var psi = new ProcessStartInfo(fileName, arguments);
-			psi.RedirectStandardOutput = mode.IndexOf('r') >= 0;
+			var psi = new ProcessStartInfo(fileName, arguments)
+			{
+				RedirectStandardOutput = mode.IndexOf('r') >= 0,
+				RedirectStandardInput = mode.IndexOf('w') >= 0,
+				UseShellExecute = false,
+				CreateNoWindow = true
+			};
+
 			if (psi.RedirectStandardOutput)
 				psi.StandardOutputEncoding = defaultEncoding;
-			psi.RedirectStandardInput = mode.IndexOf('w') >= 0;
-			psi.UseShellExecute = false;
-			psi.CreateNoWindow = true;
 
 			return new LuaFileProcess(Process.Start(psi), psi.RedirectStandardOutput, psi.RedirectStandardInput);
 		} // func popen
@@ -364,7 +362,7 @@ namespace Neo.IronLua
 		/// <summary>Defines the encoding for stdout</summary>
 		public Encoding DefaultEncoding
 		{
-			get { return defaultEncoding; }
+			get => defaultEncoding;
 			set
 			{
 				if (value == null)
@@ -372,6 +370,36 @@ namespace Neo.IronLua
 				else defaultEncoding = value;
 			}
 		} // prop DefaultEncoding
+
+		private LuaFile DefaultInput => defaultInput ?? defaultInOut.Value;
+		private LuaFile DefaultOutput => defaultOutput ?? defaultInOut.Value;
+
+		#region -- class LuaProcessPipe -----------------------------------------------
+
+		private sealed class LuaProcessPipe : LuaFile
+		{
+			public LuaProcessPipe()
+				: base(Console.In, Console.Out)
+			{
+			}
+
+			protected override void Dispose(bool disposing)
+				=> flush();
+
+			public override LuaResult close() => LuaResult.Empty;
+		} // class LuaProcessPipe
+
+		#endregion
+
+		private static readonly Lazy<LuaFile> defaultInOut;
+
+		static LuaFilePackage()
+		{
+			defaultInOut = new Lazy<LuaFile>(
+				() => new LuaProcessPipe(),
+				true
+			);
+		} // sctor
 	} // class LuaFilePackage
 
 	#endregion
