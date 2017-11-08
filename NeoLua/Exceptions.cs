@@ -2,9 +2,8 @@
 
 namespace Neo.IronLua
 {
-	#region -- interface ILuaExceptionData ----------------------------------------------
+	#region -- interface ILuaExceptionData --------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Helps to make an exception extension visible for LuaRuntimeException.</summary>
 	public interface ILuaExceptionData
 	{
@@ -25,16 +24,15 @@ namespace Neo.IronLua
 
 	#endregion
 
-	#region -- class LuaException -------------------------------------------------------
+	#region -- class LuaException -----------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Base class for Lua-Exceptions</summary>
 	public abstract class LuaException : Exception
 	{
 		/// <summary>Base class for Lua-Exceptions</summary>
 		/// <param name="sMessage">Text</param>
 		/// <param name="innerException">Inner Exception</param>
-		internal LuaException(string sMessage, Exception innerException)
+		protected LuaException(string sMessage, Exception innerException)
 			: base(sMessage, innerException)
 		{
 		} // ctor
@@ -49,68 +47,66 @@ namespace Neo.IronLua
 
 	#endregion
 
-	#region -- class LuaParseException --------------------------------------------------
+	#region -- class LuaParseException ------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Lua Exception for parse errors.</summary>
-	public class LuaParseException : LuaException
+	public sealed class LuaParseException : LuaException
 	{
-		private string sFileName;
-		private int iLine;
-		private int iColumn;
-		private long iIndex;
+		private readonly string fileName;
+		private readonly int line;
+		private readonly int column;
+		private readonly long index;
 
 		/// <summary>Lua Exception for parse errors.</summary>
 		/// <param name="position"></param>
-		/// <param name="sMessage"></param>
+		/// <param name="message"></param>
 		/// <param name="innerException"></param>
-		internal LuaParseException(Position position, string sMessage, Exception innerException)
-			: base(sMessage, innerException)
+		internal LuaParseException(Position position, string message, Exception innerException)
+			: base(message, innerException)
 		{
-			this.sFileName = position.FileName;
-			this.iLine = position.Line;
-			this.iColumn = position.Col;
-			this.iIndex = position.Index;
+			this.fileName = position.FileName;
+			this.line = position.Line;
+			this.column = position.Col;
+			this.index = position.Index;
 		} // ctor
 
 		/// <summary>Source file name</summary>
-		public override string FileName { get { return sFileName; } }
+		public override string FileName => fileName;
 		/// <summary>Source line</summary>
-		public override int Line { get { return iLine; } }
+		public override int Line => line;
 		/// <summary>Source column</summary>
-		public override int Column { get { return iColumn; } }
+		public override int Column => column;
 		/// <summary>Source index</summary>
-		public long Index { get { return iIndex; } }
+		public long Index => index;
 	} // class LuaParseException
 
 	#endregion
 
-	#region -- class LuaRuntimeException ------------------------------------------------
+	#region -- class LuaRuntimeException ----------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Lua Exception for runtime errors.</summary>
 	public class LuaRuntimeException : LuaException
 	{
-		private int iLevel = 0;
-		private bool lSkipClrFrames = false;
+		private readonly int level = 0;
+		private readonly bool skipClrFrames = false;
 
 		/// <summary>Lua Exception for runtime errors.</summary>
-		/// <param name="sMessage">Error message</param>
+		/// <param name="message">Error message</param>
 		/// <param name="innerException">Inner Exception</param>
-		internal LuaRuntimeException(string sMessage, Exception innerException)
-			: base(sMessage, innerException)
+		public LuaRuntimeException(string message, Exception innerException)
+			: base(message, innerException)
 		{
 		} // ctor
 
 		/// <summary>Lua Exception for runtime errors.</summary>
-		/// <param name="sMessage">Error message</param>
-		/// <param name="iLevel">Frame that should skip.</param>
-		/// <param name="lSkipClrFrames">Should the stacktrace show clr frames.</param>
-		internal LuaRuntimeException(string sMessage, int iLevel, bool lSkipClrFrames)
-			: base(sMessage, null)
+		/// <param name="message">Error message</param>
+		/// <param name="level">Frame that should skip.</param>
+		/// <param name="skipClrFrames">Should the stacktrace show clr frames.</param>
+		public LuaRuntimeException(string message, int level, bool skipClrFrames)
+			: base(message, null)
 		{
-			this.iLevel = iLevel;
-			this.lSkipClrFrames = lSkipClrFrames;
+			this.level = level;
+			this.skipClrFrames = skipClrFrames;
 		} // ctor
 
 		/// <summary>Returns the Lua StackTrace</summary>
@@ -118,69 +114,46 @@ namespace Neo.IronLua
 		{
 			get
 			{
-				var data = Data[ExceptionDataKey] as ILuaExceptionData;
-				if (data == null)
+				if (Data[ExceptionDataKey] is ILuaExceptionData data)
+					return data.FormatStackTrace(level, skipClrFrames);
+				else
 				{
-					if (iLevel == 0)
+					if (level == 0)
 						return base.StackTrace;
 					else
 					{
-						string sStackTrace = base.StackTrace;
-						if (String.IsNullOrEmpty(sStackTrace))
-							return sStackTrace;
+						var stackTrace = base.StackTrace;
+						if (String.IsNullOrEmpty(stackTrace))
+							return stackTrace;
 						else
 						{
-							string[] lines = sStackTrace.Replace(Environment.NewLine, "\n").Split('\n');
-							if (iLevel < lines.Length)
-								return String.Join(Environment.NewLine, lines, iLevel, lines.Length - iLevel);
-							else
-								return sStackTrace;
+							var lines = stackTrace.Replace(Environment.NewLine, "\n").Split('\n');
+							return level < lines.Length
+								? String.Join(Environment.NewLine, lines, level, lines.Length - level)
+								: stackTrace;
 						}
 					}
 				}
-				else
-					return data.FormatStackTrace(iLevel, lSkipClrFrames);
 			}
 		} // prop StackTrace
 
 		/// <summary>Source file name</summary>
 		public override string FileName
-		{
-			get
-			{
-				var data = Data[ExceptionDataKey] as ILuaExceptionData;
-				if (data == null || iLevel < 0 || iLevel >= data.Count)
-					return null;
-				else
-					return data[iLevel].FileName;
-			}
-		} // pro FileName
+			=> Data[ExceptionDataKey] is ILuaExceptionData data && level >= 0 && level < data.Count
+				? data[level].FileName
+				: null;
 
 		/// <summary>Source line</summary>
 		public override int Line
-		{
-			get
-			{
-				var data = Data[ExceptionDataKey] as ILuaExceptionData;
-				if (data == null || iLevel < 0 || iLevel >= data.Count)
-					return 0;
-				else
-					return data[iLevel].Line;
-			}
-		} // prop Line
+				=> Data[ExceptionDataKey] is ILuaExceptionData data && level >= 0 && level < data.Count
+				? data[level].Line
+				: 0;
 
 		/// <summary>Source column</summary>
 		public override int Column
-		{
-			get
-			{
-				var data = Data[ExceptionDataKey] as ILuaExceptionData;
-				if (data == null || iLevel < 0 || iLevel >= data.Count)
-					return 0;
-				else
-					return data[iLevel].Column;
-			}
-		} // prop Column
+				=> Data[ExceptionDataKey] is ILuaExceptionData data && level >= 0 && level < data.Count
+				? data[level].Column
+				: 0;
 
 		/// <summary>Key of the ILuaExceptionData.</summary>
 		public static readonly object ExceptionDataKey = new object();
