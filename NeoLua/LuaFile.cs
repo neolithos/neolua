@@ -106,12 +106,20 @@ namespace Neo.IronLua
 		/// <param name="disposing"></param>
 		protected virtual void Dispose(bool disposing)
 		{
-			flush();
-			lock (syncLock)
+			if (disposing)
 			{
-				isClosed = true;
-				tr?.Dispose();
-				tw?.Dispose();
+				flush();
+				lock (syncLock)
+				{
+					isClosed = true;
+					tr?.Dispose();
+					tw?.Dispose();
+				}
+			}
+			else
+			{
+				lock (syncLock)
+					isClosed = true;
 			}
 		} // proc Dispose
 
