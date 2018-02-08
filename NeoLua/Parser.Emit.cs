@@ -98,8 +98,7 @@ namespace Neo.IronLua
 		private static Expression ConvertExpression(Lua runtime, Token tokenStart, Expression expr, Type toType)
 		{
 			// dynamic convert
-			object result;
-			if (LuaEmit.TryConvert(expr, expr.Type, toType, runtime.GetConvertBinder, out result))
+			if (LuaEmit.TryConvert(expr, expr.Type, toType, runtime.GetConvertBinder, out var result))
 				return (Expression)result;
 			else
 				throw ParseError(tokenStart, ((LuaEmitException)result).Message);

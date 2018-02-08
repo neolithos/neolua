@@ -536,8 +536,6 @@ namespace Neo.IronLua
 
 					if (Type == typeof(LuaResult)) // replace null with empty LuaResult 
 						expr = Expression.Property(null, Lua.ResultEmptyPropertyInfo);
-					else if (Type == typeof(string)) // replace null with empty String
-						expr = Expression.Field(null, Lua.StringEmptyFieldInfo);
 					else
 						expr = Expression.Default(Type);
 
@@ -546,8 +544,7 @@ namespace Neo.IronLua
 				else // convert the value
 				{
 					var restrictions = target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
-					object result;
-					if (LuaEmit.TryConvert(target.Expression, target.LimitType, Type, null, out result))
+					if (LuaEmit.TryConvert(target.Expression, target.LimitType, Type, null, out var result))
 					{
 						return new DynamicMetaObject(Lua.EnsureType((Expression)result, ReturnType), restrictions);
 					}

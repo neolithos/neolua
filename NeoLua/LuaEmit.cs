@@ -583,8 +583,7 @@ namespace Neo.IronLua
 					// try find a conversion (implicit or explicit)
 					if (TryConvertWithOperator(expr, fromType, toType, getDynamicConvertBinder, out result))
 						return true;
-
-
+					
 					// just call to string or specialized to string
 					var methodInfo = FindToStringMethod(fromType) ?? Lua.ConvertToStringMethodInfo;
 
