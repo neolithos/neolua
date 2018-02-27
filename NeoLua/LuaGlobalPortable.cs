@@ -597,11 +597,11 @@ namespace Neo.IronLua
 			}
 			catch (TargetInvocationException e)
 			{
-				return new LuaResult(false, e.InnerException.Message, e.InnerException);
+				return new LuaResult(false, msgh ?? e.InnerException.Message, e.InnerException);
 			}
 			catch (Exception e)
 			{
-				return new LuaResult(false, e.Message, e);
+				return new LuaResult(false, msgh ?? e.Message, e);
 			}
 		} // func LuaXPCall
 

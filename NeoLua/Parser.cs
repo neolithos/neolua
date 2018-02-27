@@ -1938,16 +1938,14 @@ namespace Neo.IronLua
 		{
 			// for name
 			FetchToken(LuaToken.KwFor, code);
-			Token tLoopVar;
-			Type typeLoopVar;
-			ParseIdentifierAndType(scope, code, out tLoopVar, out typeLoopVar);
+			ParseIdentifierAndType(scope, code, out var tLoopVar, out var typeLoopVar);
 			if (code.Current.Typ == LuaToken.Assign)
 			{
 				// = exp, exp [, exp] do block end
 				FetchToken(LuaToken.Assign, code);
-				Expression loopStart = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
+				var loopStart = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
 				FetchToken(LuaToken.Comma, code);
-				Expression loopEnd = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
+				var loopEnd = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
 				Expression loopStep;
 				if (code.Current.Typ == LuaToken.Comma)
 				{
@@ -1957,8 +1955,8 @@ namespace Neo.IronLua
 				else
 					loopStep = Expression.Constant(1, loopStart.Type);
 
-				LoopScope loopScope = new LoopScope(scope);
-				ParameterExpression loopVarParameter = loopScope.RegisterVariable(typeLoopVar == typeof(object) ? LuaEmit.LiftType(LuaEmit.LiftType(loopStart.Type, loopEnd.Type), loopStep.Type) : typeLoopVar, tLoopVar.Value);
+				var loopScope = new LoopScope(scope);
+				var loopVarParameter = loopScope.RegisterVariable(typeLoopVar == typeof(object) ? LuaEmit.LiftType(LuaEmit.LiftType(loopStart.Type, loopEnd.Type), loopStep.Type) : typeLoopVar, tLoopVar.Value);
 
 				FetchToken(LuaToken.KwDo, code);
 				ParseBlock(loopScope, code);
@@ -1970,9 +1968,11 @@ namespace Neo.IronLua
 				// {, name} in explist do block end
 
 				// fetch all loop variables
-				LoopScope loopScope = new LoopScope(scope);
-				List<ParameterExpression> loopVars = new List<ParameterExpression>();
-				loopVars.Add(loopScope.RegisterVariable(typeLoopVar, tLoopVar.Value));
+				var loopScope = new LoopScope(scope);
+				var loopVars = new List<ParameterExpression>
+				{
+					loopScope.RegisterVariable(typeLoopVar, tLoopVar.Value)
+				};
 				while (code.Current.Typ == LuaToken.Comma)
 				{
 					code.Next();
@@ -1982,7 +1982,7 @@ namespace Neo.IronLua
 
 				// get the loop expressions
 				FetchToken(LuaToken.KwIn, code);
-				Expression[] explist = ParseExpressionList(scope, code).ToArray();
+				var explist = ParseExpressionList(scope, code).ToArray();
 
 				// parse the loop body
 				FetchToken(LuaToken.KwDo, code);
@@ -2112,7 +2112,7 @@ namespace Neo.IronLua
 			ParameterExpression varVar = Expression.Variable(typeof(object), csVar);
 
 			// local var1, ..., varn = tmp;
-			for (int i = 0; i < loopVars.Count; i++)
+			for (var i = 0; i < loopVars.Count; i++)
 				loopScope.InsertExpression(i, Expression.Assign(loopVars[i], ConvertExpression(loopScope.Runtime, tStart, GetResultExpression(loopScope.Runtime, tStart, varTmp, i), loopVars[i].Type)));
 			return Expression.Block(new ParameterExpression[] { varTmp, varFunc, varState, varVar },
 				// fill the local loop variables initial
