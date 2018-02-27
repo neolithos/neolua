@@ -61,6 +61,7 @@
     <None Include="NeoLuaMSBuild.nuspec" />
     <None Include="NuGet.config" />
     <None Include="NeoLua.nuspec" />
+    <None Include="package.apikey.targets" />
     <None Include="package.targets">
       <SubType>Designer</SubType>
     </None>
