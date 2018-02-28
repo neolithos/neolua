@@ -70,8 +70,8 @@
 		<!-- Create NuGet Package -->
 		<Exec Command="c:\Tools\NuGet.exe pack NeoLua.nuspec -OutputDirectory $(TargetDir)\$(Version) -Version $(Version)" />
 		<Exec Command="c:\Tools\NuGet.exe pack NeoLuaDebug.nuspec -OutputDirectory $(TargetDir)\$(Version) -Version $(Version)" />
-		<Exec Command="c:\Tools\NuGet.exe push $(TargetDir)\$(Version)\NeoLua.$(Version).nupkg -source https://www.nuget.org/api/v2/package -ApiKey $(NugetApiKey)" />
-		<Exec Command="c:\Tools\NuGet.exe push $(TargetDir)\$(Version)\NeoLuaDebug.$(Version).nupkg -source https://www.nuget.org/api/v2/package -ApiKey $(NugetApiKey)" />
+		<Exec Command="c:\Tools\NuGet.exe push $(TargetDir)\$(Version)\NeoLua.$(Version).nupkg -source https://api.nuget.org/v3/index.json -ApiKey $(NugetApiKey)" />
+		<Exec Command="c:\Tools\NuGet.exe push $(TargetDir)\$(Version)\NeoLuaDebug.$(Version).nupkg -source https://api.nuget.org/v3/index.json -ApiKey $(NugetApiKey)" />
 	</Target>
 </Project>
 <!--<Target Name="ZipLua" Condition=" '$(Configuration)' == 'Release' ">
