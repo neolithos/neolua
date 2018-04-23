@@ -2802,7 +2802,7 @@ namespace Neo.IronLua
 						}
 
 					default:
-						return new LuaResult(memberName);
+						return new LuaResult(method);
 				}
 			}
 			catch (TargetInvocationException e)
