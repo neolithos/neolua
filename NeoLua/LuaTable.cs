@@ -2793,7 +2793,7 @@ namespace Neo.IronLua
 							else
 							{
 								var newArgs = new object[args.Length + 3];
-								Array.Copy(args, 0, newArgs, 2, args.Length);
+								Array.Copy(args, 0, newArgs, 3, args.Length);
 								newArgs[1] = method;
 								newArgs[2] = this;
 								args = newArgs;
