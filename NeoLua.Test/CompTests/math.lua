@@ -205,8 +205,8 @@ assert(eq(math.log(2, 2), 1))
 assert(eq(math.log(9, 3), 2))
 assert(eq(math.exp(0), 1))
 assert(eq(math.sin(10), math.sin(10%(2*math.pi))))
---local v,e = math.frexp(math.pi)
---assert(eq(math.ldexp(v,e), math.pi))
+local v,e = math.frexp(math.pi)
+assert(eq(math.ldexp(v,e), math.pi))
 
 assert(eq(math.tanh(3.5), math.sinh(3.5)/math.cosh(3.5)))
 
