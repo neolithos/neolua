@@ -780,9 +780,10 @@ namespace Neo.IronLua
 		/// <summary>Returns m and e such that x = m2e, e is an integer and the absolute value of m is in the range [0.5, 1) (or zero when x is zero, http://www.lua.org/manual/5.2/manual.html#pdf-math.frexp).</summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
-		public static double frexp(double x)
-		{
-			throw new NotImplementedException();
+		public static LuaResult frexp(double x) {
+			int exponent = (x == 0.0) ? 0 : (int)(1 + Math.Log(Math.Abs(x), 2));
+			double mantissa = x * (Math.Pow(2, -exponent));
+			return new LuaResult(mantissa, exponent);
 		} // func frexp
 
 		/// <summary>The value HUGE_VAL, a value larger than or equal to any other numerical value (http://www.lua.org/manual/5.3/manual.html#pdf-math.huge).</summary>
@@ -792,10 +793,10 @@ namespace Neo.IronLua
 		/// <param name="m"></param>
 		/// <param name="e"></param>
 		/// <returns></returns>
-		public static double ldexp(double m, double e)
+		public static double ldexp(double m, int e)
 		{
 			// Returns m2e (e should be an integer).
-			throw new NotImplementedException();
+			return m * Math.Pow(2, e);
 		} // func ldexp
 
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.log </summary>
