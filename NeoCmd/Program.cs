@@ -496,7 +496,7 @@ namespace Neo.IronLua
       Console.WriteLine();
       Console.WriteLine();
       WriteText(ConsoleColor.DarkGray, "  source code at ");
-      WriteText(ConsoleColor.Gray, "http://neolua.codeplex.com");
+      WriteText(ConsoleColor.Gray, "https://github.com/neolithos/neolua");
       Console.WriteLine();
       WriteText(ConsoleColor.DarkGray, "  supported from ");
       WriteText(ConsoleColor.Gray, "http://tecware-gmbh.de");

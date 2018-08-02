@@ -253,7 +253,7 @@
     <value>Unexpected token in Else-Statement</value>
   </data>
   <data name="rsParseUnexpectedTokenPrefix" xml:space="preserve">
-    <value>Literal, function or tablector expected.</value>
+    <value>Literal, function or table-ctor expected.</value>
   </data>
   <data name="rsParseUnknownType" xml:space="preserve">
     <value>Type '{0}' not found.</value>
