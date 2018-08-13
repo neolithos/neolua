@@ -467,7 +467,7 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Literal, function or tablector expected..
+        ///   Looks up a localized string similar to Literal, function or table-ctor expected..
         /// </summary>
         internal static string rsParseUnexpectedTokenPrefix {
             get {

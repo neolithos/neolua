@@ -6,6 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
+#pragma warning disable IDE1006 // Naming Styles
+
 namespace Neo.IronLua
 {
 	#region -- String Manipulation ------------------------------------------------------
@@ -671,9 +673,8 @@ namespace Neo.IronLua
 
 	#endregion
 	
-	#region -- Mathematical Functions ---------------------------------------------------
+	#region -- Mathematical Functions -------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Reimplements methods of the math package.</summary>
 	public static class LuaLibraryMath
 	{
@@ -683,130 +684,103 @@ namespace Neo.IronLua
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double abs(double x)
-		{
-			return Math.Abs(x);
-		} // func abs
-
+			=> Math.Abs(x);
+		
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.acos </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double acos(double x)
-		{
-			return Math.Acos(x);
-		} // func acos
-
+			=> Math.Acos(x);
+		
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.asin </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double asin(double x)
-		{
-			return Math.Asin(x);
-		} // func asin
-
+			=> Math.Asin(x);
+		
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.atan </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double atan(double x)
-		{
-			return Math.Atan(x);
-		} // func atan
-
+			=> Math.Atan(x);
+		
 		/// <summary>Implementation of http://www.lua.org/manual/5.2/manual.html#pdf-math.atan2 </summary>
 		/// <param name="y"></param>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double atan2(double y, double x)
-		{
-			return Math.Atan2(y, x);
-		} // func atan2
+			=> Math.Atan2(y, x);
 
-		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.ceil </summary>
-		/// <param name="x"></param>
-		/// <returns></returns>
+							   /// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.ceil </summary>
+							   /// <param name="x"></param>
+							   /// <returns></returns>
 		public static double ceil(double x)
-		{
-			return Math.Ceiling(x);
-		} // func ceil
-
+			=> Math.Ceiling(x);
+		
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.cos </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double cos(double x)
-		{
-			return Math.Cos(x);
-		} // func Cos
+			=> Math.Cos(x);
 
 		/// <summary>Implementation of http://www.lua.org/manual/5.2/manual.html#pdf-math.cosh </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double cosh(double x)
-		{
-			return Math.Cosh(x);
-		} // func cosh
+			=> Math.Cosh(x);
 
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.deg </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double deg(double x)
-		{
-			return x * 180.0 / Math.PI;
-		} // func deg
+			=> x * 180.0 / Math.PI;
 
 		/// <summary>Implementation of  </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double exp(double x)
-		{
-			return Math.Exp(x);
-		} // func exp
+			=> Math.Exp(x);
 
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.floor </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double floor(double x)
-		{
-			return Math.Floor(x);
-		} // func floor
-
+			=> Math.Floor(x);
+		
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.fmod </summary>
 		/// <param name="x"></param>
 		/// <param name="y"></param>
 		/// <returns></returns>
 		public static double fmod(double x, double y)
-		{
-			return x % y;
-		} // func fmod
-
+			=> x % y;
+		
 		/// <summary>Returns m and e such that x = m2e, e is an integer and the absolute value of m is in the range [0.5, 1) (or zero when x is zero, http://www.lua.org/manual/5.2/manual.html#pdf-math.frexp).</summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
-		public static double frexp(double x)
+		public static LuaResult frexp(double x)
 		{
-			throw new NotImplementedException();
+			var exponent = (x == 0.0) ? 0 : (int)(1 + Math.Log(Math.Abs(x), 2));
+			var mantissa = x * (Math.Pow(2, -exponent));
+			return new LuaResult(mantissa, exponent);
 		} // func frexp
 
 		/// <summary>The value HUGE_VAL, a value larger than or equal to any other numerical value (http://www.lua.org/manual/5.3/manual.html#pdf-math.huge).</summary>
-		public static double huge { get { return double.MaxValue; } }
+		public static double huge => Double.MaxValue;
 
 		/// <summary>Implementation of http://www.lua.org/manual/5.2/manual.html#pdf-math.ldexp </summary>
 		/// <param name="m"></param>
 		/// <param name="e"></param>
 		/// <returns></returns>
-		public static double ldexp(double m, double e)
-		{
-			// Returns m2e (e should be an integer).
-			throw new NotImplementedException();
-		} // func ldexp
+		public static double ldexp(double m, int e)
+			=> m * Math.Pow(2, e); // Returns m2e (e should be an integer).
 
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.log </summary>
 		/// <param name="x"></param>
 		/// <param name="b"></param>
 		/// <returns></returns>
 		public static double log(double x, double b = Math.E)
-		{
-			return Math.Log(x, b);
-		} // func log
-
+			=> Math.Log(x, b);
+		
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.max </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
@@ -815,10 +789,12 @@ namespace Neo.IronLua
 			if (x == null || x.Length == 0)
 				throw new LuaRuntimeException(Properties.Resources.rsNumberExpected, 1, true);
 
-			double r = Double.MinValue;
-			for (int i = 0; i < x.Length; i++)
+			var r = Double.MinValue;
+			for (var i = 0; i < x.Length; i++)
+			{
 				if (r < x[i])
 					r = x[i];
+			}
 
 			return r;
 		} // func max
@@ -831,10 +807,12 @@ namespace Neo.IronLua
 			if (x == null || x.Length == 0)
 				throw new LuaRuntimeException(Properties.Resources.rsNumberExpected, 1, true);
 
-			double r = Double.MaxValue;
-			for (int i = 0; i < x.Length; i++)
+			var r = Double.MaxValue;
+			for (var i = 0; i < x.Length; i++)
+			{
 				if (r > x[i])
 					r = x[i];
+			}
 
 			return r;
 		} // func min
@@ -846,12 +824,12 @@ namespace Neo.IronLua
 		{
 			if (x < 0)
 			{
-				double y = Math.Ceiling(x);
+				var y = Math.Ceiling(x);
 				return new LuaResult(y, y - x);
 			}
 			else
 			{
-				double y = Math.Floor(x);
+				var y = Math.Floor(x);
 				return new LuaResult(y, x - y);
 			}
 		} // func modf
@@ -861,18 +839,14 @@ namespace Neo.IronLua
 		/// <param name="y"></param>
 		/// <returns></returns>
 		public static double pow(double x, double y)
-		{
-			return Math.Pow(x, y);
-		} // func pow
-
+			=> Math.Pow(x, y);
+		
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.rad </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double rad(double x)
-		{
-			return x * Math.PI / 180.0;
-		} // func rad
-
+			=> x * Math.PI / 180.0;
+		
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.random </summary>
 		/// <param name="m"></param>
 		/// <param name="n"></param>
@@ -914,42 +888,32 @@ namespace Neo.IronLua
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double sin(double x)
-		{
-			return Math.Sin(x);
-		} // func sin
-
+			=> Math.Sin(x);
+		
 		/// <summary>Implementation of http://www.lua.org/manual/5.2/manual.html#pdf-math.sinh </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double sinh(double x)
-		{
-			return Math.Sinh(x);
-		} // func sinh
+			=> Math.Sinh(x);
 
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.sqrt </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double sqrt(double x)
-		{
-			return Math.Sqrt(x);
-		} // func sqrt
-
+			=> Math.Sqrt(x);
+		
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.tan </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double tan(double x)
-		{
-			return Math.Tan(x);
-		} // func tan
-
+			=> Math.Tan(x);
+		
 		/// <summary>Implementation of http://www.lua.org/manual/5.2/manual.html#pdf-math.tanh </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double tanh(double x)
-		{
-			return Math.Tanh(x);
-		} // func tanh
-
+			=> Math.Tanh(x);
+		
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.type </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
@@ -1000,19 +964,17 @@ namespace Neo.IronLua
 		/// <param name="n"></param>
 		/// <returns></returns>
 		public static bool ult(long m, long n)
-		{
-			return m < n;
-		} // func ult
+			=> m < n;
 
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.pi </summary>
-		public static double pi { get { return Math.PI; } }
+		public static double pi => Math.PI;
 		/// <summary>Maps Math.E</summary>
-		public static double e { get { return Math.E; } }
+		public static double e => Math.E;
 
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.mininteger </summary>
-		public static int mininteger { get { return Int32.MinValue; } }
+		public static int mininteger => Int32.MinValue;
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.maxinteger </summary>
-		public static int maxinteger { get { return Int32.MaxValue; } }
+		public static int maxinteger => Int32.MaxValue;
 	} // clas LuaLibraryMath
 
 	#endregion
@@ -1206,3 +1168,4 @@ namespace Neo.IronLua
 
 	#endregion
 }
+#pragma warning restore IDE1006 // Naming Styles

@@ -188,18 +188,18 @@ namespace Neo.IronLua
 
 	#endregion
 
-	#region -- class LuaFileProcess -----------------------------------------------------
+	#region -- class LuaFileProcess ---------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary></summary>
 	internal sealed class LuaFileProcess : LuaFile
 	{
 		private readonly Process process;
+		private int? exitCode = null;
 
 		internal LuaFileProcess(Process process, bool doStandardOutputRedirected, bool doStandardInputRedirected)
 			: base(doStandardOutputRedirected ? process.StandardOutput : null, doStandardInputRedirected ? process.StandardInput : null)
 		{
-			this.process = process;
+			this.process = process ?? throw new ArgumentNullException(nameof(process));
 		} // ctor
 
 		protected override void Dispose(bool disposing)
@@ -211,14 +211,19 @@ namespace Neo.IronLua
 			finally
 			{
 				if (disposing)
-					process?.Dispose();
+				{
+					if (!exitCode.HasValue && process.HasExited)
+						exitCode = process.ExitCode;
+
+					process.Dispose();
+				}
 			}
 		} // proc Dispose
 
 		public override LuaResult close()
 		{
-			base.close();
-			return new LuaResult(process.ExitCode);
+			base.close(); // call dispose only once
+			return exitCode.HasValue ? new LuaResult(exitCode) : LuaResult.Empty;
 		} // func close
 	} // class LuaFileProcess
 

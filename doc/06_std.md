@@ -103,9 +103,9 @@ Coroutines are implemented in the LuaThread class. This class creates a managed 
 * ![Is compatible to the lua reference.][done] `exp`  
 * ![Is compatible to the lua reference.][done] `floar`  
 * ![Is compatible to the lua reference.][done] `fmod`  
-* ![Not implemented. Yet.][noti] `frexp`  
-* ![Not implemented. Yet.][noti] `huge`  
-* ![Not implemented. Yet.][noti] `ldexp`  
+* ![Is compatible to the lua reference.][done] `frexp`  
+* ![Is compatible to the lua reference.][done] `huge`  
+* ![Is compatible to the lua reference.][done] `ldexp`  
 * ![Is compatible to the lua reference.][done] `log`  
 * ![Is compatible to the lua reference.][done] `max`  
 * ![Is compatible to the lua reference.][done] `maxinteger`  
