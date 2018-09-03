@@ -50,7 +50,6 @@
     <Compile Include="..\NeoLua\Properties\AssemblyInfoGlobal.cs">
       <Link>Properties\AssemblyInfoGlobal.cs</Link>
     </Compile>
-    <Compile Include="Exceptions.cs" />
     <Compile Include="Lua.Libraries.cs" />
     <Compile Include="LuaDesktop.cs" />
     <Compile Include="LuaFile.cs" />
