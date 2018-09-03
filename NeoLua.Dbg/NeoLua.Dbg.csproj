@@ -1,7 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
+		<AssemblyName>Neo.Lua.Dbg</AssemblyName>
 		<RootNamespace>Neo.IronLua</RootNamespace>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<TargetFrameworks>net45;netcoreapp2.0</TargetFrameworks>
 		<SignAssembly>true</SignAssembly>
 		<AssemblyOriginatorKeyFile>NeoLua.snk</AssemblyOriginatorKeyFile>

@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
 		<RootNamespace>NeoCmd</RootNamespace>
-		<TargetFramework>net45</TargetFramework>
+		<TargetFramework>net47</TargetFramework>
     <ApplicationIcon />
     <OutputType>Exe</OutputType>
     <StartupObject />
