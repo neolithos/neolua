@@ -2,21 +2,26 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net45</TargetFramework>
-    <Company>TecWare Gesellschaft für Softwareentwicklung mbH</Company>
-    <Copyright>Copyright © 2013-2015</Copyright>
-    <Authors>Neolithos</Authors>
-    <Product>Neo.Lua</Product>
-    <AssemblyVersion>5.3.0.0</AssemblyVersion>
-    <FileVersion>1.2.25.0</FileVersion>
-    <PackageLicenseUrl>https://github.com/neolithos/neolua/blob/master/LICENSE.md</PackageLicenseUrl>
-    <PackageProjectUrl>https://github.com/neolithos/neolua/</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/neolithos/neolua.git</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
     <PackageReleaseNotes>Write msbuild tasks with NeoLua.</PackageReleaseNotes>
-    <PackageTags>Lua NeoLua .net MSBuild</PackageTags>
+		<PackageId>NeoLuaMSBuild</PackageId>
+		<PackageTags>Lua NeoLua .net MSBuild</PackageTags>
   </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\NeoLua\NeoLua.csproj" />
+	<Import Project="..\NeoLua.NuGet\common.targets" />
+	
+	<!-- Pack -->
+	<PropertyGroup>
+		<IsTool>true</IsTool>
+		<ContentTargetFolders>tools</ContentTargetFolders>
+		<!--<NuspecFile>NeoLuaMSBuild.nuspec</NuspecFile>
+		<NuspecProperties>outdir=$(OutputDirectory);authors=$(Authors);projectUrl=$(PackageProjectUrl);licenseUrl=$(PackageLicenseUrl)</NuspecProperties>-->
+	</PropertyGroup>
+	<ItemGroup>
+	  <Content Include="Init.ps1" />
+	</ItemGroup>
+	
+	<ItemGroup>
+    <ProjectReference Include="..\NeoLua\NeoLua.csproj" Version="1.2.25">
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Build.Framework" />

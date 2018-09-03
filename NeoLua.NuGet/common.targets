@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Project>
+	<PropertyGroup>
+		<Product>Neo.Lua</Product>
+		<Company>TecWare Gesellschaft für Softwareentwicklung mbH</Company>
+		<Copyright>Copyright © 2013-$([System.DateTime]::Now.Year.ToString())</Copyright>
+		<Authors>Neolithos</Authors>
+
+		<PackageProjectUrl>https://github.com/neolithos/neolua/</PackageProjectUrl>
+		<PackageLicenseUrl>https://github.com/neolithos/neolua/blob/master/LICENSE.md</PackageLicenseUrl>
+		<RepositoryUrl>https://github.com/neolithos/neolua.git</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		
+		<AssemblyVersion>5.3.0.0</AssemblyVersion>
+		<FileVersion>1.2.25.0</FileVersion>
+
+		<VersionAdd>beta</VersionAdd>
+		<SimpleVersionPattern>^(\d+)\.(\d+)\.(\d+)</SimpleVersionPattern>
+		<SimpleVersion>$([System.Text.RegularExpressions.Regex]::Match($(FileVersion), $(SimpleVersionPattern)))</SimpleVersion>
+
+		<PackageVersion Condition="'$(VersionAdd)' == ''">$(SimpleVersion)</PackageVersion>
+		<PackageVersion Condition="'$(VersionAdd)' != ''">$(SimpleVersion)-$(VersionAdd)</PackageVersion>
+	</PropertyGroup>
+</Project>

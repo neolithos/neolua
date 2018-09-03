@@ -1,22 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net45</TargetFramework>
-    <Company>TecWare Gesellschaft für Softwareentwicklung mbH</Company>
-    <Authors>Neolithos</Authors>
-    <Product>Neo.Lua</Product>
-    <PackageLicenseUrl>https://github.com/neolithos/neolua/blob/master/LICENSE.md</PackageLicenseUrl>
-    <Copyright>https://github.com/neolithos/neolua/blob/master/LICENSE.md</Copyright>
-    <PackageProjectUrl>https://github.com/neolithos/neolua/blob/master/LICENSE.md</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/neolithos/neolua.git</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <AssemblyVersion>5.3.0.0</AssemblyVersion>
+		<RootNamespace>NeoCmd</RootNamespace>
+		<TargetFramework>net45</TargetFramework>
     <ApplicationIcon />
     <OutputType>Exe</OutputType>
     <StartupObject />
-    <RootNamespace>NeoCmd</RootNamespace>
   </PropertyGroup>
-  <ItemGroup>
+	<Import Project="..\NeoLua.NuGet\common.targets" />
+	<ItemGroup>
     <ProjectReference Include="..\NeoLua.Dbg\NeoLua.Dbg.csproj" />
     <ProjectReference Include="..\NeoLua\NeoLua.csproj" />
   </ItemGroup>

@@ -1,25 +1,16 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFrameworks>net45</TargetFrameworks>
+		<RootNamespace>Neo.IronLua</RootNamespace>
+		<TargetFrameworks>net45;netcoreapp2.0</TargetFrameworks>
 		<SignAssembly>true</SignAssembly>
 		<AssemblyOriginatorKeyFile>NeoLua.snk</AssemblyOriginatorKeyFile>
 		<PackageId>NeoLuaDebug</PackageId>
-		<Authors>Neolithos</Authors>
-		<Company>TecWare Gesellschaft für Softwareentwicklung mbH</Company>
-		<Product>Neo.Lua</Product>
-		<PackageProjectUrl>https://github.com/neolithos/neolua/</PackageProjectUrl>
-		<PackageLicenseUrl>https://github.com/neolithos/neolua/blob/master/LICENSE.md</PackageLicenseUrl>
-		<Copyright>Copyright © 2013-2015</Copyright>
-		<RepositoryUrl>https://github.com/neolithos/neolua.git</RepositoryUrl>
-		<RepositoryType>git</RepositoryType>
-		<PackageTags>Lua C# .net DLR Dynamic Language Debug</PackageTags>
-		<AssemblyVersion>5.3.0.0</AssemblyVersion>
-		<FileVersion>1.2.25.0</FileVersion>
-		<NeutralLanguage></NeutralLanguage>
 		<Description>A Lua implementation for the Dynamic Language Runtime (DLR). Debug-Extension.</Description>
-		<RootNamespace>Neo.IronLua</RootNamespace>
+		<PackageTags>Lua C# .net DLR Dynamic Language Debug</PackageTags>
+		<NeutralLanguage></NeutralLanguage>
 	</PropertyGroup>
+	<Import Project="..\NeoLua.NuGet\common.nupkg.targets" />
 	<ItemGroup>
 	  <None Include="..\NeoLua\NeoLua.licenseheader" Link="NeoLua.licenseheader" />
 	</ItemGroup>
