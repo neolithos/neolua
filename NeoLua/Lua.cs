@@ -1,15 +1,33 @@
-﻿using System;
+﻿#region -- copyright --
+//
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+// 
+//   http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+//
+#endregion
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
 namespace Neo.IronLua
 {
-	#region -- enum LuaIntegerType ------------------------------------------------------
+	#region -- enum LuaIntegerType ----------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary></summary>
 	public enum LuaIntegerType : byte
 	{
@@ -25,9 +43,8 @@ namespace Neo.IronLua
 
 	#endregion
 
-	#region -- enum LuaFloatType --------------------------------------------------------
+	#region -- enum LuaFloatType ------------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary></summary>
 	public enum LuaFloatType : byte
 	{
@@ -41,9 +58,8 @@ namespace Neo.IronLua
 
 	#endregion
 
-	#region -- enum LuaSandboxResult ----------------------------------------------------
+	#region -- enum LuaSandboxResult --------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Defines the sandbox type</summary>
 	public enum LuaSandboxResult
 	{
@@ -57,18 +73,15 @@ namespace Neo.IronLua
 
 	#endregion
 
-	#region -- class LuaCompileOptions --------------------------------------------------
+	#region -- class LuaCompileOptions ------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Defines option for the parse and compile of a script.</summary>
 	public class LuaCompileOptions
 	{
 		/// <summary>Action on access diened.</summary>
 		/// <returns></returns>
 		protected virtual Expression RestrictAccess()
-		{
-			return Expression.Throw(Expression.New(typeof(UnauthorizedAccessException)));
-		} // func RestrictAccess
+			=> Expression.Throw(Expression.New(typeof(UnauthorizedAccessException)));
 
 		/// <summary>Most core method, that gets called to sandbox a value.</summary>
 		/// <param name="expression">Expression, that should be sandboxed.</param>
@@ -77,17 +90,16 @@ namespace Neo.IronLua
 		/// <returns>Sandboxed expression</returns>
 		protected internal virtual Expression SandboxCore(Expression expression, Expression instance, string sMember)
 		{
-			switch (Sandbox(expression.Type, instance == null ? null : instance.Type, sMember))
+			switch (Sandbox(expression.Type, instance?.Type, sMember))
 			{
 				case LuaSandboxResult.Dynamic:
-					if (DynamicSandbox == null)
-						return expression;
-					else 
-						return Lua.EnsureType(Expression.Invoke(Expression.Constant(DynamicSandbox), expression), expression.Type);
+					return DynamicSandbox == null
+						? expression
+						: Lua.EnsureType(Expression.Invoke(Expression.Constant(DynamicSandbox), expression), expression.Type);
 
 				case LuaSandboxResult.Restrict:
 					return RestrictAccess();
-				
+
 				default:
 					return expression;
 			}
@@ -99,9 +111,7 @@ namespace Neo.IronLua
 		/// <param name="sMember">Optional: Name of the member that was used to resolve the expression.</param>
 		/// <returns>Sandbox action</returns>
 		protected virtual LuaSandboxResult Sandbox(Type expressionType, Type instanceType, string sMember)
-		{
-			return DynamicSandbox == null ? LuaSandboxResult.None : LuaSandboxResult.Dynamic;
-		} // func Sandbox
+			=> DynamicSandbox == null ? LuaSandboxResult.None : LuaSandboxResult.Dynamic;
 
 		/// <summary>Gets called if the sandbox will resolved during runtime.</summary>
 		public Func<object, object> DynamicSandbox { get; set; }
@@ -111,7 +121,8 @@ namespace Neo.IronLua
 
 	#endregion
 
-	///////////////////////////////////////////////////////////////////////////////
+	#region -- class Lua --------------------------------------------------------------
+
 	/// <summary>Manages the Lua-Script-Environment. At the time it holds the
 	/// binder cache between the compiled scripts.</summary>
 	public partial class Lua : IDisposable
@@ -120,7 +131,7 @@ namespace Neo.IronLua
 
 		private int numberType = (int)LuaIntegerType.Int32 | (int)LuaFloatType.Double;
 
-		#region -- Ctor/Dtor --------------------------------------------------------------
+		#region -- Ctor/Dtor ----------------------------------------------------------
 
 		/// <summary>Create a new lua-script-manager.</summary>
 		public Lua()
@@ -145,25 +156,22 @@ namespace Neo.IronLua
 		/// <summary>Destroy script manager</summary>
 		public void Dispose()
 		{
+			GC.SuppressFinalize(this);
 			Dispose(true);
 		} // proc Dispose
 
 		/// <summary></summary>
 		/// <param name="disposing"></param>
 		protected virtual void Dispose(bool disposing)
-		{
-			Clear();
-		} // proc Dispose
+			=> Clear();
 
 		/// <summary>Removes all chunks, binders and compiled assemblies.</summary>
 		public virtual void Clear()
-		{
-			ClearBinderCache();
-		} // proc Clear
+			=> ClearBinderCache();
 
 		#endregion
 
-		#region -- CreateEnvironment ------------------------------------------------------
+		#region -- CreateEnvironment --------------------------------------------------
 
 		/// <summary>Creates a Environment</summary>
 		/// <returns></returns>
@@ -179,29 +187,36 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Compile ----------------------------------------------------------------
+		#region -- Compile ------------------------------------------------------------
 
-		/// <summary>Erzeugt ein Delegate aus dem Code, ohne ihn auszuführen.</summary>
+		/// <summary>Create a code delegate without executing it.</summary>
+		/// <param name="fileName">File to parse.</param>
+		/// <param name="options">Options for the compile process.</param>
+		/// <param name="args">Arguments for the code block.</param>
+		/// <returns>Compiled chunk.</returns>
+		public LuaChunk CompileChunk(string fileName, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
+		{
+			using (var sr = new StreamReader(fileName))
+				return CompileChunk(Path.GetFileName(fileName), options, sr, args);
+		} // func CompileChunk
+
+		/// <summary>Create a code delegate without executing it.</summary>
 		/// <param name="tr">Inhalt</param>
 		/// <param name="name">Name der Datei</param>
 		/// <param name="options">Options for the compile process.</param>
-		/// <param name="args">Parameter für den Codeblock</param>
+		/// <param name="args">Arguments for the code block.</param>
 		/// <returns>Compiled chunk.</returns>
 		public LuaChunk CompileChunk(TextReader tr, string name, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
-		{
-			return CompileChunk(name, options, tr, args);
-		} // func CompileChunk
+			=> CompileChunk(name, options, tr, args);
 
-		/// <summary>Erzeugt ein Delegate aus dem Code, ohne ihn auszuführen.</summary>
-		/// <param name="code">Code, der das Delegate darstellt.</param>
-		/// <param name="name">Name des Delegates</param>
+		/// <summary>Create a code delegate without executing it.</summary>
+		/// <param name="code">Code of the delegate..</param>
+		/// <param name="name">Name of the delegate</param>
 		/// <param name="options">Options for the compile process.</param>
-		/// <param name="args">Argumente</param>
+		/// <param name="args">Arguments for the code block.</param>
 		/// <returns>Compiled chunk.</returns>
 		public LuaChunk CompileChunk(string code, string name, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
-		{
-			return CompileChunk(name, options, new StringReader(code), args);
-		} // func CompileChunk
+			=> CompileChunk(name, options, new StringReader(code), args);
 
 		internal LuaChunk CompileChunk(string chunkName, LuaCompileOptions options, TextReader tr, IEnumerable<KeyValuePair<string, Type>> args)
 		{
@@ -226,10 +241,9 @@ namespace Neo.IronLua
 					}
 
 					// compile the chunk
-					if (options.DebugEngine == null)
-						return new LuaChunk(this, expr.Name, expr.Compile());
-					else
-						return options.DebugEngine.CreateChunk(this, expr);
+					return options.DebugEngine == null
+						? new LuaChunk(this, expr.Name, expr.Compile())
+						: options.DebugEngine.CreateChunk(this, expr);
 				}
 				finally
 				{
@@ -240,17 +254,17 @@ namespace Neo.IronLua
 		} // func CompileChunk
 
 		/// <summary>Creates a simple lua-lambda-expression without any environment.</summary>
-		/// <param name="sName">Name of the delegate</param>
-		/// <param name="sCode">Code of the delegate.</param>
-		/// <param name="typeDelegate">Delegate type. <c>null</c> is allowed.</param>
+		/// <param name="name">Name of the delegate</param>
+		/// <param name="code">Code of the delegate.</param>
+		/// <param name="delegateType">Delegate type. <c>null</c> is allowed.</param>
 		/// <param name="returnType">Return-Type of the delegate</param>
 		/// <param name="arguments">Arguments of the delegate.</param>
 		/// <returns></returns>
-		public Delegate CreateLambda(string sName, string sCode, Type typeDelegate, Type returnType, params KeyValuePair<string, Type>[] arguments)
+		public Delegate CreateLambda(string name, string code, Type delegateType, Type returnType, params KeyValuePair<string, Type>[] arguments)
 		{
-			using (var l = new LuaLexer(sName, new StringReader(sCode)))
+			using (var l = new LuaLexer(name, new StringReader(code)))
 			{
-				var expr = Parser.ParseChunk(this, new LuaCompileOptions(), false, l, typeDelegate, returnType, arguments);
+				var expr = Parser.ParseChunk(this, new LuaCompileOptions(), false, l, delegateType, returnType, arguments);
 
 				if (printExpressionTree != null)
 				{
@@ -293,7 +307,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Numbers ----------------------------------------------------------------
+		#region -- Numbers ------------------------------------------------------------
 
 		internal static Type GetIntegerType(int numberType)
 		{
@@ -327,30 +341,26 @@ namespace Neo.IronLua
 		/// <param name="number">String representation of the number.</param>
 		/// <returns></returns>
 		public object ParseNumber(string number)
-		{
-			return Lua.RtParseNumber(number, FloatType == LuaFloatType.Double, false);
-		} // func ParseNumber
+			=> RtParseNumber(number, FloatType == LuaFloatType.Double, false);
 
 		/// <summary>Parses a string to a lua number.</summary>
 		/// <param name="number">String representation of the number.</param>
 		/// <param name="iBase">Base fore the number</param>
 		/// <returns></returns>
 		public object ParseNumber(string number, int iBase)
-		{
-			return Lua.RtParseNumber(null, number, 0, iBase, FloatType == LuaFloatType.Double, false);
-		} // func ParseNumber
+			=> RtParseNumber(null, number, 0, iBase, FloatType == LuaFloatType.Double, false);
 
 		internal int NumberType => numberType;
 
 		/// <summary>Default type for the non floating point numbers. Only short, int, long is allowed.</summary>
 		public LuaIntegerType IntegerType
 		{
-			get { return (LuaIntegerType)(numberType & (int)LuaIntegerType.Mask); }
+			get => (LuaIntegerType)(numberType & (int)LuaIntegerType.Mask);
 			private set
 			{
-				if (value == LuaIntegerType.Int16 ||
-					value == LuaIntegerType.Int32 ||
-					value == LuaIntegerType.Int64)
+				if (value == LuaIntegerType.Int16
+					|| value == LuaIntegerType.Int32 
+					|| value == LuaIntegerType.Int64)
 					numberType = (numberType & (int)LuaFloatType.Mask) | (int)value;
 				else
 					throw new ArgumentException();
@@ -360,11 +370,10 @@ namespace Neo.IronLua
 		/// <summary>Default type for the floating point numbers. Only float, double, decimal is allowed.</summary>
 		public LuaFloatType FloatType
 		{
-			get { return (LuaFloatType)(numberType & (int)LuaFloatType.Mask); }
+			get => (LuaFloatType)(numberType & (int)LuaFloatType.Mask);
 			private set
 			{
-				if (value == LuaFloatType.Float ||
-					value == LuaFloatType.Double)
+				if (value == LuaFloatType.Float || value == LuaFloatType.Double)
 					numberType = (numberType & (int)LuaIntegerType.Mask) | (int)value;
 				else
 					throw new ArgumentException();
@@ -373,13 +382,13 @@ namespace Neo.IronLua
 
 		#endregion
 
-		internal TextWriter PrintExpressionTree { get { return printExpressionTree; } set { printExpressionTree = value; } }
+		internal TextWriter PrintExpressionTree { get => printExpressionTree; set => printExpressionTree = value; }
 
-    // -- Static --------------------------------------------------------------
+		// -- Static --------------------------------------------------------------
 
 		private static Version versionInfo = null;
 
-		private static int iRegisteredChunkLock = 0;
+		private static int registeredChunkLock = 0;
 		private static Dictionary<string, WeakReference> registeredChunks = new Dictionary<string, WeakReference>();
 
 		#region -- Chunk Register ---------------------------------------------------------
@@ -387,21 +396,23 @@ namespace Neo.IronLua
 		private static void BeginCompile()
 		{
 			lock (registeredChunks)
-				iRegisteredChunkLock++;
+				registeredChunkLock++;
 		} // proc BeginCompile
 
 		private static void EndCompile()
 		{
 			lock (registeredChunks)
 			{
-				iRegisteredChunkLock--;
-				if (iRegisteredChunkLock <= 0) // clean up
+				registeredChunkLock--;
+				if (registeredChunkLock <= 0) // clean up
 				{
-					// collect all chunks they have ne reference or target
+					// collect all chunks they have no reference or target
 					var deletes = new List<string>();
 					foreach (var c in registeredChunks)
+					{
 						if (c.Value == null || c.Value.Target == null)
 							deletes.Remove(c.Key);
+					}
 
 					// remove them
 					for (var i = 0; i < deletes.Count; i++)
@@ -410,59 +421,56 @@ namespace Neo.IronLua
 			}
 		} // proc EndCompile
 
-		internal static string RegisterUniqueName(string sName)
+		internal static string RegisterUniqueName(string name)
 		{
 			lock (registeredChunks)
 			{
-        // create a unique name
-				int iIndex = 0;
-				string sUniqueName = sName;
-				while (registeredChunks.ContainsKey(sUniqueName))
-					sUniqueName = sName + (++iIndex).ToString();
+				// create a unique name
+				var idx = 0;
+				var uniqueName = name;
+				while (registeredChunks.ContainsKey(uniqueName))
+					uniqueName = name + (++idx).ToString();
 
-        // reserve the name
-        registeredChunks.Add(sUniqueName, null);
-        
-        return sUniqueName;
+				// reserve the name
+				registeredChunks.Add(uniqueName, null);
+
+				return uniqueName;
 			}
 		} // func RegisterUniqueName
 
-		internal static void RegisterMethod(string sUniqueName, LuaChunk chunk)
+		internal static void RegisterMethod(string uniqueName, LuaChunk chunk)
 		{
-      lock (registeredChunks)
-        registeredChunks[sUniqueName] = new WeakReference(chunk);
+			lock (registeredChunks)
+				registeredChunks[uniqueName] = new WeakReference(chunk);
 		} // proc RegsiterMethod
 
-		internal static void UnregisterMethod(string sUniqueName, LuaChunk chunk)
+		internal static void UnregisterMethod(string uniqueName, LuaChunk chunk)
 		{
-			WeakReference r;
 			lock (registeredChunks)
 			{
-				if (registeredChunks.TryGetValue(sUniqueName, out r) && r.Target == chunk)
-					registeredChunks.Remove(sUniqueName);
+				if (registeredChunks.TryGetValue(uniqueName, out var r) && r.Target == chunk)
+					registeredChunks.Remove(uniqueName);
 			}
 		} // proc UnregisterMethod
 
 		/// <summary></summary>
-		/// <param name="sName"></param>
+		/// <param name="name"></param>
 		/// <returns></returns>
-		public static LuaChunk GetChunkFromMethodName(string sName)
+		public static LuaChunk GetChunkFromMethodName(string name)
 		{
-			WeakReference r;
 			lock (registeredChunks)
-				if (registeredChunks.TryGetValue(sName, out r) && r != null)
-					return (LuaChunk)r.Target;
-				else
-					return null;
+			{
+				return registeredChunks.TryGetValue(name, out var r) && r != null
+					? (LuaChunk)r.Target
+					: null;
+			}
 		} // func GetChunkFromMethodName
 
 		/// <summary></summary>
 		/// <param name="mi"></param>
 		/// <returns></returns>
 		public static LuaChunk GetChunkFromMethodInfo(MethodBase mi)
-		{
-			return GetChunkFromMethodName(mi.Name);
-		} // func GetChunkFromMethodInfo
+			=> GetChunkFromMethodName(mi.Name);
 
 		#endregion
 
@@ -480,4 +488,6 @@ namespace Neo.IronLua
 			}
 		} // prop Version
 	} // class Lua
+
+	#endregion
 }

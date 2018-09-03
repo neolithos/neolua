@@ -1,4 +1,24 @@
-﻿using System;
+﻿#region -- copyright --
+//
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+// 
+//   http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+//
+#endregion
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Dynamic;
@@ -13,10 +33,10 @@ namespace Neo.IronLua
 {
 	#region -- class Lua ----------------------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>All static methods for the language implementation</summary>
 	public partial class Lua
 	{
+#pragma warning disable IDE1006 // Naming Styles
 		internal const ExpressionType IntegerDivide = (ExpressionType)(-100);
 
 		// LuaResult
@@ -132,8 +152,9 @@ namespace Neo.IronLua
 
 		internal readonly static Type ClosureType;
 		internal readonly static FieldInfo ClosureLocalsFieldInfo;
+#pragma warning restore IDE1006 // Naming Styles
 
-		#region -- sctor ------------------------------------------------------------------
+		#region -- sctor --------------------------------------------------------------
 
 		static Lua()
 		{
@@ -142,8 +163,8 @@ namespace Neo.IronLua
 			ResultConstructorInfoArg1 = tiLuaResult.FindDeclaredConstructor(ReflectionFlag.None, typeof(object));
 			ResultConstructorInfoArgN = tiLuaResult.FindDeclaredConstructor(ReflectionFlag.None, typeof(object[]));
 			ResultIndexPropertyInfo = tiLuaResult.FindDeclaredProperty("Item", ReflectionFlag.None);
-			ResultEmptyPropertyInfo = tiLuaResult.FindDeclaredProperty("Empty", ReflectionFlag.None);
-			ResultValuesPropertyInfo = tiLuaResult.FindDeclaredProperty("Values", ReflectionFlag.None);
+			ResultEmptyPropertyInfo = tiLuaResult.FindDeclaredProperty(nameof(LuaResult.Empty), ReflectionFlag.None);
+			ResultValuesPropertyInfo = tiLuaResult.FindDeclaredProperty(nameof(LuaResult.Values), ReflectionFlag.None);
 
 			// LuaException
 			var tiLuaRuntimeException = typeof(LuaRuntimeException).GetTypeInfo();
@@ -151,18 +172,18 @@ namespace Neo.IronLua
 
 			// LuaTable
 			var tiLuaTable = typeof(LuaTable).GetTypeInfo();
-			TableSetValueKeyStringMethodInfo = tiLuaTable.FindDeclaredMethod("SetMemberValue", ReflectionFlag.None, typeof(string), typeof(object), typeof(bool), typeof(bool));
-			TableGetValueKeyStringMethodInfo = tiLuaTable.FindDeclaredMethod("GetMemberValue", ReflectionFlag.None, typeof(string), typeof(bool), typeof(bool));
-			TableSetValueKeyIntMethodInfo = tiLuaTable.FindDeclaredMethod("SetArrayValue", ReflectionFlag.None, typeof(int), typeof(object), typeof(bool));
-			TableGetValueKeyIntMethodInfo = tiLuaTable.FindDeclaredMethod("GetArrayValue", ReflectionFlag.None, typeof(int), typeof(bool));
-			TableSetValueKeyObjectMethodInfo = tiLuaTable.FindDeclaredMethod("SetValue", ReflectionFlag.None, typeof(object), typeof(object), typeof(bool));
-			TableGetValueKeyObjectMethodInfo = tiLuaTable.FindDeclaredMethod("GetValue", ReflectionFlag.None, typeof(object), typeof(bool));
-			TableSetValueKeyListMethodInfo = tiLuaTable.FindDeclaredMethod("SetValue", ReflectionFlag.None, typeof(object[]), typeof(object), typeof(bool));
-			TableGetValueKeyListMethodInfo = tiLuaTable.FindDeclaredMethod("GetValue", ReflectionFlag.None, typeof(object[]), typeof(bool));
+			TableSetValueKeyStringMethodInfo = tiLuaTable.FindDeclaredMethod(nameof(LuaTable.SetMemberValue), ReflectionFlag.None, typeof(string), typeof(object), typeof(bool), typeof(bool));
+			TableGetValueKeyStringMethodInfo = tiLuaTable.FindDeclaredMethod(nameof(LuaTable.GetMemberValue), ReflectionFlag.None, typeof(string), typeof(bool), typeof(bool));
+			TableSetValueKeyIntMethodInfo = tiLuaTable.FindDeclaredMethod(nameof(LuaTable.SetArrayValue), ReflectionFlag.None, typeof(int), typeof(object), typeof(bool));
+			TableGetValueKeyIntMethodInfo = tiLuaTable.FindDeclaredMethod(nameof(LuaTable.GetArrayValue), ReflectionFlag.None, typeof(int), typeof(bool));
+			TableSetValueKeyObjectMethodInfo = tiLuaTable.FindDeclaredMethod(nameof(LuaTable.SetValue), ReflectionFlag.None, typeof(object), typeof(object), typeof(bool));
+			TableGetValueKeyObjectMethodInfo = tiLuaTable.FindDeclaredMethod(nameof(LuaTable.GetValue), ReflectionFlag.None, typeof(object), typeof(bool));
+			TableSetValueKeyListMethodInfo = tiLuaTable.FindDeclaredMethod(nameof(LuaTable.SetValue), ReflectionFlag.None, typeof(object[]), typeof(object), typeof(bool));
+			TableGetValueKeyListMethodInfo = tiLuaTable.FindDeclaredMethod(nameof(LuaTable.GetValue), ReflectionFlag.None, typeof(object[]), typeof(bool));
 
-			TableDefineMethodLightMethodInfo = tiLuaTable.FindDeclaredMethod("DefineMethodLight", ReflectionFlag.None, typeof(string), typeof(Delegate));
-			TableGetCallMemberMethodInfo = tiLuaTable.FindDeclaredMethod("GetCallMember", ReflectionFlag.NoArguments);
-			TableSetObjectMemberMethodInfo = tiLuaTable.FindDeclaredMethod("SetObjectMember", ReflectionFlag.None, typeof(object));
+			TableDefineMethodLightMethodInfo = tiLuaTable.FindDeclaredMethod(nameof(LuaTable.DefineMethodLight), ReflectionFlag.None, typeof(string), typeof(Delegate));
+			TableGetCallMemberMethodInfo = tiLuaTable.FindDeclaredMethod(nameof(LuaTable.GetCallMember), ReflectionFlag.NoArguments);
+			TableSetObjectMemberMethodInfo = tiLuaTable.FindDeclaredMethod(nameof(LuaTable.SetObjectMember), ReflectionFlag.None, typeof(object));
 
 			TableEntriesFieldInfo = tiLuaTable.FindDeclaredField("entries", ReflectionFlag.None);
 			TablePropertyChangedMethodInfo = tiLuaTable.FindDeclaredMethod("OnPropertyChanged", ReflectionFlag.None, typeof(string));
@@ -193,107 +214,107 @@ namespace Neo.IronLua
 
 			// LuaType
 			var tiLuaType = typeof(LuaType).GetTypeInfo();
-			TypeClrPropertyInfo = tiLuaType.FindDeclaredProperty("Clr", ReflectionFlag.None);
-			TypeGetTypeMethodInfoArgIndex = tiLuaType.FindDeclaredMethod("GetType", ReflectionFlag.Static, typeof(int));
-			TypeGetTypeMethodInfoArgType = tiLuaType.FindDeclaredMethod("GetType", ReflectionFlag.Static, typeof(Type));
-			TypeMakeGenericLuaTypeMethodInfo = tiLuaType.FindDeclaredMethod("MakeGenericLuaType", ReflectionFlag.Instance | ReflectionFlag.Public, typeof(LuaType[]), typeof(bool));
-			TypeMakeArrayLuaTypeMethodInfo = tiLuaType.FindDeclaredMethod("MakeArrayLuaType", ReflectionFlag.Instance | ReflectionFlag.Public, typeof(int), typeof(bool));
-			TypeTypePropertyInfo = tiLuaType.FindDeclaredProperty("Type", ReflectionFlag.None);
-			TypeParentPropertyInfo = tiLuaType.FindDeclaredProperty("Parent", ReflectionFlag.None);
+			TypeClrPropertyInfo = tiLuaType.FindDeclaredProperty(nameof(LuaType.Clr), ReflectionFlag.None);
+			TypeGetTypeMethodInfoArgIndex = tiLuaType.FindDeclaredMethod(nameof(LuaType.GetType), ReflectionFlag.Static, typeof(int));
+			TypeGetTypeMethodInfoArgType = tiLuaType.FindDeclaredMethod(nameof(LuaType.GetType), ReflectionFlag.Static, typeof(Type));
+			TypeMakeGenericLuaTypeMethodInfo = tiLuaType.FindDeclaredMethod(nameof(LuaType.MakeGenericLuaType), ReflectionFlag.Instance | ReflectionFlag.Public, typeof(LuaType[]), typeof(bool));
+			TypeMakeArrayLuaTypeMethodInfo = tiLuaType.FindDeclaredMethod(nameof(LuaType.MakeArrayLuaType), ReflectionFlag.Instance | ReflectionFlag.Public, typeof(int), typeof(bool));
+			TypeTypePropertyInfo = tiLuaType.FindDeclaredProperty(nameof(LuaType.Type), ReflectionFlag.None);
+			TypeParentPropertyInfo = tiLuaType.FindDeclaredProperty(nameof(LuaType.Parent), ReflectionFlag.None);
 
 			// LuaMethod
 			var tiLuaMethod = typeof(LuaMethod).GetTypeInfo();
 			MethodConstructorInfo = tiLuaMethod.FindDeclaredConstructor(ReflectionFlag.None, typeof(object), typeof(MethodInfo), typeof(bool));
-			MethodMethodPropertyInfo = tiLuaMethod.FindDeclaredProperty("Method", ReflectionFlag.None);
+			MethodMethodPropertyInfo = tiLuaMethod.FindDeclaredProperty(nameof(LuaMethod.Method), ReflectionFlag.None);
 
 			// LuaOverloadedMethod
 			var tiLuaOverloadedMethod = typeof(LuaOverloadedMethod).GetTypeInfo();
 			OverloadedMethodConstructorInfo = tiLuaOverloadedMethod.FindDeclaredConstructor(ReflectionFlag.None, typeof(object), typeof(MethodInfo[]), typeof(bool));
-			OverloadedMethodGetMethodMethodInfo = tiLuaOverloadedMethod.FindDeclaredMethod("GetMethod", ReflectionFlag.None, typeof(bool), typeof(Type[]));
+			OverloadedMethodGetMethodMethodInfo = tiLuaOverloadedMethod.FindDeclaredMethod(nameof(LuaOverloadedMethod.GetMethod), ReflectionFlag.None, typeof(bool), typeof(Type[]));
 
 			// ILuaMethod
 			var tiLuaMethodInterface = typeof(ILuaMethod).GetTypeInfo();
-			MethodNamePropertyInfo = tiLuaMethodInterface.FindDeclaredProperty("Name", ReflectionFlag.None);
-			MethodTypePropertyInfo = tiLuaMethodInterface.FindDeclaredProperty("Type", ReflectionFlag.None);
-			MethodInstancePropertyInfo = tiLuaMethodInterface.FindDeclaredProperty("Instance", ReflectionFlag.None);
+			MethodNamePropertyInfo = tiLuaMethodInterface.FindDeclaredProperty(nameof(ILuaMethod.Name), ReflectionFlag.None);
+			MethodTypePropertyInfo = tiLuaMethodInterface.FindDeclaredProperty(nameof(ILuaMethod.Type), ReflectionFlag.None);
+			MethodInstancePropertyInfo = tiLuaMethodInterface.FindDeclaredProperty(nameof(ILuaMethod.Instance), ReflectionFlag.None);
 
 			// Event
 			var tiLuaEvent = typeof(LuaEvent).GetTypeInfo();
 			EventConstructorInfo = tiLuaEvent.FindDeclaredConstructor(ReflectionFlag.None, typeof(object), typeof(EventInfo));
-			AddMethodInfoPropertyInfo = tiLuaEvent.FindDeclaredProperty("AddMethodInfo", ReflectionFlag.None);
-			RemoveMethodInfoPropertyInfo = tiLuaEvent.FindDeclaredProperty("RemoveMethodInfo", ReflectionFlag.None);
-			RaiseMethodInfoPropertyInfo = tiLuaEvent.FindDeclaredProperty("RaiseMethodInfo", ReflectionFlag.None);
+			AddMethodInfoPropertyInfo = tiLuaEvent.FindDeclaredProperty(nameof(LuaEvent.AddMethodInfo), ReflectionFlag.None);
+			RemoveMethodInfoPropertyInfo = tiLuaEvent.FindDeclaredProperty(nameof(LuaEvent.RemoveMethodInfo), ReflectionFlag.None);
+			RaiseMethodInfoPropertyInfo = tiLuaEvent.FindDeclaredProperty(nameof(LuaEvent.RaiseMethodInfo), ReflectionFlag.None);
 
 			// Lua
 			var tiLua = typeof(Lua).GetTypeInfo();
-			ParseNumberObjectMethodInfo = tiLua.FindDeclaredMethod("RtParseNumber", ReflectionFlag.None, typeof(string));
-			ParseNumberTypedMethodInfo = tiLua.FindDeclaredMethod("RtParseNumber", ReflectionFlag.None, typeof(string), typeof(Type));
-			RuntimeLengthMethodInfo = tiLua.FindDeclaredMethod("RtLength", ReflectionFlag.None | ReflectionFlag.NoArguments);
-			ConvertValueMethodInfo = tiLua.FindDeclaredMethod("RtConvertValue", ReflectionFlag.None, typeof(object), typeof(Type));
-			GetResultValuesMethodInfo = tiLua.FindDeclaredMethod("RtGetResultValues", ReflectionFlag.None, typeof(LuaResult), typeof(int), typeof(Type));
-			CombineArrayWithResultMethodInfo = tiLua.FindDeclaredMethod("RtCombineArrayWithResult", ReflectionFlag.None, typeof(Array), typeof(LuaResult), typeof(Type));
-			ConvertArrayMethodInfo = tiLua.FindDeclaredMethod("RtConvertArray", ReflectionFlag.None, typeof(Array), typeof(Type));
-			TableSetObjectsMethod = tiLua.FindDeclaredMethod("RtTableSetObjects", ReflectionFlag.None, typeof(LuaTable), typeof(object), typeof(int));
-			ConcatStringMethodInfo = tiLua.FindDeclaredMethod("RtConcatString", ReflectionFlag.None | ReflectionFlag.NoArguments);
-			ConvertDelegateMethodInfo = tiLua.FindDeclaredMethod("RtConvertDelegate", ReflectionFlag.None | ReflectionFlag.NoArguments);
-			InitArray1MethodInfo = tiLua.FindDeclaredMethod("RtInitArray", ReflectionFlag.None, typeof(Type), typeof(object));
-			InitArrayNMethodInfo = tiLua.FindDeclaredMethod("RtInitArray", ReflectionFlag.None, typeof(Type), typeof(object[]));
-			RtConvertValueDynamicMethodInfo = tiLua.FindDeclaredMethod("RtConvertValueDynamic", ReflectionFlag.NoArguments | ReflectionFlag.Static);
+			ParseNumberObjectMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtParseNumber), ReflectionFlag.None, typeof(string));
+			ParseNumberTypedMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtParseNumber), ReflectionFlag.None, typeof(string), typeof(Type));
+			RuntimeLengthMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtLength), ReflectionFlag.None | ReflectionFlag.NoArguments);
+			ConvertValueMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConvertValue), ReflectionFlag.None, typeof(object), typeof(Type));
+			GetResultValuesMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtGetResultValues), ReflectionFlag.None, typeof(LuaResult), typeof(int), typeof(Type));
+			CombineArrayWithResultMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtCombineArrayWithResult), ReflectionFlag.None, typeof(Array), typeof(LuaResult), typeof(Type));
+			ConvertArrayMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConvertArray), ReflectionFlag.None, typeof(Array), typeof(Type));
+			TableSetObjectsMethod = tiLua.FindDeclaredMethod(nameof(Lua.RtTableSetObjects), ReflectionFlag.None, typeof(LuaTable), typeof(object), typeof(int));
+			ConcatStringMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConcatString), ReflectionFlag.None | ReflectionFlag.NoArguments);
+			ConvertDelegateMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConvertDelegate), ReflectionFlag.None | ReflectionFlag.NoArguments);
+			InitArray1MethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtInitArray), ReflectionFlag.None, typeof(Type), typeof(object));
+			InitArrayNMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtInitArray), ReflectionFlag.None, typeof(Type), typeof(object[]));
+			RtConvertValueDynamicMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConvertValueDynamic), ReflectionFlag.NoArguments | ReflectionFlag.Static);
 
 			// Object
-			var tiObject = typeof(Object).GetTypeInfo();
-			ObjectEqualsMethodInfo = tiObject.FindDeclaredMethod("Equals", ReflectionFlag.Public | ReflectionFlag.Static | ReflectionFlag.NoArguments);
-			ObjectReferenceEqualsMethodInfo = tiObject.FindDeclaredMethod("ReferenceEquals", ReflectionFlag.Public | ReflectionFlag.Static | ReflectionFlag.NoArguments);
+			var tiObject = typeof(object).GetTypeInfo();
+			ObjectEqualsMethodInfo = tiObject.FindDeclaredMethod(nameof(Object.Equals), ReflectionFlag.Public | ReflectionFlag.Static | ReflectionFlag.NoArguments);
+			ObjectReferenceEqualsMethodInfo = tiObject.FindDeclaredMethod(nameof(Object.ReferenceEquals), ReflectionFlag.Public | ReflectionFlag.Static | ReflectionFlag.NoArguments);
 
 			// Convert
 			var tiConvert = typeof(Convert).GetTypeInfo();
-			ConvertToStringMethodInfo = tiConvert.FindDeclaredMethod("ToString", ReflectionFlag.Static | ReflectionFlag.Public, typeof(object), typeof(IFormatProvider));
+			ConvertToStringMethodInfo = tiConvert.FindDeclaredMethod(nameof(Convert.ToString), ReflectionFlag.Static | ReflectionFlag.Public, typeof(object), typeof(IFormatProvider));
 
 			// Enum
 			var tiEnum = typeof(Enum).GetTypeInfo();
-			EnumParseMethodInfo = tiEnum.FindDeclaredMethod("Parse", ReflectionFlag.Static | ReflectionFlag.Public, typeof(Type), typeof(string));
+			EnumParseMethodInfo = tiEnum.FindDeclaredMethod(nameof(Enum.Parse), ReflectionFlag.Static | ReflectionFlag.Public, typeof(Type), typeof(string));
 
 			// String
-			var tiString = typeof(String).GetTypeInfo();
-			StringEmptyFieldInfo = tiString.FindDeclaredField("Empty", ReflectionFlag.Public | ReflectionFlag.Static);
-			StringConcatMethodInfo = tiString.FindDeclaredMethod("Concat", ReflectionFlag.None, typeof(string[]));
+			var tiString = typeof(string).GetTypeInfo();
+			StringEmptyFieldInfo = tiString.FindDeclaredField(nameof(String.Empty), ReflectionFlag.Public | ReflectionFlag.Static);
+			StringConcatMethodInfo = tiString.FindDeclaredMethod(nameof(String.Concat), ReflectionFlag.None, typeof(string[]));
 			StringItemPropertyInfo = tiString.FindDeclaredProperty("Chars", ReflectionFlag.Public | ReflectionFlag.Instance);
 
 			// CulureInfo
 			var tiCultureInfo = typeof(CultureInfo).GetTypeInfo();
-			CultureInvariantPropertyInfo = tiCultureInfo.FindDeclaredProperty("InvariantCulture", ReflectionFlag.Public | ReflectionFlag.Static);
+			CultureInvariantPropertyInfo = tiCultureInfo.FindDeclaredProperty(nameof(CultureInfo.InvariantCulture), ReflectionFlag.Public | ReflectionFlag.Static);
 
 			// List<object>
 			var tiList = typeof(List<object>).GetTypeInfo();
 			ListItemPropertyInfo = tiList.FindDeclaredProperty("Item", ReflectionFlag.Public | ReflectionFlag.Instance);
-			ListCountPropertyInfo = tiList.FindDeclaredProperty("Count", ReflectionFlag.Public | ReflectionFlag.Instance);
+			ListCountPropertyInfo = tiList.FindDeclaredProperty(nameof(List<object>.Count), ReflectionFlag.Public | ReflectionFlag.Instance);
 
 			// INotifyPropertyChanged
 			var tiNotifyPropertyChanged = typeof(INotifyPropertyChanged).GetTypeInfo();
-			NotifyPropertyChangedEventInfo = tiNotifyPropertyChanged.GetDeclaredEvent("PropertyChanged");
+			NotifyPropertyChangedEventInfo = tiNotifyPropertyChanged.GetDeclaredEvent(nameof(INotifyPropertyChanged.PropertyChanged));
 			if (NotifyPropertyChangedEventInfo == null)
 				throw new ArgumentException("@NotifyPropertyChangedEventInfo");
 
 			// Dispose
 			var tiDispose = typeof(IDisposable).GetTypeInfo();
-			DisposeDisposeMethodInfo = tiDispose.FindDeclaredMethod("Dispose", ReflectionFlag.None);
+			DisposeDisposeMethodInfo = tiDispose.FindDeclaredMethod(nameof(IDisposable.Dispose), ReflectionFlag.None);
 
 			// IEnumerator
 			var tiEnumerable = typeof(System.Collections.IEnumerable).GetTypeInfo();
-			EnumerableGetEnumeratorMethodInfo = tiEnumerable.FindDeclaredMethod("GetEnumerator", ReflectionFlag.None);
+			EnumerableGetEnumeratorMethodInfo = tiEnumerable.FindDeclaredMethod(nameof(System.Collections.IEnumerable.GetEnumerator), ReflectionFlag.None);
 
 			// IEnumerator
 			var tiEnumerator = typeof(System.Collections.IEnumerator).GetTypeInfo();
-			EnumeratorMoveNextMethodInfo = tiEnumerator.FindDeclaredMethod("MoveNext", ReflectionFlag.None);
-			EnumeratorCurrentPropertyInfo = tiEnumerator.FindDeclaredProperty("Current", ReflectionFlag.None);
+			EnumeratorMoveNextMethodInfo = tiEnumerator.FindDeclaredMethod(nameof(System.Collections.IEnumerator.MoveNext), ReflectionFlag.None);
+			EnumeratorCurrentPropertyInfo = tiEnumerator.FindDeclaredProperty(nameof(System.Collections.IEnumerator.Current), ReflectionFlag.None);
 
 			// MethodInfo
 			var tiMethodInfo = typeof(MethodInfo).GetTypeInfo();
-			MethodInfoCreateDelegateMethodInfo = tiMethodInfo.FindDeclaredMethod("CreateDelegate", ReflectionFlag.None, typeof(Type), typeof(object));
+			MethodInfoCreateDelegateMethodInfo = tiMethodInfo.FindDeclaredMethod(nameof(MethodInfo.CreateDelegate), ReflectionFlag.None, typeof(Type), typeof(object));
 
 			// Closure
-			string sClosureTypeString = typeof(IStrongBox).AssemblyQualifiedName.Replace(".IStrongBox", ".Closure");
-			ClosureType = Type.GetType(sClosureTypeString, false);
+			var closureTypeString = typeof(IStrongBox).AssemblyQualifiedName.Replace(".IStrongBox", ".Closure");
+			ClosureType = Type.GetType(closureTypeString, false);
 			//// WinStore, Desktop
 			//ClosureType = Type.GetType("System.Runtime.CompilerServices.Closure, System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", false);
 			//if (ClosureType == null) // WinPhone
@@ -301,18 +322,17 @@ namespace Neo.IronLua
 			if (ClosureType != null)
 			{
 				var tiClosureInfo = ClosureType.GetTypeInfo();
-
 				ClosureLocalsFieldInfo = tiClosureInfo.FindDeclaredField("Locals", ReflectionFlag.Instance);
 			}
 		} // sctor
 
 		#endregion
 
-		#region -- RtParseNumber ----------------------------------------------------------
+		#region -- RtParseNumber ------------------------------------------------------
 
 		/// <summary>This function convert numbers, that are automatically convert from strings.</summary>
-		internal static object RtParseNumber(string sNumber, bool useDouble)
-			=> RtParseNumber(sNumber, useDouble, true);
+		internal static object RtParseNumber(string number, bool useDouble)
+			=> RtParseNumber(number, useDouble, true);
 
 		internal static object RtParseNumber(string number, bool useDouble, bool throwException)
 		{
@@ -410,17 +430,17 @@ namespace Neo.IronLua
 			if (numberBase < 2 || numberBase > 36)
 				throw new ArgumentException("Invalid base");
 
-			bool lNeg;
-			bool lNegE = false;
+			bool isNeg;
+			var isNegE = false;
 
-			ulong border = UInt64.MaxValue / (ulong)numberBase;
-			ulong fraction = 0;
+			var border = UInt64.MaxValue / (ulong)numberBase;
+			var fraction = 0uL;
 			var expBorder = Int32.MaxValue / 10;
 			var exponent = 0;
 			var scale = 0;
 
 			if (isNegative.HasValue)
-				lNeg = isNegative.Value;
+				isNeg = isNegative.Value;
 			else
 			{
 				// skip white spaces
@@ -431,16 +451,16 @@ namespace Neo.IronLua
 					return ThrowFormatExpression(throwException, number, numberBase);
 				else if (number[offset] == '+')
 				{
-					lNeg = false;
+					isNeg = false;
 					offset++;
 				}
 				else if (number[offset] == '-')
 				{
-					lNeg = true;
+					isNeg = true;
 					offset++;
 				}
 				else
-					lNeg = false;
+					isNeg = false;
 			}
 
 			// read the numbers
@@ -511,12 +531,12 @@ namespace Neo.IronLua
 					case 5: // bexponent +/-
 						if (c == '+')
 						{
-							lNegE = false;
+							isNegE = false;
 							state += 2;
 						}
 						else if (c == '-')
 						{
-							lNegE = true;
+							isNegE = true;
 							state += 2;
 						}
 						else
@@ -564,7 +584,7 @@ namespace Neo.IronLua
 			{
 				unchecked
 				{
-					if (lNeg)
+					if (isNeg)
 					{
 						if (fraction < Int32.MaxValue)
 							return -(int)fraction;
@@ -592,7 +612,7 @@ namespace Neo.IronLua
 				if (state >= 4 && !isExponentReaded)
 					return ThrowFormatExpression(throwException, number, numberBase);
 
-				double bias = 1;
+				var bias = 1.0;
 				if (state == 7)
 				{
 					if (numberBase == 2)
@@ -612,9 +632,9 @@ namespace Neo.IronLua
 					}
 				}
 
-				double t = lNegE ? scale * bias - exponent : scale * bias + exponent;
-				double r = fraction * Math.Pow(numberBase, t);
-				if (lNeg)
+				var t = isNegE ? scale * bias - exponent : scale * bias + exponent;
+				var r = fraction * Math.Pow(numberBase, t);
+				if (isNeg)
 					r = -r;
 
 				if (state == 7 && (r % 1) == 0)
@@ -642,30 +662,30 @@ namespace Neo.IronLua
 			}
 		} // func RtParseNumber
 
-		private static object ThrowFormatExpression(bool lThrowException, string sNumber, int iBase)
+		private static object ThrowFormatExpression(bool throwException, string number, int nbase)
 		{
-			if (lThrowException)
+			if (throwException)
 			{
-				string sType;
-				switch (iBase)
+				string type;
+				switch (nbase)
 				{
 					case 2:
-						sType = "bin";
+						type = "bin";
 						break;
 					case 8:
-						sType = "oct";
+						type = "oct";
 						break;
 					case 10:
-						sType = "dec";
+						type = "dec";
 						break;
 					case 16:
-						sType = "hex";
+						type = "hex";
 						break;
 					default:
-						sType = "base" + iBase.ToString();
+						type = "base" + nbase.ToString();
 						break;
 				}
-				throw new FormatException(String.Format(Properties.Resources.rsFormatError, sNumber, sType));
+				throw new FormatException(String.Format(Properties.Resources.rsFormatError, number, type));
 			}
 			else
 				return null;
@@ -673,7 +693,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- RtConvertValue, RtConvertDelegate --------------------------------------
+		#region -- RtConvertValue, RtConvertDelegate ----------------------------------
 
 		/// <summary></summary>
 		/// <typeparam name="T"></typeparam>
@@ -692,6 +712,7 @@ namespace Neo.IronLua
 		public static object RtConvertValue(object value, Type toType)
 		{
 			if (value == null)
+			{
 				if (toType == typeof(string))
 					return String.Empty;
 				else if (toType == typeof(bool))
@@ -700,6 +721,7 @@ namespace Neo.IronLua
 					return Activator.CreateInstance(toType);
 				else
 					return null;
+			}
 			else
 			{
 				var fromType = value.GetType();
@@ -834,10 +856,10 @@ namespace Neo.IronLua
 		{
 			try
 			{
-				MethodInfo miDelegate = dlg.GetMethodInfo();
-				if (miDelegate.GetType().Name == "RuntimeMethodInfo") // runtime method -> use create delegate
+				var delegateMethodInfo = dlg.GetMethodInfo();
+				if (delegateMethodInfo.GetType().Name == "RuntimeMethodInfo") // runtime method -> use create delegate
 				{
-					return miDelegate.CreateDelegate(toType, dlg.Target);
+					return delegateMethodInfo.CreateDelegate(toType, dlg.Target);
 				}
 				else // dynamic method -> create the delegate from the DynamicMethod.Invoke
 				{
@@ -853,22 +875,22 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- RtGetResultValues, RtCombineArrayWithResult, RtConvertArray ------------
+		#region -- RtGetResultValues, RtCombineArrayWithResult, RtConvertArray --------
 
 		/// <summary>Get the part of the result as an array. If there are not enough values in the array, it returns a empty array.</summary>
 		/// <param name="result"></param>
-		/// <param name="iStartIndex"></param>
+		/// <param name="startAt"></param>
 		/// <param name="typeElementType">Type of the elements of the result array.</param>
 		/// <returns></returns>
-		internal static Array RtGetResultValues(LuaResult result, int iStartIndex, Type typeElementType)
+		internal static Array RtGetResultValues(LuaResult result, int startAt, Type typeElementType)
 		{
-			object[] values = result.Values;
-			int iLength = values.Length - iStartIndex;
-			if (iLength > 0)
+			var values = result.Values;
+			var length = values.Length - startAt;
+			if (length > 0)
 			{
-				Array r = Array.CreateInstance(typeElementType, iLength);
-				for (int i = 0; i < iLength; i++)
-					r.SetValue(RtConvertValue(values[i + iStartIndex], typeElementType), i);
+				var r = Array.CreateInstance(typeElementType, length);
+				for (var i = 0; i < length; i++)
+					r.SetValue(RtConvertValue(values[i + startAt], typeElementType), i);
 				return r;
 			}
 			else
@@ -882,19 +904,19 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		internal static Array RtCombineArrayWithResult(Array args, LuaResult result, Type typeArray)
 		{
-			object[] values = result.Values;
-			int iArgsLength = args.Length;
-			int iValuesLength = values.Length;
+			var values = result.Values;
+			var argsLength = args.Length;
+			var valuesLength = values.Length;
 
-			Array r = Array.CreateInstance(typeArray, iArgsLength + iValuesLength);
+			var r = Array.CreateInstance(typeArray, argsLength + valuesLength);
 
 			// copy args
-			for (int i = 0; i < iArgsLength; i++)
+			for (var i = 0; i < argsLength; i++)
 				r.SetValue(args.GetValue(i), i);
 
 			// add the result
-			for (int i = 0; i < iValuesLength; i++)
-				r.SetValue(RtConvertValue(values[i], typeArray), iArgsLength + i);
+			for (var i = 0; i < valuesLength; i++)
+				r.SetValue(RtConvertValue(values[i], typeArray), argsLength + i);
 
 			return r;
 		} // func CombineArrayWithResult
@@ -905,9 +927,9 @@ namespace Neo.IronLua
 				return Array.CreateInstance(typeArray, 0);
 			else
 			{
-				Array r = Array.CreateInstance(typeArray, src.Length);
+				var r = Array.CreateInstance(typeArray, src.Length);
 
-				for (int i = 0; i < src.Length; i++)
+				for (var i = 0; i < src.Length; i++)
 					r.SetValue(RtConvertValue(src.GetValue(i), typeArray), i);
 
 				return r;
@@ -916,53 +938,57 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- RtLength ---------------------------------------------------------------
+		#region -- RtLength -----------------------------------------------------------
 
 		/// <summary>Get's the length of an value.</summary>
 		/// <param name="v">Value</param>
 		/// <returns>Length of the value or 0.</returns>
 		public static int RtLength(object v)
 		{
-			if (v == null)
-				return 0;
-			else if (v is LuaTable)
-				return ((LuaTable)v).InternLen();
-			else if (v is String)
-				return ((String)v).Length;
-			else if (v is System.IO.Stream)
-				return unchecked((int)((System.IO.Stream)v).Length);
-			else if (v is System.Collections.ICollection)
-				return ((System.Collections.ICollection)v).Count;
-			else
+			switch (v)
 			{
-				TypeInfo t = v.GetType().GetTypeInfo();
-				PropertyInfo pi;
+				case null:
+					return 0;
+				case LuaTable ta:
+					return ta.InternLen();
+				case string s:
+					return s.Length;
+				case System.IO.Stream str:
+					return unchecked((int)str.Length);
+				case System.Collections.ICollection c:
+					return c.Count;
+				default:
+					var t = v.GetType().GetTypeInfo();
+					PropertyInfo pi;
 
-				// search for a generic collection
-				Type tInterface = t.ImplementedInterfaces.Where(ii => ii.GetTypeInfo().IsGenericTypeDefinition && ii.GetTypeInfo().GetGenericTypeDefinition() == typeof(ICollection<>)).FirstOrDefault();
-				if (tInterface != null)
-				{
-					pi = tInterface.GetTypeInfo().GetDeclaredProperty("Count");
-					return (int)pi.GetValue(v, null);
-				}
+					// search for a generic collection
+					var tInterface = t.ImplementedInterfaces.Where(ii => ii.GetTypeInfo().IsGenericTypeDefinition 
+						&& ii.GetTypeInfo().GetGenericTypeDefinition() == typeof(ICollection<>)
+					).FirstOrDefault();
 
-				// try find a Length or Count property
-				pi = t.FindDeclaredProperty("Count", ReflectionFlag.NoException | ReflectionFlag.Public | ReflectionFlag.Instance);
-				if (pi != null)
-					return (int)RtConvertValue(pi.GetValue(v, null), typeof(int));
+					if (tInterface != null)
+					{
+						pi = tInterface.GetTypeInfo().GetDeclaredProperty("Count");
+						return (int)pi.GetValue(v, null);
+					}
 
-				pi = t.FindDeclaredProperty("Length", ReflectionFlag.NoException | ReflectionFlag.Public | ReflectionFlag.Instance);
-				if (pi != null)
-					return (int)RtConvertValue(pi.GetValue(v, null), typeof(int));
+					// try find a Length or Count property
+					pi = t.FindDeclaredProperty("Count", ReflectionFlag.NoException | ReflectionFlag.Public | ReflectionFlag.Instance);
+					if (pi != null)
+						return (int)RtConvertValue(pi.GetValue(v, null), typeof(int));
 
-				LuaType lt = LuaType.GetType(t.AsType());
-				throw new LuaRuntimeException(String.Format(Properties.Resources.rsNoLengthOperator, lt.AliasName ?? lt.Name), null);
+					pi = t.FindDeclaredProperty("Length", ReflectionFlag.NoException | ReflectionFlag.Public | ReflectionFlag.Instance);
+					if (pi != null)
+						return (int)RtConvertValue(pi.GetValue(v, null), typeof(int));
+
+					var lt = LuaType.GetType(t.AsType());
+					throw new LuaRuntimeException(String.Format(Properties.Resources.rsNoLengthOperator, lt.AliasName ?? lt.Name), null);
 			}
 		} // func RtLength
 
 		#endregion
 
-		#region -- RtTableSetObjects ------------------------------------------------------
+		#region -- RtTableSetObjects --------------------------------------------------
 
 		internal static object RtTableSetObjects(LuaTable t, object value, int startIndex)
 		{
@@ -978,7 +1004,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- RtInvoke ---------------------------------------------------------------
+		#region -- RtInvoke -----------------------------------------------------------
 
 		/// <summary></summary>
 		/// <param name="ld"></param>
@@ -1033,7 +1059,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- RtConcatString ---------------------------------------------------------
+		#region -- RtConcatString -----------------------------------------------------
 
 		private static string RtConcatStringTable(object[] args, int iIndex)
 		{
@@ -1048,13 +1074,11 @@ namespace Neo.IronLua
 		internal static string RtConcatString(object[] args)
 		{
 			if (Array.Exists(args, a => a is LuaTable)) // do we have a table, than we use the metatable
-			{
 				return RtConcatStringTable(args, 0);
-			}
 			else
 			{
-				string[] strings = new string[args.Length];
-				for (int i = 0; i < args.Length; i++)
+				var strings = new string[args.Length];
+				for (var i = 0; i < args.Length; i++)
 					strings[i] = (string)RtConvertValue(args[i], typeof(string));
 				return String.Concat(strings);
 			}
@@ -1062,37 +1086,34 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- RtInitArray ------------------------------------------------------------
+		#region -- RtInitArray --------------------------------------------------------
 
 		internal static object RtInitArray(Type elementType, object value)
 		{
-			if (value is LuaTable) // only the array part
+			if (value is LuaTable t) // only the array part
 			{
-				LuaTable t = (LuaTable)value;
-				int iLength = t.Length;
+				var length = t.Length;
 
 				// create the array
-				Array r = Array.CreateInstance(elementType, iLength);
+				var r = Array.CreateInstance(elementType, length);
 
 				// copy the values
-				for (int i = 0; i < iLength; i++)
-					r.SetValue(Lua.RtConvertValue(t[i + 1], elementType), i);
+				for (var i = 0; i < length; i++)
+					r.SetValue(RtConvertValue(t[i + 1], elementType), i);
 
 				return r;
 			}
-			else if (value is System.Collections.ICollection) // convert a collection to an array
+			else if (value is System.Collections.ICollection c)
 			{
-				System.Collections.ICollection c = (System.Collections.ICollection)value;
-
 				// create the array an copy the values
-				Array r = Array.CreateInstance(elementType, c.Count);
+				var r = Array.CreateInstance(elementType, c.Count);
 				c.CopyTo(r, 0);
 
 				return r;
 			}
 			else // create a zero-value array
 			{
-				Array r = Array.CreateInstance(elementType, 1);
+				var r = Array.CreateInstance(elementType, 1);
 				r.SetValue(value, 0);
 				return r;
 			}
@@ -1100,10 +1121,10 @@ namespace Neo.IronLua
 
 		internal static object RtInitArray(Type elementType, object[] values)
 		{
-			Array r = Array.CreateInstance(elementType, values.Length);
+			var r = Array.CreateInstance(elementType, values.Length);
 			if (values.Length > 0)
 			{
-				for (int i = 0; i < values.Length; i++)
+				for (var i = 0; i < values.Length; i++)
 					r.SetValue(Lua.RtConvertValue(values[i], elementType), i);
 			}
 			return r;
@@ -1111,7 +1132,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- RtSetUpValues, RtGetUpValues, RtJoinUpValues ---------------------------
+		#region -- RtSetUpValues, RtGetUpValues, RtJoinUpValues -----------------------
 
 		private static TResult UpValueChangeEditor<TResult>(object target, Func<object[], TResult> changeClosure, Func<FieldInfo[], TResult> changeClass)
 		{
@@ -1320,26 +1341,23 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Enumerator -------------------------------------------------------------
+		#region -- Enumerator ---------------------------------------------------------
 
 		private readonly static Func<object, object, LuaResult> funcLuaEnumIterator = new Func<object, object, LuaResult>(LuaEnumIteratorImpl);
 
 		private static LuaResult LuaEnumIteratorImpl(object s, object c)
 		{
-			System.Collections.IEnumerator e = (System.Collections.IEnumerator)s;
-			if (e.MoveNext())
-				return new LuaResult(e.Current);
-			else
-				return LuaResult.Empty;
+			var e = (System.Collections.IEnumerator)s;
+			return e.MoveNext()
+				? new LuaResult(e.Current)
+				: LuaResult.Empty;
 		} // func LuaEnumIteratorImpl
 
 		/// <summary>Convert IEnumerator's to lua enumerator-functions.</summary>
 		/// <param name="e"></param>
 		/// <returns></returns>
 		public static LuaResult GetEnumIteratorResult(System.Collections.IEnumerator e)
-		{
-			return new LuaResult(funcLuaEnumIterator, e, null);
-		} // func GetEnumIteratorResult
+			=> new LuaResult(funcLuaEnumIterator, e, null);
 
 		#endregion
 	} // class Lua

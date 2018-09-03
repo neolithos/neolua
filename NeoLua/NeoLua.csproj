@@ -1,96 +1,29 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{09AEBB35-719E-4E32-9836-F57D7D6F1607}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Neo.IronLua</RootNamespace>
-    <AssemblyName>Neo.Lua</AssemblyName>
-    <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
-    <TargetFrameworkProfile>Profile111</TargetFrameworkProfile>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <SccProjectName>
-    </SccProjectName>
-    <SccLocalPath>
-    </SccLocalPath>
-    <SccAuxPath>
-    </SccAuxPath>
-    <SccProvider>
-    </SccProvider>
-    <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>false</Prefer32Bit>
-    <DocumentationFile>bin\Debug\Neo.Lua.XML</DocumentationFile>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE;UNSAFE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>false</Prefer32Bit>
-    <DocumentationFile>bin\Release\Neo.Lua.XML</DocumentationFile>
-  </PropertyGroup>
-  <PropertyGroup>
-    <SignAssembly>true</SignAssembly>
-  </PropertyGroup>
-  <PropertyGroup>
-    <AssemblyOriginatorKeyFile>NeoLua.snk</AssemblyOriginatorKeyFile>
+    <TargetFrameworks>net45;netstandard2.0</TargetFrameworks>
+    <Authors>Neolithos</Authors>
+    <Company>TecWare Gesellschaft für Softwareentwicklung mbH</Company>
+    <PackageProjectUrl>https://github.com/neolithos/neolua/</PackageProjectUrl>
+    <PackageLicenseUrl>https://github.com/neolithos/neolua/blob/master/LICENSE.md</PackageLicenseUrl>
+    <Description>A Lua implementation for the Dynamic Language Runtime (DLR).</Description>
+    <PackageReleaseNotes>A Lua implementation for the Dynamic Language Runtime (DLR).
+NeoLua is an implementation of the Lua language. Currently the implementation is on the level of Lua 
+5.3 http://www.lua.org/manual/5.3/manual.html). The goal is to match the reference of the C-Lua implementation and combine this with full .net framework support.
+
+NeoLua is implemented in C# and uses the Dynamic Language Runtime. It therefore integrates very well with the .net framework.
+
+This library contains the desktop parts of the lua implementation.</PackageReleaseNotes>
+    <PackageTags>Lua C# .net DLR Dynamic Language</PackageTags>
+    <RepositoryUrl>https://github.com/neolithos/neolua.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Copyright>Copyright © 2013-2015</Copyright>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <Product>Neo.Lua</Product>
+    <AssemblyVersion>5.3.0.0</AssemblyVersion>
+    <FileVersion>1.2.25.0</FileVersion>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Exceptions.cs" />
-    <Compile Include="Extern\printf.cs" />
-    <Compile Include="Lexer.cs" />
-    <Compile Include="Lua.Binder.cs" />
-    <Compile Include="Lua.cs" />
-    <Compile Include="Lua.Runtime.cs" />
-    <Compile Include="LuaDebug.cs" />
-    <Compile Include="LuaEmit.cs" />
-    <Compile Include="LuaFile.cs" />
-    <Compile Include="LuaGlobalPortable.cs" />
-    <Compile Include="LuaLibraries.cs" />
-    <Compile Include="LuaResult.cs" />
-    <Compile Include="LuaThread.cs" />
-    <Compile Include="LuaType.cs" />
-    <Compile Include="LuaChunk.cs" />
-    <Compile Include="LuaTable.cs" />
-    <Compile Include="Parser.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Properties\AssemblyInfoGlobal.cs" />
-    <Compile Include="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
+    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Parser.Emit.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Properties\Resources.de.resx" />
-    <EmbeddedResource Include="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="NeoLua.snk" />
-  </ItemGroup>
-  <ItemGroup>
-    <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
-  </ItemGroup>
-  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
 </Project>

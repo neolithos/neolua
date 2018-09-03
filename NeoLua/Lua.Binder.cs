@@ -1,4 +1,24 @@
-﻿using System;
+﻿#region -- copyright --
+//
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+// 
+//   http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+//
+#endregion
+using System;
 using System.Collections.Generic;
 using System.Dynamic;
 using System.IO;
@@ -9,7 +29,7 @@ using System.Runtime.CompilerServices;
 
 namespace Neo.IronLua
 {
-	#region -- ILuaBinder ---------------------------------------------------------------
+	#region -- ILuaBinder -------------------------------------------------------------
 
 	internal interface ILuaBinder
 	{
@@ -18,15 +38,12 @@ namespace Neo.IronLua
 
 	#endregion
 
-	#region -- class Lua ----------------------------------------------------------------
+	#region -- class Lua --------------------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
-	/// <summary></summary>
 	public partial class Lua
 	{
-		#region -- enum BindResult --------------------------------------------------------
+		#region -- enum BindResult ----------------------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
 		/// <summary>Result for the binding of methods</summary>
 		internal enum BindResult
 		{
@@ -38,10 +55,8 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class LuaGetMemberBinder -----------------------------------------------
+		#region -- class LuaGetMemberBinder -------------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
 		internal class LuaGetMemberBinder : GetMemberBinder, ILuaBinder
 		{
 			private readonly Lua lua;
@@ -61,27 +76,25 @@ namespace Neo.IronLua
 				if (target.Value == null) // no value for target, finish binding with an error or the suggestion
 				{
 					return errorSuggestion ??
-					  new DynamicMetaObject(
-						ThrowExpression(Properties.Resources.rsNullReference, ReturnType),
-						target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, null))
-					  );
+						new DynamicMetaObject(
+							ThrowExpression(Properties.Resources.rsNullReference, ReturnType),
+							target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, null))
+						);
 				}
 				else
 				{
-					Expression expr;
-
 					// restrictions
 					var restrictions = target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
 
 					// try to bind the member
-					switch (LuaEmit.TryGetMember(target.Expression, target.LimitType, Name, IgnoreCase, out expr))
+					switch (LuaEmit.TryGetMember(target.Expression, target.LimitType, Name, IgnoreCase, out var expr))
 					{
 						case LuaTryGetMemberReturn.None:
 							return errorSuggestion ?? new DynamicMetaObject(Expression.Default(ReturnType), restrictions);
 						case LuaTryGetMemberReturn.NotReadable:
 							return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(LuaEmitException.GetMessageText(LuaEmitException.CanNotReadMember, target.LimitType.Name, Name), ReturnType), restrictions);
 						case LuaTryGetMemberReturn.ValidExpression:
-							return new DynamicMetaObject(Lua.EnsureType(expr, ReturnType), restrictions);
+							return new DynamicMetaObject(EnsureType(expr, ReturnType), restrictions);
 						default:
 							throw new ArgumentException("return of TryGetMember.");
 					}
@@ -93,10 +106,8 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class LuaSetMemberBinder -----------------------------------------------
+		#region -- class LuaSetMemberBinder -------------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
 		internal class LuaSetMemberBinder : SetMemberBinder, ILuaBinder
 		{
 			private readonly Lua lua;
@@ -123,22 +134,20 @@ namespace Neo.IronLua
 				}
 				else
 				{
-					Expression expr;
-
 					// restrictions
 					var restrictions = target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
 
 					// try to bind the member
 					switch (LuaEmit.TrySetMember(target.Expression, target.LimitType, Name, IgnoreCase,
 						(setType) => LuaEmit.ConvertWithRuntime(Lua, value.Expression, value.LimitType, setType),
-						out expr))
+						out var expr))
 					{
 						case LuaTrySetMemberReturn.None:
 							return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(LuaEmitException.GetMessageText(LuaEmitException.MemberNotFound, target.LimitType.Name, Name), ReturnType), restrictions);
 						case LuaTrySetMemberReturn.NotWritable:
 							return errorSuggestion ?? new DynamicMetaObject(ThrowExpression(LuaEmitException.GetMessageText(LuaEmitException.CanNotWriteMember, target.LimitType.Name, Name), ReturnType), restrictions);
 						case LuaTrySetMemberReturn.ValidExpression:
-							return new DynamicMetaObject(Lua.EnsureType(expr, ReturnType), restrictions.Merge(Lua.GetSimpleRestriction(value)));
+							return new DynamicMetaObject(EnsureType(expr, ReturnType), restrictions.Merge(GetSimpleRestriction(value)));
 						default:
 							throw new ArgumentException("return of TryGetMember.");
 					}
@@ -150,10 +159,8 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class LuaGetIndexBinder ------------------------------------------------
+		#region -- class LuaGetIndexBinder --------------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
 		internal class LuaGetIndexBinder : GetIndexBinder, ILuaBinder
 		{
 			private readonly Lua lua;
@@ -180,7 +187,7 @@ namespace Neo.IronLua
 				else
 					try
 					{
-						expr = Lua.EnsureType(LuaEmit.GetIndex(lua, target, indexes, mo => mo.Expression, mo => mo.LimitType, false), ReturnType);
+						expr = EnsureType(LuaEmit.GetIndex(lua, target, indexes, mo => mo.Expression, mo => mo.LimitType, false), ReturnType);
 					}
 					catch (LuaEmitException e)
 					{
@@ -197,10 +204,8 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class LuaSetIndexBinder ------------------------------------------------
+		#region -- class LuaSetIndexBinder --------------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
 		internal class LuaSetIndexBinder : SetIndexBinder, ILuaBinder
 		{
 			private readonly Lua lua;
@@ -216,7 +221,7 @@ namespace Neo.IronLua
 				// Defer the parameters
 				if (!target.HasValue || indexes.Any(c => !c.HasValue))
 				{
-					DynamicMetaObject[] def = new DynamicMetaObject[indexes.Length + 1];
+					var def = new DynamicMetaObject[indexes.Length + 1];
 					def[0] = target;
 					Array.Copy(indexes, 0, def, 1, indexes.Length);
 					return Defer(def);
@@ -232,7 +237,7 @@ namespace Neo.IronLua
 				else
 					try
 					{
-						expr = Lua.EnsureType(LuaEmit.SetIndex(lua, target, indexes, value, mo => mo.Expression, mo => mo.LimitType, false), ReturnType);
+						expr = EnsureType(LuaEmit.SetIndex(lua, target, indexes, value, mo => mo.Expression, mo => mo.LimitType, false), ReturnType);
 					}
 					catch (LuaEmitException e)
 					{
@@ -241,7 +246,7 @@ namespace Neo.IronLua
 						expr = ThrowExpression(e.Message, ReturnType);
 					}
 
-				return new DynamicMetaObject(expr, GetMethodSignatureRestriction(target, indexes).Merge(Lua.GetSimpleRestriction(value)));
+				return new DynamicMetaObject(expr, GetMethodSignatureRestriction(target, indexes).Merge(GetSimpleRestriction(value)));
 			} // func FallbackSetIndex
 
 			public Lua Lua => lua;
@@ -249,10 +254,8 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class LuaInvokeBinder --------------------------------------------------
+		#region -- class LuaInvokeBinder ----------------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
 		internal class LuaInvokeBinder : InvokeBinder, ILuaBinder
 		{
 			private readonly Lua lua;
@@ -275,7 +278,7 @@ namespace Neo.IronLua
 						new DynamicMetaObject(
 							ThrowExpression(Properties.Resources.rsNilNotCallable),
 							BindingRestrictions.GetInstanceRestriction(target.Expression, null)
-					);
+						);
 				}
 				else
 				{
@@ -340,10 +343,8 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class LuaInvokeMemberBinder --------------------------------------------
+		#region -- class LuaInvokeMemberBinder ----------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
 		internal class LuaInvokeMemberBinder : InvokeMemberBinder, ILuaBinder
 		{
 			private readonly Lua lua;
@@ -379,10 +380,9 @@ namespace Neo.IronLua
 					try
 					{
 						var luaType = LuaType.GetType(target.LimitType);
-						Expression expr;
-						if (LuaEmit.TryInvokeMember<DynamicMetaObject>(lua, luaType, target, CallInfo, args, Name, IgnoreCase, mo => mo.Expression, mo => mo.LimitType, false, out expr))
+						if (LuaEmit.TryInvokeMember(lua, luaType, target, CallInfo, args, Name, IgnoreCase, mo => mo.Expression, mo => mo.LimitType, false, out var expr))
 						{
-							return new DynamicMetaObject(Lua.EnsureType(expr, ReturnType), GetMethodSignatureRestriction(target, args));
+							return new DynamicMetaObject(EnsureType(expr, ReturnType), GetMethodSignatureRestriction(target, args));
 						}
 						else
 						{
@@ -406,10 +406,8 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class LuaBinaryOperationBinder -----------------------------------------
+		#region -- class LuaBinaryOperationBinder -------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
 		internal class LuaBinaryOperationBinder : BinaryOperationBinder, ILuaBinder
 		{
 			private readonly Lua lua;
@@ -432,9 +430,10 @@ namespace Neo.IronLua
 				try
 				{
 					expr = EnsureType(LuaEmit.BinaryOperationExpression(lua,
-					  isInteger && Operation == ExpressionType.Divide ? Lua.IntegerDivide : Operation,
-					  target.Expression, target.LimitType,
-					  arg.Expression, arg.LimitType, false), this.ReturnType);
+						isInteger && Operation == ExpressionType.Divide ? Lua.IntegerDivide : Operation,
+						target.Expression, target.LimitType,
+						arg.Expression, arg.LimitType, false), this.ReturnType
+					);
 				}
 				catch (LuaEmitException e)
 				{
@@ -445,9 +444,10 @@ namespace Neo.IronLua
 
 				// restrictions
 				var restrictions = target.Restrictions
-				  .Merge(arg.Restrictions)
-				  .Merge(Lua.GetSimpleRestriction(target))
-				  .Merge(Lua.GetSimpleRestriction(arg));
+					.Merge(arg.Restrictions)
+					.Merge(GetSimpleRestriction(target))
+					.Merge(GetSimpleRestriction(arg)
+				);
 
 				return new DynamicMetaObject(expr, restrictions);
 			} // func FallbackBinaryOperation
@@ -458,10 +458,8 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class LuaUnaryOperationBinder ------------------------------------------
+		#region -- class LuaUnaryOperationBinder --------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
 		internal class LuaUnaryOperationBinder : UnaryOperationBinder, ILuaBinder
 		{
 			private readonly Lua lua;
@@ -481,10 +479,10 @@ namespace Neo.IronLua
 				if (target.Value == null)
 				{
 					return errorSuggestion ??
-					  new DynamicMetaObject(
-						ThrowExpression(Properties.Resources.rsNilOperatorError),
-						target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, null))
-					  );
+						new DynamicMetaObject(
+							ThrowExpression(Properties.Resources.rsNilOperatorError),
+							target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, null))
+						);
 				}
 				else
 				{
@@ -510,16 +508,14 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class LuaConvertBinder -------------------------------------------------
+		#region -- class LuaConvertBinder ---------------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
 		internal class LuaConvertBinder : ConvertBinder, ILuaBinder
 		{
 			private readonly Lua lua;
 
 			public LuaConvertBinder(Lua lua, Type toType)
-		: base(toType, false)
+				: base(toType, false)
 			{
 				this.lua = lua;
 			} // ctor
@@ -535,18 +531,18 @@ namespace Neo.IronLua
 					var restrictions = target.Restrictions.Merge(BindingRestrictions.GetInstanceRestriction(target.Expression, null));
 
 					if (Type == typeof(LuaResult)) // replace null with empty LuaResult 
-						expr = Expression.Property(null, Lua.ResultEmptyPropertyInfo);
+						expr = Expression.Property(null, ResultEmptyPropertyInfo);
 					else
 						expr = Expression.Default(Type);
 
-					return new DynamicMetaObject(Lua.EnsureType(expr, ReturnType), restrictions);
+					return new DynamicMetaObject(EnsureType(expr, ReturnType), restrictions);
 				}
 				else // convert the value
 				{
 					var restrictions = target.Restrictions.Merge(BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType));
 					if (LuaEmit.TryConvert(target.Expression, target.LimitType, Type, null, out var result))
 					{
-						return new DynamicMetaObject(Lua.EnsureType((Expression)result, ReturnType), restrictions);
+						return new DynamicMetaObject(EnsureType((Expression)result, ReturnType), restrictions);
 					}
 					else if (errorSuggestion == null)
 					{
@@ -564,50 +560,41 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class MemberCallInfo ---------------------------------------------------
+		#region -- class MemberCallInfo -----------------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
-		private class MemberCallInfo
+		private sealed class MemberCallInfo
 		{
-			private string sMember;
-			private CallInfo ci;
+			private readonly string memberName;
+			private readonly CallInfo ci;
 
-			public MemberCallInfo(string sMember, CallInfo ci)
+			public MemberCallInfo(string memberName, CallInfo ci)
 			{
-				this.sMember = sMember;
-				this.ci = ci;
+				this.memberName = memberName ?? throw new ArgumentNullException(nameof(memberName));
+				this.ci = ci ?? throw new ArgumentNullException(nameof(ci));
 			} // ctor
 
 			public override int GetHashCode()
-			{
-				return 0x28000000 ^ sMember.GetHashCode() ^ ci.GetHashCode();
-			} // func GetHashCode
+				=> 0x28000000 ^ memberName.GetHashCode() ^ ci.GetHashCode();
 
 			public override bool Equals(object obj)
-			{
-				MemberCallInfo mci = obj as MemberCallInfo;
-				return mci != null && mci.sMember == sMember && mci.ci.Equals(ci);
-			} // func Equals
+				=> obj is MemberCallInfo mci && mci.memberName == memberName && mci.ci.Equals(ci);
 
 			public override string ToString()
-			{
-				return sMember + "#" + ci.ArgumentCount.ToString();
-			}
+				=> memberName + "#" + ci.ArgumentCount.ToString();
 		} // struct MemberCallInfo
 
 		#endregion
 
-		#region -- Binder Cache -----------------------------------------------------------
+		#region -- Binder Cache -------------------------------------------------------
 
-		private Dictionary<ExpressionType, CallSiteBinder> operationBinder = new Dictionary<ExpressionType, CallSiteBinder>();
-		private Dictionary<string, CallSiteBinder> getMemberBinder = new Dictionary<string, CallSiteBinder>();
-		private Dictionary<string, CallSiteBinder> setMemberBinder = new Dictionary<string, CallSiteBinder>();
-		private Dictionary<CallInfo, CallSiteBinder> getIndexBinder = new Dictionary<CallInfo, CallSiteBinder>();
-		private Dictionary<CallInfo, CallSiteBinder> setIndexBinder = new Dictionary<CallInfo, CallSiteBinder>();
-		private Dictionary<CallInfo, CallSiteBinder> invokeBinder = new Dictionary<CallInfo, CallSiteBinder>();
-		private Dictionary<MemberCallInfo, CallSiteBinder> invokeMemberBinder = new Dictionary<MemberCallInfo, CallSiteBinder>();
-		private Dictionary<Type, CallSiteBinder> convertBinder = new Dictionary<Type, CallSiteBinder>();
+		private readonly Dictionary<ExpressionType, CallSiteBinder> operationBinder = new Dictionary<ExpressionType, CallSiteBinder>();
+		private readonly Dictionary<string, CallSiteBinder> getMemberBinder = new Dictionary<string, CallSiteBinder>();
+		private readonly Dictionary<string, CallSiteBinder> setMemberBinder = new Dictionary<string, CallSiteBinder>();
+		private readonly Dictionary<CallInfo, CallSiteBinder> getIndexBinder = new Dictionary<CallInfo, CallSiteBinder>();
+		private readonly Dictionary<CallInfo, CallSiteBinder> setIndexBinder = new Dictionary<CallInfo, CallSiteBinder>();
+		private readonly Dictionary<CallInfo, CallSiteBinder> invokeBinder = new Dictionary<CallInfo, CallSiteBinder>();
+		private readonly Dictionary<MemberCallInfo, CallSiteBinder> invokeMemberBinder = new Dictionary<MemberCallInfo, CallSiteBinder>();
+		private readonly Dictionary<Type, CallSiteBinder> convertBinder = new Dictionary<Type, CallSiteBinder>();
 
 		private void ClearBinderCache()
 		{
@@ -633,48 +620,48 @@ namespace Neo.IronLua
 		/// <param name="tw"></param>
 		public void DumpRuleCaches(TextWriter tw)
 		{
-			string sSep = new string('=', 66);
+			var sep = new string('=', 66);
 
-			FieldInfo fiCache = typeof(CallSiteBinder).GetTypeInfo().FindDeclaredField("Cache", ReflectionFlag.NonPublic | ReflectionFlag.Instance);
+			var fiCache = typeof(CallSiteBinder).GetTypeInfo().FindDeclaredField("Cache", ReflectionFlag.NonPublic | ReflectionFlag.Instance);
 
-			tw.WriteLine(sSep);
+			tw.WriteLine(sep);
 			tw.WriteLine("= Operation Binders");
-			DumpRuleCache<ExpressionType>(tw, operationBinder, fiCache);
+			DumpRuleCache(tw, operationBinder, fiCache);
 			tw.WriteLine();
 
-			tw.WriteLine(sSep);
+			tw.WriteLine(sep);
 			tw.WriteLine("= GetMember Binders");
-			DumpRuleCache<string>(tw, getMemberBinder, fiCache);
+			DumpRuleCache(tw, getMemberBinder, fiCache);
 			tw.WriteLine();
 
-			tw.WriteLine(sSep);
+			tw.WriteLine(sep);
 			tw.WriteLine("= SetMember Binders");
-			DumpRuleCache<string>(tw, setMemberBinder, fiCache);
+			DumpRuleCache(tw, setMemberBinder, fiCache);
 			tw.WriteLine();
 
-			tw.WriteLine(sSep);
+			tw.WriteLine(sep);
 			tw.WriteLine("= Get Index Binders");
-			DumpRuleCache<CallInfo>(tw, getIndexBinder, fiCache);
+			DumpRuleCache(tw, getIndexBinder, fiCache);
 			tw.WriteLine();
 
-			tw.WriteLine(sSep);
+			tw.WriteLine(sep);
 			tw.WriteLine("= Set Index Binders");
-			DumpRuleCache<CallInfo>(tw, setIndexBinder, fiCache);
+			DumpRuleCache(tw, setIndexBinder, fiCache);
 			tw.WriteLine();
 
-			tw.WriteLine(sSep);
+			tw.WriteLine(sep);
 			tw.WriteLine("= Invoke Binders");
-			DumpRuleCache<CallInfo>(tw, invokeBinder, fiCache);
+			DumpRuleCache(tw, invokeBinder, fiCache);
 			tw.WriteLine();
 
-			tw.WriteLine(sSep);
+			tw.WriteLine(sep);
 			tw.WriteLine("= Invoke Member Binders");
-			DumpRuleCache<MemberCallInfo>(tw, invokeMemberBinder, fiCache);
+			DumpRuleCache(tw, invokeMemberBinder, fiCache);
 			tw.WriteLine();
 
-			tw.WriteLine(sSep);
+			tw.WriteLine(sep);
 			tw.WriteLine("= Convert Binders");
-			DumpRuleCache<Type>(tw, convertBinder, fiCache);
+			DumpRuleCache(tw, convertBinder, fiCache);
 			tw.WriteLine();
 		} // proc DumpRuleCaches
 
@@ -684,19 +671,19 @@ namespace Neo.IronLua
 			{
 				foreach (var c in binder)
 				{
-					object k = c.Key;
-					string sKey = typeof(CallInfo) == typeof(T) ? "Args" + ((CallInfo)k).ArgumentCount.ToString() : k.ToString();
+					var k = (object)c.Key;
+					var keyName = typeof(CallInfo) == typeof(T) ? "Args" + ((CallInfo)k).ArgumentCount.ToString() : k.ToString();
 
 					// get the cache
-					Dictionary<Type, object> cache = (Dictionary<Type, object>)fiCache.GetValue(c.Value);
+					var cache = (Dictionary<Type, object>)fiCache.GetValue(c.Value);
 					if (cache == null)
 						continue;
 
 					foreach (var a in cache)
 					{
-						Type t = a.Value.GetType();
-						Array rules = (Array)t.GetTypeInfo().FindDeclaredField("_rules", ReflectionFlag.Instance | ReflectionFlag.NonPublic).GetValue(a.Value);
-						tw.WriteLine(String.Format("{0}: {1}", sKey, rules.Length));
+						var t = a.Value.GetType();
+						var rules = (Array)t.GetTypeInfo().FindDeclaredField("_rules", ReflectionFlag.Instance | ReflectionFlag.NonPublic).GetValue(a.Value);
+						tw.WriteLine(String.Format("{0}: {1}", keyName, rules.Length));
 						//for (int i = 0; i < rules.Length; i++)
 						//{
 						//	object r = rules.GetValue(i);
@@ -708,104 +695,110 @@ namespace Neo.IronLua
 			}
 		} // proc DumpRuleCache
 
-		internal CallSiteBinder GetSetMemberBinder(string sName)
+		internal CallSiteBinder GetSetMemberBinder(string name)
 		{
-			CallSiteBinder b;
 			lock (setMemberBinder)
-				if (!setMemberBinder.TryGetValue(sName, out b))
-					b = setMemberBinder[sName] = new LuaSetMemberBinder(this, sName);
-			return b;
+			{
+				if (!setMemberBinder.TryGetValue(name, out var b))
+					b = setMemberBinder[name] = new LuaSetMemberBinder(this, name);
+				return b;
+			}
 		} // func GetSetMemberBinder
 
-		internal CallSiteBinder GetGetMemberBinder(string sName)
+		internal CallSiteBinder GetGetMemberBinder(string name)
 		{
-			CallSiteBinder b;
 			lock (getMemberBinder)
-				if (!getMemberBinder.TryGetValue(sName, out b))
-					b = getMemberBinder[sName] = new LuaGetMemberBinder(this, sName);
-			return b;
+			{
+				if (!getMemberBinder.TryGetValue(name, out var b))
+					b = getMemberBinder[name] = new LuaGetMemberBinder(this, name);
+				return b;
+			}
 		} // func GetGetMemberBinder
 
 		internal CallSiteBinder GetGetIndexMember(CallInfo callInfo)
 		{
-			CallSiteBinder b;
 			lock (getIndexBinder)
-				if (!getIndexBinder.TryGetValue(callInfo, out b))
+			{
+				if (!getIndexBinder.TryGetValue(callInfo, out var b))
 					b = getIndexBinder[callInfo] = new LuaGetIndexBinder(this, callInfo);
-			return b;
+				return b;
+			}
 		} // func GetGetIndexMember
 
 		internal CallSiteBinder GetSetIndexMember(CallInfo callInfo)
 		{
-			CallSiteBinder b;
 			lock (setIndexBinder)
-				if (!setIndexBinder.TryGetValue(callInfo, out b))
+			{
+				if (!setIndexBinder.TryGetValue(callInfo, out var b))
 					b = setIndexBinder[callInfo] = new LuaSetIndexBinder(this, callInfo);
-			return b;
+				return b;
+			}
 		} // func GetSetIndexMember
 
 		internal CallSiteBinder GetInvokeBinder(CallInfo callInfo)
 		{
-			CallSiteBinder b;
 			lock (invokeBinder)
-				if (!invokeBinder.TryGetValue(callInfo, out b))
+			{
+				if (!invokeBinder.TryGetValue(callInfo, out var b))
 					b = invokeBinder[callInfo] = new LuaInvokeBinder(this, callInfo);
-			return b;
+				return b;
+			}
 		} // func GetInvokeBinder
 
-		internal CallSiteBinder GetInvokeMemberBinder(string sMember, CallInfo callInfo)
+		internal CallSiteBinder GetInvokeMemberBinder(string memberName, CallInfo callInfo)
 		{
-			CallSiteBinder b;
-			MemberCallInfo mci = new MemberCallInfo(sMember, callInfo);
+			var mci = new MemberCallInfo(memberName, callInfo);
 			lock (invokeMemberBinder)
-				if (!invokeMemberBinder.TryGetValue(mci, out b))
-					b = invokeMemberBinder[mci] = new LuaInvokeMemberBinder(this, sMember, callInfo);
-			return b;
+			{
+				if (!invokeMemberBinder.TryGetValue(mci, out var b))
+					b = invokeMemberBinder[mci] = new LuaInvokeMemberBinder(this, memberName, callInfo);
+				return b;
+			}
 		} // func GetInvokeMemberBinder
 
 		internal CallSiteBinder GetBinaryOperationBinder(ExpressionType expressionType)
 		{
-			CallSiteBinder b;
 			lock (operationBinder)
-				if (!operationBinder.TryGetValue(expressionType, out b))
+			{
+				if (!operationBinder.TryGetValue(expressionType, out var b))
 					b = operationBinder[expressionType] =
-					  expressionType == IntegerDivide ?
-						new LuaBinaryOperationBinder(this, ExpressionType.Divide, true) :
-						new LuaBinaryOperationBinder(this, expressionType, false);
-			return b;
+					  expressionType == IntegerDivide
+						? new LuaBinaryOperationBinder(this, ExpressionType.Divide, true)
+						: new LuaBinaryOperationBinder(this, expressionType, false);
+				return b;
+			}
 		} // func GetBinaryOperationBinder
 
 		internal CallSiteBinder GetUnaryOperationBinary(ExpressionType expressionType)
 		{
-			CallSiteBinder b;
 			lock (operationBinder)
-				if (!operationBinder.TryGetValue(expressionType, out b))
+			{
+				if (!operationBinder.TryGetValue(expressionType, out var b))
 					b = operationBinder[expressionType] = new LuaUnaryOperationBinder(this, expressionType);
-			return b;
+				return b;
+			}
 		} // func GetUnaryOperationBinary
 
 		internal ConvertBinder GetConvertBinder(Type type)
 		{
-			CallSiteBinder b;
 			lock (convertBinder)
-				if (!convertBinder.TryGetValue(type, out b))
+			{
+				if (!convertBinder.TryGetValue(type, out var b))
 					b = convertBinder[type] = new LuaConvertBinder(this, type);
-			return (ConvertBinder)b;
+				return (ConvertBinder)b;
+			}
 		} // func GetConvertBinder
 
 		#endregion
 
-		#region -- Binder Expression Helper -----------------------------------------------
+		#region -- Binder Expression Helper -------------------------------------------
 
 		internal static Lua GetRuntime(object v)
-		{
-			var a = v as ILuaBinder;
-			return a != null ? a.Lua : null;
-		} // func GetRuntime
+			=> v is ILuaBinder a ? a.Lua : null;
 
 		internal static BindingRestrictions GetMethodSignatureRestriction(DynamicMetaObject target, DynamicMetaObject[] args)
 		{
-			BindingRestrictions restrictions = BindingRestrictions.Combine(args);
+			var restrictions = BindingRestrictions.Combine(args);
 			if (target != null)
 			{
 				restrictions = restrictions
@@ -813,7 +806,7 @@ namespace Neo.IronLua
 				  .Merge(GetSimpleRestriction(target));
 			}
 
-			for (int i = 0; i < args.Length; i++)
+			for (var i = 0; i < args.Length; i++)
 				restrictions = restrictions.Merge(GetSimpleRestriction(args[i]));
 
 			return restrictions;
@@ -827,16 +820,16 @@ namespace Neo.IronLua
 				return BindingRestrictions.GetTypeRestriction(mo.Expression, mo.LimitType);
 		} // func GetSimpleRestriction
 
-		internal static Expression ThrowExpression(string sMessage, Type type = null)
+		internal static Expression ThrowExpression(string message, Type type = null)
 		{
 			return Expression.Throw(
-				 Expression.New(
-					 Lua.RuntimeExceptionConstructorInfo,
-					 Expression.Constant(sMessage, typeof(string)),
-					 Expression.Constant(null, typeof(Exception))
-				 ),
-				 type ?? typeof(object)
-			 );
+				Expression.New(
+					RuntimeExceptionConstructorInfo,
+					Expression.Constant(message, typeof(string)),
+					Expression.Constant(null, typeof(Exception))
+				),
+				type ?? typeof(object)
+			);
 		} // func ThrowExpression
 
 		internal static Expression EnsureType(Expression expr, Type returnType, bool forResult = false)
