@@ -38,7 +38,7 @@ namespace LuaDLR.Test
 				Console.WriteLine();
 				try
 				{
-					g.DoChunk(l.CompileChunk(sr, sScript, LuaDeskop.StackTraceCompileOptions));
+					g.DoChunk(l.CompileChunk(sr, sScript, Lua.StackTraceCompileOptions));
 				}
 				catch (Exception e)
 				{

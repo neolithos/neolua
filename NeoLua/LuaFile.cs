@@ -1,13 +1,32 @@
-﻿using System;
+﻿#region -- copyright --
+//
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+// 
+//   http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+//
+#endregion
+using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 
 namespace Neo.IronLua
 {
-	#region -- class LuaLinesEnumerator -------------------------------------------------
+	#region -- class LuaLinesEnumerator -----------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
-	/// <summary></summary>
 	internal class LuaLinesEnumerator : System.Collections.IEnumerator
 	{
 		private readonly LuaFile file;
@@ -55,18 +74,15 @@ namespace Neo.IronLua
 		} // func MoveNext
 
 		public void Reset()
-		{
-			throw new NotImplementedException();
-		} // proc Reset
-
-		public object Current => returns == null ? null : returns[returnIndex];
+			=> throw new NotSupportedException();
+		
+		public object Current => returns?[returnIndex];
 	} // class LuaLinesEnumerator
 
 	#endregion
 
-	#region -- class LuaFile ------------------------------------------------------------
+	#region -- class LuaFile ----------------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Lua compatible file access.</summary>
 	public class LuaFile : IDisposable
 	{
@@ -75,7 +91,7 @@ namespace Neo.IronLua
 		private readonly TextWriter tw;
 		private bool isClosed = false;
 
-		#region -- Ctor/Dtor --------------------------------------------------------------
+		#region -- Ctor/Dtor ----------------------------------------------------------
 
 		/// <summary></summary>
 		/// <param name="tr"></param>
@@ -150,7 +166,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Read, Lines ------------------------------------------------------------
+		#region -- Read, Lines --------------------------------------------------------
 
 		private string ReadNumber()
 		{
@@ -345,7 +361,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Write, Seek ------------------------------------------------------------
+		#region -- Write, Seek --------------------------------------------------------
 
 		/// <summary></summary>
 		/// <param name="args"></param>
@@ -409,6 +425,230 @@ namespace Neo.IronLua
 		/// <summary>Length of the file.</summary>
 		public virtual long Length => -1;
 	} // class LuaFile
+
+	#endregion
+
+	#region -- class LuaFileStream ----------------------------------------------------
+
+	/// <summary></summary>
+	public class LuaFileStream : LuaFile
+	{
+		private readonly FileStream src;
+
+		#region -- Ctor/Dtor ----------------------------------------------------------
+
+		/// <summary></summary>
+		/// <param name="src"></param>
+		/// <param name="tr"></param>
+		/// <param name="tw"></param>
+		protected LuaFileStream(FileStream src, StreamReader tr, StreamWriter tw)
+			: base(tr, tw)
+		{
+			this.src = src ?? throw new ArgumentNullException(nameof(src));
+		} // ctor
+
+		/// <summary></summary>
+		/// <param name="disposing"></param>
+		protected override void Dispose(bool disposing)
+		{
+			try
+			{
+				base.Dispose(disposing);
+			}
+			finally
+			{
+				if (disposing)
+					src?.Dispose();
+			}
+		} // proc Dispose
+
+		/// <summary>Invoke filestream flush.</summary>
+		public override void flush()
+		{
+			base.flush();
+			src.Flush();
+		} // proc flush
+
+		/// <summary>Seek implementation.</summary>
+		/// <param name="whence"></param>
+		/// <param name="offset"></param>
+		/// <returns></returns>
+		public override LuaResult seek(string whence, long offset = 0)
+		{
+			if (src == null || !src.CanSeek)
+				return seek(whence, offset);
+
+			lock (this)
+			{
+				try
+				{
+					SeekOrigin origin;
+
+					flush();
+
+					if (whence == "set")
+						origin = SeekOrigin.Begin;
+					else if (whence == "end")
+						origin = SeekOrigin.End;
+					else
+						origin = SeekOrigin.Current;
+
+					return new LuaResult(src.Seek(offset, origin));
+				}
+				catch (Exception e)
+				{
+					return new LuaResult(null, e.Message);
+				}
+			}
+		} // func seek
+
+		/// <summary>Length of the file</summary>
+		public override long Length => src.Length;
+
+		#endregion
+
+		#region -- OpenFile -----------------------------------------------------------
+
+		/// <summary>Creates a new lua compatible file access.</summary>
+		/// <param name="fileName">Name of the file</param>
+		/// <param name="mode">mode</param>
+		/// <param name="encoding"></param>
+		public static LuaFile OpenFile(string fileName, string mode, Encoding encoding)
+		{
+			if (String.IsNullOrEmpty(mode))
+				throw new ArgumentNullException("mode");
+
+			var fileMode = FileMode.Open;
+			var fileAccess = (FileAccess)0;
+
+			// interpret mode
+			var i = 0;
+			while (i < mode.Length)
+			{
+				var c = mode[i];
+				var isExtend = i < mode.Length - 1 && mode[i + 1] == '+';
+				switch (c)
+				{
+					case 'r':
+						fileAccess |= FileAccess.Read;
+						if (isExtend)
+						{
+							fileAccess |= FileAccess.Write;
+							fileMode = FileMode.Open;
+						}
+						break;
+					case 'w':
+						fileAccess |= FileAccess.Write;
+						if (isExtend)
+							fileMode = FileMode.Create;
+						else
+							fileMode = FileMode.OpenOrCreate;
+						break;
+					case 'a':
+						fileAccess |= FileAccess.Write;
+						fileMode = FileMode.Append;
+						break;
+					case 'b':
+						break;
+					default:
+						throw new ArgumentException("mode", "Invalid mode format.");
+				}
+				i++;
+				if (isExtend)
+					i++;
+			}
+
+			// open the file
+			var src = new FileStream(fileName, fileMode, fileAccess, (fileAccess & FileAccess.Write) != 0 ? FileShare.None : FileShare.Read);
+			return new LuaFileStream(src,
+				(fileAccess & FileAccess.Read) == 0 ? null : new StreamReader(src, encoding),
+				(fileAccess & FileAccess.Write) == 0 ? null : new StreamWriter(src, encoding)
+			);
+		} // proc OpenFile
+
+		#endregion
+	} // class LuaFileStream
+
+	#endregion
+
+	#region -- class LuaTempFile ------------------------------------------------------
+
+	/// <summary>Create a temp file, will be deteted on close.</summary>
+	public class LuaTempFile : LuaFileStream
+	{
+		private readonly string fileName;
+
+		/// <summary></summary>
+		/// <param name="fileName"></param>
+		/// <param name="src"></param>
+		/// <param name="tr"></param>
+		/// <param name="tw"></param>
+		protected LuaTempFile(string fileName, FileStream src, StreamReader tr, StreamWriter tw)
+			: base(src, tr, tw)
+		{
+			this.fileName = fileName ?? throw new ArgumentNullException(nameof(fileName));
+		} // ctor
+
+		/// <summary></summary>
+		/// <param name="disposing"></param>
+		protected override void Dispose(bool disposing)
+		{
+			base.Dispose(disposing);
+			try { File.Delete(fileName); }
+			catch { }
+		} // proc Dispose
+
+		/// <summary>Create the temp file.</summary>
+		/// <param name="fileName"></param>
+		/// <param name="encoding"></param>
+		/// <returns></returns>
+		public static LuaFile Create(string fileName, Encoding encoding)
+		{
+			var src = new FileStream(fileName, FileMode.Create, FileAccess.ReadWrite);
+			return new LuaTempFile(fileName, src, new StreamReader(src, encoding), new StreamWriter(src, encoding));
+		} // func Create
+	} // class LuaTempFile
+
+	#endregion
+
+	#region -- class LuaFileProcess ---------------------------------------------------
+
+	/// <summary></summary>
+	internal sealed class LuaFileProcess : LuaFile
+	{
+		private readonly Process process;
+		private int? exitCode = null;
+
+		internal LuaFileProcess(Process process, bool doStandardOutputRedirected, bool doStandardInputRedirected)
+			: base(doStandardOutputRedirected ? process.StandardOutput : null, doStandardInputRedirected ? process.StandardInput : null)
+		{
+			this.process = process ?? throw new ArgumentNullException(nameof(process));
+		} // ctor
+
+		protected override void Dispose(bool disposing)
+		{
+			try
+			{
+				base.Dispose(disposing);
+			}
+			finally
+			{
+				if (disposing)
+				{
+					if (!exitCode.HasValue && process.HasExited)
+						exitCode = process.ExitCode;
+
+					process.Dispose();
+				}
+			}
+		} // proc Dispose
+
+		public override LuaResult close()
+		{
+			base.close(); // call dispose only once
+			return exitCode.HasValue ? new LuaResult(exitCode) : LuaResult.Empty;
+		} // func close
+	} // class LuaFileProcess
 
 	#endregion
 }

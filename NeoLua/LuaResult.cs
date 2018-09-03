@@ -1,4 +1,24 @@
-﻿using System;
+﻿#region -- copyright --
+//
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+// 
+//   http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+//
+#endregion
+using System;
 using System.Dynamic;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
@@ -6,13 +26,12 @@ using System.Text;
 
 namespace Neo.IronLua
 {
-	#region -- class LuaResult ----------------------------------------------------------
+	#region -- class LuaResult --------------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Dynamic result object for lua functions.</summary>
-	public sealed class LuaResult : IDynamicMetaObjectProvider, System.Collections.IEnumerable, System.Collections.ICollection
+	public sealed class LuaResult : IDynamicMetaObjectProvider, System.Collections.IEnumerable, System.Collections.ICollection, IConvertible
 	{
-		#region -- enum CopyMode ----------------------------------------------------------
+		#region -- enum CopyMode ------------------------------------------------------
 
 		internal enum CopyMode
 		{
@@ -21,9 +40,8 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class LuaResultMetaObject ----------------------------------------------
+		#region -- class LuaResultMetaObject ------------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
 		/// <summary>Redirect mainly all calls to a dynamic expression, because 
 		/// e.g. CSharp binder doesn't look for the DynamicMetaObjectProvider interface and 
 		/// LuaResult only stores Object's.</summary>
@@ -58,11 +76,11 @@ namespace Neo.IronLua
 			private DynamicMetaObject GetTargetDynamicCall(CallSiteBinder binder, Type typeReturn, DynamicMetaObject arg)
 			{
 				return GetTargetDynamicCall(binder, typeReturn,
-					new Expression[] 
-          {
-            GetFirstResultExpression(),
-            Lua.EnsureType(arg.Expression, arg.LimitType, typeof(object))
-          }
+					new Expression[]
+					{
+					GetFirstResultExpression(),
+					Lua.EnsureType(arg.Expression, arg.LimitType, typeof(object))
+					}
 				);
 			} // func GetTargetDynamicCall
 
@@ -118,7 +136,7 @@ namespace Neo.IronLua
 
 		private readonly object[] result;
 
-		#region -- Ctor/Dtor/MO -----------------------------------------------------------
+		#region -- Ctor/Dtor/MO -------------------------------------------------------
 
 		/// <summary>Creates a empty result-object.</summary>
 		public LuaResult()
@@ -158,8 +176,8 @@ namespace Neo.IronLua
 				return "<Empty>";
 			else
 			{
-				StringBuilder sb = new StringBuilder();
-				for (int i = 0; i < 10 && i < result.Length; i++)
+				var sb = new StringBuilder();
+				for (var i = 0; i < 10 && i < result.Length; i++)
 				{
 					if (i > 0)
 						sb.Append(", ");
@@ -183,41 +201,36 @@ namespace Neo.IronLua
 				return (LuaResult)values[0];
 			else if (values[values.Length - 1] is LuaResult) // is the last result an an result -> concat the arrays
 			{
-				object[] l = (LuaResult)values[values.Length - 1];
-				object[] n = new object[values.Length - 1 + l.Length];
+				var l = (object[])(LuaResult)values[values.Length - 1];
+				var n = new object[values.Length - 1 + l.Length];
 
 				// copy the first values
-				for (int i = 0; i < values.Length - 1; i++)
+				for (var i = 0; i < values.Length - 1; i++)
 					n[i] = GetObject(values[i]);
 
 				// enlarge from the last result
-				for (int i = 0; i < l.Length; i++)
+				for (var i = 0; i < l.Length; i++)
 					n[i + values.Length - 1] = GetObject(l[i]);
 
 				return n;
 			}
 			else
 			{
-				object[] n = new object[values.Length];
+				var n = new object[values.Length];
 
-				for (int i = 0; i < values.Length; i++)
+				for (var i = 0; i < values.Length; i++)
 					n[i] = GetObject(values[i]);
 
 				return n;
 			}
 		} // func CopyResult
 
-		/// <summary></summary>
-		/// <param name="parameter"></param>
-		/// <returns></returns>
-		public DynamicMetaObject GetMetaObject(Expression parameter)
-		{
-			return new LuaResultMetaObject(parameter, this);
-		} // func GetMetaObject
+		DynamicMetaObject IDynamicMetaObjectProvider.GetMetaObject(Expression parameter)
+			=> new LuaResultMetaObject(parameter, this);
 
 		#endregion
 
-		#region -- ToXXXX -----------------------------------------------------------------
+		#region -- ToXXXX -------------------------------------------------------------
 
 		/// <summary></summary>
 		/// <typeparam name="T"></typeparam>
@@ -226,7 +239,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public T GetValueOrDefault<T>(int iIndex, T @default)
 		{
-			object v = this[iIndex];
+			var v = this[iIndex];
 			try
 			{
 				return (T)Lua.RtConvertValue(v, typeof(T));
@@ -241,190 +254,154 @@ namespace Neo.IronLua
 		/// <param name="provider"></param>
 		/// <returns></returns>
 		public bool ToBoolean(IFormatProvider provider = null)
-		{
-			return Convert.ToBoolean(this[0], provider);
-		} // func ToBoolean
+			=> Convert.ToBoolean(this[0], provider);
 
 		/// <summary></summary>
 		/// <param name="provider"></param>
 		/// <returns></returns>
 		public byte ToByte(IFormatProvider provider = null)
-		{
-			return Convert.ToByte(this[0], provider);
-		} // func ToByte
+			=> Convert.ToByte(this[0], provider);
 
 		/// <summary></summary>
 		/// <param name="provider"></param>
 		/// <returns></returns>
 		public char ToChar(IFormatProvider provider = null)
-		{
-			return Convert.ToChar(this[0], provider);
-		} // func ToChar
+			=> Convert.ToChar(this[0], provider);
 
 		/// <summary></summary>
 		/// <param name="provider"></param>
 		/// <returns></returns>
 		public DateTime ToDateTime(IFormatProvider provider = null)
-		{
-			return Convert.ToDateTime(this[0], provider);
-		} // func ToDateTime
+			=> Convert.ToDateTime(this[0], provider);
 
 		/// <summary></summary>
 		/// <param name="provider"></param>
 		/// <returns></returns>
 		public decimal ToDecimal(IFormatProvider provider = null)
-		{
-			return Convert.ToDecimal(this[0], provider);
-		} // func ToDecimal
+			=> Convert.ToDecimal(this[0], provider);
 
 		/// <summary></summary>
 		/// <param name="provider"></param>
 		/// <returns></returns>
 		public double ToDouble(IFormatProvider provider = null)
-		{
-			return Convert.ToDouble(this[0], provider);
-		} // func ToDouble
+			=> Convert.ToDouble(this[0], provider);
 
 		/// <summary></summary>
 		/// <param name="provider"></param>
 		/// <returns></returns>
 		public short ToInt16(IFormatProvider provider = null)
-		{
-			return Convert.ToInt16(this[0], provider);
-		} // func ToInt16
+			=> Convert.ToInt16(this[0], provider);
 
 		/// <summary></summary>
 		/// <param name="provider"></param>
 		/// <returns></returns>
 		public int ToInt32(IFormatProvider provider = null)
-		{
-			return Convert.ToInt32(this[0], provider);
-		} // func ToInt32
+			=> Convert.ToInt32(this[0], provider);
 
 		/// <summary></summary>
 		/// <param name="provider"></param>
 		/// <returns></returns>
 		public long ToInt64(IFormatProvider provider = null)
-		{
-			return Convert.ToInt64(this[0], provider);
-		} // func ToInt64
+			=> Convert.ToInt64(this[0], provider);
 
 		/// <summary></summary>
 		/// <param name="provider"></param>
 		/// <returns></returns>
 		public sbyte ToSByte(IFormatProvider provider = null)
-		{
-			return Convert.ToSByte(this[0], provider);
-		} // func ToSByte
+			=> Convert.ToSByte(this[0], provider);
 
 		/// <summary></summary>
 		/// <param name="provider"></param>
 		/// <returns></returns>
 		public float ToSingle(IFormatProvider provider = null)
-		{
-			return Convert.ToSingle(this[0], provider);
-		} // func ToSingle
+			=> Convert.ToSingle(this[0], provider);
 
 		/// <summary></summary>
 		/// <param name="provider"></param>
 		/// <returns></returns>
 		public string ToString(IFormatProvider provider = null)
-		{
-			return Convert.ToString(this[0], provider);
-		} // func ToString
+			=> Convert.ToString(this[0], provider);
 
 		/// <summary></summary>
 		/// <param name="conversionType"></param>
 		/// <param name="provider"></param>
 		/// <returns></returns>
 		public object ToType(Type conversionType, IFormatProvider provider = null)
-		{
-			return Convert.ChangeType(this[0], conversionType, provider);
-		} // func ToType
+			=> Convert.ChangeType(this[0], conversionType, provider);
 
 		/// <summary></summary>
 		/// <param name="provider"></param>
 		/// <returns></returns>
 		public ushort ToUInt16(IFormatProvider provider = null)
-		{
-			return Convert.ToUInt16(this[0], provider);
-		} // func ToUInt16
+			=> Convert.ToUInt16(this[0], provider);
 
 		/// <summary></summary>
 		/// <param name="provider"></param>
 		/// <returns></returns>
 		public uint ToUInt32(IFormatProvider provider = null)
-		{
-			return Convert.ToUInt32(this[0], provider);
-		} // func ToUInt32
+			=> Convert.ToUInt32(this[0], provider);
 
 		/// <summary></summary>
 		/// <param name="provider"></param>
 		/// <returns></returns>
 		public ulong ToUInt64(IFormatProvider provider = null)
-		{
-			return Convert.ToUInt64(this[0], provider);
-		} // func ToUInt64
+			=> Convert.ToUInt64(this[0], provider);
+
+		TypeCode IConvertible.GetTypeCode()
+			=> TypeCode.Object;
 
 		#endregion
 
-		#region -- IEnumerable ------------------------------------------------------------
+		#region -- IEnumerable --------------------------------------------------------
 
 		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-		{
-			return Values.GetEnumerator();
-		}
+			=> Values.GetEnumerator();
 
 		#endregion
 
-		#region -- ICollection ------------------------------------------------------------
+		#region -- ICollection --------------------------------------------------------
 
 		void System.Collections.ICollection.CopyTo(Array array, int index)
-		{
-			result.CopyTo(array, index);
-		} // func CopyTo
+			=> result.CopyTo(array, index);
 
-		bool System.Collections.ICollection.IsSynchronized { get { return false; } }
-		object System.Collections.ICollection.SyncRoot { get { return this; } }
+		bool System.Collections.ICollection.IsSynchronized => false;
+		object System.Collections.ICollection.SyncRoot => null;
 
 		#endregion
 
 		/// <summary>Return values.</summary>
-		/// <param name="iIndex"></param>
+		/// <param name="index"></param>
 		/// <returns></returns>
-		public object this[int iIndex] { get { return result != null && iIndex >= 0 && iIndex < result.Length ? result[iIndex] : null; } }
+		public object this[int index] => result != null && index >= 0 && index < result.Length ? result[index] : null;
 		/// <summary>Access to the raw-result values.</summary>
-		public object[] Values { get { return result; } }
+		public object[] Values => result;
 		/// <summary>Get's the number of results.</summary>
-		public int Count { get { return result.Length; } }
+		public int Count => result.Length;
 
 		// -- Static --------------------------------------------------------------
 
-		private static object[] emptyArray = new object[0];
-		private static LuaResult empty = new LuaResult();
+#if NET45
+		private static readonly object[] emptyArray = new object[0];
+#else
+		private static readonly object[] emptyArray = Array.Empty<object>();
+#endif
+		private static readonly LuaResult empty = new LuaResult();
 
 		/// <summary></summary>
 		/// <param name="r"></param>
 		/// <returns></returns>
-		public static implicit operator object[](LuaResult r)
-		{
-			return r == null ? emptyArray : r.result;
-		} // operator object[]
+		public static implicit operator object[] (LuaResult r)
+			=> r == null ? emptyArray : r.result;
 
 		/// <summary></summary>
 		/// <param name="v"></param>
 		/// <returns></returns>
 		public static implicit operator LuaResult(object[] v)
-		{
-			return new LuaResult(v);
-		} // operator LuaResult
+			=> new LuaResult(v);
 
 		/// <summary>Represents a empty result</summary>
-		public static LuaResult Empty
-		{
-			get { return empty; }
-		} // prop Empty
+		public static LuaResult Empty => empty;
 	} // struct LuaResult
 
-	#endregion
+#endregion
 }

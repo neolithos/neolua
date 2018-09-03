@@ -27,25 +27,23 @@ using System.Text;
 
 namespace Neo.IronLua
 {
-	#region -- class TokenNameAttribute -------------------------------------------------
+	#region -- class TokenNameAttribute -----------------------------------------------
 
 	/// <summary></summary>
 	[AttributeUsage(AttributeTargets.Field)]
 	internal sealed class TokenNameAttribute : Attribute
 	{
-		private readonly string name;
-
 		public TokenNameAttribute(string name)
 		{
-			this.name = name;
+			this.Name = name ?? throw new ArgumentNullException(nameof(name));
 		} // ctor
 
-		public string Name => name;
+		public string Name { get; private set; }
 	} // class TokenName
 
 	#endregion
 
-	#region -- enum LuaToken ------------------------------------------------------------
+	#region -- enum LuaToken ----------------------------------------------------------
 
 	/// <summary>Tokens</summary>
 	public enum LuaToken
@@ -257,7 +255,7 @@ namespace Neo.IronLua
 
 	#endregion
 
-	#region -- struct Position ----------------------------------------------------------
+	#region -- struct Position --------------------------------------------------------
 
 	/// <summary>Position in the source file</summary>
 	public struct Position
@@ -294,7 +292,7 @@ namespace Neo.IronLua
 
 	#endregion
 
-	#region -- class Token --------------------------------------------------------------
+	#region -- class Token ------------------------------------------------------------
 
 	/// <summary>Represents a token of the lua source file.</summary>
 	public class Token
@@ -339,7 +337,7 @@ namespace Neo.IronLua
 
 	#endregion
 
-	#region -- class LuaLexer -----------------------------------------------------------
+	#region -- class LuaLexer ---------------------------------------------------------
 
 	/// <summary>Lexer for the lua syntax.</summary>
 	public sealed class LuaLexer : IDisposable
@@ -347,20 +345,20 @@ namespace Neo.IronLua
 		private Token lookahead = null;
 		private Token current = null;
 
-		private Position startPosition;				// Start of the current token
-		private Position endPosition;				// Posible end of the current token
-		private char cur;							// Current char
-		private bool isEof;							// End of file reached
-		private int state;							// Current state
+		private Position startPosition;             // Start of the current token
+		private Position endPosition;               // Posible end of the current token
+		private char cur;                           // Current char
+		private bool isEof;                         // End of file reached
+		private int state;                          // Current state
 		private StringBuilder currentStringBuilder = null; // Currently collected chars
 
-		private TextReader tr;						// Source for the lexer
+		private TextReader tr;                      // Source for the lexer
 		private readonly SymbolDocumentInfo document; // Information about the source document
-		private int currentLine;					// Line in the source file
-		private int currentColumn = 1;				// Column in the source file
+		private int currentLine;                    // Line in the source file
+		private int currentColumn = 1;              // Column in the source file
 		private long currentIndex = 0;              // Index in the source file
 
-		#region -- Ctor/Dtor --------------------------------------------------------------
+		#region -- Ctor/Dtor ----------------------------------------------------------
 
 		/// <summary>Creates the lexer für the lua parser</summary>
 		/// <param name="fileName">Filename</param>
@@ -392,7 +390,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Buffer -----------------------------------------------------------------
+		#region -- Buffer -------------------------------------------------------------
 
 		/// <summary>Liest Zeichen aus den Buffer</summary>
 		/// <returns>Zeichen oder <c>\0</c>, für das Ende.</returns>
@@ -451,7 +449,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Scanner Operationen ----------------------------------------------------
+		#region -- Scanner Operationen ------------------------------------------------
 
 		/// <summary>Fügt einen Wert an.</summary>
 		/// <param name="cur"></param>
@@ -522,7 +520,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Token Operationen ------------------------------------------------------
+		#region -- Token Operationen --------------------------------------------------
 
 		private Token NextTokenWithSkipRules()
 		{
@@ -565,7 +563,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- NextToken --------------------------------------------------------------
+		#region -- NextToken ----------------------------------------------------------
 
 		private Token NextToken()
 		{
@@ -577,7 +575,7 @@ namespace Neo.IronLua
 
 				switch (CurState)
 				{
-					#region -- 0 ----------------------------------------------------------------
+					#region -- 0 ------------------------------------------------------
 					case 0:
 						if (isEof)
 							return CreateToken(0, LuaToken.Eof);
@@ -685,7 +683,7 @@ namespace Neo.IronLua
 							return EatCharAndCreateToken(0, LuaToken.InvalidChar);
 						break;
 					#endregion
-					#region -- 10 Whitespaces ---------------------------------------------------
+					#region -- 10 Whitespaces -----------------------------------------
 					case 10:
 						if (c == '\n' || isEof || !Char.IsWhiteSpace(c))
 							return CreateToken(0, LuaToken.Whitespace);
@@ -693,7 +691,7 @@ namespace Neo.IronLua
 							NextChar(10);
 						break;
 					#endregion
-					#region -- 20 ---------------------------------------------------------------
+					#region -- 20 -----------------------------------------------------
 					case 20:
 						if (c == '=')
 							return NextCharAndCreateToken(0, LuaToken.Equal);
@@ -751,7 +749,7 @@ namespace Neo.IronLua
 						else
 							return CreateToken(0, LuaToken.Slash);
 					#endregion
-					#region -- 30 Label ---------------------------------------------------------
+					#region -- 30 Label -----------------------------------------------
 					case 30:
 						if (c == ':')
 							NextChar(31);
@@ -764,7 +762,7 @@ namespace Neo.IronLua
 						else
 							return CreateToken(0, LuaToken.ColonColon);
 					#endregion
-					#region -- 40 String --------------------------------------------------------
+					#region -- 40 String ----------------------------------------------
 					case 40:
 						if (c == stringMode)
 							return NextCharAndCreateToken(0, LuaToken.String);
@@ -878,7 +876,7 @@ namespace Neo.IronLua
 							goto case 40;
 						break;
 					#endregion
-					#region -- 50 Kommentar -----------------------------------------------------
+					#region -- 50 Kommentar -------------------------------------------
 					case 50:
 						if (c == '-') // Kommentar
 							NextChar(51);
@@ -905,7 +903,7 @@ namespace Neo.IronLua
 							NextChar(52);
 						break;
 					#endregion
-					#region -- 60 Number --------------------------------------------------------
+					#region -- 60 Number ----------------------------------------------
 					case 60:
 						if (c == 'x' || c == 'X')
 							EatChar(70);
@@ -945,7 +943,7 @@ namespace Neo.IronLua
 							return CreateToken(0, LuaToken.Number);
 						break;
 					#endregion
-					#region -- 70 HexNumber -----------------------------------------------------
+					#region -- 70 HexNumber -------------------------------------------
 					case 70:
 						if (c == '.')
 							EatChar(71);
@@ -979,7 +977,7 @@ namespace Neo.IronLua
 							return CreateToken(0, LuaToken.Number);
 						break;
 					#endregion
-					#region -- 1000 Ident or Keyword --------------------------------------------
+					#region -- 1000 Ident or Keyword ----------------------------------
 					case 1000:
 						if (IsIdentifierChar(c))
 							EatChar(1000);

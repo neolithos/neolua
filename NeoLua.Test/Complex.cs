@@ -128,7 +128,7 @@ namespace LuaDLR.Test
 							"return a .. ' - ' .. b;",
 						"end;",
 
-						"return a:m(1, 'a'),a:m('1', 2);"), "test.lua", LuaDeskop.StackTraceCompileOptions);
+						"return a:m(1, 'a'),a:m('1', 2);"), "test.lua", Lua.StackTraceCompileOptions);
 				var g = l.CreateEnvironment();
 				TestResult(g.DoChunk(c), "1 - a", "1 - 2");
 			}

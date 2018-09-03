@@ -1,7 +1,30 @@
-﻿using System;
+﻿#region -- copyright --
+//
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+// 
+//   http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+//
+#endregion
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Dynamic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -10,37 +33,36 @@ using System.Text.RegularExpressions;
 
 namespace Neo.IronLua
 {
-	#region -- String Manipulation ------------------------------------------------------
+	#region -- String Manipulation ----------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Reimplements methods of the string package.</summary>
 	public static class LuaLibraryString
 	{
 		private static bool translateRegEx = true;
 
-		private static void NormalizeStringArguments(string s, int i, int j, out int iStart, out int iLen)
+		private static void NormalizeStringArguments(string s, int i, int j, out int offset, out int len)
 		{
 			if (i == 0)
 				i = 1;
 
 			if (i < 0) // Suffix mode
 			{
-				iStart = s.Length + i;
-				if (iStart < 0)
-					iStart = 0;
-				iLen = (j < 0 ? s.Length + j + 1 : j) - iStart;
+				offset = s.Length + i;
+				if (offset < 0)
+					offset = 0;
+				len = (j < 0 ? s.Length + j + 1 : j) - offset;
 			}
 			else // Prefix mode
 			{
-				iStart = i - 1;
+				offset = i - 1;
 				if (j < 0)
 					j = s.Length + j + 1;
-				iLen = j - iStart;
+				len = j - offset;
 			}
 
 			// correct the length
-			if (iStart + iLen > s.Length)
-				iLen = s.Length - iStart;
+			if (offset + len > s.Length)
+				len = s.Length - offset;
 		} // proc NormalizeStringArguments
 
 		private static string TranslateRegularExpression(string regEx)
@@ -54,7 +76,7 @@ namespace Neo.IronLua
 
 			for (var i = 0; i < regEx.Length; i++)
 			{
-				char c = regEx[i];
+				var c = regEx[i];
 				if (escapeCode)
 				{
 					if (c == '%')
@@ -139,8 +161,8 @@ namespace Neo.IronLua
 							case 'b': // github #12
 								if (i < regEx.Length - 2)
 								{
-									char c1 = regEx[i + 1];
-									char c2 = regEx[i + 2];
+									var c1 = regEx[i + 1];
+									var c2 = regEx[i + 2];
 									//Example for %b()
 									//(\((?>(?<n>\()|(?<-n>\))|(?:[^\(\)]*))*\)(?(n)(?!)))
 									//Example for %bab
@@ -206,7 +228,7 @@ namespace Neo.IronLua
 		/// <param name="i"></param>
 		/// <param name="j"></param>
 		/// <returns></returns>
-		public static LuaResult @byte(this string s, Nullable<int> i = null, Nullable<int> j = null)
+		public static LuaResult @byte(this string s, int? i = null, int? j = null)
 		{
 			if (!i.HasValue)
 				i = 1;
@@ -216,15 +238,13 @@ namespace Neo.IronLua
 			if (String.IsNullOrEmpty(s) || i == 0)
 				return LuaResult.Empty;
 
-			int iStart;
-			int iLen;
-			NormalizeStringArguments(s, i.Value, j.Value, out iStart, out iLen);
-			if (iLen <= 0)
+			NormalizeStringArguments(s, i.Value, j.Value, out var ofs, out var len);
+			if (len <= 0)
 				return LuaResult.Empty;
 
-			object[] r = new object[iLen];
-			for (int a = 0; a < iLen; a++)
-				r[a] = (int)s[iStart + a];
+			var r = new object[len];
+			for (var a = 0; a < len; a++)
+				r[a] = (int)s[ofs + a];
 
 			return r;
 		} // func byte
@@ -237,7 +257,7 @@ namespace Neo.IronLua
 			if (chars == null)
 				return String.Empty;
 
-			StringBuilder sb = new StringBuilder(chars.Length);
+			var sb = new StringBuilder(chars.Length);
 			for (int i = 0; i < chars.Length; i++)
 				sb.Append((char)chars[i]);
 
@@ -248,10 +268,8 @@ namespace Neo.IronLua
 		/// <param name="dlg"></param>
 		/// <returns></returns>
 		public static string dump(Delegate dlg)
-		{
-			throw new NotImplementedException();
-		} // func dump
-
+			=> throw new NotImplementedException();
+		
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-string.find </summary>
 		/// <param name="s"></param>
 		/// <param name="pattern"></param>
@@ -262,10 +280,9 @@ namespace Neo.IronLua
 		{
 			if (String.IsNullOrEmpty(s))
 			{
-				if (String.IsNullOrEmpty(pattern) && init == 1)
-					return new LuaResult(1);
-				else
-					return LuaResult.Empty;
+				return String.IsNullOrEmpty(pattern) && init == 1
+					? new LuaResult(1)
+					: LuaResult.Empty;
 			}
 			if (String.IsNullOrEmpty(pattern))
 				return LuaResult.Empty;
@@ -288,11 +305,11 @@ namespace Neo.IronLua
 				// translate the regular expression
 				pattern = TranslateRegularExpression(pattern);
 
-				Regex r = new Regex(pattern);
-				Match m = r.Match(s, init - 1);
+				var r = new Regex(pattern);
+				var m = r.Match(s, init - 1);
 				if (m.Success)
 				{
-					object[] result = new object[m.Groups.Count + 1]; // first group is all, so add 2 - 1
+					var result = new object[m.Groups.Count + 1]; // first group is all, so add 2 - 1
 
 					// offset of the match
 					result[0] = m.Index + 1;
@@ -314,18 +331,16 @@ namespace Neo.IronLua
 		/// <param name="args"></param>
 		/// <returns></returns>
 		public static string format(this string formatstring, params object[] args)
+			=> AT.MIN.Tools.sprintf(formatstring, args);
+		
+		private static LuaResult MatchEnum(object s, object current)
 		{
-			return AT.MIN.Tools.sprintf(formatstring, args);
-		} // func format
-
-		private static LuaResult matchEnum(object s, object current)
-		{
-			System.Collections.IEnumerator e = (System.Collections.IEnumerator)s;
+			var e = (System.Collections.IEnumerator)s;
 
 			// return value
 			if (e.MoveNext())
 			{
-				Match m = (Match)e.Current;
+				var m = (Match)e.Current;
 				return MatchResult(m);
 			}
 			else
@@ -348,68 +363,60 @@ namespace Neo.IronLua
 			pattern = TranslateRegularExpression(pattern);
 
 			// Find Matches
-			System.Collections.IEnumerator e = Regex.Matches(s, pattern).GetEnumerator();
-			return new LuaResult(new Func<object, object, LuaResult>(matchEnum), e, e);
+			var e = Regex.Matches(s, pattern).GetEnumerator();
+			return new LuaResult(new Func<object, object, LuaResult>(MatchEnum), e, e);
 		} // func gmatch
 
-		#region -- class GSubMatchEvaluator -----------------------------------------------
+		#region -- class GSubMatchEvaluator -------------------------------------------
 
-		#region -- class GSubMatchEvaluator -----------------------------------------------
+		#region -- class GSubMatchEvaluator -------------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
 		private abstract class GSubMatchEvaluator
 		{
-			private int iMatchCount = 0;
+			private int matchCount = 0;
 
 			public string MatchEvaluator(Match m)
 			{
-				iMatchCount++;
+				matchCount++;
 				return MatchEvaluatorImpl(m);
 			} // func MatchEvaluator
 
 			protected abstract string MatchEvaluatorImpl(Match m);
 
-			public int MatchCount { get { return iMatchCount; } }
+			public int MatchCount => matchCount;
 		} // class GSubMatchEvaluator
 
 		#endregion
 
-		#region -- class GSubLuaTableMatchEvaluator ---------------------------------------
+		#region -- class GSubLuaTableMatchEvaluator -----------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
 		private sealed class GSubLuaTableMatchEvaluator : GSubMatchEvaluator
 		{
-			private LuaTable t;
-			private bool lIgnoreCase;
+			private readonly LuaTable t;
+			private readonly bool ignoreCase;
 
 			public GSubLuaTableMatchEvaluator(LuaTable t)
 			{
-				this.t = t;
-				this.lIgnoreCase = (bool)Lua.RtConvertValue(t.GetMemberValue("__IgnoreCase"), typeof(bool));
+				this.t = t ?? throw new ArgumentNullException(nameof(t));
+				ignoreCase = (bool)Lua.RtConvertValue(t.GetMemberValue("__IgnoreCase"), typeof(bool));
 			} // ctor
 
 			protected override string MatchEvaluatorImpl(Match m)
-			{
-				return (string)Lua.RtConvertValue(t.GetMemberValue(m.Groups[1].Value, lIgnoreCase), typeof(string));
-			} // func MatchEvaluator
+				=> (string)Lua.RtConvertValue(t.GetMemberValue(m.Groups[1].Value, ignoreCase), typeof(string));
 		} // class GSubLuaTableMatchEvaluator
 
 		#endregion
 
-		#region -- class GSubFunctionMatchEvaluator ---------------------------------------
+		#region -- class GSubFunctionMatchEvaluator -----------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
 		private sealed class GSubFunctionMatchEvaluator : GSubMatchEvaluator
 		{
 			private CallSite callSite = null;
-			private object funcCall;
+			private readonly object funcCall;
 
 			public GSubFunctionMatchEvaluator(object funcCall)
 			{
-				this.funcCall = funcCall;
+				this.funcCall = funcCall ?? throw new ArgumentNullException(nameof(funcCall));
 			} // ctor
 
 			private void UpdateCallSite(CallInfo callInfo, CallSite callSite)
@@ -419,8 +426,8 @@ namespace Neo.IronLua
 
 			protected override string MatchEvaluatorImpl(Match m)
 			{
-				string[] args = new string[m.Groups.Count - 1];
-				for (int i = 1; i < m.Groups.Count; i++)
+				var args = new string[m.Groups.Count - 1];
+				for (var i = 1; i < m.Groups.Count; i++)
 					args[i - 1] = m.Groups[i].Value;
 
 				return (string)Lua.RtConvertValue(Lua.RtInvokeSite(callSite, callInfo => new Lua.LuaInvokeBinder(null, callInfo), UpdateCallSite, funcCall, args), typeof(string));
@@ -429,37 +436,35 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class GSubStringMatchEvaluator -----------------------------------------
+		#region -- class GSubStringMatchEvaluator -------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
 		private sealed class GSubStringMatchEvaluator : GSubMatchEvaluator
 		{
-			private object[] replaces;
+			private readonly object[] replaces;
 
-			public GSubStringMatchEvaluator(string sRepl)
+			public GSubStringMatchEvaluator(string repl)
 			{
-				List<object> lst = new List<object>();
-				int i = 0;
-				int iStart = 0;
+				var lst = new List<object>();
+				var i = 0;
+				var ofs = 0;
 
-				while (i < sRepl.Length)
+				while (i < repl.Length)
 				{
-					if (sRepl[i] == '%')
+					if (repl[i] == '%')
 					{
-						if (++i >= sRepl.Length)
+						if (++i >= repl.Length)
 							break;
 
-						if (sRepl[i] == '%') // Parse a number (0-9)
+						if (repl[i] == '%') // Parse a number (0-9)
 						{
-							Add(lst, sRepl, iStart, i);
-							iStart = i + 1;
+							Add(lst, repl, ofs, i);
+							ofs = i + 1;
 						}
-						else if (sRepl[i] >= '0' && sRepl[i] <= '9') // Add what we find until now
+						else if (repl[i] >= '0' && repl[i] <= '9') // Add what we find until now
 						{
-							Add(lst, sRepl, iStart, i - 1);
-							lst.Add(sRepl[i] - '0');
-							iStart = i + 1;
+							Add(lst, repl, ofs, i - 1);
+							lst.Add(repl[i] - '0');
+							ofs = i + 1;
 						}
 					}
 
@@ -467,35 +472,34 @@ namespace Neo.IronLua
 				}
 
 				// Add the rest
-				Add(lst, sRepl, iStart, i);
+				Add(lst, repl, ofs, i);
 
 				replaces = lst.ToArray();
 			} // ctor
 
-			private void Add(List<object> lst, string sRepl, int iStart, int iCurrent)
+			private static void Add(List<object> lst, string repl, int offset, int current)
 			{
-				int iLength = iCurrent - iStart;
-				if (iLength == 0)
+				var length = current - offset;
+				if (length == 0)
 					return;
 
-				lst.Add(sRepl.Substring(iStart, iLength));
+				lst.Add(repl.Substring(offset, length));
 			} // proc Add
 
 			protected override string MatchEvaluatorImpl(Match m)
 			{
-				string[] result = new string[replaces.Length];
+				var result = new string[replaces.Length];
 
-				for (int i = 0; i < result.Length; i++)
+				for (var i = 0; i < result.Length; i++)
 				{
-					if (replaces[i] is string)
-						result[i] = (string)replaces[i];
-					else if (replaces[i] is int)
+					if (replaces[i] is string s)
+						result[i] = s;
+					else if (replaces[i] is int idx)
 					{
-						int iIndex = (int)replaces[i];
-						if (iIndex == 0)
+						if (idx == 0)
 							result[i] = m.Value;
-						else if (iIndex <= m.Groups.Count)
-							result[i] = m.Groups[iIndex].Value;
+						else if (idx <= m.Groups.Count)
+							result[i] = m.Groups[idx].Value;
 						else
 							result[i] = String.Empty;
 					}
@@ -519,7 +523,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static LuaResult gsub(this string s, string pattern, object repl, int n)
 		{
-			Regex regex = new Regex(TranslateRegularExpression(pattern));
+			var regex = new Regex(TranslateRegularExpression(pattern));
 
 			if (n <= 0)
 				n = Int32.MaxValue;
@@ -532,7 +536,7 @@ namespace Neo.IronLua
 			else
 				matchEvaluator = new GSubStringMatchEvaluator((string)Lua.RtConvertValue(repl, typeof(string)));
 
-			string r = regex.Replace(s, matchEvaluator.MatchEvaluator, n);
+			var r = regex.Replace(s, matchEvaluator.MatchEvaluator, n);
 
 			return new LuaResult(r, matchEvaluator.MatchCount);
 		} // func gsub
@@ -541,10 +545,8 @@ namespace Neo.IronLua
 		/// <param name="s"></param>
 		/// <returns></returns>
 		public static int len(this string s)
-		{
-			return s == null ? 0 : s.Length;
-		} // func len
-
+			=> s == null ? 0 : s.Length;
+		
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-string.lower </summary>
 		/// <param name="s"></param>
 		/// <returns></returns>
@@ -576,7 +578,7 @@ namespace Neo.IronLua
 			// translate the regular expression
 			pattern = TranslateRegularExpression(pattern);
 
-			Regex r = new Regex(pattern);
+			var r = new Regex(pattern);
 			return MatchResult(r.Match(s, init - 1));
 		} // func match
 
@@ -586,18 +588,18 @@ namespace Neo.IronLua
 			{
 				if (m.Groups.Count > 1) // the expression uses groups, return the groups
 				{
-					object[] result = new object[m.Groups.Count - 1];
+					var result = new object[m.Groups.Count - 1];
 
-					for (int i = 1; i < m.Groups.Count; i++)
+					for (var i = 1; i < m.Groups.Count; i++)
 						result[i - 1] = m.Groups[i].Value;
 					
 					return result;
 				}
 				else // no groups, return the captures
 				{
-					object[] result = new object[m.Captures.Count];
+					var result = new object[m.Captures.Count];
 
-					for (int i = 0; i < m.Captures.Count; i++)
+					for (var i = 0; i < m.Captures.Count; i++)
 						result[i] = m.Captures[i].Value;
 
 					return result;
@@ -627,7 +629,7 @@ namespace Neo.IronLua
 			if (String.IsNullOrEmpty(s) || s.Length == 1)
 				return s;
 
-			char[] a = s.ToCharArray();
+			var a = s.ToCharArray();
 			Array.Reverse(a);
 			return new string(a);
 		} // func reverse
@@ -642,15 +644,12 @@ namespace Neo.IronLua
 			if (String.IsNullOrEmpty(s) || j == 0)
 				return String.Empty;
 
-			int iStart;
-			int iLen;
-			NormalizeStringArguments(s, i, j, out iStart, out iLen);
+			NormalizeStringArguments(s, i, j, out var ofs, out var len);
 
 			// return the string
-			if (iLen <= 0)
-				return String.Empty;
-			else
-				return s.Substring(iStart, iLen);
+			return len <= 0
+				? String.Empty
+				: s.Substring(ofs, len);
 		} // func sub
 
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-string.upper </summary>
@@ -979,9 +978,8 @@ namespace Neo.IronLua
 
 	#endregion
 
-	#region -- Bitwise Operations -------------------------------------------------------
+	#region -- Bitwise Operations -----------------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary>Reimplements methods of the bit32 package.</summary>
 	public static class LuaLibraryBit32
 	{
@@ -1007,7 +1005,7 @@ namespace Neo.IronLua
 		public static uint band(params uint[] ands)
 		{
 			uint r = 0xFFFFFFFF;
-			for (int i = 0; i < ands.Length; i++)
+			for (var i = 0; i < ands.Length; i++)
 				r &= ands[i];
 			return r;
 		} // func band
@@ -1016,9 +1014,7 @@ namespace Neo.IronLua
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static uint bnot(uint x)
-		{
-			return ~x;
-		} // func bnot
+			=> ~x;
 
 		/// <summary>Implementation of http://www.lua.org/manual/5.2/manual.html#pdf-bit32.bor </summary>
 		/// <param name="ors"></param>
@@ -1027,8 +1023,10 @@ namespace Neo.IronLua
 		{
 			uint r = 0;
 			if (ors != null)
-				for (int i = 0; i < ors.Length; i++)
+			{
+				for (var i = 0; i < ors.Length; i++)
 					r |= ors[i];
+			}
 			return r;
 		} // func bor
 
@@ -1036,10 +1034,8 @@ namespace Neo.IronLua
 		/// <param name="tests"></param>
 		/// <returns></returns>
 		public static bool btest(params uint[] tests)
-		{
-			return band(tests) != 0;
-		} // func btest
-
+			=> band(tests) != 0;
+		
 		/// <summary>Implementation of http://www.lua.org/manual/5.2/manual.html#pdf-bit32.bxor </summary>
 		/// <param name="xors"></param>
 		/// <returns></returns>
@@ -1047,8 +1043,10 @@ namespace Neo.IronLua
 		{
 			uint r = 0;
 			if (xors != null)
-				for (int i = 0; i < xors.Length; i++)
+			{
+				for (var i = 0; i < xors.Length; i++)
 					r ^= xors[i];
+			}
 			return r;
 		} // func bxor
 
@@ -1066,9 +1064,7 @@ namespace Neo.IronLua
 		/// <param name="width"></param>
 		/// <returns></returns>
 		public static uint extract(uint n, int field, int width = 1)
-		{
-			return (n >> field) & CreateBitMask(field, width);
-		} // func extract
+			=> (n >> field) & CreateBitMask(field, width);
 
 		/// <summary>Implementation of http://www.lua.org/manual/5.2/manual.html#pdf-bit32.replace </summary>
 		/// <param name="n"></param>
@@ -1078,7 +1074,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static uint replace(uint n, uint v, int field, int width = 1)
 		{
-			uint m = CreateBitMask(field, width) << field;
+			var m = CreateBitMask(field, width) << field;
 			return (n & ~m) | ((v << field) & m);
 		} // func replace
 
@@ -1141,31 +1137,592 @@ namespace Neo.IronLua
 
 	#endregion
 
-	#region -- Debug functions ----------------------------------------------------------
+	#region -- Debug functions --------------------------------------------------------
 
 	internal static class LuaLibraryDebug
 	{
 		public static LuaResult getupvalue(object f, int index)
-		{
-			return Lua.RtGetUpValue(f as Delegate, index);
-		} // func getupvalue
+			=> Lua.RtGetUpValue(f as Delegate, index);
 
 		public static LuaResult upvalueid(object f, int index)
-		{
-			return new LuaResult(Lua.RtUpValueId(f as Delegate, index));
-		} // func upvalueid
+			=> new LuaResult(Lua.RtUpValueId(f as Delegate, index));
 
 		public static LuaResult setupvalue(object f, int index, object v)
-		{
-			return new LuaResult(Lua.RtSetUpValue(f as Delegate, index, v));
-		} // func setupvalue
+			=> new LuaResult(Lua.RtSetUpValue(f as Delegate, index, v));
 
 		public static void upvaluejoin(object f1, int n1, object f2, int n2)
-		{
-			Lua.RtUpValueJoin(f1 as Delegate, n1, f2 as Delegate, n2);
-		} // func upvaluejoin
+			=> Lua.RtUpValueJoin(f1 as Delegate, n1, f2 as Delegate, n2);
 	} // class LuaLibraryDebug
 
 	#endregion
+
+	#region -- class LuaFilePackage ---------------------------------------------------
+
+	/// <summary>default files are not supported.</summary>
+	public sealed class LuaFilePackage
+	{
+		private Encoding defaultEncoding = Encoding.ASCII;
+
+		private LuaFile defaultOutput = null;
+		private LuaFile defaultInput = null;
+		private LuaFile tempFile = null;
+
+		/// <summary></summary>
+		/// <param name="filename"></param>
+		/// <param name="mode"></param>
+		/// <returns></returns>
+		public LuaResult open(string filename, string mode = "r")
+		{
+			try
+			{
+				return new LuaResult(LuaFileStream.OpenFile(filename, mode, defaultEncoding));
+			}
+			catch (Exception e)
+			{
+				return new LuaResult(null, e.Message);
+			}
+		} // func open
+
+		/// <summary></summary>
+		/// <param name="args"></param>
+		/// <returns></returns>
+		public LuaResult lines(object[] args)
+		{
+			if (args == null || args.Length == 0)
+				return DefaultInput.lines(null);
+			else
+				return Lua.GetEnumIteratorResult(new LuaLinesEnumerator(LuaFileStream.OpenFile((string)args[0], "r", defaultEncoding), true, args, 1));
+		} // func lines
+
+		/// <summary></summary>
+		/// <param name="file"></param>
+		/// <returns></returns>
+		public LuaResult close(LuaFile file = null)
+		{
+			if (file != null)
+				return file.close();
+			else if (defaultOutput != null)
+			{
+				LuaResult r = defaultOutput.close();
+				defaultOutput = null;
+				return r;
+			}
+			else
+				return null;
+		} // proc close
+
+		/// <summary></summary>
+		/// <param name="file"></param>
+		/// <returns></returns>
+		public LuaFile input(object file = null)
+			=> InOutOpen(file, defaultEncoding, ref defaultInput);
+
+		/// <summary></summary>
+		/// <param name="file"></param>
+		/// <returns></returns>
+		public LuaFile output(object file = null)
+			=> InOutOpen(file, defaultEncoding, ref defaultOutput);
+
+		private static LuaFile InOutOpen(object file, Encoding defaultEncoding, ref LuaFile fileVar)
+		{
+			switch (file)
+			{
+				case string fileName:
+					fileVar?.close();
+					fileVar = LuaFileStream.OpenFile(fileName, "w", defaultEncoding);
+					break;
+				case LuaFile handle:
+					if (handle == defaultInOut.Value)
+						fileVar = null;
+					else
+					{
+						fileVar?.close();
+						fileVar = handle;
+					}
+					break;
+			}
+			return fileVar ?? defaultInOut.Value;
+		} // func InOutOpen
+
+		/// <summary></summary>
+		public void flush()
+			=> DefaultOutput.flush();
+
+		/// <summary></summary>
+		/// <param name="args"></param>
+		/// <returns></returns>
+		public LuaResult read(object[] args)
+			=> DefaultInput.read(args) ?? LuaResult.Empty;
+
+		/// <summary></summary>
+		/// <param name="args"></param>
+		/// <returns></returns>
+		public LuaResult write(object[] args)
+		 => DefaultOutput.write(args) ?? LuaResult.Empty;
+
+		/// <summary></summary>
+		/// <returns></returns>
+		public LuaFile tmpfile()
+		{
+			if (tempFile == null)
+				tempFile = tmpfilenew();
+			return tempFile;
+		} // func read
+
+		/// <summary></summary>
+		/// <returns></returns>
+		public LuaFile tmpfilenew()
+			=> LuaTempFile.Create(Path.GetTempFileName(), defaultEncoding);
+
+		/// <summary></summary>
+		/// <param name="obj"></param>
+		/// <returns></returns>
+		public string type(object obj)
+			=> obj is LuaFile f && !f.IsClosed ? "file" : "file closed";
+
+		/// <summary></summary>
+		/// <param name="program"></param>
+		/// <param name="mode"></param>
+		/// <returns></returns>
+		public LuaFile popen(string program, string mode = "r")
+		{
+			LuaLibraryOS.SplitCommand(program, out var fileName, out var arguments);
+
+			var psi = new ProcessStartInfo(fileName, arguments)
+			{
+				RedirectStandardOutput = mode.IndexOf('r') >= 0,
+				RedirectStandardInput = mode.IndexOf('w') >= 0,
+				UseShellExecute = false,
+				CreateNoWindow = true
+			};
+
+			if (psi.RedirectStandardOutput)
+				psi.StandardOutputEncoding = defaultEncoding;
+
+			return new LuaFileProcess(Process.Start(psi), psi.RedirectStandardOutput, psi.RedirectStandardInput);
+		} // func popen
+
+		/// <summary>Defines the encoding for stdout</summary>
+		public Encoding DefaultEncoding
+		{
+			get => defaultEncoding;
+			set
+			{
+				if (value == null)
+					defaultEncoding = Encoding.ASCII;
+				else defaultEncoding = value;
+			}
+		} // prop DefaultEncoding
+
+		private LuaFile DefaultInput => defaultInput ?? defaultInOut.Value;
+		private LuaFile DefaultOutput => defaultOutput ?? defaultInOut.Value;
+
+		#region -- class LuaProcessPipe -----------------------------------------------
+
+		private sealed class LuaProcessPipe : LuaFile
+		{
+			public LuaProcessPipe()
+				: base(Console.In, Console.Out)
+			{
+			}
+
+			protected override void Dispose(bool disposing)
+				=> flush();
+
+			public override LuaResult close() => LuaResult.Empty;
+		} // class LuaProcessPipe
+
+		#endregion
+
+		private static readonly Lazy<LuaFile> defaultInOut;
+
+		static LuaFilePackage()
+		{
+			defaultInOut = new Lazy<LuaFile>(
+				() => new LuaProcessPipe(),
+				true
+			);
+		} // sctor
+	} // class LuaFilePackage
+
+	#endregion
+
+	#region -- class LuaLibraryPackage ------------------------------------------------
+
+	/// <summary></summary>
+	public sealed class LuaLibraryPackage
+	{
+		/// <summary></summary>
+		public const string CurrentDirectoryPathVariable = "%currentdirectory%";
+		/// <summary></summary>
+		public const string ExecutingDirectoryPathVariable = "%executingdirectory%";
+
+		#region -- class LuaLoadedTable -----------------------------------------------
+
+		private class LuaLoadedTable : LuaTable
+		{
+			private LuaGlobal global;
+
+			public LuaLoadedTable(LuaGlobal global)
+			{
+				this.global = global;
+			} // ctor
+
+			protected override object OnIndex(object key)
+			{
+				if (global.loaded != null && global.loaded.TryGetValue(key, out var value))
+					return value;
+				return base.OnIndex(key);
+			} // func OnIndex
+		} // class LuaLoadedTable
+
+		#endregion
+
+		private readonly object packageLock = new object();
+		private Dictionary<string, WeakReference> loadedModuls = null;
+
+		private string[] paths;
+		private LuaCompileOptions compileOptions = null;
+
+		/// <summary></summary>
+		/// <param name="global"></param>
+		public LuaLibraryPackage(LuaGlobal global)
+		{
+			this.loaded = new LuaLoadedTable(global);
+			this.path = CurrentDirectoryPathVariable;
+		} // ctor
+
+		internal LuaChunk LuaRequire(LuaGlobal global, string moduleName)
+		{
+			if (String.IsNullOrEmpty(moduleName))
+				return null;
+
+			if (LuaRequireFindFile(moduleName, out var fileName, out var stamp))
+			{
+				lock (packageLock)
+				{
+					LuaChunk chunk;
+					var cacheId = fileName + ";" + stamp.ToString("o");
+
+					// is the modul loaded
+					if (loadedModuls == null ||
+						!loadedModuls.TryGetValue(cacheId, out var rc) ||
+						!rc.IsAlive)
+					{
+						// compile the modul
+						chunk = global.Lua.CompileChunk(fileName, compileOptions);
+
+						// Update Cache
+						if (loadedModuls == null)
+							loadedModuls = new Dictionary<string, WeakReference>();
+						loadedModuls[cacheId] = new WeakReference(chunk);
+					}
+					else
+						chunk = (LuaChunk)rc.Target;
+
+					return chunk;
+				}
+			}
+			else
+				return null;
+		} // func LuaRequire
+
+		private bool LuaRequireCheckFile(ref string fileName, ref DateTime stamp)
+		{
+			try
+			{
+				// replace variables
+				if (fileName.Contains(CurrentDirectoryPathVariable))
+					fileName = fileName.Replace(CurrentDirectoryPathVariable, Environment.CurrentDirectory);
+				if (fileName.Contains(ExecutingDirectoryPathVariable))
+					fileName = fileName.Replace(ExecutingDirectoryPathVariable, System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+
+				// check if the file exists
+				if (!File.Exists(fileName))
+					return false;
+
+				// get the time stamp
+				stamp = File.GetLastWriteTime(fileName);
+				return true;
+			}
+			catch (IOException)
+			{
+				return false;
+			}
+		} // func LuaRequireCheckFile
+
+		internal bool LuaRequireFindFile(string modulName, out string fileName, out DateTime stamp)
+		{
+			stamp = DateTime.MinValue;
+			fileName = null;
+
+			foreach (var c in paths)
+			{
+				if (String.IsNullOrEmpty(c))
+					continue;
+				else
+				{
+					fileName = System.IO.Path.Combine(c, modulName + ".lua");
+					if (LuaRequireCheckFile(ref fileName, ref stamp))
+						return true;
+				}
+			}
+
+			return false;
+		} // func LuaRequireFindFile
+
+		/// <summary></summary>
+		public LuaTable loaded { get; private set; }
+		/// <summary></summary>
+		public string path
+		{
+			get => String.Join(";", paths);
+			set
+			{
+				paths = String.IsNullOrEmpty(value)
+					? null
+					: value.Split(';');
+			}
+		} // prop Path
+
+		/// <summary></summary>
+		public string[] Path => paths;
+		/// <summary></summary>
+		public LuaCompileOptions CompileOptions { get => compileOptions; set => compileOptions = value; }
+	} // class LuaLibraryPackage
+
+	#endregion
+
+	#region -- Operating System Facilities --------------------------------------------
+
+	internal static class LuaLibraryOS
+	{
+		private static readonly DateTime unixStartTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Local);
+
+		public static LuaResult clock()
+			=> new LuaResult(Process.GetCurrentProcess().TotalProcessorTime.TotalSeconds);
+
+		/// <summary>Converts a number representing the date and time back to some higher-level representation.</summary>
+		/// <param name="format">Format string. Same format as the C <see href="http://www.cplusplus.com/reference/ctime/strftime/">strftime()</see> function.</param>
+		/// <param name="time">Numeric date-time. It defaults to the current date and time.</param>
+		/// <returns>Formatted date string, or table of time information.</returns>
+		/// <remarks>by PapyRef</remarks>
+		public static object date(string format, object time)
+		{
+			// Unix timestamp is seconds past epoch. Epoch date for time_t is 00:00:00 UTC, January 1, 1970.
+			DateTime dt;
+
+			var toUtc = format != null && format.Length > 0 && format[0] == '!';
+
+			if (time == null)
+				dt = toUtc ? DateTime.UtcNow : DateTime.Now;
+			else if (time is DateTime dt2)
+			{
+				dt = dt2;
+				switch (dt.Kind)
+				{
+					case DateTimeKind.Utc:
+						if (!toUtc)
+							dt = dt.ToLocalTime();
+						break;
+					default:
+						if (toUtc)
+							dt = dt.ToUniversalTime();
+						break;
+				}
+			}
+			else
+			{
+				dt = unixStartTime.AddSeconds((long)Lua.RtConvertValue(time, typeof(long)));
+				if (toUtc)
+					dt = dt.ToUniversalTime();
+			}
+
+			// Date and time expressed as coordinated universal time (UTC).
+			if (toUtc)
+				format = format.Substring(1);
+
+			if (String.Compare(format, "*t", false) == 0)
+			{
+				var lt = new LuaTable
+				{
+					["year"] = dt.Year,
+					["month"] = dt.Month,
+					["day"] = dt.Day,
+					["hour"] = dt.Hour,
+					["min"] = dt.Minute,
+					["sec"] = dt.Second,
+					["wday"] = (int)dt.DayOfWeek,
+					["yday"] = dt.DayOfYear,
+					["isdst"] = (dt.Kind == DateTimeKind.Local ? true : false)
+				};
+				return lt;
+			}
+			else
+				return AT.MIN.Tools.ToStrFTime(dt, format);
+		} // func date
+
+		/// <summary>Calculate the current date and time, coded as a number. That number is the number of seconds since 
+		/// Epoch date, that is 00:00:00 UTC, January 1, 1970. When called with a table, it returns the number representing 
+		/// the date and time described by the table.</summary>
+		/// <param name="table">Table representing the date and time</param>
+		/// <returns>The time in system seconds. </returns>
+		/// <remarks>by PapyRef</remarks>
+		public static LuaResult time(LuaTable table)
+		{
+			TimeSpan ts;
+
+			if (table == null)
+			{
+				// Returns the current time when called without arguments
+				ts = DateTime.Now.Subtract(unixStartTime);
+			}
+			else
+			{
+				try
+				{
+					ts = datetime(table).Subtract(unixStartTime);
+				}
+				catch (Exception e)
+				{
+					return new LuaResult(null, e.Message);
+				}
+			}
+
+			return new LuaResult(Convert.ToInt64(ts.TotalSeconds));
+		} // func time
+
+		/// <summary>Converts a time to a .net DateTime</summary>
+		/// <param name="time"></param>
+		/// <returns></returns>
+		public static DateTime datetime(object time)
+		{
+			switch (time)
+			{
+				case LuaTable table:
+					return new DateTime(
+						table.ContainsKey("year") ? (int)table["year"] < 1970 ? 1970 : (int)table["year"] : 1970,
+						table.ContainsKey("month") ? (int)table["month"] : 1,
+						table.ContainsKey("day") ? (int)table["day"] : 1,
+						table.ContainsKey("hour") ? (int)table["hour"] : 0,
+						table.ContainsKey("min") ? (int)table["min"] : 0,
+						table.ContainsKey("sec") ? (int)table["sec"] : 0,
+						table.ContainsKey("isdst") ? (table.ContainsKey("isdst") == true) ? DateTimeKind.Local : DateTimeKind.Utc : DateTimeKind.Local
+					);
+				case int i32:
+					return unixStartTime.AddSeconds(i32);
+				case long i64:
+					return unixStartTime.AddSeconds(i64);
+				case double d:
+					return unixStartTime.AddSeconds(d);
+				default:
+					throw new ArgumentException();
+			}
+		} // func datetime
+
+		/// <summary>Calculate the number of seconds between time t1 to time t2.</summary>
+		/// <param name="t2">Higher bound of the time interval whose length is calculated.</param>
+		/// <param name="t1">Lower bound of the time interval whose length is calculated. If this describes a time point later than end, the result is negative.</param>
+		/// <returns>The number of seconds from time t1 to time t2. In other words, the result is t2 - t1.</returns>
+		/// <remarks>by PapyRef</remarks>
+		public static long difftime(object t2, object t1)
+		{
+			var time2 = Convert.ToInt64(t2 is LuaTable ? time((LuaTable)t2)[0] : t2);
+			var time1 = Convert.ToInt64(t1 is LuaTable ? time((LuaTable)t1)[0] : t1);
+
+			return time2 - time1;
+		} // func difftime
+
+		internal static void SplitCommand(string command, out string fileName, out string arguments)
+		{
+			// check the parameter
+			if (command == null)
+				throw new ArgumentNullException("command");
+			command = command.Trim();
+			if (command.Length == 0)
+				throw new ArgumentNullException("command");
+
+			// split the command
+			if (command[0] == '"')
+			{
+				var pos = command.IndexOf('"', 1);
+				if (pos == -1)
+				{
+					fileName = command;
+					arguments = null;
+				}
+				else
+				{
+					fileName = command.Substring(1, pos - 1).Trim();
+					arguments = command.Substring(pos + 1).Trim();
+				}
+			}
+			else
+			{
+				fileName = Path.Combine(Environment.SystemDirectory, "cmd.exe");
+				arguments = "/c " + command;
+			}
+		} // proc SplitCommand
+
+		public static LuaResult execute(string command, Func<string, LuaResult> output, Func<string, LuaResult> error)
+		{
+			if (command == null)
+				return new LuaResult(true);
+			try
+			{
+				SplitCommand(command, out var fileName, out var arguments);
+				using (var p = Process.Start(fileName, arguments))
+				{
+					p.WaitForExit();
+					return new LuaResult(true, "exit", p.ExitCode);
+				}
+			}
+			catch (Exception e)
+			{
+				return new LuaResult(null, e.Message);
+			}
+		} // func execute
+
+		public static void exit(int code = 0, bool close = true)
+			=> Environment.Exit(code);
+
+		public static string getenv(string varname)
+			=> Environment.GetEnvironmentVariable(varname);
+
+		public static LuaResult remove(string filename)
+		{
+			try
+			{
+				File.Delete(filename);
+				return new LuaResult(true);
+			}
+			catch (Exception e)
+			{
+				return new LuaResult(null, e.Message);
+			}
+		} // func remove
+
+		public static LuaResult rename(string oldname, string newname)
+		{
+			try
+			{
+				File.Move(oldname, newname);
+				return new LuaResult(true);
+			}
+			catch (Exception e)
+			{
+				return new LuaResult(null, e.Message);
+			}
+		} // func rename
+
+		public static void setlocale()
+			=> throw new NotImplementedException();
+
+		public static string tmpname()
+			=> Path.GetTempFileName();
+	} // class LuaLibraryOS
+
+	#endregion
 }
+
 #pragma warning restore IDE1006 // Naming Styles

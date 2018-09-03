@@ -53,10 +53,6 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\NeoLuaD\NeoLuaD.csproj">
-      <Project>{2fb491e8-65af-4c0d-a13e-4af73419ae0c}</Project>
-      <Name>NeoLuaD</Name>
-    </ProjectReference>
     <ProjectReference Include="..\NeoLua\NeoLua.csproj">
       <Project>{09aebb35-719e-4e32-9836-f57d7d6f1607}</Project>
       <Name>NeoLua</Name>

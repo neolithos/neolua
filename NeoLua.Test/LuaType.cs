@@ -445,7 +445,7 @@ namespace LuaDLR.Test
 					"local a : System.EventHandler = function(a, b) : void",
 					"  print('Hallo');",
 					"end;",
-					"a()"), "dummy", LuaDeskop.StackTraceCompileOptions);
+					"a()"), "dummy", Lua.StackTraceCompileOptions);
 				g.DoChunk(c);
 			}
 		}

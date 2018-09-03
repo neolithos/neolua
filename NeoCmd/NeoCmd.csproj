@@ -1,105 +1,23 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <Import Project="..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets" Condition="Exists('..\packages\MSBuildTasks.1.4.0.65\tools\MSBuild.Community.Tasks.Targets')" />
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{AFDB9919-9FED-45E9-8843-A731F822B98A}</ProjectGuid>
+    <TargetFramework>net45</TargetFramework>
+    <Company>TecWare Gesellschaft für Softwareentwicklung mbH</Company>
+    <Authors>Neolithos</Authors>
+    <Product>Neo.Lua</Product>
+    <PackageLicenseUrl>https://github.com/neolithos/neolua/blob/master/LICENSE.md</PackageLicenseUrl>
+    <Copyright>https://github.com/neolithos/neolua/blob/master/LICENSE.md</Copyright>
+    <PackageProjectUrl>https://github.com/neolithos/neolua/blob/master/LICENSE.md</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/neolithos/neolua.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <AssemblyVersion>5.3.0.0</AssemblyVersion>
+    <ApplicationIcon />
     <OutputType>Exe</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Neo.IronLua</RootNamespace>
-    <AssemblyName>NeoCmd</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <SccProjectName>SAK</SccProjectName>
-    <SccLocalPath>SAK</SccLocalPath>
-    <SccAuxPath>SAK</SccAuxPath>
-    <SccProvider>SAK</SccProvider>
-    <TargetFrameworkProfile>
-    </TargetFrameworkProfile>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>false</Prefer32Bit>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>false</Prefer32Bit>
-  </PropertyGroup>
-  <PropertyGroup>
-    <SignAssembly>false</SignAssembly>
-  </PropertyGroup>
-  <PropertyGroup>
-    <AssemblyOriginatorKeyFile>
-    </AssemblyOriginatorKeyFile>
+    <StartupObject />
+    <RootNamespace>NeoCmd</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
+    <ProjectReference Include="..\NeoLua.Dbg\NeoLua.Dbg.csproj" />
+    <ProjectReference Include="..\NeoLua\NeoLua.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="..\NeoLua\Properties\AssemblyInfoGlobal.cs">
-      <Link>Properties\AssemblyInfoGlobal.cs</Link>
-    </Compile>
-    <Compile Include="Program.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <None Include="Samples\Coroutine.lua" />
-    <None Include="Samples\Debug.lua" />
-    <None Include="Samples\ForEach.lua" />
-    <None Include="Samples\Forms.lua" />
-    <None Include="Samples\getPlus.lua" />
-    <None Include="Samples\Forms1.lua" />
-    <None Include="Samples\Hallo.lua" />
-    <None Include="Samples\ModTest.lua" />
-    <None Include="Samples\StringBuilder.lua" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="App.config" />
-    <None Include="Samples\Table.lua" />
-    <None Include="Samples\Test.lua" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\NeoLua.Dbg\NeoLua.Dbg.csproj">
-      <Project>{64e0e32c-0bc4-413e-832e-1574506e4088}</Project>
-      <Name>NeoLua.Dbg</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\NeoLuaD\NeoLuaD.csproj">
-      <Project>{2fb491e8-65af-4c0d-a13e-4af73419ae0c}</Project>
-      <Name>NeoLuaD</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\NeoLua\NeoLua.csproj">
-      <Project>{09aebb35-719e-4e32-9836-f57d7d6f1607}</Project>
-      <Name>NeoLua</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Samples\FileRead.lua" />
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  -->
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
 </Project>

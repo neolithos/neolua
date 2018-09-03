@@ -202,7 +202,7 @@ namespace Neo.IronLua
 						return LuaEmitTypeCode.Int32;
 					else if (type == typeof(short))
 						return LuaEmitTypeCode.Int16;
-					else if (type == typeof(uint))
+					else if (type == typeof(long))
 						return LuaEmitTypeCode.Int64;
 					else
 						return LuaEmitTypeCode.Object;

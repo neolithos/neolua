@@ -10,7 +10,7 @@ namespace NeoSpeed
 {
   class Program
   {
-		private static Neo.IronLua.ILuaDebug debugNeoLua = Neo.IronLua.LuaDeskop.StackTraceCompileOptions.DebugEngine;
+		private static Neo.IronLua.ILuaDebug debugNeoLua = Neo.IronLua.Lua.StackTraceCompileOptions.DebugEngine;
 
 		static void Main(string[] args)
     {
@@ -64,7 +64,7 @@ namespace NeoSpeed
       }
       Console.WriteLine();
       Console.WriteLine("Precompiled (no cache clear, debug):");
-			debugNeoLua = Neo.IronLua.LuaDeskop.StackTraceCompileOptions.DebugEngine;
+			debugNeoLua = Neo.IronLua.Lua.StackTraceCompileOptions.DebugEngine;
       for (int i = 0; i < scripts.Length; i++)
       {
         string sScript1 = File.ReadAllText(String.Format(scripts[i], 1));

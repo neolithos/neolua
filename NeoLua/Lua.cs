@@ -175,8 +175,8 @@ namespace Neo.IronLua
 
 		/// <summary>Creates a Environment</summary>
 		/// <returns></returns>
-		public LuaGlobalPortable CreateEnvironment()
-			=> new LuaGlobalPortable(this);
+		public LuaGlobal CreateEnvironment()
+			=> new LuaGlobal(this);
 
 		/// <summary>Create an empty environment</summary>
 		/// <typeparam name="T"></typeparam>
@@ -487,6 +487,11 @@ namespace Neo.IronLua
 				return versionInfo;
 			}
 		} // prop Version
+
+#if !NETSTANDARD2_0 && !NETCOREAPP2_0
+		/// <summary>Stack trace compile options.</summary>
+		public static LuaCompileOptions StackTraceCompileOptions { get; } = new LuaCompileOptions { DebugEngine = LuaStackTraceDebugger.Default };
+#endif
 	} // class Lua
 
 	#endregion

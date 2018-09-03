@@ -122,7 +122,7 @@ namespace LuaDLR.Test
 		[TestMethod]
 		public void TestMember10()
 		{
-			LuaGlobalPortable g = new LuaGlobalPortable(new Lua());
+			var g = new LuaGlobal(new Lua());
 			g["a"] = 1;
 			g.Members.Clear();
 

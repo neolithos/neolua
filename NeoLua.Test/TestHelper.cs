@@ -17,9 +17,9 @@ namespace LuaDLR.Test
 		public string Lines(params string[] lines)
 			=> String.Join(Environment.NewLine, lines);
 	
-		public string GetLines(string sName)
+		public string GetLines(string name)
 		{
-			using (var src = typeof(TestHelper).Assembly.GetManifestResourceStream(typeof(TestHelper), sName))
+			using (var src = typeof(TestHelper).Assembly.GetManifestResourceStream(typeof(TestHelper), name))
 			using (var tr = new StreamReader(src))
 				return tr.ReadToEnd();
 		} // func GetLines

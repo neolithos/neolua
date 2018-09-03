@@ -78,7 +78,7 @@ namespace NeoTest1
 		private static void TestDynamic()
 		{
 			var lua = new Lua();
-			var global = new LuaGlobalPortable(lua) { ["workspace"] = new DynData() };
+			var global = new LuaGlobal(lua) { ["workspace"] = new DynData() };
 
 			var r = global.DoChunk("return workspace.Part", "Test.lua");
 
