@@ -184,8 +184,8 @@ namespace Neo.IronLua
 								else
 									throw new ArgumentOutOfRangeException();
 								break;
-						
-						    default:
+
+							default:
 								sb.Append('\\');
 								sb.Append(c);
 								break;
@@ -269,7 +269,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static string dump(Delegate dlg)
 			=> throw new NotImplementedException();
-		
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-string.find </summary>
 		/// <param name="s"></param>
 		/// <param name="pattern"></param>
@@ -296,8 +296,8 @@ namespace Neo.IronLua
 			if (plain) // plain pattern
 			{
 				var index = s.IndexOf(pattern, init - 1);
-				return index == -1 ? 
-					null : 
+				return index == -1 ?
+					null :
 					new LuaResult(index + 1, index + pattern.Length);
 			}
 			else
@@ -332,7 +332,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static string format(this string formatstring, params object[] args)
 			=> AT.MIN.Tools.sprintf(formatstring, args);
-		
+
 		private static LuaResult MatchEnum(object s, object current)
 		{
 			var e = (System.Collections.IEnumerator)s;
@@ -546,7 +546,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static int len(this string s)
 			=> s == null ? 0 : s.Length;
-		
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-string.lower </summary>
 		/// <param name="s"></param>
 		/// <returns></returns>
@@ -592,7 +592,7 @@ namespace Neo.IronLua
 
 					for (var i = 1; i < m.Groups.Count; i++)
 						result[i - 1] = m.Groups[i].Value;
-					
+
 					return result;
 				}
 				else // no groups, return the captures
@@ -671,7 +671,7 @@ namespace Neo.IronLua
 	} // class LuaLibraryString
 
 	#endregion
-	
+
 	#region -- Mathematical Functions -------------------------------------------------
 
 	/// <summary>Reimplements methods of the math package.</summary>
@@ -684,25 +684,25 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static double abs(double x)
 			=> Math.Abs(x);
-		
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.acos </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double acos(double x)
 			=> Math.Acos(x);
-		
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.asin </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double asin(double x)
 			=> Math.Asin(x);
-		
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.atan </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double atan(double x)
 			=> Math.Atan(x);
-		
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.2/manual.html#pdf-math.atan2 </summary>
 		/// <param name="y"></param>
 		/// <param name="x"></param>
@@ -710,12 +710,12 @@ namespace Neo.IronLua
 		public static double atan2(double y, double x)
 			=> Math.Atan2(y, x);
 
-							   /// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.ceil </summary>
-							   /// <param name="x"></param>
-							   /// <returns></returns>
+		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.ceil </summary>
+		/// <param name="x"></param>
+		/// <returns></returns>
 		public static double ceil(double x)
 			=> Math.Ceiling(x);
-		
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.cos </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
@@ -745,14 +745,14 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static double floor(double x)
 			=> Math.Floor(x);
-		
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.fmod </summary>
 		/// <param name="x"></param>
 		/// <param name="y"></param>
 		/// <returns></returns>
 		public static double fmod(double x, double y)
 			=> x % y;
-		
+
 		/// <summary>Returns m and e such that x = m2e, e is an integer and the absolute value of m is in the range [0.5, 1) (or zero when x is zero, http://www.lua.org/manual/5.2/manual.html#pdf-math.frexp).</summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
@@ -779,7 +779,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static double log(double x, double b = Math.E)
 			=> Math.Log(x, b);
-		
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.max </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
@@ -839,13 +839,13 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static double pow(double x, double y)
 			=> Math.Pow(x, y);
-		
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.rad </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double rad(double x)
 			=> x * Math.PI / 180.0;
-		
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.random </summary>
 		/// <param name="m"></param>
 		/// <param name="n"></param>
@@ -888,7 +888,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static double sin(double x)
 			=> Math.Sin(x);
-		
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.2/manual.html#pdf-math.sinh </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
@@ -900,19 +900,19 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static double sqrt(double x)
 			=> Math.Sqrt(x);
-		
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.tan </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double tan(double x)
 			=> Math.Tan(x);
-		
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.2/manual.html#pdf-math.tanh </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
 		public static double tanh(double x)
 			=> Math.Tanh(x);
-		
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.type </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
@@ -1035,7 +1035,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static bool btest(params uint[] tests)
 			=> band(tests) != 0;
-		
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.2/manual.html#pdf-bit32.bxor </summary>
 		/// <param name="xors"></param>
 		/// <returns></returns>
@@ -1721,6 +1721,98 @@ namespace Neo.IronLua
 		public static string tmpname()
 			=> Path.GetTempFileName();
 	} // class LuaLibraryOS
+
+	#endregion
+
+	#region -- class LuaLibraryImplementTypes -----------------------------------------
+
+	///// <summary></summary>
+	//public sealed class LuaLibraryImplementTypes
+	//{
+	//	private readonly object threadLock = new object();
+	//	private readonly Lua lua;
+
+	//	private AssemblyBuilder assembly = null;
+	//	private ModuleBuilder module = null;
+
+	//	public LuaLibraryImplementTypes(Lua lua)
+	//	{
+	//		this.lua = lua;
+	//	} // ctor
+
+	//	private void CheckDynamicAssembly()
+	//	{
+	//		lock (threadLock)
+	//		{
+	//			if (assembly == null)
+	//			{
+	//				assembly = AppDomain.CurrentDomain.DefineDynamicAssembly(LuaDeskop.LuaDynamicName, AssemblyBuilderAccess.RunAndCollect);
+	//				module = assembly.DefineDynamicModule("lua", true);
+	//			}
+	//		}
+	//	} // proc CheckDynamicAssembly
+
+	//	public LuaTable implement(params LuaType[] types)
+	//	{
+	//		if (types.Length == 0)
+	//			return new LuaTable();
+
+	//		// check if all tyoes are interfaces 
+	//		foreach (var t in types)
+	//		{
+	//			if (t.Type == null)
+	//				throw new ArgumentException(); // todo:
+	//			if (!t.Type.IsInterface)
+	//				throw new ArgumentException(); // todo:
+	//		}
+
+	//		CheckDynamicAssembly(); // create the dynamic assembly for the type implementations
+
+	//		// define the new type or get it from cache
+	//		var typeDefine = module.DefineType("test", TypeAttributes.NotPublic | TypeAttributes.Sealed, typeof(LuaTable)); // todo:
+
+	//		foreach (var c in types)
+	//		{
+	//			var interfaceType = c.Type;
+	//			typeDefine.AddInterfaceImplementation(interfaceType);
+	//		}
+
+	//		var methodDefine = typeDefine.DefineMethod("CompareTo", MethodAttributes.Public);
+
+
+	//		var expr = Expression.Lambda(Expression.GetFuncType(new Type[] { typeof(object), typeof(object), typeof(int) }),
+	//			Expression.Constant(42),
+	//			"CompareTo",
+	//			new ParameterExpression[] {
+	//				Expression.Parameter(typeof(object)),
+	//				Expression.Parameter(typeof(object))
+	//			}
+	//		);
+
+	//		expr.CompileToMethod(methodDefine);
+
+	//		var dynamicType = typeDefine.CreateType();
+
+	//		return (LuaTable)Activator.CreateInstance(dynamicType);
+	//	} // func implement
+	//} // class LuaLibraryImplementTypes
+
+	//	[TestMethod]
+	//	public void ImplementInterface01()
+	//	{
+	//		using (var l = new Lua())
+	//		{
+	//			var t = new LuaLibraryImplementTypes(l);
+	//			var table = t.implement(LuaType.GetType(typeof(System.Collections.IComparer)));
+
+	//			var g = l.CreateEnvironment();
+	//			g.SetMemberValue("t", table);
+	//			g.DoChunk("function t:CompareTo(x, y) return 23; end;", "test");
+
+
+	//			Assert.AreEqual(23, ((System.Collections.IComparer)table).Compare(1, 1));
+	//		}
+	//	}
 
 	#endregion
 }
