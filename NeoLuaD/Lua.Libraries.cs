@@ -125,7 +125,7 @@ namespace Neo.IronLua
 					continue;
 				else
 				{
-					sFileName = System.IO.Path.Combine(c, sModName + ".lua");
+					sFileName = System.IO.Path.Combine(c, sModName.Replace(".", "/") + ".lua");
 					if (LuaRequireCheckFile(ref sFileName, ref dtStamp))
 						return true;
 				}
