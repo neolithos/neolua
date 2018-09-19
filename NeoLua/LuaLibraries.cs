@@ -1405,9 +1405,9 @@ namespace Neo.IronLua
 					var cacheId = fileName + ";" + stamp.ToString("o");
 
 					// is the modul loaded
-					if (loadedModuls == null ||
-						!loadedModuls.TryGetValue(cacheId, out var rc) ||
-						!rc.IsAlive)
+					if (loadedModuls == null 
+						|| !loadedModuls.TryGetValue(cacheId, out var rc) 
+						|| !rc.IsAlive)
 					{
 						// compile the modul
 						chunk = global.Lua.CompileChunk(fileName, compileOptions);
@@ -1427,7 +1427,7 @@ namespace Neo.IronLua
 				return null;
 		} // func LuaRequire
 
-		private bool LuaRequireCheckFile(ref string fileName, ref DateTime stamp)
+		private DateTime? LuaRequireCheckFile(string fileName)
 		{
 			try
 			{
@@ -1439,22 +1439,28 @@ namespace Neo.IronLua
 
 				// check if the file exists
 				if (!File.Exists(fileName))
-					return false;
+					return null;
 
 				// get the time stamp
-				stamp = File.GetLastWriteTime(fileName);
-				return true;
+				return File.GetLastWriteTime(fileName);
 			}
 			catch (IOException)
 			{
-				return false;
+				return null;
 			}
 		} // func LuaRequireCheckFile
 
-		internal bool LuaRequireFindFile(string modulName, out string fileName, out DateTime stamp)
+		private bool LuaRequireFindFile(string modulName, out string fileName, out DateTime stamp)
 		{
 			stamp = DateTime.MinValue;
 			fileName = null;
+
+			// replace dots blind to directory seperator, like lua it does.
+			if (modulName.IndexOf(System.IO.Path.DirectorySeparatorChar) >= 0)
+				modulName = modulName.Replace('.', System.IO.Path.DirectorySeparatorChar);
+			// add .lua
+			if (!modulName.EndsWith(".lua", StringComparison.OrdinalIgnoreCase))
+				modulName += ".lua";
 
 			foreach (var c in paths)
 			{
@@ -1462,13 +1468,20 @@ namespace Neo.IronLua
 					continue;
 				else
 				{
-					fileName = System.IO.Path.Combine(c, modulName + ".lua");
-					if (LuaRequireCheckFile(ref fileName, ref stamp))
-						return true;
+					var testFileName = System.IO.Path.Combine(c, modulName);
+					var testStamp = LuaRequireCheckFile(testFileName);
+					if (testStamp.HasValue)
+					{
+						if (fileName == null || stamp < testStamp.Value)
+						{
+							fileName = testFileName;
+							stamp = testStamp.Value;
+						}
+					}
 				}
 			}
 
-			return false;
+			return fileName != null;
 		} // func LuaRequireFindFile
 
 		/// <summary></summary>
