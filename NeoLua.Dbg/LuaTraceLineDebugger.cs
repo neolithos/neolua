@@ -31,7 +31,6 @@ namespace Neo.IronLua
 {
 	#region -- class LuaTraceLineEventArgs ----------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary></summary>
 	public class LuaTraceLineEventArgs : EventArgs
 	{
@@ -64,11 +63,10 @@ namespace Neo.IronLua
 
 	#region -- class LuaTraceLineExceptionEventArgs -------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary></summary>
 	public class LuaTraceLineExceptionEventArgs : LuaTraceLineEventArgs
 	{
-		private Exception exception;
+		private readonly Exception exception;
 
 		internal LuaTraceLineExceptionEventArgs(string name, string sourceFile, int line, Func<IDictionary<object, object>> scopeCallback, Exception exception)
 			: base(name, sourceFile, line, scopeCallback)
@@ -84,7 +82,6 @@ namespace Neo.IronLua
 
 	#region -- class LuaTraceLineDebugger -----------------------------------------------
 
-	///////////////////////////////////////////////////////////////////////////////
 	/// <summary></summary>
 	public class LuaTraceLineDebugger : ILuaDebug
 	{
@@ -127,8 +124,8 @@ namespace Neo.IronLua
 		/// <summary>Create tracable lambda</summary>
 		private class TransformAllLambda : ExpressionVisitor, IDebugCompilerSupport
 		{
-			private DebugContext context;
-			private DebugLambdaInfo debugLambdaInfo;
+			private readonly DebugContext context;
+			private readonly DebugLambdaInfo debugLambdaInfo;
 
 			public TransformAllLambda(DebugContext context)
 			{
@@ -143,10 +140,9 @@ namespace Neo.IronLua
 			{
 				var expr = base.VisitLambda(node);
 
-				if (node.Parameters.Count > 0 && node.Parameters[0].Name == "$frame")
-					return expr;
-				else
-					return context.TransformLambda((Expression<T>)expr, debugLambdaInfo);
+				return node.Parameters.Count > 0 && node.Parameters[0].Name == "$frame"
+					? expr
+					: context.TransformLambda((Expression<T>)expr, debugLambdaInfo);
 			} // func VisitLambda
 
 			public bool DoesExpressionNeedReduction(Expression expression)
@@ -162,10 +158,11 @@ namespace Neo.IronLua
 			{
 				var newBlock = new Expression[expressions.Count];
 				var current = 0;
-				foreach (Expression expr in expressions)
+
+				// remove useless debug info expressions
+				foreach (var expr in expressions)
 				{
-					var exprDebugInfo = expr as DebugInfoExpression;
-					if (current > 0 && exprDebugInfo != null)
+					if (current > 0 && expr is DebugInfoExpression exprDebugInfo)
 					{
 						if (exprDebugInfo.StartLine != 16707566)
 						{
@@ -189,7 +186,6 @@ namespace Neo.IronLua
 
 		#region -- class LuaTraceChunk ----------------------------------------------------
 
-		///////////////////////////////////////////////////////////////////////////////
 		/// <summary>Chunk definition.</summary>
 		protected class LuaTraceChunk : LuaChunk
 		{
@@ -205,8 +201,8 @@ namespace Neo.IronLua
 
 		#endregion
 
-		private TraceCallback callback;
-		private DebugContext context;
+		private readonly TraceCallback callback;
+		private readonly DebugContext context;
 		private ITracePipeline pipeline;
 
 		/// <summary></summary>
@@ -235,7 +231,7 @@ namespace Neo.IronLua
 			return CreateChunk(lua, expr);
 		} // func CreateCunk
 
-		LuaDebugLevel ILuaDebug.Level { get { return LuaDebugLevel.Line; } }
+		LuaDebugLevel ILuaDebug.Level => LuaDebugLevel.Line;
 
 		#endregion
 

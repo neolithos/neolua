@@ -34,12 +34,12 @@ namespace Neo.IronLua
 
 		/// <summary>Create the chunk</summary>
 		/// <param name="lua">Attached runtime</param>
-		/// <param name="sName">Name of the chunk</param>
+		/// <param name="name">Name of the chunk</param>
 		/// <param name="chunk"></param>
-		protected internal LuaChunk(Lua lua, string sName, Delegate chunk)
+		protected internal LuaChunk(Lua lua, string name, Delegate chunk)
 		{
 			this.lua = lua;
-			this.name = sName;
+			this.name = name;
 			this.chunk = chunk;
 		} // ctor
 

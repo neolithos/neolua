@@ -535,6 +535,36 @@ namespace Neo.IronLua
 			
 			return data;
 		} // func GetData
+
+		/// <summary>Unwind exception implementation.</summary>
+		/// <param name="ex"></param>
+		/// <param name="createDebugInfo"></param>
+		public static void UnwindException(Exception ex, Func<ILuaDebugInfo> createDebugInfo)
+		{
+			var luaFrames = new List<LuaStackFrame>();
+			var offsetForRecalc = 0;
+			LuaExceptionData currentData = null;
+
+			// get default exception data
+			if (ex.Data[LuaRuntimeException.ExceptionDataKey] is LuaExceptionData)
+			{
+				currentData = GetData(ex);
+				offsetForRecalc = currentData.Count;
+				luaFrames.AddRange(currentData);
+			}
+			else
+				currentData = GetData(ex, resolveStackTrace: false);
+
+			// re-trace the stack frame
+			var trace = new StackTrace(ex, true);
+			for (var i = offsetForRecalc; i < trace.FrameCount - 1; i++)
+				luaFrames.Add(GetStackFrame(trace.GetFrame(i)));
+
+			// add trace point
+			luaFrames.Add(new LuaStackFrame(trace.GetFrame(trace.FrameCount - 1), createDebugInfo()));
+
+			currentData.UpdateStackTrace(luaFrames.ToArray());
+		} // func UnwindException
 	} // class LuaExceptionData
 
 	#endregion

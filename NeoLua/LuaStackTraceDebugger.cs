@@ -437,7 +437,7 @@ namespace Neo.IronLua
 		private static AssemblyName luaDynamicName = null;
 		private static readonly ILuaDebug stackTraceDebugger = new LuaStackTraceDebugger();
 
-		private static MethodInfo luaExceptionDataGetDataMethodInfo;
+		private static readonly MethodInfo luaExceptionDataGetDataMethodInfo;
 
 		static LuaStackTraceDebugger()
 		{

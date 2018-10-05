@@ -64,11 +64,43 @@ namespace NeoTest1
 			return 0;
 		}
 
+		#region -- Issue 81 --
+
+		static bool NegBla(ref MyStruct my)
+			=> !my.Bla;
+
+		struct MyStruct
+		{
+			public bool Bla => true;
+			public bool Awesome => NegBla(ref this);
+
+		}
+		static MyStruct getStruct()
+			=> new MyStruct();
+			
+		public static void Example()
+		{
+			using (var l = new Lua())
+			{
+				dynamic g = l.CreateEnvironment();
+				g.t = new LuaTable();
+				((LuaTable)g.t).DefineFunction("getStruct", new Func<MyStruct>(getStruct));
+
+				g.dochunk("local o = t.getStruct(); "+Environment.NewLine+"" +
+					"print(o.Bla); print(o.Awesome); ", "test.lua");
+			}
+		}
+
+		#endregion
+
+
 		static void Main(string[] args)
 		{
+			Example();
+
 			//Console.WriteLine(TestAsync().Result);
 
-			StartEx.Main1(args);
+			//StartEx.Main1(args);
 			//TestDynamic();
 
 			//LinqTest2();
