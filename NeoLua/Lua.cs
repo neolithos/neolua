@@ -470,7 +470,7 @@ namespace Neo.IronLua
 		/// <param name="mi"></param>
 		/// <returns></returns>
 		public static LuaChunk GetChunkFromMethodInfo(MethodBase mi)
-			=> GetChunkFromMethodName(mi.Name);
+			=> mi != null ? GetChunkFromMethodName(mi.Name) : null;
 
 		#endregion
 

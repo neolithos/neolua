@@ -309,7 +309,7 @@ namespace Neo.IronLua
 		{
 			var chunkName = info.ChunkName;
 			var methodName = Method.Name;
-			
+
 			return methodName.StartsWith(chunkName)
 				? chunkName
 				: chunkName + "#" + methodName;
@@ -330,19 +330,19 @@ namespace Neo.IronLua
 		} // func Type
 
 		/// <summary></summary>
-		public string MethodName { get { return info == null ? Method.Name : GetChunkName(); } }
+		public string MethodName => info == null ? Method.Name : GetChunkName();
 		/// <summary></summary>
-		public MethodBase Method { get { return frame.GetMethod(); } }
+		public MethodBase Method => frame.GetMethod();
 		/// <summary></summary>
-		public int ILOffset { get { return frame.GetILOffset(); } }
+		public int ILOffset => frame.GetILOffset();
 		/// <summary></summary>
-		public int NativeOffset { get { return frame.GetNativeOffset(); } }
+		public int NativeOffset => frame.GetNativeOffset();
 		/// <summary></summary>
-		public string FileName { get { return info == null ? frame.GetFileName() : info.FileName; } }
+		public string FileName => info?.FileName ?? frame.GetFileName();
 		/// <summary></summary>
-		public int ColumnNumber { get { return info == null ? frame.GetFileColumnNumber() : info.Column; } }
+		public int ColumnNumber => info?.Column ?? frame.GetFileColumnNumber();
 		/// <summary></summary>
-		public int LineNumber { get { return info == null ? frame.GetFileLineNumber() : info.Line; } }
+		public int LineNumber => info == null ? frame.GetFileLineNumber() : info.Line;
 
 		string ILuaDebugInfo.ChunkName => MethodName;
 		int ILuaDebugInfo.Line => LineNumber;
@@ -392,7 +392,7 @@ namespace Neo.IronLua
 		public IEnumerator<LuaStackFrame> GetEnumerator()
 		{
 			var length = Count;
-			for (int i = 0; i < length; i++)
+			for (var i = 0; i < length; i++)
 				yield return stackTrace[i];
 		} // func GetEnumerator
 
@@ -562,7 +562,7 @@ namespace Neo.IronLua
 
 			// add trace point
 			luaFrames.Add(new LuaStackFrame(trace.GetFrame(trace.FrameCount - 1), createDebugInfo()));
-
+			
 			currentData.UpdateStackTrace(luaFrames.ToArray());
 		} // func UnwindException
 	} // class LuaExceptionData

@@ -124,7 +124,7 @@ namespace Neo.IronLua
 					var oldFileName = FileNameConstant.Value as string;
 					var newFileName = exprDebugInfo.Document?.FileName;
 					if (oldFileName != newFileName)
-						FileNameConstant = Expression.Constant(newFileName);
+						FileNameConstant = Expression.Constant(newFileName, typeof(string));
 
 					if (exprDebugInfo.StartLine == 16707566)
 					{
