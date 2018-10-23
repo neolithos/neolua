@@ -1169,10 +1169,10 @@ namespace Neo.IronLua
 				=> pi.GetValue(t, null);
 
 			private void SetPropertyStaticValue(LuaTable t, object value)
-				=> pi.SetValue(null, value, null);
+				=> pi.SetValue(null, Lua.RtConvertValue(value, pi.PropertyType), null);
 
 			private void SetPropertyInstanceValue(LuaTable t, object value)
-				=> pi.SetValue(t, value, null);
+				=> pi.SetValue(t, Lua.RtConvertValue(value, pi.PropertyType), null);
 
 			#endregion
 
