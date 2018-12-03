@@ -1427,7 +1427,7 @@ namespace Neo.IronLua
 				return null;
 		} // func LuaRequire
 
-		private DateTime? LuaRequireCheckFile(string fileName)
+		private DateTime? LuaRequireCheckFile(ref string fileName)
 		{
 			try
 			{
@@ -1469,7 +1469,7 @@ namespace Neo.IronLua
 				else
 				{
 					var testFileName = System.IO.Path.Combine(c, modulName);
-					var testStamp = LuaRequireCheckFile(testFileName);
+					var testStamp = LuaRequireCheckFile(ref testFileName);
 					if (testStamp.HasValue)
 					{
 						if (fileName == null || stamp < testStamp.Value)
