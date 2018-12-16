@@ -65,14 +65,18 @@ namespace Neo.IronLua
 				len = s.Length - offset;
 		} // proc NormalizeStringArguments
 
-		private static string TranslateRegularExpression(string regEx)
+		private static Tuple<string, bool[]> TranslateRegularExpression(string regEx)
 		{
 			if (!translateRegEx)
-				return regEx;
+				return new Tuple<string, bool[]>(regEx, null);
 
 			var sb = new StringBuilder();
 			var escapeCode = false;
 			var inCharList = false;
+			var captures = new List<bool>
+			{
+				false // full result
+			};
 
 			for (var i = 0; i < regEx.Length; i++)
 			{
@@ -216,11 +220,16 @@ namespace Neo.IronLua
 					sb.Append('[');
 					inCharList = true;
 				}
+				else if (c == '(')
+				{
+					sb.Append('(');
+					captures.Add(i + 1 < regEx.Length && regEx[i + 1] == ')');
+				}
 				else
 					sb.Append(c);
 			}
 
-			return sb.ToString();
+			return new Tuple<string, bool[]>(sb.ToString(), captures.ToArray());
 		} // func TranslateRegularExpression
 
 		/// <summary>Implamentation of http://www.lua.org/manual/5.3/manual.html#pdf-string.byte </summary>
@@ -303,9 +312,9 @@ namespace Neo.IronLua
 			else
 			{
 				// translate the regular expression
-				pattern = TranslateRegularExpression(pattern);
+				var tranlatedPattern = TranslateRegularExpression(pattern).Item1;
 
-				var r = new Regex(pattern);
+				var r = new Regex(tranlatedPattern);
 				var m = r.Match(s, init - 1);
 				if (m.Success)
 				{
@@ -341,7 +350,7 @@ namespace Neo.IronLua
 			if (e.MoveNext())
 			{
 				var m = (Match)e.Current;
-				return MatchResult(m);
+				return MatchResult(m, null);
 			}
 			else
 				return LuaResult.Empty;
@@ -360,7 +369,7 @@ namespace Neo.IronLua
 				return LuaResult.Empty;
 
 			// translate the regular expression
-			pattern = TranslateRegularExpression(pattern);
+			pattern = TranslateRegularExpression(pattern).Item1;
 
 			// Find Matches
 			var e = Regex.Matches(s, pattern).GetEnumerator();
@@ -523,7 +532,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static LuaResult gsub(this string s, string pattern, object repl, int n)
 		{
-			var regex = new Regex(TranslateRegularExpression(pattern));
+			var regex = new Regex(TranslateRegularExpression(pattern).Item1);
 
 			if (n <= 0)
 				n = Int32.MaxValue;
@@ -576,13 +585,13 @@ namespace Neo.IronLua
 				init = 1;
 
 			// translate the regular expression
-			pattern = TranslateRegularExpression(pattern);
+			var trans = TranslateRegularExpression(pattern);
 
-			var r = new Regex(pattern);
-			return MatchResult(r.Match(s, init - 1));
+			var r = new Regex(trans.Item1);
+			return MatchResult(r.Match(s, init - 1), trans.Item2);
 		} // func match
 
-		private static LuaResult MatchResult(Match m)
+		private static LuaResult MatchResult(Match m, bool[] indexReturn)
 		{
 			if (m.Success)
 			{
@@ -591,7 +600,7 @@ namespace Neo.IronLua
 					var result = new object[m.Groups.Count - 1];
 
 					for (var i = 1; i < m.Groups.Count; i++)
-						result[i - 1] = m.Groups[i].Value;
+						result[i - 1] = MatchCaptureValue(i, m.Groups[i], indexReturn);
 
 					return result;
 				}
@@ -600,7 +609,7 @@ namespace Neo.IronLua
 					var result = new object[m.Captures.Count];
 
 					for (var i = 0; i < m.Captures.Count; i++)
-						result[i] = m.Captures[i].Value;
+						result[i] = MatchCaptureValue(i, m.Captures[i], indexReturn);
 
 					return result;
 				}
@@ -609,6 +618,10 @@ namespace Neo.IronLua
 				return LuaResult.Empty;
 		} // func MatchResult
 
+		private static object MatchCaptureValue(int i, Capture capture, bool[] indexReturn)
+			=> indexReturn != null && i < indexReturn.Length && indexReturn[i] ? (object)(capture.Index + 1) : capture.Value;
+
+	
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-string.rep </summary>
 		/// <param name="s"></param>
 		/// <param name="n"></param>

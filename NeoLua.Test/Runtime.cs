@@ -404,6 +404,12 @@ namespace LuaDLR.Test
 		{
 			TestCode(Lines("return string.match('HELLO world!? 2C.\x1B.#.1', '^(%u+) (%g+) (%x+)%.?(%c+)%.?(%A{1})%.?(%d{1})$')"), "HELLO", "world!?", "2C", "\x1B", "#", "1");//u, g, x, c, A, d
 		}
+
+		[TestMethod]
+		public void RegexTest03()
+		{
+			TestCode("local str = 'hello'; return str:match('()(e)(.)()')", 2, "e", "l", 4);
+		}
 	}
  } //class Runtime 
 
