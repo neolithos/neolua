@@ -285,8 +285,8 @@ namespace Neo.IronLua
 			public LuaChunk chunk;
 			public LuaGlobal @this;
 
-			public LuaResult Run(LuaTable localEnv)
-				=> chunk.Run(localEnv ?? env ?? @this, new object[0]);
+			public LuaResult Run(object[] callArgs)
+				=> chunk.Run(env ?? @this, new object[] { callArgs ?? LuaResult.Empty.Values });
 		} // class LuaLoadReturnClosure
 
 		#endregion
@@ -299,7 +299,7 @@ namespace Neo.IronLua
 				chunk = c,
 				@this = this
 			};
-			return new Func<LuaTable, LuaResult>(run.Run);
+			return new Func<object[], LuaResult>(run.Run);
 		} // func LuaLoadReturn
 
 		/// <summary></summary>
@@ -330,7 +330,7 @@ namespace Neo.IronLua
 				}
 
 				// create the chunk
-				return LuaLoadReturn(Lua.CompileChunk((string)ld, source, null), env);
+				return LuaLoadReturn(Lua.CompileChunk((string)ld, source, null, new KeyValuePair<string, Type>("...", typeof(object[]))), env);
 			}
 			catch (Exception e)
 			{
@@ -350,7 +350,7 @@ namespace Neo.IronLua
 				throw new NotImplementedException();
 
 			// create the chunk
-			return LuaLoadReturn(Lua.CompileChunk(filename, null), env);
+			return LuaLoadReturn(Lua.CompileChunk(filename, null, new KeyValuePair<string, Type>("...", typeof(object[]))), env);
 		} // func LuaLoadFile
 
 		#endregion

@@ -590,7 +590,12 @@ namespace Neo.IronLua
 			if (args != null)
 			{
 				foreach (var c in args)
-					parameters.Add(globalScope.RegisterParameter(c.Value, c.Key)); // Add alle arguments
+				{
+					if (c.Key == "..." && c.Value.IsArray)
+						ParseLamdaDefinitionArgList(globalScope, parameters);
+					else
+						parameters.Add(globalScope.RegisterParameter(c.Value, c.Key)); // Add alle arguments
+				}
 			}
 
 			// Get the first token

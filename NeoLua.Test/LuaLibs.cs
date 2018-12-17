@@ -126,5 +126,16 @@ namespace LuaDLR.Test
 		{
 			TestCode("return string.find('   abc', '%a+');", 4, 6);
 		} // proc TestRuntimeLua13
+
+		[TestMethod]
+		public void TestLoad01()
+		{
+			TestCode(Lines(
+				//"local fn = function(...) local a, b = ...; return a, b; end;",
+				"local fn = load('local a, b = ...; return a, b;');",
+				"return fn(23,42);"), 
+				23, 42
+			);
+		}
 	}
 }
