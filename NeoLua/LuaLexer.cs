@@ -1383,18 +1383,16 @@ namespace Neo.IronLua
 							}
 
 							yield return new Token(LuaToken.Identifier, "print", pos, pos);
-							yield return new Token(LuaToken.BracketOpen, null, pos, pos);
 							yield return chars.CreateToken(LuaToken.String);
 							pos = chars.CurrentPosition;
-							yield return new Token(LuaToken.BracketClose, null, pos, pos);
-							yield return new Token(LuaToken.Semicolon, null, pos, pos);
+							yield return new Token(LuaToken.Semicolon, String.Empty, pos, pos);
 						}
 
 						codeEmitted = true;
 						if (c == '=') // variable syntax
 						{
 							yield return new Token(LuaToken.Identifier, "printValue", pos, pos);
-							yield return new Token(LuaToken.BracketOpen, null, pos, pos);
+							yield return new Token(LuaToken.BracketOpen, String.Empty, pos, pos);
 							NextChar(30);
 							break;
 						}
@@ -1474,7 +1472,7 @@ namespace Neo.IronLua
 						{
 							NextChar(0);
 							pos = chars.CurrentPosition;
-							yield return new Token(LuaToken.BracketClose, null, pos, pos);
+							yield return new Token(LuaToken.BracketClose, String.Empty, pos, pos);
 						}
 						else
 						{
@@ -1484,28 +1482,38 @@ namespace Neo.IronLua
 						}
 						break;
 					case 32:
-						if (c == '%')
+						if (c == ':')
 							NextChar(33);
 						else
-							EatChar(32);
+						{
+							chars.Replay(":");
+							state = 30;
+							yield return NextToken(chars);
+						}
 						break;
 					case 33:
+						if (c == '%')
+							NextChar(34);
+						else
+							EatChar(33);
+						break;
+					case 34:
 						if (c == '>') // emit format
 						{
 							pos = chars.CurrentPosition;
-							yield return new Token(LuaToken.Comma, null, pos, pos);
+							yield return new Token(LuaToken.Comma, String.Empty, pos, pos);
 							yield return chars.CreateToken(LuaToken.String);
 							pos = chars.CurrentPosition;
-							yield return new Token(LuaToken.BracketClose, null, pos, pos);
-							yield return new Token(LuaToken.Semicolon, null, pos, pos);
+							yield return new Token(LuaToken.BracketClose, String.Empty, pos, pos);
+							yield return new Token(LuaToken.Semicolon, String.Empty, pos, pos);
 							NextChar(0);
 							break;
 						}
 						else
 						{
 							chars.AppendValue('%');
-							state = 32;
-							goto case 32;
+							state = 33;
+							goto case 33;
 						}
 					#endregion
 					default:
@@ -1519,19 +1527,19 @@ namespace Neo.IronLua
 				{
 					pos = chars.StartPosition;
 					yield return new Token(LuaToken.Identifier, "print", pos, pos);
-					yield return new Token(LuaToken.BracketOpen, null, pos, pos);
 					yield return chars.CreateToken(LuaToken.String);
 					pos = chars.CurrentPosition;
-					yield return new Token(LuaToken.BracketClose, null, pos, pos);
-					yield return new Token(LuaToken.Semicolon, null, pos, pos);
+					yield return new Token(LuaToken.Semicolon, String.Empty, pos, pos);
 				}
 			}
 			else // no code emitted --> create a return statement
 			{
 				pos = chars.StartPosition;
-				yield return new Token(LuaToken.KwReturn, null, pos, pos);
+				yield return new Token(LuaToken.KwReturn, "return", pos, pos);
 				yield return chars.CreateToken(LuaToken.String);
+				yield return new Token(LuaToken.Semicolon, String.Empty, pos, pos);
 			}
+			yield return chars.CreateToken(LuaToken.Eof);
 		} // func CreateHtmlTokenStream
 
 		/// <summary></summary>

@@ -410,6 +410,46 @@ namespace LuaDLR.Test
 		{
 			TestCode("local str = 'hello'; return str:match('()(e)(.)()')", 2, "e", "l", 4);
 		}
+
+		[TestMethod]
+		public void RegexComplex01()
+		{
+			using (var l = new Lua())
+			{
+				var r = new List<object[]>();
+				var g = l.CreateEnvironment<LuaGlobal>();
+				g["p"] = new Action<object[]>(r.Add);
+				g.DoChunk(
+					Lines(
+						"str = '<ele>outer1 <![CDATA[inner]]> outer2</ele>'",
+						"i = 1",
+						"while true do",
+						  "content, cdata, ie = str:match('^%s*([^<]-)%s*<!%[CDATA%[(.-)%]%]>()', i)",
+						  "if content or cdata then p(content, cdata, ie) end",
+						  "if not content then",
+							"content, cs, elem, attrib, ce, ie = str:match('^%s*([^<]-)%s*<([%?/]?)([%w:]+)(.-)([%?/]?)>()', i)",
+							"if content or elem then p(content, cs, elem, attrib, ce, ie) end",
+							"if not content then break end",
+						  "end",
+						  "i = ie",
+						"end"
+					), "test.lua"
+				);
+
+
+				Assert.AreEqual("ele", r[0][2]);
+				Assert.AreEqual(6, r[0][5]);
+
+				Assert.AreEqual("outer1", r[1][0]);
+				Assert.AreEqual("inner", r[1][1]);
+				Assert.AreEqual(30, r[1][2]);
+
+				Assert.AreEqual("outer2", r[2][2]);
+				Assert.AreEqual("/", r[2][2]);
+				Assert.AreEqual("ele", r[2][2]);
+				Assert.AreEqual(42, r[2][2]);
+			}
+		}
 	}
  } //class Runtime 
 

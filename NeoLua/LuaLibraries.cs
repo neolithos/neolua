@@ -619,7 +619,9 @@ namespace Neo.IronLua
 		} // func MatchResult
 
 		private static object MatchCaptureValue(int i, Capture capture, bool[] indexReturn)
-			=> indexReturn != null && i < indexReturn.Length && indexReturn[i] ? (object)(capture.Index + 1) : capture.Value;
+			=> indexReturn != null && i < indexReturn.Length && indexReturn[i] 
+			? (object)(capture.Index + 1) 
+			: capture.Value;
 
 	
 		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-string.rep </summary>
