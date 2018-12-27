@@ -3956,7 +3956,7 @@ namespace Neo.IronLua
 								switch (s[i])
 								{
 									case '\0':
-										tw.Write("\x00");
+										tw.Write("\\x00");
 										break;
 									case '\\':
 										tw.Write("\\\\");
@@ -4139,7 +4139,7 @@ namespace Neo.IronLua
 
 		#region -- Lua Script Object Notation -- From -----------------------------------
 
-		private static LuaTable FromLsonParse(LuaLexer lex)
+		private static LuaTable FromLsonParse(ILuaLexer lex)
 		{
 			var result = new LuaTable();
 
@@ -4237,7 +4237,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static LuaTable FromLson(TextReader tr)
 		{
-			using (var lex = new LuaLexer("lson.lua", tr) { SkipComments = true })
+			using (var lex = LuaLexer.Create("lson.lua", tr))
 			{
 				lex.Next();
 				return FromLsonParse(lex);

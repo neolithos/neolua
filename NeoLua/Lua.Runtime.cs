@@ -471,7 +471,7 @@ namespace Neo.IronLua
 			while (offset < number.Length)
 			{
 				// convert the char
-				char c = number[offset];
+				var c = number[offset];
 
 				switch (state)
 				{

@@ -78,6 +78,13 @@ namespace Neo.IronLua
 	/// <summary>Defines option for the parse and compile of a script.</summary>
 	public class LuaCompileOptions
 	{
+		/// <summary>Create the lexer for the parser</summary>
+		/// <param name="chunkName"></param>
+		/// <param name="tr"></param>
+		/// <returns></returns>
+		public virtual ILuaLexer CreateLexer(string chunkName, TextReader tr)
+			=> LuaLexer.Create(chunkName, tr);
+
 		/// <summary>Action on access diened.</summary>
 		/// <returns></returns>
 		protected virtual Expression RestrictAccess()
@@ -225,7 +232,7 @@ namespace Neo.IronLua
 			if (options == null)
 				options = new LuaCompileOptions();
 
-			using (var l = new LuaLexer(chunkName, tr))
+			using (var l = options.CreateLexer(chunkName, tr))
 			{
 				var registerMethods = options.DebugEngine != null && (options.DebugEngine.Level & LuaDebugLevel.RegisterMethods) == LuaDebugLevel.RegisterMethods;
 				if (registerMethods)
@@ -262,7 +269,7 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public Delegate CreateLambda(string name, string code, Type delegateType, Type returnType, params KeyValuePair<string, Type>[] arguments)
 		{
-			using (var l = new LuaLexer(name, new StringReader(code)))
+			using (var l = LuaLexer.Create(name, new StringReader(code)))
 			{
 				var expr = Parser.ParseChunk(this, new LuaCompileOptions(), false, l, delegateType, returnType, arguments);
 

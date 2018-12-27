@@ -43,7 +43,7 @@ namespace Neo.IronLua
 		private const string csArgList = "#arglist";
 		private const string csClr = "clr";
 
-		#region -- class Scope ------------------------------------------------------------
+		#region -- class Scope --------------------------------------------------------
 
 		/// <summary>Scope, that builds a block.</summary>
 		private class Scope
@@ -186,7 +186,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class LoopScope --------------------------------------------------------
+		#region -- class LoopScope ----------------------------------------------------
 
 		/// <summary>Scope that represents the loop content.</summary>
 		private sealed class LoopScope : Scope
@@ -234,7 +234,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class LambdaScope ------------------------------------------------------
+		#region -- class LambdaScope --------------------------------------------------
 
 		/// <summary>Lambda-Scope with labels and parameters.</summary>
 		private class LambdaScope : Scope
@@ -343,7 +343,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class GlobalScope ------------------------------------------------------
+		#region -- class GlobalScope --------------------------------------------------
 
 		/// <summary>Global parse-scope.</summary>
 		private sealed class GlobalScope : LambdaScope
@@ -375,32 +375,30 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class CatchScope -------------------------------------------------------
+		#region -- class CatchScope ---------------------------------------------------
 
 		/// <summary></summary>
 		private sealed class CatchScope : Scope
 		{
-			private readonly ParameterExpression exceptionVariable;
-
 			public CatchScope(Scope parent, ParameterExpression exceptionVariable)
 				: base(parent)
 			{
-				this.exceptionVariable = exceptionVariable;
+				ExceptionVariable = exceptionVariable;
 			} // ctor
 
 			public override Expression LookupExpression(string name, bool isLocalOnly = false)
 			{
-				if (name == exceptionVariable.Name)
-					return exceptionVariable;
+				if (name == ExceptionVariable.Name)
+					return ExceptionVariable;
 				return base.LookupExpression(name, isLocalOnly);
 			} // func LookupExpression
 
-			public ParameterExpression ExceptionVariable => exceptionVariable;
+			public ParameterExpression ExceptionVariable { get; private set; }
 		} // class CatchScope
 
 		#endregion
 
-		#region -- enum InvokeResult ------------------------------------------------------
+		#region -- enum InvokeResult --------------------------------------------------
 
 		public enum InvokeResult
 		{
@@ -411,7 +409,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class ArgumentsList ----------------------------------------------------
+		#region -- class ArgumentsList ------------------------------------------------
 
 		/// <summary>Class to hold arguments.</summary>
 		private sealed class ArgumentsList
@@ -465,18 +463,18 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- class PrefixMemberInfo -------------------------------------------------
+		#region -- class PrefixMemberInfo ---------------------------------------------
 
 		/// <summary>Mini-Parse-Tree for resolve of prefix expressions</summary>
 		private class PrefixMemberInfo
 		{
 			public PrefixMemberInfo(Token position, Expression instance, string sMember, Expression[] indices, ArgumentsList arguments)
 			{
-				this.Position = position;
-				this.Instance = instance;
-				this.Member = sMember;
-				this.Indices = indices;
-				this.Arguments = arguments;
+				Position = position;
+				Instance = instance;
+				Member = sMember;
+				Indices = indices;
+				Arguments = arguments;
 			} // ctor
 
 			public Expression GenerateSet(Scope scope, Expression exprToSet)
@@ -565,7 +563,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Parse Chunk, Block -----------------------------------------------------
+		#region -- Parse Chunk, Block -------------------------------------------------
 
 		/// <summary>Parses the chunk to an function.</summary>
 		/// <param name="runtime">Binder</param>
@@ -576,7 +574,7 @@ namespace Neo.IronLua
 		/// <param name="returnType">Defines the return type of the chunk.</param>
 		/// <param name="args">Arguments of the function.</param>
 		/// <returns>Expression-Tree for the code.</returns>
-		public static LambdaExpression ParseChunk(Lua runtime, LuaCompileOptions options, bool hasEnvironment, LuaLexer code, Type typeDelegate, Type returnType, IEnumerable<KeyValuePair<string, Type>> args)
+		public static LambdaExpression ParseChunk(Lua runtime, LuaCompileOptions options, bool hasEnvironment, ILuaLexer code, Type typeDelegate, Type returnType, IEnumerable<KeyValuePair<string, Type>> args)
 		{
 			var parameters = new List<ParameterExpression>();
 			if (returnType == null)
@@ -639,7 +637,7 @@ namespace Neo.IronLua
 			return name.ToString();
 		} // func CreateNameFromFile
 
-		private static void ParseBlock(Scope scope, LuaLexer code, bool activateRethrow = false)
+		private static void ParseBlock(Scope scope, ILuaLexer code, bool activateRethrow = false)
 		{
 			// Lese die Statement
 			var lastDebugInfo = -1;
@@ -690,7 +688,7 @@ namespace Neo.IronLua
 				scope.AddExpression(Expression.ClearDebugInfo(code.Current.Start.Document)); // Clear debug info
 		} // func ParseBlock
 
-		private static void ParseReturn(Scope scope, LuaLexer code)
+		private static void ParseReturn(Scope scope, ILuaLexer code)
 		{
 			// eat return
 			code.Next();
@@ -762,7 +760,7 @@ namespace Neo.IronLua
 			return exprReturnValue;
 		} // func GetLuaResultExpression
 
-		private static bool IsExpressionStart(LuaLexer code)
+		private static bool IsExpressionStart(ILuaLexer code)
 		{
 			return code.Current.Typ == LuaToken.BracketOpen ||
 				code.Current.Typ == LuaToken.Identifier ||
@@ -783,9 +781,9 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Parse Statement --------------------------------------------------------
+		#region -- Parse Statement ----------------------------------------------------
 
-		private static bool ParseStatement(Scope scope, LuaLexer code)
+		private static bool ParseStatement(Scope scope, ILuaLexer code)
 		{
 			switch (code.Current.Typ)
 			{
@@ -867,7 +865,7 @@ namespace Neo.IronLua
 			}
 		}  // func ParseStatement
 
-		private static void ParseExpressionStatement(Scope scope, LuaLexer code, bool isLocal)
+		private static void ParseExpressionStatement(Scope scope, ILuaLexer code, bool isLocal)
 		{
 			var registerLocals = (List<ParameterExpression>)null;
 			var prefixes = new List<PrefixMemberInfo>();
@@ -1021,7 +1019,7 @@ namespace Neo.IronLua
 			return tmpVar;
 		} // func ParseExpressionStatementExchangeToTempVar
 
-		private static void ParseIfStatement(Scope scope, LuaLexer code)
+		private static void ParseIfStatement(Scope scope, ILuaLexer code)
 		{
 			// if expr then block { elseif expr then block } [ else block ] end
 			FetchToken(LuaToken.KwIf, code);
@@ -1031,7 +1029,7 @@ namespace Neo.IronLua
 			scope.AddExpression(Expression.IfThenElse(expr, ParseIfElseBlock(scope, code), ParseElseStatement(scope, code)));
 		} // proc ParseIfStatement
 
-		private static Expression ParseElseStatement(Scope scope, LuaLexer code)
+		private static Expression ParseElseStatement(Scope scope, ILuaLexer code)
 		{
 			if (code.Current.Typ == LuaToken.KwElseif)
 			{
@@ -1057,14 +1055,14 @@ namespace Neo.IronLua
 				throw ParseError(code.Current, Properties.Resources.rsParseUnexpectedTokenElse);
 		} // func ParseElseStatement
 
-		private static Expression ParseIfElseBlock(Scope parent, LuaLexer code)
+		private static Expression ParseIfElseBlock(Scope parent, ILuaLexer code)
 		{
 			var scope = new Scope(parent);
 			ParseBlock(scope, code);
 			return scope.ExpressionBlock;
 		} // func ParseIfElseBlock
 
-		private static void ParseConst(Scope scope, LuaLexer code)
+		private static void ParseConst(Scope scope, ILuaLexer code)
 		{
 			// const ::= variable '=' ( expr | clr '.' Type )
 			ParseIdentifierAndType(scope, code, out var tVarName, out var typeVar);
@@ -1088,14 +1086,15 @@ namespace Neo.IronLua
 				if (exprConst.Type == typeof(object) || exprConst.Type == typeof(LuaResult)) // dynamic calls, no constant possible
 					throw ParseError(tVarName, Properties.Resources.rsConstExpressionNeeded);
 				else
+				{
 					try
 					{
 						var r = EvaluateExpression(exprConst);
 						if (r == null) // Eval via compile
 						{
-							Type typeFunc = Expression.GetFuncType(exprConst.Type);
-							LambdaExpression exprEval = Expression.Lambda(typeFunc, exprConst);
-							Delegate dlg = exprEval.Compile();
+							var typeFunc = Expression.GetFuncType(exprConst.Type);
+							var exprEval = Expression.Lambda(typeFunc, exprConst);
+							var dlg = exprEval.Compile();
 							r = dlg.DynamicInvoke();
 						}
 						scope.RegisterConst(tVarName.Value, Expression.Constant(r, exprConst.Type));
@@ -1104,12 +1103,13 @@ namespace Neo.IronLua
 					{
 						throw ParseError(tVarName, String.Format(Properties.Resources.rsConstExpressionEvalError, e.Message));
 					}
+				}
 			}
 		} // func ParseConst
 
 		#endregion
 
-		#region -- Evaluate Expression ----------------------------------------------------
+		#region -- Evaluate Expression ------------------------------------------------
 
 		private static object EvaluateExpression(Expression expr)
 			=> expr is ConstantExpression cexpr
@@ -1121,9 +1121,9 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Parse Prefix, Suffix ---------------------------------------------------
+		#region -- Parse Prefix, Suffix -----------------------------------------------
 
-		private static PrefixMemberInfo ParsePrefix(Scope scope, LuaLexer code)
+		private static PrefixMemberInfo ParsePrefix(Scope scope, ILuaLexer code)
 		{
 			// prefix ::= Identifier suffix_opt |  '(' exp ')' suffix | literal | tablector
 
@@ -1215,7 +1215,7 @@ namespace Neo.IronLua
 			return ParseSuffix(scope, code, info);
 		} // func ParsePrefix
 
-		private static PrefixMemberInfo ParseSuffix(Scope scope, LuaLexer code, PrefixMemberInfo info)
+		private static PrefixMemberInfo ParseSuffix(Scope scope, ILuaLexer code, PrefixMemberInfo info)
 		{
 			// suffix_opt ::= [ suffix ]
 			// suffix ::= { '[' exp ']'  | '.' Identifier | args | ':' Identifier args }
@@ -1286,7 +1286,7 @@ namespace Neo.IronLua
 			}
 		} // func ParsePrefix
 
-		private static ArgumentsList ParseArgumentList(Scope scope, LuaLexer code)
+		private static ArgumentsList ParseArgumentList(Scope scope, ILuaLexer code)
 		{
 			FetchToken(LuaToken.BracketOpen, code);
 
@@ -1319,7 +1319,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Parse Numer, HexNumber -------------------------------------------------
+		#region -- Parse Numer, HexNumber ---------------------------------------------
 
 		private static Expression ParseNumber(Lua runtime, Token t)
 		{
@@ -1338,9 +1338,9 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Parse Expressions ------------------------------------------------------
+		#region -- Parse Expressions --------------------------------------------------
 
-		private static IEnumerable<Expression> ParseExpressionList(Scope scope, LuaLexer code)
+		private static IEnumerable<Expression> ParseExpressionList(Scope scope, ILuaLexer code)
 		{
 			while (true)
 			{
@@ -1354,7 +1354,7 @@ namespace Neo.IronLua
 			}
 		} // func ParseExpressionList
 
-		private static Expression ParseExpression(Scope scope, LuaLexer code, InvokeResult result, bool isDebug)
+		private static Expression ParseExpression(Scope scope, ILuaLexer code, InvokeResult result, bool isDebug)
 		{
 			var tStart = code.Current;
 			var doWrap = false;
@@ -1365,13 +1365,13 @@ namespace Neo.IronLua
 				return expr;
 		} // func ParseExpression
 
-		private static Expression ParseExpression(Scope scope, LuaLexer code, InvokeResult result, ref bool doWrap)
+		private static Expression ParseExpression(Scope scope, ILuaLexer code, InvokeResult result, ref bool doWrap)
 		{
 			// expr ::= exprOr
 			return ParseExpressionOr(scope, code, result, ref doWrap);
 		} // func ParseExpression
 
-		private static Expression ParseExpressionOr(Scope scope, LuaLexer code, InvokeResult result, ref bool doWrap)
+		private static Expression ParseExpressionOr(Scope scope, ILuaLexer code, InvokeResult result, ref bool doWrap)
 		{
 			// exprOr ::= exprAnd { or exprAnd }
 			var expr = ParseExpressionAnd(scope, code, result, ref doWrap);
@@ -1386,7 +1386,7 @@ namespace Neo.IronLua
 			return expr;
 		} // func ParseExpressionOr
 
-		private static Expression ParseExpressionAnd(Scope scope, LuaLexer code, InvokeResult result, ref bool doWrap)
+		private static Expression ParseExpressionAnd(Scope scope, ILuaLexer code, InvokeResult result, ref bool doWrap)
 		{
 			// exprAnd ::= exprBitOr { and exprBitOr }
 			var expr = ParseExpressionBitOr(scope, code, result, ref doWrap);
@@ -1401,7 +1401,7 @@ namespace Neo.IronLua
 			return expr;
 		} // func ParseExpressionAnd
 
-		private static Expression ParseExpressionBitOr(Scope scope, LuaLexer code, InvokeResult result, ref bool doWrap)
+		private static Expression ParseExpressionBitOr(Scope scope, ILuaLexer code, InvokeResult result, ref bool doWrap)
 		{
 			// exprBitOr ::= exprBitXOr { | exprBitXOr }
 			var expr = ParseExpressionBitXOr(scope, code, result, ref doWrap);
@@ -1419,7 +1419,7 @@ namespace Neo.IronLua
 			return expr;
 		} // func ParseExpressionBitOr
 
-		private static Expression ParseExpressionBitXOr(Scope scope, LuaLexer code, InvokeResult result, ref bool doWrap)
+		private static Expression ParseExpressionBitXOr(Scope scope, ILuaLexer code, InvokeResult result, ref bool doWrap)
 		{
 			// exprBitXOr ::= exprBitAnd { ~ exprBitAnd }
 			var expr = ParseExpressionBitAnd(scope, code, result, ref doWrap);
@@ -1437,7 +1437,7 @@ namespace Neo.IronLua
 			return expr;
 		} // func ParseExpressionBitXOr
 
-		private static Expression ParseExpressionBitAnd(Scope scope, LuaLexer code, InvokeResult result, ref bool doWrap)
+		private static Expression ParseExpressionBitAnd(Scope scope, ILuaLexer code, InvokeResult result, ref bool doWrap)
 		{
 			// exprBitAnd ::= exprCmp { & exprCmp }
 			var expr = ParseExpressionCmp(scope, code, result, ref doWrap);
@@ -1455,7 +1455,7 @@ namespace Neo.IronLua
 			return expr;
 		} // func ParseExpressionBitAnd
 
-		private static Expression ParseExpressionCmp(Scope scope, LuaLexer code, InvokeResult result, ref bool doWrap)
+		private static Expression ParseExpressionCmp(Scope scope, ILuaLexer code, InvokeResult result, ref bool doWrap)
 		{
 			// expCmd ::= expCon { ( < | > | <= | >= | ~= | == ) expCon }
 			var tStart = code.Current;
@@ -1486,7 +1486,7 @@ namespace Neo.IronLua
 			}
 		} // func ParseExpressionCmp
 
-		private static Expression ParseExpressionCon(Scope scope, LuaLexer code, InvokeResult result, ref bool doWrap)
+		private static Expression ParseExpressionCon(Scope scope, ILuaLexer code, InvokeResult result, ref bool doWrap)
 		{
 			// exprCon::= exprShift { '..' exprShift }
 			var exprs = new List<Expression>();
@@ -1508,7 +1508,7 @@ namespace Neo.IronLua
 				return exprs[0];
 		} // func ParseExpressionCon
 
-		private static Expression ParseExpressionShift(Scope scope, LuaLexer code, InvokeResult result, ref bool doWrap)
+		private static Expression ParseExpressionShift(Scope scope, ILuaLexer code, InvokeResult result, ref bool doWrap)
 		{
 			// exprBitAnd ::= exprCmp { ( << | >> ) exprCmp }
 			var expr = ParseExpressionPlus(scope, code, result, ref doWrap);
@@ -1531,7 +1531,7 @@ namespace Neo.IronLua
 			}
 		} // func ParseExpressionShift
 
-		private static Expression ParseExpressionPlus(Scope scope, LuaLexer code, InvokeResult result, ref bool doWrap)
+		private static Expression ParseExpressionPlus(Scope scope, ILuaLexer code, InvokeResult result, ref bool doWrap)
 		{
 			// expPlus ::= expMul { ( + | - ) expMul}
 			var expr = ParseExpressionMultiply(scope, code, result, ref doWrap);
@@ -1553,7 +1553,7 @@ namespace Neo.IronLua
 			}
 		} // func ParseExpressionPlus
 
-		private static Expression ParseExpressionMultiply(Scope scope, LuaLexer code, InvokeResult result, ref bool doWrap)
+		private static Expression ParseExpressionMultiply(Scope scope, ILuaLexer code, InvokeResult result, ref bool doWrap)
 		{
 			// expMul ::= expUn { ( * | / | // | % ) expUn }
 			var expr = ParseExpressionUnary(scope, code, result, ref doWrap);
@@ -1580,7 +1580,7 @@ namespace Neo.IronLua
 			}
 		} // func ParseExpressionMultiply
 
-		private static Expression ParseExpressionUnary(Scope scope, LuaLexer code, InvokeResult result, ref bool doWrap)
+		private static Expression ParseExpressionUnary(Scope scope, ILuaLexer code, InvokeResult result, ref bool doWrap)
 		{
 			// expUn ::= { 'not' | - | # | ~ } expPow
 			var typ = code.Current.Typ;
@@ -1610,7 +1610,7 @@ namespace Neo.IronLua
 				return ParseExpressionPower(scope, code, result, ref doWrap);
 		} // func ParseExpressionUnary
 
-		private static Expression ParseExpressionPower(Scope scope, LuaLexer code, InvokeResult result, ref bool doWrap)
+		private static Expression ParseExpressionPower(Scope scope, ILuaLexer code, InvokeResult result, ref bool doWrap)
 		{
 			// expPow ::= cast [ ^ expPow ]
 			var expr = ParseExpressionCast(scope, code, result, ref doWrap);
@@ -1625,7 +1625,7 @@ namespace Neo.IronLua
 				return expr;
 		} // func ParseExpressionPower
 
-		private static Expression ParseExpressionCast(Scope scope, LuaLexer code, InvokeResult result, ref bool doWrap)
+		private static Expression ParseExpressionCast(Scope scope, ILuaLexer code, InvokeResult result, ref bool doWrap)
 		{
 			// cast ::= cast(type, expr)
 			if (code.Current.Typ == LuaToken.KwCast)
@@ -1640,7 +1640,7 @@ namespace Neo.IronLua
 				return ParsePrefix(scope, code).GenerateGet(scope, result);
 		} // func ParseExpressionCast
 
-		private static Expression ParsePrefixCast(Scope scope, LuaLexer code)
+		private static Expression ParsePrefixCast(Scope scope, ILuaLexer code)
 		{
 			LuaType luaType;
 			var t = code.Current;
@@ -1660,7 +1660,7 @@ namespace Neo.IronLua
 			return ConvertExpression(scope.Runtime, t, expr, luaType);
 		} // func ParsePrefixCast
 
-		private static void ParseIdentifierAndType(Scope scope, LuaLexer code, out Token tokenName, out Type type)
+		private static void ParseIdentifierAndType(Scope scope, ILuaLexer code, out Token tokenName, out Type type)
 		{
 			// var ::= name ':' type
 			tokenName = FetchToken(LuaToken.Identifier, code);
@@ -1673,7 +1673,7 @@ namespace Neo.IronLua
 				type = typeof(object);
 		} // func ParseIdentifierAndType
 
-		private static LuaType ParseType(Scope scope, LuaLexer code, bool needType)
+		private static LuaType ParseType(Scope scope, ILuaLexer code, bool needType)
 		{
 			// is the first token an alias
 			var currentType = ParseFirstType(scope, code);
@@ -1729,7 +1729,7 @@ namespace Neo.IronLua
 			return currentType;
 		} // func ParseType
 
-		private static LuaType ParseFirstType(Scope scope, LuaLexer code)
+		private static LuaType ParseFirstType(Scope scope, ILuaLexer code)
 		{
 			var typeName = FetchToken(LuaToken.Identifier, code).Value;
 			var luaType = LuaType.GetCachedType(typeName);
@@ -1745,9 +1745,9 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Parse Goto, Label ------------------------------------------------------
+		#region -- Parse Goto, Label --------------------------------------------------
 
-		private static void ParseGoto(Scope scope, LuaLexer code)
+		private static void ParseGoto(Scope scope, ILuaLexer code)
 		{
 			// goto Identifier
 			FetchToken(LuaToken.KwGoto, code);
@@ -1756,7 +1756,7 @@ namespace Neo.IronLua
 			scope.AddExpression(Expression.Goto(scope.LookupLabel(null, t.Value)));
 		} // proc ParseGoto
 
-		private static void ParseLabel(Scope scope, LuaLexer code)
+		private static void ParseLabel(Scope scope, ILuaLexer code)
 		{
 			// ::identifier::
 			FetchToken(LuaToken.ColonColon, code);
@@ -1769,9 +1769,9 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Parse Loops ------------------------------------------------------------
+		#region -- Parse Loops --------------------------------------------------------
 
-		private static void ParseDoLoop(Scope scope, LuaLexer code)
+		private static void ParseDoLoop(Scope scope, ILuaLexer code)
 		{
 			// doloop ::= do '(' name { ',' name } = expr { ',' expr }  ')' block end '(' { 'function' '(' var ':' type ')' block 'end' ',' } ')'  
 			//
@@ -1885,7 +1885,7 @@ namespace Neo.IronLua
 				scope.AddExpression(loopScope.ExpressionBlock);
 		} // ParseDoLoop
 
-		private static void ParseWhileLoop(Scope scope, LuaLexer code)
+		private static void ParseWhileLoop(Scope scope, ILuaLexer code)
 		{
 			// while expr do block end;
 			var loopScope = new LoopScope(scope);
@@ -1914,7 +1914,7 @@ namespace Neo.IronLua
 			scope.AddExpression(loopScope.ExpressionBlock);
 		} // func ParseWhileLoop
 
-		private static void ParseRepeatLoop(Scope scope, LuaLexer code)
+		private static void ParseRepeatLoop(Scope scope, ILuaLexer code)
 		{
 			var loopScope = new LoopScope(scope);
 
@@ -1940,7 +1940,7 @@ namespace Neo.IronLua
 			scope.AddExpression(loopScope.ExpressionBlock);
 		} // func ParseRepeatLoop
 
-		private static void ParseForLoop(Scope scope, LuaLexer code)
+		private static void ParseForLoop(Scope scope, ILuaLexer code)
 		{
 			// for name
 			FetchToken(LuaToken.KwFor, code);
@@ -1999,7 +1999,7 @@ namespace Neo.IronLua
 			}
 		} // func ParseForLoop
 
-		private static void ParseForEachLoop(Scope scope, LuaLexer code)
+		private static void ParseForEachLoop(Scope scope, ILuaLexer code)
 		{
 			var varEnumerable = Expression.Variable(typeof(System.Collections.IEnumerable), "$enumerable");
 			var varEnumerator = Expression.Variable(typeof(System.Collections.IEnumerator), "$enumerator");
@@ -2146,7 +2146,7 @@ namespace Neo.IronLua
 			);
 		} // func GenerateForLoop
 
-		private static void ParseBreak(Scope scope, LuaLexer code)
+		private static void ParseBreak(Scope scope, ILuaLexer code)
 		{
 			FetchToken(LuaToken.KwBreak, code);
 
@@ -2159,9 +2159,9 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Parse Function, Lambda -------------------------------------------------
+		#region -- Parse Function, Lambda ---------------------------------------------
 
-		private static void ParseFunction(Scope scope, LuaLexer code, bool isLocal)
+		private static void ParseFunction(Scope scope, ILuaLexer code, bool isLocal)
 		{
 			FetchToken(LuaToken.KwFunction, code);
 
@@ -2228,7 +2228,7 @@ namespace Neo.IronLua
 			return assignee;
 		} // proc ParseFunctionAddChain
 
-		private static Expression ParseLamdaDefinition(Scope parent, LuaLexer code, string name, bool hasSelfParameter, Action<Type> functionTypeCollected)
+		private static Expression ParseLamdaDefinition(Scope parent, ILuaLexer code, string name, bool hasSelfParameter, Action<Type> functionTypeCollected)
 		{
 			var parameters = new List<ParameterExpression>();
 			var scope = new LambdaScope(parent);
@@ -2309,9 +2309,9 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Parse TableConstructor -------------------------------------------------
+		#region -- Parse TableConstructor ---------------------------------------------
 
-		private static Expression ParseTableConstructor(Scope scope, LuaLexer code)
+		private static Expression ParseTableConstructor(Scope scope, ILuaLexer code)
 		{
 			// table ::= '{' [field] { fieldsep field } [fieldsep] '}'
 			// fieldsep ::= ',' | ';'
@@ -2357,7 +2357,7 @@ namespace Neo.IronLua
 			}
 		} // func ParseTableConstructor
 
-		private static void ParseTableField(ParameterExpression tableVar, Scope scope, LuaLexer code, ref int iIndex)
+		private static void ParseTableField(ParameterExpression tableVar, Scope scope, ILuaLexer code, ref int iIndex)
 		{
 			// field ::= '[' exp ']' '=' exp | Name '=' exp | exp
 			if (code.Current.Typ == LuaToken.BracketSquareOpen)
@@ -2419,9 +2419,9 @@ namespace Neo.IronLua
 		
 		#endregion
 
-		#region -- FetchToken, ParseError -------------------------------------------------
+		#region -- FetchToken, ParseError ---------------------------------------------
 
-		public static Token FetchToken(LuaToken typ, LuaLexer code, bool isOptional = false)
+		public static Token FetchToken(LuaToken typ, ILuaLexer code, bool isOptional = false)
 		{
 			if (code.Current.Typ == typ)
 			{
@@ -2435,12 +2435,12 @@ namespace Neo.IronLua
 				throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, LuaLexer.GetTokenName(code.Current.Typ), LuaLexer.GetTokenName(typ)));
 		} // proc FetchToken
 
-		public static LuaParseException ParseError(Token start, string sMessage)
-			=> new LuaParseException(start.Start, sMessage, null);
+		public static LuaParseException ParseError(Token start, string message)
+			=> new LuaParseException(start.Start, message, null);
 
 		#endregion
 
-		#region -- ExpressionToString -----------------------------------------------------
+		#region -- ExpressionToString -------------------------------------------------
 
 		private static PropertyInfo propertyDebugView = null;
 

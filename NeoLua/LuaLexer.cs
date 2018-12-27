@@ -19,6 +19,7 @@
 //
 #endregion
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
@@ -337,66 +338,95 @@ namespace Neo.IronLua
 
 	#endregion
 
-	#region -- class LuaLexer ---------------------------------------------------------
+	#region -- interface ILuaLexer ----------------------------------------------------
 
-	/// <summary>Lexer for the lua syntax.</summary>
-	public sealed class LuaLexer : IDisposable
+	/// <summary>Lexer interface for parser.</summary>
+	public interface ILuaLexer : IDisposable
 	{
-		private Token lookahead = null;
-		private Token current = null;
+		/// <summary>Read next token.</summary>
+		void Next();
+		/// <summary>Look a head token, aka next token.</summary>
+		Token LookAhead { get; }
+		/// <summary></summary>
+		Token Current { get; }
+	} // interface ILuaLexer
+
+	#endregion
+
+	#region -- class LuaCharLexer -----------------------------------------------------
+
+	/// <summary>Base class for the lua lexer.</summary>
+	public sealed class LuaCharLexer : IDisposable
+	{
+		private readonly SymbolDocumentInfo document; // Information about the source document
+		private TextReader tr;						// Source for the lexer, is set to zero on eof
+		private readonly bool leaveOpen;			// do not dispose the text reader at the end
+		private int currentLine;                    // Line in the source file
+		private int currentColumn;                  // Column in the source file
+		private readonly int firstColumnIndex;      // Index of the first char in line
+		private long currentIndex = 0;              // Index in the source file
 
 		private Position startPosition;             // Start of the current token
-		private Position endPosition;               // Posible end of the current token
 		private char cur;                           // Current char
-		private bool isEof;                         // End of file reached
-		private int state;                          // Current state
-		private StringBuilder currentStringBuilder = null; // Currently collected chars
+		private bool isEof = false;
 
-		private TextReader tr;                      // Source for the lexer
-		private readonly SymbolDocumentInfo document; // Information about the source document
-		private int currentLine;                    // Line in the source file
-		private int currentColumn = 1;              // Column in the source file
-		private long currentIndex = 0;              // Index in the source file
+		private StringBuilder currentStringBuilder = new StringBuilder(); // Char buffer, for collected chars
+		private string replayChars = null;
+		private int replayIndex = 0;
+
+		private bool isDisposed = false;
 
 		#region -- Ctor/Dtor ----------------------------------------------------------
 
-		/// <summary>Creates the lexer für the lua parser</summary>
+		/// <summary>Creates the lexer for the lua parser</summary>
 		/// <param name="fileName">Filename</param>
 		/// <param name="tr">Input for the scanner, will be disposed on the lexer dispose.</param>
-		/// <param name="currentLine"></param>
+		/// <param name="leaveOpen"></param>
+		/// <param name="currentLine">Start line for the text reader.</param>
 		/// <param name="currentColumn"></param>
-		public LuaLexer(string fileName, TextReader tr, int currentLine = 1, int currentColumn = 1)
+		/// <param name="firstColumnIndex"></param>
+		public LuaCharLexer(string fileName, TextReader tr, bool leaveOpen = false, int currentLine = 1, int currentColumn = 1, int firstColumnIndex = 1)
 		{
 			this.document = Expression.SymbolDocument(fileName);
+			this.tr = tr;
+			this.leaveOpen = leaveOpen;
+
 			this.currentLine = currentLine;
 			this.currentColumn = currentColumn;
-			this.tr = tr;
+			this.firstColumnIndex = firstColumnIndex;
 
-			isEof = false;
-			startPosition =
-				endPosition = new Position(document, currentLine, currentColumn, currentIndex);
-			cur = Read(); // Lies das erste Zeichen aus dem Buffer
+			// read first char from the buffer
+			startPosition = CurrentPosition;
+			cur = Read();
 		} // ctor
 
 		/// <summary>Destroy the lexer and the TextReader</summary>
 		public void Dispose()
 		{
-			if (tr != null)
-			{
-				tr.Dispose();
-				tr = null;
-			}
+			if (isDisposed)
+				throw new ObjectDisposedException(nameof(LuaCharLexer));
+			isDisposed = true;
+
+			if (!leaveOpen)
+				tr?.Dispose();
 		} // proc Dispose
 
 		#endregion
 
 		#region -- Buffer -------------------------------------------------------------
 
-		/// <summary>Liest Zeichen aus den Buffer</summary>
-		/// <returns>Zeichen oder <c>\0</c>, für das Ende.</returns>
+		/// <summary>Read one char from the buffer</summary>
+		/// <returns>Char or <c>\0</c>, for the eof.</returns>
 		private char Read()
 		{
-			var i = -1;
+			if (replayChars != null)
+			{
+				if (replayIndex < replayChars.Length)
+					return replayChars[replayIndex++];
+				else
+					replayChars = null;
+			}
+
 			if (tr == null) // Source file is readed
 			{
 				isEof = true;
@@ -404,12 +434,13 @@ namespace Neo.IronLua
 			}
 			else
 			{
-				i = tr.Read();
+				var i = tr.Read();
 				if (i == -1) // End of file reached
 				{
-					tr.Dispose();
-					tr = null;
-					isEof = true;
+					if (!leaveOpen)
+						tr.Dispose();
+					tr = null; 
+					isEof = true; // mark eof
 					return '\0';
 				}
 				else
@@ -424,14 +455,14 @@ namespace Neo.IronLua
 						if (tr.Peek() == 13)
 							tr.Read();
 
-						currentColumn = 1;
+						currentColumn = firstColumnIndex;
 						currentLine++;
 
 						return '\n';
 					}
 					else if (c == '\r')
 					{
-						currentColumn = 1;
+						currentColumn = firstColumnIndex;
 						currentLine++;
 						if (tr.Peek() == 10)
 							tr.Read();
@@ -447,76 +478,116 @@ namespace Neo.IronLua
 			}
 		} // func Read
 
-		#endregion
+		/// <summary>Append a char to the current buffer.</summary>
+		/// <param name="value"></param>
+		public void AppendValue(char value)
+			=> currentStringBuilder.Append(value);
 
-		#region -- Scanner Operationen ------------------------------------------------
+		/// <summary>Append a char to the current buffer.</summary>
+		/// <param name="value"></param>
+		public void AppendValue(string value)
+			=> currentStringBuilder.Append(cur);
 
-		/// <summary>Fügt einen Wert an.</summary>
-		/// <param name="cur"></param>
-		private void AppendValue(char cur)
+		/// <summary>Move the char stream and discard the buffer.</summary>
+		public void Next()
 		{
-			if (currentStringBuilder == null)
-				currentStringBuilder = new StringBuilder();
+			cur = Read();
+		} // proc Next
 
-			currentStringBuilder.Append(cur);
-		} // proc AppendValue
-
-		/// <summary>Kopiert das Zeichen in den Wert-Buffer</summary>
-		/// <param name="newState">Neuer Status des Scanners</param>
-		private void EatChar(int newState)
+		/// <summary>Append the current char to the buffer and move the char stream.</summary>
+		public void Eat()
 		{
 			AppendValue(cur);
-			NextChar(newState);
-		} // proc EatChar
+			Next();
+		} // proc Eat
 
-		/// <summary>Nächstes Zeichen ohne eine Kopie anzufertigen</summary>
-		/// <param name="newState">Neuer Status des Scanners</param>
-		private void NextChar(int newState)
-		{
-			endPosition = new Position(document, currentLine, currentColumn, currentIndex);
-			cur = Read();
-			state = newState;
-		} // proc NextChar
-
-		/// <summary>Erzeugt einen Token</summary>
-		/// <param name="kind">Art des Tokens</param>
-		/// <param name="newState"></param>
+		/// <summary>Create a new token with the current buffer.</summary>
+		/// <param name="kind">Token type</param>
 		/// <returns>Token</returns>
-		private Token CreateToken(int newState, LuaToken kind)
+		public Token CreateToken(LuaToken kind)
 		{
-			state = newState;
+			var endPosition = CurrentPosition;
 			var tok = new Token(kind, CurValue, startPosition, endPosition);
 			startPosition = endPosition;
-			currentStringBuilder = null;
+			currentStringBuilder.Clear();
 			return tok;
 		} // func CreateToken
 
-		/// <summary>Erzeugt einen Token</summary>
-		/// <param name="kind">Art des Tokens</param>
-		/// <param name="newState"></param>
-		/// <returns>Token</returns>
-		private Token NextCharAndCreateToken(int newState, LuaToken kind)
+		/// <summary></summary>
+		/// <param name="replay"></param>
+		public void Replay(string replay)
 		{
-			NextChar(newState);
-			return CreateToken(newState, kind);
-		} // func CreateToken
+			replayChars = replay;
+			replayIndex = 0;
+		} // proc Replay
 
-		/// <summary>Erzeugt einen Token</summary>
-		/// <param name="kind">Art des Tokens</param>
-		/// <param name="newState"></param>
-		/// <returns>Token</returns>
-		private Token EatCharAndCreateToken(int newState, LuaToken kind)
+		/// <summary></summary>
+		public void ReplayCurValue()
 		{
-			EatChar(newState);
-			return CreateToken(newState, kind);
-		} // func CreateToken
+			replayChars = CurValue;
+			replayIndex = 0;
+			currentStringBuilder.Clear();
+		} // proc ReplayCurValue
 
-		/// <summary>Akuelles Zeichen</summary>
-		private char Cur => cur;
-		/// <summary>Aktueller Wert</summary>
-		private string CurValue => currentStringBuilder == null ? "" : currentStringBuilder.ToString();
-		/// <summary>Aktueller Status des Scanners</summary>
-		private int CurState => state;
+		/// <summary></summary>
+		public void ResetCurValue()
+		{
+			startPosition = CurrentPosition;
+			currentStringBuilder.Clear();
+		} // proc ResetCurValue
+
+		#endregion
+
+		/// <summary>Current start position.</summary>
+		public Position StartPosition => startPosition;
+		/// <summary>Current char position.</summary>
+		public Position CurrentPosition => new Position(document, currentLine, currentColumn, currentIndex);
+		/// <summary>Current active char</summary>
+		public char Cur => cur;
+		/// <summary>End of file</summary>
+		public bool IsEof => isEof;
+		/// <summary>Currently collected chars.</summary>
+		public string CurValue => currentStringBuilder.ToString();
+		/// <summary>Currently collected chars.</summary>
+		public bool HasCurValue => currentStringBuilder.Length > 0;
+	} // class LuaCharLexer
+
+	#endregion
+
+	#region -- class LuaLexer ---------------------------------------------------------
+
+	/// <summary>Lexer for the lua syntax.</summary>
+	public sealed class LuaLexer : ILuaLexer, IDisposable
+	{
+		private readonly IEnumerator<Token> tokenStream;
+
+		private Token lookahead = null;
+		private Token current = null;
+
+		#region -- Ctor/Dtor ----------------------------------------------------------
+
+		/// <summary>Creates the lexer for the lua parser</summary>
+		/// <param name="fileName">Filename</param>
+		/// <param name="tr">Input for the scanner, will be disposed on the lexer dispose.</param>
+		/// <param name="leaveOpen"></param>
+		/// <param name="currentLine">Start line for the text reader.</param>
+		/// <param name="currentColumn"></param>
+		[Obsolete("Use create")]
+		public LuaLexer(string fileName, TextReader tr, bool leaveOpen = false, int currentLine = 1, int currentColumn = 1)
+			: this(CreateTokenStream(new LuaCharLexer(fileName, tr, false, currentLine, currentColumn, 1)).GetEnumerator())
+		{
+		} // ctor
+
+		/// <summary>Create a lexer from a token stream.</summary>
+		/// <param name="tokenStream"></param>
+		public LuaLexer(IEnumerator<Token> tokenStream)
+		{
+			this.tokenStream = tokenStream ?? throw new ArgumentNullException(nameof(tokenStream));
+		} // ctor
+		
+		/// <summary></summary>
+		public void Dispose()
+			=> tokenStream.Dispose();
 
 		#endregion
 
@@ -524,7 +595,7 @@ namespace Neo.IronLua
 
 		private Token NextTokenWithSkipRules()
 		{
-			Token next = NextToken();
+			var next = tokenStream.MoveNext() ? tokenStream.Current : current;
 			if (SkipComments && next.Typ == LuaToken.Comment)
 			{
 				next = NextTokenWithSkipRules();
@@ -565,43 +636,75 @@ namespace Neo.IronLua
 
 		#region -- NextToken ----------------------------------------------------------
 
-		private Token NextToken()
+		/// <summary>Read a token from the char stream.</summary>
+		/// <param name="chars"></param>
+		/// <returns></returns>
+		public static Token NextToken(LuaCharLexer chars)
 		{
 			var stringMode = '\0';
 			var byteChar = (byte)0;
+			var state = 0;
+
+			void NextChar(int newState)
+			{
+				chars.Next();
+				state = newState;
+			} // NextChar
+
+			void EatChar(int newState)
+			{
+				chars.Eat();
+				state = newState;
+			} // proc EatChar
+
+			Token CreateToken(LuaToken token)
+				=> chars.CreateToken(token);
+
+			Token NextCharAndCreateToken(LuaToken token)
+			{
+				NextChar(0);
+				return CreateToken(token);
+			} // proc NextCharAndCreateToken
+
+			Token EatCharAndCreateToken(LuaToken token)
+			{
+				EatChar(0);
+				return CreateToken(token);
+			} // proc NextCharAndCreateToken
+
 			while (true)
 			{
-				char c = Cur;
+				var c = chars.Cur;
 
-				switch (CurState)
+				switch (state)
 				{
 					#region -- 0 ------------------------------------------------------
 					case 0:
-						if (isEof)
-							return CreateToken(0, LuaToken.Eof);
+						if (chars.IsEof)
+							return CreateToken(LuaToken.Eof);
 						else if (c == '\n')
-							return NextCharAndCreateToken(0, LuaToken.NewLine);
+							return NextCharAndCreateToken(LuaToken.NewLine);
 						else if (Char.IsWhiteSpace(c))
 							NextChar(10);
 
 						else if (c == '+')
-							return NextCharAndCreateToken(0, LuaToken.Plus);
+							return NextCharAndCreateToken(LuaToken.Plus);
 						else if (c == '-')
 							NextChar(50);
 						else if (c == '*')
-							return NextCharAndCreateToken(0, LuaToken.Star);
+							return NextCharAndCreateToken(LuaToken.Star);
 						else if (c == '/')
 							NextChar(28);
 						else if (c == '%')
-							return NextCharAndCreateToken(0, LuaToken.Percent);
+							return NextCharAndCreateToken(LuaToken.Percent);
 						else if (c == '^')
-							return NextCharAndCreateToken(0, LuaToken.Caret);
+							return NextCharAndCreateToken(LuaToken.Caret);
 						else if (c == '&')
-							return NextCharAndCreateToken(0, LuaToken.BitAnd);
+							return NextCharAndCreateToken(LuaToken.BitAnd);
 						else if (c == '|')
-							return NextCharAndCreateToken(0, LuaToken.BitOr);
+							return NextCharAndCreateToken(LuaToken.BitOr);
 						else if (c == '#')
-							return NextCharAndCreateToken(0, LuaToken.Cross);
+							return NextCharAndCreateToken(LuaToken.Cross);
 						else if (c == '=')
 							NextChar(20);
 						else if (c == '~')
@@ -611,23 +714,23 @@ namespace Neo.IronLua
 						else if (c == '>')
 							NextChar(23);
 						else if (c == '(')
-							return NextCharAndCreateToken(0, LuaToken.BracketOpen);
+							return NextCharAndCreateToken(LuaToken.BracketOpen);
 						else if (c == ')')
-							return NextCharAndCreateToken(0, LuaToken.BracketClose);
+							return NextCharAndCreateToken(LuaToken.BracketClose);
 						else if (c == '{')
-							return NextCharAndCreateToken(0, LuaToken.BracketCurlyOpen);
+							return NextCharAndCreateToken(LuaToken.BracketCurlyOpen);
 						else if (c == '}')
-							return NextCharAndCreateToken(0, LuaToken.BracketCurlyClose);
+							return NextCharAndCreateToken(LuaToken.BracketCurlyClose);
 						else if (c == '[')
 							NextChar(27);
 						else if (c == ']')
-							return NextCharAndCreateToken(0, LuaToken.BracketSquareClose);
+							return NextCharAndCreateToken(LuaToken.BracketSquareClose);
 						else if (c == ';')
-							return NextCharAndCreateToken(0, LuaToken.Semicolon);
+							return NextCharAndCreateToken(LuaToken.Semicolon);
 						else if (c == ':')
 							NextChar(30);
 						else if (c == ',')
-							return NextCharAndCreateToken(0, LuaToken.Comma);
+							return NextCharAndCreateToken(LuaToken.Comma);
 						else if (c == '.')
 							NextChar(24);
 
@@ -680,13 +783,13 @@ namespace Neo.IronLua
 						else if (Char.IsLetter(c) || c == '_')
 							EatChar(1000);
 						else
-							return EatCharAndCreateToken(0, LuaToken.InvalidChar);
+							return EatCharAndCreateToken(LuaToken.InvalidChar);
 						break;
 					#endregion
 					#region -- 10 Whitespaces -----------------------------------------
 					case 10:
-						if (c == '\n' || isEof || !Char.IsWhiteSpace(c))
-							return CreateToken(0, LuaToken.Whitespace);
+						if (c == '\n' || chars.IsEof || !Char.IsWhiteSpace(c))
+							return CreateToken(LuaToken.Whitespace);
 						else
 							NextChar(10);
 						break;
@@ -694,96 +797,99 @@ namespace Neo.IronLua
 					#region -- 20 -----------------------------------------------------
 					case 20:
 						if (c == '=')
-							return NextCharAndCreateToken(0, LuaToken.Equal);
+							return NextCharAndCreateToken(LuaToken.Equal);
 						else
-							return CreateToken(0, LuaToken.Assign);
+							return CreateToken(LuaToken.Assign);
 					case 21:
 						if (c == '=')
-							return NextCharAndCreateToken(0, LuaToken.NotEqual);
+							return NextCharAndCreateToken(LuaToken.NotEqual);
 						else
-							return CreateToken(0, LuaToken.Dilde);
+							return CreateToken(LuaToken.Dilde);
 					case 22:
 						if (c == '=')
-							return NextCharAndCreateToken(0, LuaToken.LowerEqual);
+							return NextCharAndCreateToken(LuaToken.LowerEqual);
 						else if (c == '<')
-							return NextCharAndCreateToken(0, LuaToken.ShiftLeft);
+							return NextCharAndCreateToken(LuaToken.ShiftLeft);
 						else
-							return CreateToken(0, LuaToken.Lower);
+							return CreateToken(LuaToken.Lower);
 					case 23:
 						if (c == '=')
-							return NextCharAndCreateToken(0, LuaToken.GreaterEqual);
+							return NextCharAndCreateToken(LuaToken.GreaterEqual);
 						else if (c == '>')
-							return NextCharAndCreateToken(0, LuaToken.ShiftRight);
+							return NextCharAndCreateToken(LuaToken.ShiftRight);
 						else
-							return CreateToken(0, LuaToken.Greater);
+							return CreateToken(LuaToken.Greater);
 					case 24:
 						if (c == '.')
 							NextChar(25);
 						else if (c >= '0' && c <= '9')
 						{
-							AppendValue('.');
+							chars.AppendValue('.');
 							EatChar(62);
 						}
 						else
-							return CreateToken(0, LuaToken.Dot);
+							return CreateToken(LuaToken.Dot);
 						break;
 					case 25:
 						if (c == '.')
 							NextChar(26);
 						else
-							return CreateToken(0, LuaToken.DotDot);
+							return CreateToken(LuaToken.DotDot);
 						break;
 					case 26:
 						if (c == '.')
-							return NextCharAndCreateToken(0, LuaToken.DotDotDot);
+							return NextCharAndCreateToken(LuaToken.DotDotDot);
 						else
-							return CreateToken(0, LuaToken.DotDotDot);
+							return CreateToken(LuaToken.DotDotDot);
 					case 27:
 						if (c == '=' || c == '[')
-							return ReadTextBlock(true);
+						{
+							state = 0;
+							return ReadTextBlock(chars, true);
+						}
 						else
-							return CreateToken(0, LuaToken.BracketSquareOpen);
+							return CreateToken(LuaToken.BracketSquareOpen);
 					case 28:
 						if (c == '/')
-							return NextCharAndCreateToken(0, LuaToken.SlashShlash);
+							return NextCharAndCreateToken(LuaToken.SlashShlash);
 						else
-							return CreateToken(0, LuaToken.Slash);
+							return CreateToken(LuaToken.Slash);
 					#endregion
 					#region -- 30 Label -----------------------------------------------
 					case 30:
 						if (c == ':')
 							NextChar(31);
 						else
-							return CreateToken(0, LuaToken.Colon);
+							return CreateToken(LuaToken.Colon);
 						break;
 					case 31:
 						if (c == ':')
-							return NextCharAndCreateToken(0, LuaToken.ColonColon);
+							return NextCharAndCreateToken(LuaToken.ColonColon);
 						else
-							return CreateToken(0, LuaToken.ColonColon);
+							return CreateToken(LuaToken.ColonColon);
 					#endregion
 					#region -- 40 String ----------------------------------------------
 					case 40:
 						if (c == stringMode)
-							return NextCharAndCreateToken(0, LuaToken.String);
+							return NextCharAndCreateToken(LuaToken.String);
 						else if (c == '\\')
 							NextChar(41);
-						else if (isEof || c == '\n')
-							return CreateToken(0, LuaToken.InvalidString);
+						else if (chars.IsEof || c == '\n')
+							return CreateToken(LuaToken.InvalidString);
 						else
 							EatChar(40);
 						break;
 					case 41:
-						if (c == 'a') { AppendValue('\a'); NextChar(40); }
-						else if (c == 'b') { AppendValue('\b'); NextChar(40); }
-						else if (c == 'f') { AppendValue('\f'); NextChar(40); }
-						else if (c == 'n') { AppendValue('\n'); NextChar(40); }
-						else if (c == 'r') { AppendValue('\r'); NextChar(40); }
-						else if (c == 't') { AppendValue('\t'); NextChar(40); }
-						else if (c == 'v') { AppendValue('\v'); NextChar(40); }
-						else if (c == '\\') { AppendValue('\\'); NextChar(40); }
-						else if (c == '"') { AppendValue('"'); NextChar(40); }
-						else if (c == '\'') { AppendValue('\''); NextChar(40); }
+						if (c == 'a') { chars.AppendValue('\a'); NextChar(40); }
+						else if (c == 'b') { chars.AppendValue('\b'); NextChar(40); }
+						else if (c == 'f') { chars.AppendValue('\f'); NextChar(40); }
+						else if (c == 'n') { chars.AppendValue('\n'); NextChar(40); }
+						else if (c == 'r') { chars.AppendValue('\r'); NextChar(40); }
+						else if (c == 't') { chars.AppendValue('\t'); NextChar(40); }
+						else if (c == 'v') { chars.AppendValue('\v'); NextChar(40); }
+						else if (c == '\\') { chars.AppendValue('\\'); NextChar(40); }
+						else if (c == '"') { chars.AppendValue('"'); NextChar(40); }
+						else if (c == '\'') { chars.AppendValue('\''); NextChar(40); }
 						else if (c == 'x')
 							NextChar(45);
 						else if (c == 'z')
@@ -805,7 +911,7 @@ namespace Neo.IronLua
 						}
 						else
 						{
-							AppendValue((char)byteChar);
+							chars.AppendValue((char)byteChar);
 							goto case 40;
 						}
 						break;
@@ -813,12 +919,12 @@ namespace Neo.IronLua
 						if (c >= '0' && c <= '9')
 						{
 							byteChar = unchecked((byte)(byteChar * 10 + (c - '0')));
-							AppendValue((char)byteChar);
+							chars.AppendValue((char)byteChar);
 							NextChar(40);
 						}
 						else
 						{
-							AppendValue((char)byteChar);
+							chars.AppendValue((char)byteChar);
 							goto case 40;
 						}
 						break;
@@ -840,7 +946,7 @@ namespace Neo.IronLua
 						}
 						else
 						{
-							AppendValue('x');
+							chars.AppendValue('x');
 							goto case 40;
 						}
 						break;
@@ -848,24 +954,24 @@ namespace Neo.IronLua
 						if (c >= '0' && c <= '9')
 						{
 							byteChar = unchecked((byte)((byteChar << 4) + (c - '0')));
-							AppendValue((char)byteChar);
+							chars.AppendValue((char)byteChar);
 							NextChar(40);
 						}
 						else if (c >= 'a' && c <= 'f')
 						{
 							byteChar = unchecked((byte)((byteChar << 4) + (c - 'a' + 10)));
-							AppendValue((char)byteChar);
+							chars.AppendValue((char)byteChar);
 							NextChar(40);
 						}
 						else if (c >= 'A' || c <= 'F')
 						{
 							byteChar = unchecked((byte)((byteChar << 4) + (c - 'A' + 10)));
-							AppendValue((char)byteChar);
+							chars.AppendValue((char)byteChar);
 							NextChar(40);
 						}
 						else
 						{
-							AppendValue((char)byteChar);
+							chars.AppendValue((char)byteChar);
 							goto case 40;
 						}
 						break;
@@ -881,24 +987,24 @@ namespace Neo.IronLua
 						if (c == '-') // Kommentar
 							NextChar(51);
 						else
-							return CreateToken(0, LuaToken.Minus);
+							return CreateToken(LuaToken.Minus);
 						break;
 					case 51:
 						if (c == '[')
 						{
-							NextChar(51);
-							return ReadTextBlock(false);
+							NextChar(0);
+							return ReadTextBlock(chars, false);
 						}
 						else if (c == '\n')
-							return CreateToken(0, LuaToken.Comment);
+							return CreateToken(LuaToken.Comment);
 						else
 							NextChar(52);
 						break;
 					case 52:
-						if (isEof)
-							return CreateToken(0, LuaToken.Comment);
+						if (chars.IsEof)
+							return CreateToken(LuaToken.Comment);
 						else if (c == '\n')
-							return NextCharAndCreateToken(0, LuaToken.Comment);
+							return NextCharAndCreateToken(LuaToken.Comment);
 						else
 							NextChar(52);
 						break;
@@ -918,7 +1024,7 @@ namespace Neo.IronLua
 						else if (c >= '0' && c <= '9')
 							EatChar(61);
 						else
-							return CreateToken(0, LuaToken.Number);
+							return CreateToken(LuaToken.Number);
 						break;
 					case 62:
 						if (c == 'e' || c == 'E')
@@ -926,7 +1032,7 @@ namespace Neo.IronLua
 						else if (c >= '0' && c <= '9')
 							EatChar(62);
 						else
-							return CreateToken(0, LuaToken.Number);
+							return CreateToken(LuaToken.Number);
 						break;
 					case 63:
 						if (c == '-' || c == '+')
@@ -934,13 +1040,13 @@ namespace Neo.IronLua
 						else if (c >= '0' && c <= '9')
 							EatChar(64);
 						else
-							return CreateToken(0, LuaToken.Number);
+							return CreateToken(LuaToken.Number);
 						break;
 					case 64:
 						if (c >= '0' && c <= '9')
 							EatChar(64);
 						else
-							return CreateToken(0, LuaToken.Number);
+							return CreateToken(LuaToken.Number);
 						break;
 					#endregion
 					#region -- 70 HexNumber -------------------------------------------
@@ -952,7 +1058,7 @@ namespace Neo.IronLua
 						else if (c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F')
 							EatChar(70);
 						else
-							return CreateToken(0, LuaToken.Number);
+							return CreateToken(LuaToken.Number);
 						break;
 					case 71:
 						if (c == 'p' || c == 'P')
@@ -960,7 +1066,7 @@ namespace Neo.IronLua
 						else if (c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F')
 							EatChar(71);
 						else
-							return CreateToken(0, LuaToken.Number);
+							return CreateToken(LuaToken.Number);
 						break;
 					case 72:
 						if (c == '-' || c == '+')
@@ -968,13 +1074,13 @@ namespace Neo.IronLua
 						else if (c >= '0' && c <= '9')
 							EatChar(73);
 						else
-							return CreateToken(0, LuaToken.Number);
+							return CreateToken(LuaToken.Number);
 						break;
 					case 73:
 						if (c >= '0' && c <= '9')
 							EatChar(73);
 						else
-							return CreateToken(0, LuaToken.Number);
+							return CreateToken(LuaToken.Number);
 						break;
 					#endregion
 					#region -- 1000 Ident or Keyword ----------------------------------
@@ -982,179 +1088,185 @@ namespace Neo.IronLua
 						if (IsIdentifierChar(c))
 							EatChar(1000);
 						else
-							return CreateToken(0, LuaToken.Identifier);
+							return CreateToken(LuaToken.Identifier);
 						break;
 					// and
 					case 1010: if (c == 'n') EatChar(1011); else goto case 1000; break;
 					case 1011: if (c == 'd') EatChar(1012); else goto case 1000; break;
-					case 1012: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwAnd); else goto case 1000;
+					case 1012: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwAnd); else goto case 1000;
 					// break
 					case 1020: if (c == 'r') EatChar(1021); else goto case 1000; break;
 					case 1021: if (c == 'e') EatChar(1022); else goto case 1000; break;
 					case 1022: if (c == 'a') EatChar(1023); else goto case 1000; break;
 					case 1023: if (c == 'k') EatChar(1024); else goto case 1000; break;
-					case 1024: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwBreak); else goto case 1000;
+					case 1024: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwBreak); else goto case 1000;
 					// do
 					case 1030: if (c == 'o') EatChar(1031); else goto case 1000; break;
-					case 1031: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwDo); else goto case 1000;
+					case 1031: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwDo); else goto case 1000;
 					// else, elseif end
 					case 1040: if (c == 'n') EatChar(1041); else if (c == 'l') EatChar(1043); else goto case 1000; break;
 					case 1041: if (c == 'd') EatChar(1042); else goto case 1000; break;
-					case 1042: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwEnd); else goto case 1000;
+					case 1042: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwEnd); else goto case 1000;
 					case 1043: if (c == 's') EatChar(1044); else goto case 1000; break;
 					case 1044: if (c == 'e') EatChar(1045); else goto case 1000; break;
-					case 1045: if (c == 'i') EatChar(1046); else if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwElse); else goto case 1000; break;
+					case 1045: if (c == 'i') EatChar(1046); else if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwElse); else goto case 1000; break;
 					case 1046: if (c == 'f') EatChar(1047); else goto case 1000; break;
-					case 1047: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwElseif); else goto case 1000;
+					case 1047: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwElseif); else goto case 1000;
 					// false, for, function
 					case 1050: if (c == 'a') EatChar(1051); else if (c == 'o') EatChar(1055); else if (c == 'u') EatChar(1057); else goto case 1000; break;
 					case 1051: if (c == 'l') EatChar(1052); else goto case 1000; break;
 					case 1052: if (c == 's') EatChar(1053); else goto case 1000; break;
 					case 1053: if (c == 'e') EatChar(1054); else goto case 1000; break;
-					case 1054: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwFalse); else goto case 1000;
+					case 1054: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwFalse); else goto case 1000;
 					case 1055: if (c == 'r') EatChar(1056); else goto case 1000; break;
-					case 1056: if (c == 'e') EatChar(10000); else if (!Char.IsLetterOrDigit(c)) return CreateToken(0, LuaToken.KwFor); else goto case 1000; break;
+					case 1056: if (c == 'e') EatChar(10000); else if (!Char.IsLetterOrDigit(c)) return CreateToken(LuaToken.KwFor); else goto case 1000; break;
 					case 1057: if (c == 'n') EatChar(1058); else goto case 1000; break;
 					case 1058: if (c == 'c') EatChar(1059); else goto case 1000; break;
 					case 1059: if (c == 't') EatChar(1060); else goto case 1000; break;
 					case 1060: if (c == 'i') EatChar(1061); else goto case 1000; break;
 					case 1061: if (c == 'o') EatChar(1062); else goto case 1000; break;
 					case 1062: if (c == 'n') EatChar(1063); else goto case 1000; break;
-					case 1063: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwFunction); else goto case 1000;
+					case 1063: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwFunction); else goto case 1000;
 					case 10000: if (c == 'a') EatChar(10001); else goto case 1000; break;
 					case 10001: if (c == 'c') EatChar(10002); else goto case 1000; break;
 					case 10002: if (c == 'h') EatChar(10003); else goto case 1000; break;
-					case 10003: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwForEach); else goto case 1000;
+					case 10003: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwForEach); else goto case 1000;
 					// goto
 					case 1065: if (c == 'o') EatChar(1066); else goto case 1000; break;
 					case 1066: if (c == 't') EatChar(1067); else goto case 1000; break;
 					case 1067: if (c == 'o') EatChar(1068); else goto case 1000; break;
-					case 1068: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwGoto); else goto case 1000;
+					case 1068: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwGoto); else goto case 1000;
 					// if, in
 					case 1070: if (c == 'f') EatChar(1071); else if (c == 'n') EatChar(1072); else goto case 1000; break;
-					case 1071: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwIf); else goto case 1000;
-					case 1072: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwIn); else goto case 1000;
+					case 1071: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwIf); else goto case 1000;
+					case 1072: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwIn); else goto case 1000;
 					// local
 					case 1080: if (c == 'o') EatChar(1081); else goto case 1000; break;
 					case 1081: if (c == 'c') EatChar(1082); else goto case 1000; break;
 					case 1082: if (c == 'a') EatChar(1083); else goto case 1000; break;
 					case 1083: if (c == 'l') EatChar(1084); else goto case 1000; break;
-					case 1084: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwLocal); else goto case 1000;
+					case 1084: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwLocal); else goto case 1000;
 					// nil, not
 					case 1090: if (c == 'i') EatChar(1091); else if (c == 'o') EatChar(1093); else goto case 1000; break;
 					case 1091: if (c == 'l') EatChar(1092); else goto case 1000; break;
-					case 1092: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwNil); else goto case 1000;
+					case 1092: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwNil); else goto case 1000;
 					case 1093: if (c == 't') EatChar(1094); else goto case 1000; break;
-					case 1094: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwNot); else goto case 1000;
+					case 1094: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwNot); else goto case 1000;
 					// or
 					case 1100: if (c == 'r') EatChar(1101); else goto case 1000; break;
-					case 1101: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwOr); else goto case 1000;
+					case 1101: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwOr); else goto case 1000;
 					// repeat, return
 					case 1110: if (c == 'e') EatChar(1111); else goto case 1000; break;
 					case 1111: if (c == 'p') EatChar(1112); else if (c == 't') EatChar(1116); else goto case 1000; break;
 					case 1112: if (c == 'e') EatChar(1113); else goto case 1000; break;
 					case 1113: if (c == 'a') EatChar(1114); else goto case 1000; break;
 					case 1114: if (c == 't') EatChar(1115); else goto case 1000; break;
-					case 1115: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwRepeat); else goto case 1000;
+					case 1115: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwRepeat); else goto case 1000;
 					case 1116: if (c == 'u') EatChar(1117); else goto case 1000; break;
 					case 1117: if (c == 'r') EatChar(1118); else goto case 1000; break;
 					case 1118: if (c == 'n') EatChar(1119); else goto case 1000; break;
-					case 1119: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwReturn); else goto case 1000;
+					case 1119: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwReturn); else goto case 1000;
 					// then, true
 					case 1120: if (c == 'h') EatChar(1121); else if (c == 'r') EatChar(1124); else goto case 1000; break;
 					case 1121: if (c == 'e') EatChar(1122); else goto case 1000; break;
 					case 1122: if (c == 'n') EatChar(1123); else goto case 1000; break;
-					case 1123: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwThen); else goto case 1000;
+					case 1123: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwThen); else goto case 1000;
 					case 1124: if (c == 'u') EatChar(1125); else goto case 1000; break;
 					case 1125: if (c == 'e') EatChar(1126); else goto case 1000; break;
-					case 1126: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwTrue); else goto case 1000;
+					case 1126: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwTrue); else goto case 1000;
 					// until
 					case 1130: if (c == 'n') EatChar(1131); else goto case 1000; break;
 					case 1131: if (c == 't') EatChar(1132); else goto case 1000; break;
 					case 1132: if (c == 'i') EatChar(1133); else goto case 1000; break;
 					case 1133: if (c == 'l') EatChar(1134); else goto case 1000; break;
-					case 1134: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwUntil); else goto case 1000;
+					case 1134: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwUntil); else goto case 1000;
 					// while
 					case 1140: if (c == 'h') EatChar(1141); else goto case 1000; break;
 					case 1141: if (c == 'i') EatChar(1142); else goto case 1000; break;
 					case 1142: if (c == 'l') EatChar(1143); else goto case 1000; break;
 					case 1143: if (c == 'e') EatChar(1144); else goto case 1000; break;
-					case 1144: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwWhile); else goto case 1000;
+					case 1144: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwWhile); else goto case 1000;
 					// cast
 					case 1150: if (c == 'a') EatChar(1151); else if (c == 'o') EatChar(1160); else goto case 1000; break;
 					case 1151: if (c == 's') EatChar(1152); else goto case 1000; break;
 					case 1152: if (c == 't') EatChar(1153); else goto case 1000; break;
-					case 1153: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwCast); else goto case 1000;
+					case 1153: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwCast); else goto case 1000;
 					// const
 					case 1160: if (c == 'n') EatChar(1161); else goto case 1000; break;
 					case 1161: if (c == 's') EatChar(1162); else goto case 1000; break;
 					case 1162: if (c == 't') EatChar(1163); else goto case 1000; break;
-					case 1163: if (!IsIdentifierChar(c)) return CreateToken(0, LuaToken.KwConst); else goto case 1000;
+					case 1163: if (!IsIdentifierChar(c)) return CreateToken(LuaToken.KwConst); else goto case 1000;
 						#endregion
 				}
 			}
 		} // func NextToken
 
-		private Token ReadTextBlock(bool stringMode)
+		private static Token ReadTextBlock(LuaCharLexer chars, bool stringMode)
 		{
 			var search = 0;
 			var find = 0;
 
 			// Zähle die =
-			while (Cur == '=')
+			while (chars.Cur == '=')
 			{
-				NextChar(0);
+				chars.Next();
 				search++;
 			}
-			if (Cur != '[')
-				return NextCharAndCreateToken(0, stringMode ? LuaToken.InvalidString : LuaToken.InvalidComment);
-			NextChar(0);
-
-			// Überspringe WhiteSpace bis zum ersten Zeilenumbruch
-			while (!isEof && Char.IsWhiteSpace(Cur))
+			if (chars.Cur != '[')
 			{
-				if (Cur == '\n')
+				chars.Next();
+				return chars.CreateToken(stringMode ? LuaToken.InvalidString : LuaToken.InvalidComment);
+			}
+			chars.Next();
+
+			// Skip WhiteSpace until the first new line
+			while (!chars.IsEof && Char.IsWhiteSpace(chars.Cur))
+			{
+				if (chars.Cur == '\n')
 				{
-					NextChar(0);
+					chars.Next();
 					break;
 				}
 				else
-					NextChar(0);
+					chars.Next();
 			}
 
 			// Suche das Ende
 			ReadChars:
-			while (Cur != ']')
+			while (chars.Cur != ']')
 			{
-				if (isEof)
-					return NextCharAndCreateToken(0, stringMode ? LuaToken.InvalidString : LuaToken.InvalidComment);
+				if (chars.IsEof)
+					return chars.CreateToken(stringMode ? LuaToken.InvalidString : LuaToken.InvalidComment);
 				else if (stringMode)
-					EatChar(0);
+					chars.Eat();
 				else
-					NextChar(0);
+					chars.Next();
 			}
 
 			// Zähle die =
 			find = 0;
-			NextChar(0);
-			while (Cur == '=')
+			chars.Next();
+			while (chars.Cur == '=')
 			{
-				NextChar(0);
+				chars.Next();
 				find++;
 			}
-			if (Cur == ']' && find == search)
-				return NextCharAndCreateToken(0, stringMode ? LuaToken.String : LuaToken.Comment);
+			if (chars.Cur == ']' && find == search)
+			{
+				chars.Next();
+				return chars.CreateToken(stringMode ? LuaToken.String : LuaToken.Comment);
+			}
 			else
 			{
-				AppendValue(']');
+				chars.AppendValue(']');
 				for (var i = 0; i < find; i++)
-					AppendValue('=');
+					chars.AppendValue('=');
 				goto ReadChars;
 			}
 		} // proc ReadTextBlock
 
 		#endregion
-
+		
 		private static readonly Lazy<string[]> keywords;
 
 		static LuaLexer()
@@ -1171,13 +1283,280 @@ namespace Neo.IronLua
 			);
 		} // sctor
 
+		#region -- Plain Lua file lexer -----------------------------------------------
+
+		private static IEnumerable<Token> CreateTokenStream(LuaCharLexer chars)
+		{
+			try
+			{
+				while (true)
+				{
+					var tok = NextToken(chars);
+					yield return tok;
+					if (tok.Typ == LuaToken.Eof)
+						break;
+				}
+			}
+			finally
+			{
+				chars.Dispose();
+			}
+		} // func CreateTokenStream
+
+		/// <summary>Creates the lexer for the lua parser</summary>
+		/// <param name="fileName">Filename</param>
+		/// <param name="tr">Input for the scanner, will be disposed on the lexer dispose.</param>
+		/// <param name="leaveOpen"></param>
+		/// <param name="currentLine">Start line for the text reader.</param>
+		/// <param name="currentColumn"></param>
+		/// <param name="firstColumnIndex"></param>
+		public static ILuaLexer Create(string fileName, TextReader tr, bool leaveOpen = false, int currentLine = 1, int currentColumn = 1, int firstColumnIndex = 1)
+		{
+			return new LuaLexer(
+				CreateTokenStream(new LuaCharLexer(fileName, tr, leaveOpen, currentLine, currentColumn, firstColumnIndex)).GetEnumerator()
+			);
+		} // func Create
+
+		#endregion
+
+		#region -- Html embedded lua --------------------------------------------------
+
+		private static IEnumerable<Token> CreateHtmlTokenStream(LuaCharLexer chars, bool codeEmitted, IEnumerable<Token> scriptPreamble)
+		{
+			var isFirst = !codeEmitted;
+			var state = 0;
+			Position pos;
+
+			void NextChar(int newState)
+			{
+				chars.Next();
+				state = newState;
+			} // proc NextChar
+
+			void EatChar(int newState)
+			{
+				chars.Eat();
+				state = newState;
+			} // proc NextChar
+
+			while (!chars.IsEof)
+			{
+				var c = chars.Cur;
+
+				switch (state)
+				{
+					#region -- Basis --
+					case 0: // Basis
+						if (c == '<') // open bracket
+							NextChar(1);
+						else if (!isFirst) // skip leading spaces
+							chars.Eat();
+						else if (!Char.IsWhiteSpace(c))
+						{
+							isFirst = false;
+							chars.Eat();
+						}
+						else
+							chars.Next();
+						break;
+
+					case 1: // check type of bracket
+						if (c == '!') // comment?
+							NextChar(10);
+						else if (c == '%') // command
+							NextChar(2);
+						else
+						{
+							chars.AppendValue('<');
+							state = 0;
+							goto case 0;
+						}
+						break;
+					case 2:
+						pos = chars.StartPosition;
+						if (!isFirst)
+						{
+							if (!codeEmitted && scriptPreamble != null)
+							{
+								foreach (var preamble in scriptPreamble)
+									yield return preamble;
+							}
+
+							yield return new Token(LuaToken.Identifier, "print", pos, pos);
+							yield return new Token(LuaToken.BracketOpen, null, pos, pos);
+							yield return chars.CreateToken(LuaToken.String);
+							pos = chars.CurrentPosition;
+							yield return new Token(LuaToken.BracketClose, null, pos, pos);
+							yield return new Token(LuaToken.Semicolon, null, pos, pos);
+						}
+
+						codeEmitted = true;
+						if (c == '=') // variable syntax
+						{
+							yield return new Token(LuaToken.Identifier, "printValue", pos, pos);
+							yield return new Token(LuaToken.BracketOpen, null, pos, pos);
+							NextChar(30);
+							break;
+						}
+						else
+						{
+							state = 20;
+							goto case 20;
+						}
+					#endregion
+					#region -- 10 - Comment --
+					case 10:
+						if (c == '-')
+							NextChar(11);
+						else
+						{
+							chars.AppendValue("<!");
+							state = 0;
+							goto case 0;
+						}
+						break;
+					case 11:
+						if (c == '-')
+							NextChar(12);
+						else
+						{
+							chars.AppendValue("<!-");
+							state = 0;
+							goto case 0;
+						}
+						break;
+					case 12:
+						if (c == '-')
+							NextChar(13);
+						break;
+					case 13:
+						if (c == '-')
+							NextChar(14);
+						else
+							NextChar(12);
+						break;
+					case 14:
+						if (c == '>')
+							NextChar(0);
+						else
+							NextChar(12);
+						break;
+					#endregion
+					#region -- 20 - Command --
+					case 20:
+						if (c == '%')
+							NextChar(21);
+						else
+							yield return NextToken(chars);
+						break;
+					case 21:
+						if (c == '>')
+							NextChar(0);
+						else
+						{
+							chars.Replay("%");
+							state = 20;
+							yield return NextToken(chars);
+						}
+						break;
+					#endregion
+					#region -- 30 - Var Syntax --
+					case 30:
+						if (c == '%') // possible and
+							NextChar(31);
+						else if (c == ':') // format expected
+							NextChar(32);
+						else
+							yield return NextToken(chars);
+						break;
+					case 31:
+						if (c == '>') // emit variable
+						{
+							NextChar(0);
+							pos = chars.CurrentPosition;
+							yield return new Token(LuaToken.BracketClose, null, pos, pos);
+						}
+						else
+						{
+							chars.Replay("%");
+							state = 30;
+							yield return NextToken(chars);
+						}
+						break;
+					case 32:
+						if (c == '%')
+							NextChar(33);
+						else
+							EatChar(32);
+						break;
+					case 33:
+						if (c == '>') // emit format
+						{
+							pos = chars.CurrentPosition;
+							yield return new Token(LuaToken.Comma, null, pos, pos);
+							yield return chars.CreateToken(LuaToken.String);
+							pos = chars.CurrentPosition;
+							yield return new Token(LuaToken.BracketClose, null, pos, pos);
+							yield return new Token(LuaToken.Semicolon, null, pos, pos);
+							NextChar(0);
+							break;
+						}
+						else
+						{
+							chars.AppendValue('%');
+							state = 32;
+							goto case 32;
+						}
+					#endregion
+					default:
+						throw new InvalidOperationException();
+				}
+			}
+
+			if (codeEmitted) // something emitted
+			{
+				if (chars.HasCurValue) // we have something in the buffer
+				{
+					pos = chars.StartPosition;
+					yield return new Token(LuaToken.Identifier, "print", pos, pos);
+					yield return new Token(LuaToken.BracketOpen, null, pos, pos);
+					yield return chars.CreateToken(LuaToken.String);
+					pos = chars.CurrentPosition;
+					yield return new Token(LuaToken.BracketClose, null, pos, pos);
+					yield return new Token(LuaToken.Semicolon, null, pos, pos);
+				}
+			}
+			else // no code emitted --> create a return statement
+			{
+				pos = chars.StartPosition;
+				yield return new Token(LuaToken.KwReturn, null, pos, pos);
+				yield return chars.CreateToken(LuaToken.String);
+			}
+		} // func CreateHtmlTokenStream
+
+		/// <summary></summary>
+		/// <param name="charStream"></param>
+		/// <param name="scriptPreamble"></param>
+		/// <returns></returns>
+		public static ILuaLexer CreateHtml(LuaCharLexer charStream, params Token[] scriptPreamble)
+			=> new LuaLexer(CreateHtmlTokenStream(charStream, false, scriptPreamble).GetEnumerator());
+
+		/// <summary></summary>
+		/// <param name="charStream"></param>
+		/// <param name="enforceCode"></param>
+		/// <returns></returns>
+		public static ILuaLexer CreateHtml(LuaCharLexer charStream, bool enforceCode)
+			=> new LuaLexer(CreateHtmlTokenStream(charStream, true, null).GetEnumerator());
+
+		#endregion
+
 		/// <summary>Check for A-Z,0-9 and _</summary>
 		/// <param name="c"></param>
 		/// <returns></returns>
 		public static bool IsIdentifierChar(char c)
 			=> Char.IsLetterOrDigit(c) || c == '_';
 
-		/// <summary>Is the given  identifier a keyword.</summary>
+		/// <summary>Is the given identifier a keyword.</summary>
 		/// <param name="member"></param>
 		/// <returns></returns>
 		public static bool IsKeyWord(string member)
