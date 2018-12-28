@@ -347,6 +347,8 @@ namespace Neo.IronLua
 		void Next();
 		/// <summary>Look a head token, aka next token.</summary>
 		Token LookAhead { get; }
+		/// <summary>Look a head token, aka next, next token.</summary>
+		Token LookAhead2 { get; }
 		/// <summary></summary>
 		Token Current { get; }
 	} // interface ILuaLexer
@@ -668,8 +670,7 @@ namespace Neo.IronLua
 	{
 		private readonly IEnumerator<Token> tokenStream;
 
-		private Token lookahead = null;
-		private Token current = null;
+		private readonly Token[] tokens = new Token[3];
 
 		#region -- Ctor/Dtor ----------------------------------------------------------
 
@@ -704,9 +705,9 @@ namespace Neo.IronLua
 		{
 			var next = tokenStream.MoveNext()
 				? tokenStream.Current
-				: (current.Typ == LuaToken.Eof
-					? current
-					: new Token(LuaToken.Eof, String.Empty, current.End, current.End)
+				: (tokens[0].Typ == LuaToken.Eof
+					? tokens[0]
+					: new Token(LuaToken.Eof, String.Empty, tokens[0].End, tokens[0].End)
 				);
 
 			if (SkipComments && next.Typ == LuaToken.Comment)
@@ -726,22 +727,26 @@ namespace Neo.IronLua
 		/// <summary>Reads the next token from the stream</summary>
 		public void Next()
 		{
-			if (lookahead == null) // Erstinitialisierung der Lookaheads notwendig
+			if (tokens[0] == null) // Erstinitialisierung der Lookaheads notwendig
 			{
-				current = NextTokenWithSkipRules();
-				lookahead = NextTokenWithSkipRules();
+				for (var i = 0; i < tokens.Length; i++)
+					tokens[i] = NextTokenWithSkipRules();
 			}
 			else
 			{
-				current = lookahead;
-				lookahead = NextTokenWithSkipRules();
+
+				for (var i = 0; i < tokens.Length - 1; i++)
+					tokens[i] = tokens[i + 1];
+				tokens[tokens.Length - 1] = NextTokenWithSkipRules();
 			}
 		} // proc Next
 
 		/// <summary>Next token</summary>
-		public Token LookAhead => lookahead;
+		public Token LookAhead => tokens[1];
+		/// <summary>Next token</summary>
+		public Token LookAhead2 => tokens[2];
 		/// <summary>Current token</summary>
-		public Token Current => current;
+		public Token Current => tokens[0];
 		/// <summary>Should the scanner skip comments</summary>
 		public bool SkipComments { get; set; } = true;
 
@@ -1603,7 +1608,7 @@ namespace Neo.IronLua
 		/// <param name="enforceCode"></param>
 		/// <returns></returns>
 		public static ILuaLexer CreateHtml(LuaCharLexer charStream, bool enforceCode)
-			=> new LuaLexer(CreateHtmlTokenStream(charStream, true, null).GetEnumerator());
+			=> new LuaLexer(CreateHtmlTokenStream(charStream, enforceCode, null).GetEnumerator());
 
 		/// <summary></summary>
 		public const int HtmlCharStreamLookAHead = 4;

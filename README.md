@@ -123,6 +123,10 @@ So, this could be reliable partner for your compiled .NET application or engine 
 
 If there is something unclear, wrong or misunderstanding please use the discussions.
 
+## Projects that use this library
+
+* Data Exchange Server: https://github.com/twdes/des
+
 ## Links
 
 * Article on CodeProject: http://www.codeproject.com/Articles/674128/NeoLua-Lua-for-the-net-dynamic-lanuguage-runtime

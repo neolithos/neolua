@@ -106,7 +106,7 @@ namespace Neo.IronLua
 			}
 
 			// Führe den Block aus
-			return DoChunk(lua.CompileChunk(name, null, tr, callTypes), callArgs);
+			return DoChunk(lua.CompileChunk(tr, name, null, callTypes), callArgs);
 		} // proc DoChunk
 
 		/// <summary>Executes a precompiled chunk on the lua environment.</summary>

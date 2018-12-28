@@ -204,7 +204,8 @@ namespace Neo.IronLua
 		public LuaChunk CompileChunk(string fileName, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
 		{
 			using (var sr = new StreamReader(fileName))
-				return CompileChunk(Path.GetFileName(fileName), options, sr, args);
+			using (var lex = LuaLexer.Create(Path.GetFileName(fileName), sr, true))
+				return CompileChunkCore(lex, options, args);
 		} // func CompileChunk
 
 		/// <summary>Create a code delegate without executing it.</summary>
@@ -214,7 +215,13 @@ namespace Neo.IronLua
 		/// <param name="args">Arguments for the code block.</param>
 		/// <returns>Compiled chunk.</returns>
 		public LuaChunk CompileChunk(TextReader tr, string name, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
-			=> CompileChunk(name, options, tr, args);
+		{
+			if (String.IsNullOrEmpty(name))
+				throw new ArgumentNullException(nameof(name));
+
+			using (var lex = LuaLexer.Create(name, tr, true))
+				return CompileChunkCore(lex, options, args);
+		} // func CompileChunk
 
 		/// <summary>Create a code delegate without executing it.</summary>
 		/// <param name="code">Code of the delegate..</param>
@@ -223,42 +230,64 @@ namespace Neo.IronLua
 		/// <param name="args">Arguments for the code block.</param>
 		/// <returns>Compiled chunk.</returns>
 		public LuaChunk CompileChunk(string code, string name, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
-			=> CompileChunk(name, options, new StringReader(code), args);
-
-		internal LuaChunk CompileChunk(string chunkName, LuaCompileOptions options, TextReader tr, IEnumerable<KeyValuePair<string, Type>> args)
 		{
-			if (String.IsNullOrEmpty(chunkName))
-				throw new ArgumentNullException("chunkname");
+			if (String.IsNullOrEmpty(name))
+				throw new ArgumentNullException(nameof(name));
+
+			using (var lex = LuaLexer.Create(name, new StringReader(code)))
+				return CompileChunkCore(lex, options, args);
+		} // func CompileChunk
+
+		/// <summary>Creates a code delegate or returns a single return constant.</summary>
+		/// <param name="code"></param>
+		/// <param name="options"></param>
+		/// <param name="args"></param>
+		/// <returns></returns>
+		public object CompileOrReturnConstant(ILuaLexer code, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
+		{
+			code.Next(); // get first token
+
+			if (code.Current.Typ == LuaToken.KwReturn // is first token a return
+				&& (code.LookAhead.Typ == LuaToken.String || code.LookAhead.Typ == LuaToken.Number) // we expect a string or number
+				&& (code.LookAhead2.Typ == LuaToken.Semicolon || code.LookAhead2.Typ == LuaToken.Eof)) // eof
+			{
+				return code.LookAhead.Typ == LuaToken.String
+					? code.LookAhead.Value
+					: RtParseNumber(code.LookAhead.Value, FloatType == LuaFloatType.Double);
+			}
+			else
+				return CompileChunkCore(code, options, args);
+		} // func CompileOrReturnConstant
+
+		internal LuaChunk CompileChunkCore(ILuaLexer lex, LuaCompileOptions options, IEnumerable<KeyValuePair<string, Type>> args)
+		{
 			if (options == null)
 				options = new LuaCompileOptions();
 
-			using (var l = options.CreateLexer(chunkName, tr))
+			var registerMethods = options.DebugEngine != null && (options.DebugEngine.Level & LuaDebugLevel.RegisterMethods) == LuaDebugLevel.RegisterMethods;
+			if (registerMethods)
+				BeginCompile();
+			try
 			{
-				var registerMethods = options.DebugEngine != null && (options.DebugEngine.Level & LuaDebugLevel.RegisterMethods) == LuaDebugLevel.RegisterMethods;
-				if (registerMethods)
-					BeginCompile();
-				try
-				{
-					var expr = Parser.ParseChunk(this, options, true, l, null, typeof(LuaResult), args);
+				var expr = Parser.ParseChunk(this, options, true, lex, null, typeof(LuaResult), args);
 
-					if (printExpressionTree != null)
-					{
-						printExpressionTree.WriteLine(Parser.ExpressionToString(expr));
-						printExpressionTree.WriteLine(new string('=', 79));
-					}
-
-					// compile the chunk
-					return options.DebugEngine == null
-						? new LuaChunk(this, expr.Name, expr.Compile())
-						: options.DebugEngine.CreateChunk(this, expr);
-				}
-				finally
+				if (printExpressionTree != null)
 				{
-					if (registerMethods)
-						EndCompile();
+					printExpressionTree.WriteLine(Parser.ExpressionToString(expr));
+					printExpressionTree.WriteLine(new string('=', 79));
 				}
+
+				// compile the chunk
+				return options.DebugEngine == null
+					? new LuaChunk(this, expr.Name, expr.Compile())
+					: options.DebugEngine.CreateChunk(this, expr);
 			}
-		} // func CompileChunk
+			finally
+			{
+				if (registerMethods)
+					EndCompile();
+			}
+		} // func CompileChunkCore
 
 		/// <summary>Creates a simple lua-lambda-expression without any environment.</summary>
 		/// <param name="name">Name of the delegate</param>
