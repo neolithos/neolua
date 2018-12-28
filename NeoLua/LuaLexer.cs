@@ -360,20 +360,23 @@ namespace Neo.IronLua
 	{
 		private readonly SymbolDocumentInfo document; // Information about the source document
 		private TextReader tr;						// Source for the lexer, is set to zero on eof
-		private readonly bool leaveOpen;			// do not dispose the text reader at the end
+		private readonly bool leaveOpen;            // do not dispose the text reader at the end
+
+		private readonly char[] lookAheadBuffer;
+		private int lookAheadOffset;
+		private int lookAheadEof;
+
 		private int currentLine;                    // Line in the source file
 		private int currentColumn;                  // Column in the source file
 		private readonly int firstColumnIndex;      // Index of the first char in line
-		private long currentIndex = 0;              // Index in the source file
+		private long currentIndex;                  // Index in the source file
+
+		private bool incrementLine = false;
+		private bool moveIndex = false;
 
 		private Position startPosition;             // Start of the current token
-		private char cur;                           // Current char
-		private bool isEof = false;
-
 		private StringBuilder currentStringBuilder = new StringBuilder(); // Char buffer, for collected chars
-		private string replayChars = null;
-		private int replayIndex = 0;
-
+		
 		private bool isDisposed = false;
 
 		#region -- Ctor/Dtor ----------------------------------------------------------
@@ -381,23 +384,50 @@ namespace Neo.IronLua
 		/// <summary>Creates the lexer for the lua parser</summary>
 		/// <param name="fileName">Filename</param>
 		/// <param name="tr">Input for the scanner, will be disposed on the lexer dispose.</param>
+		/// <param name="lookAheadLength">defines the look a head length for parsers</param>
 		/// <param name="leaveOpen"></param>
 		/// <param name="currentLine">Start line for the text reader.</param>
 		/// <param name="currentColumn"></param>
 		/// <param name="firstColumnIndex"></param>
-		public LuaCharLexer(string fileName, TextReader tr, bool leaveOpen = false, int currentLine = 1, int currentColumn = 1, int firstColumnIndex = 1)
+		public LuaCharLexer(string fileName, TextReader tr, int lookAheadLength, bool leaveOpen = false, int currentLine = 1, int currentColumn = 1, int firstColumnIndex = 1)
 		{
+			if (lookAheadLength < 1)
+				throw new ArgumentOutOfRangeException(nameof(lookAheadLength), lookAheadLength, "Must be greater zero.");
+
 			this.document = Expression.SymbolDocument(fileName);
 			this.tr = tr;
 			this.leaveOpen = leaveOpen;
 
+			this.lookAheadBuffer = new char[lookAheadLength];
+			this.lookAheadOffset = lookAheadLength - 1;
+			this.lookAheadEof = -1;
+
 			this.currentLine = currentLine;
-			this.currentColumn = currentColumn;
+			this.currentColumn = currentColumn - 1;
 			this.firstColumnIndex = firstColumnIndex;
+			this.currentIndex = -1;
+
+			// inital fill buffer
+			for (var i = 0; i < lookAheadLength - 1; i++)
+			{
+				if (lookAheadEof >= 0)
+					lookAheadBuffer[i] = '\0';
+				else
+				{
+					var c = ReadCore();
+					if (c == -1)
+					{
+						lookAheadEof = i;
+						lookAheadBuffer[i] = '\0';
+					}
+					else
+						lookAheadBuffer[i] = (char)c;
+				}
+			}
 
 			// read first char from the buffer
+			Next();
 			startPosition = CurrentPosition;
-			cur = Read();
 		} // ctor
 
 		/// <summary>Destroy the lexer and the TextReader</summary>
@@ -415,69 +445,6 @@ namespace Neo.IronLua
 
 		#region -- Buffer -------------------------------------------------------------
 
-		/// <summary>Read one char from the buffer</summary>
-		/// <returns>Char or <c>\0</c>, for the eof.</returns>
-		private char Read()
-		{
-			if (replayChars != null)
-			{
-				if (replayIndex < replayChars.Length)
-					return replayChars[replayIndex++];
-				else
-					replayChars = null;
-			}
-
-			if (tr == null) // Source file is readed
-			{
-				isEof = true;
-				return '\0';
-			}
-			else
-			{
-				var i = tr.Read();
-				if (i == -1) // End of file reached
-				{
-					if (!leaveOpen)
-						tr.Dispose();
-					tr = null; 
-					isEof = true; // mark eof
-					return '\0';
-				}
-				else
-				{
-					var c = (char)i;
-
-					currentIndex++;
-
-					// Normalize new line
-					if (c == '\n')
-					{
-						if (tr.Peek() == 13)
-							tr.Read();
-
-						currentColumn = firstColumnIndex;
-						currentLine++;
-
-						return '\n';
-					}
-					else if (c == '\r')
-					{
-						currentColumn = firstColumnIndex;
-						currentLine++;
-						if (tr.Peek() == 10)
-							tr.Read();
-
-						return '\n';
-					}
-					else
-					{
-						currentColumn++;
-						return c;
-					}
-				}
-			}
-		} // func Read
-
 		/// <summary>Append a char to the current buffer.</summary>
 		/// <param name="value"></param>
 		public void AppendValue(char value)
@@ -486,18 +453,134 @@ namespace Neo.IronLua
 		/// <summary>Append a char to the current buffer.</summary>
 		/// <param name="value"></param>
 		public void AppendValue(string value)
-			=> currentStringBuilder.Append(cur);
+			=> currentStringBuilder.Append(Cur);
 
+		private int ReadCore()
+		{
+			if (tr == null) // Source file is readed
+				return -1;
+			else
+			{
+				var i = tr.Read();
+				if (i == -1) // End of file reached
+				{
+					if (!leaveOpen)
+						tr.Dispose();
+					tr = null;
+				}
+				return i;
+			}
+		} // func ReadCore
+
+		private bool ReadCharToBuffer()
+		{
+			if (lookAheadEof < 0)
+			{
+				var c = ReadCore();
+				if (c == -1)
+				{
+					lookAheadEof = lookAheadOffset;
+					lookAheadBuffer[lookAheadOffset] = '\0';
+				}
+				else
+					lookAheadBuffer[lookAheadOffset] = (char)c;
+
+				return true;
+			}
+			else if (lookAheadEof != lookAheadOffset)
+			{
+				lookAheadBuffer[lookAheadOffset] = '\0';
+				return true;
+			}
+			else
+				return false;
+		} // func ReadCharToBuffer
+
+		private bool MoveNextCore()
+		{
+			if (ReadCharToBuffer())
+			{
+				if (lookAheadBuffer.Length > 1)
+				{
+					lookAheadOffset++;
+					if (lookAheadOffset >= lookAheadBuffer.Length)
+						lookAheadOffset = 0;
+				}
+
+				return true;
+			}
+			else
+				return false;
+		} // func MoveNextCore
+		
 		/// <summary>Move the char stream and discard the buffer.</summary>
 		public void Next()
 		{
-			cur = Read();
+			if (moveIndex)
+			{
+				moveIndex = false;
+				currentIndex++;
+			}
+
+			if (MoveNextCore())
+			{
+				currentIndex++;
+
+				var c = lookAheadBuffer[lookAheadOffset];
+
+				// Normalize new line
+				if (c == '\n')
+				{
+					if (lookAheadBuffer.Length > 1 && IsLookAHead('\r', 1))
+					{
+						moveIndex = MoveNextCore();
+						lookAheadBuffer[lookAheadOffset] = '\n'; // replace with unique new line
+					}
+					else if (tr != null && tr.Peek() == 13)
+					{
+						moveIndex = MoveNextCore();
+						lookAheadBuffer[lookAheadOffset] = '\n'; // replace with unique new line
+					}
+
+					currentColumn++;
+					incrementLine = true;
+				}
+				else if (c == '\r')
+				{
+					if (lookAheadBuffer.Length > 1 && IsLookAHead('\n', 1))
+						moveIndex = MoveNextCore();
+					else if (tr != null && tr.Peek() == 10)
+						moveIndex = MoveNextCore();
+					else
+						lookAheadBuffer[lookAheadOffset] = '\n'; // replace with unique new line
+
+					currentColumn++;
+					incrementLine = true;
+				}
+				else if (incrementLine)
+				{
+					currentColumn = firstColumnIndex;
+					currentLine++;
+
+					incrementLine = false;
+				}
+				else
+					currentColumn++;
+			}
+		} // proc Next
+
+		/// <summary>Move the char stream and discard the buffer.</summary>
+		/// <param name="skip"></param>
+		public void Next(int skip)
+		{
+			while (skip-- > 0)
+				Next();
 		} // proc Next
 
 		/// <summary>Append the current char to the buffer and move the char stream.</summary>
 		public void Eat()
 		{
-			AppendValue(cur);
+			AppendValue(Cur);
 			Next();
 		} // proc Eat
 
@@ -514,20 +597,44 @@ namespace Neo.IronLua
 		} // func CreateToken
 
 		/// <summary></summary>
-		/// <param name="replay"></param>
-		public void Replay(string replay)
+		/// <param name="c"></param>
+		/// <param name="idx"></param>
+		/// <returns></returns>
+		public bool IsLookAHead(char c, int idx)
 		{
-			replayChars = replay;
-			replayIndex = 0;
-		} // proc Replay
+			if (idx >= lookAheadBuffer.Length)
+				throw new ArgumentOutOfRangeException(nameof(idx), lookAheadBuffer.Length, "Look a head buffer is to small.");
 
-		/// <summary></summary>
-		public void ReplayCurValue()
+			var i = (lookAheadOffset + idx) % lookAheadBuffer.Length;
+			return lookAheadBuffer[i] == c;
+		} // func IsLookAHead
+
+		/// <summary>Check the next following chars.</summary>
+		/// <param name="value"></param>
+		/// <param name="offset"></param>
+		/// <returns></returns>
+		public bool IsLookAHead(string value, int offset = 0)
 		{
-			replayChars = CurValue;
-			replayIndex = 0;
-			currentStringBuilder.Clear();
-		} // proc ReplayCurValue
+			if (String.IsNullOrEmpty(value))
+				throw new ArgumentNullException(nameof(value));
+			if (value.Length + offset > lookAheadBuffer.Length)
+				throw new ArgumentOutOfRangeException(nameof(value), lookAheadBuffer.Length, "Look a head buffer is to small.");
+
+			var c = lookAheadOffset;
+			if (offset > 0)
+				c = (c + offset) % lookAheadBuffer.Length;
+
+			for (var i = 0; i < value.Length; i++)
+			{
+				if (lookAheadBuffer[c] != value[i])
+					return false;
+				c++;
+				if (c >= lookAheadBuffer.Length)
+					c = 0;
+			}
+
+			return true;
+		} // func LookAHead
 
 		/// <summary></summary>
 		public void ResetCurValue()
@@ -543,9 +650,9 @@ namespace Neo.IronLua
 		/// <summary>Current char position.</summary>
 		public Position CurrentPosition => new Position(document, currentLine, currentColumn, currentIndex);
 		/// <summary>Current active char</summary>
-		public char Cur => cur;
+		public char Cur => lookAheadBuffer[lookAheadOffset];
 		/// <summary>End of file</summary>
-		public bool IsEof => isEof;
+		public bool IsEof => lookAheadEof == lookAheadOffset;
 		/// <summary>Currently collected chars.</summary>
 		public string CurValue => currentStringBuilder.ToString();
 		/// <summary>Currently collected chars.</summary>
@@ -574,7 +681,7 @@ namespace Neo.IronLua
 		/// <param name="currentColumn"></param>
 		[Obsolete("Use create")]
 		public LuaLexer(string fileName, TextReader tr, bool leaveOpen = false, int currentLine = 1, int currentColumn = 1)
-			: this(CreateTokenStream(new LuaCharLexer(fileName, tr, false, currentLine, currentColumn, 1)).GetEnumerator())
+			: this(CreateTokenStream(new LuaCharLexer(fileName, tr, 1, false, currentLine, currentColumn, 1)).GetEnumerator())
 		{
 		} // ctor
 
@@ -595,7 +702,13 @@ namespace Neo.IronLua
 
 		private Token NextTokenWithSkipRules()
 		{
-			var next = tokenStream.MoveNext() ? tokenStream.Current : current;
+			var next = tokenStream.MoveNext()
+				? tokenStream.Current
+				: (current.Typ == LuaToken.Eof
+					? current
+					: new Token(LuaToken.Eof, String.Empty, current.End, current.End)
+				);
+
 			if (SkipComments && next.Typ == LuaToken.Comment)
 			{
 				next = NextTokenWithSkipRules();
@@ -1313,7 +1426,7 @@ namespace Neo.IronLua
 		public static ILuaLexer Create(string fileName, TextReader tr, bool leaveOpen = false, int currentLine = 1, int currentColumn = 1, int firstColumnIndex = 1)
 		{
 			return new LuaLexer(
-				CreateTokenStream(new LuaCharLexer(fileName, tr, leaveOpen, currentLine, currentColumn, firstColumnIndex)).GetEnumerator()
+				CreateTokenStream(new LuaCharLexer(fileName, tr, 1, leaveOpen, currentLine, currentColumn, firstColumnIndex)).GetEnumerator()
 			);
 		} // func Create
 
@@ -1325,196 +1438,132 @@ namespace Neo.IronLua
 		{
 			var isFirst = !codeEmitted;
 			var state = 0;
-			Position pos;
-
-			void NextChar(int newState)
-			{
-				chars.Next();
-				state = newState;
-			} // proc NextChar
-
-			void EatChar(int newState)
-			{
-				chars.Eat();
-				state = newState;
-			} // proc NextChar
-
+			
 			while (!chars.IsEof)
 			{
 				var c = chars.Cur;
 
+
 				switch (state)
 				{
-					#region -- Basis --
+					#region -- 0 - Basis --
 					case 0: // Basis
-						if (c == '<') // open bracket
-							NextChar(1);
-						else if (!isFirst) // skip leading spaces
-							chars.Eat();
-						else if (!Char.IsWhiteSpace(c))
+						switch(c)
 						{
-							isFirst = false;
+							case '<':
+								if (chars.IsLookAHead("%", 1)) // open code section
+								{
+									if (!isFirst)
+									{
+										if (!codeEmitted && scriptPreamble != null)
+										{
+											foreach (var preamble in scriptPreamble)
+												yield return preamble;
+										}
+										var pos = chars.StartPosition;
+										yield return new Token(LuaToken.Identifier, "print", pos, pos);
+										yield return chars.CreateToken(LuaToken.String);
+										pos = chars.CurrentPosition;
+										yield return new Token(LuaToken.Semicolon, String.Empty, pos, pos);
+									}
+
+									codeEmitted = true;
+									chars.Next(2);
+									if (chars.Cur == '=')
+									{
+										var pos = chars.CurrentPosition;
+
+										chars.Next();
+
+										yield return new Token(LuaToken.Identifier, "printValue", pos, pos);
+										yield return new Token(LuaToken.BracketOpen, String.Empty, pos, pos);
+
+										state = 2;
+									}
+									else
+										state = 1;
+								}
+								else if (chars.IsLookAHead("!--", 1)) // open comment
+								{
+									chars.Next(4);
+									state = 10;
+								}
+								else
+									goto default;
+								break;
+							default:
+								if (!isFirst) // skip leading spaces
+									chars.Eat();
+								else if (!Char.IsWhiteSpace(c))
+								{
+									isFirst = false;
+									chars.Eat();
+								}
+								else
+									chars.Next();
+								break;
+						}
+						break;
+					#endregion
+					#region -- 1 - Code --
+					case 1: // check type of bracket
+						if (c == '%' && chars.IsLookAHead("%>"))
+						{
+							chars.Next(2);
+							state = 0;
+						}
+						else
+							yield return NextToken(chars);
+						break;
+					#endregion
+					#region -- 2 - Var --
+					case 2:
+						if (c == ':' && chars.IsLookAHead(':', 1)) // next is format
+						{
+							chars.Next(2);
+							state = 3;
+						}
+						else if (c == '%' && chars.IsLookAHead('>', 1)) // end of var
+							goto case 3;
+						else
+							yield return NextToken(chars);
+
+						break;
+					case 3:
+						if (c == '%' && chars.IsLookAHead('>', 1))
+						{
+							if (chars.HasCurValue)
+							{
+								var pos = chars.StartPosition;
+								yield return new Token(LuaToken.Comma, String.Empty, pos, pos);
+								yield return chars.CreateToken(LuaToken.String);
+							}
+							goto case 4;
+						}
+						else
 							chars.Eat();
+						break;
+					case 4:
+						{
+							var startAt = chars.CurrentPosition;
+							chars.Next(2);
+							var endAt = chars.CurrentPosition;
+							yield return new Token(LuaToken.BracketClose, String.Empty, startAt, endAt);
+							yield return new Token(LuaToken.Semicolon, String.Empty, startAt, endAt);
+							state = 0;
+						}
+						break;
+					#endregion
+					#region -- 10 - Comment --
+					case 10:
+						if (c == '-' && chars.IsLookAHead("->",1))
+						{
+							chars.Next(3);
+							state = 0;
 						}
 						else
 							chars.Next();
 						break;
-
-					case 1: // check type of bracket
-						if (c == '!') // comment?
-							NextChar(10);
-						else if (c == '%') // command
-							NextChar(2);
-						else
-						{
-							chars.AppendValue('<');
-							state = 0;
-							goto case 0;
-						}
-						break;
-					case 2:
-						pos = chars.StartPosition;
-						if (!isFirst)
-						{
-							if (!codeEmitted && scriptPreamble != null)
-							{
-								foreach (var preamble in scriptPreamble)
-									yield return preamble;
-							}
-
-							yield return new Token(LuaToken.Identifier, "print", pos, pos);
-							yield return chars.CreateToken(LuaToken.String);
-							pos = chars.CurrentPosition;
-							yield return new Token(LuaToken.Semicolon, String.Empty, pos, pos);
-						}
-
-						codeEmitted = true;
-						if (c == '=') // variable syntax
-						{
-							yield return new Token(LuaToken.Identifier, "printValue", pos, pos);
-							yield return new Token(LuaToken.BracketOpen, String.Empty, pos, pos);
-							NextChar(30);
-							break;
-						}
-						else
-						{
-							state = 20;
-							goto case 20;
-						}
-					#endregion
-					#region -- 10 - Comment --
-					case 10:
-						if (c == '-')
-							NextChar(11);
-						else
-						{
-							chars.AppendValue("<!");
-							state = 0;
-							goto case 0;
-						}
-						break;
-					case 11:
-						if (c == '-')
-							NextChar(12);
-						else
-						{
-							chars.AppendValue("<!-");
-							state = 0;
-							goto case 0;
-						}
-						break;
-					case 12:
-						if (c == '-')
-							NextChar(13);
-						break;
-					case 13:
-						if (c == '-')
-							NextChar(14);
-						else
-							NextChar(12);
-						break;
-					case 14:
-						if (c == '>')
-							NextChar(0);
-						else
-							NextChar(12);
-						break;
-					#endregion
-					#region -- 20 - Command --
-					case 20:
-						if (c == '%')
-							NextChar(21);
-						else
-							yield return NextToken(chars);
-						break;
-					case 21:
-						if (c == '>')
-							NextChar(0);
-						else
-						{
-							chars.Replay("%");
-							state = 20;
-							yield return NextToken(chars);
-						}
-						break;
-					#endregion
-					#region -- 30 - Var Syntax --
-					case 30:
-						if (c == '%') // possible and
-							NextChar(31);
-						else if (c == ':') // format expected
-							NextChar(32);
-						else
-							yield return NextToken(chars);
-						break;
-					case 31:
-						if (c == '>') // emit variable
-						{
-							NextChar(0);
-							pos = chars.CurrentPosition;
-							yield return new Token(LuaToken.BracketClose, String.Empty, pos, pos);
-						}
-						else
-						{
-							chars.Replay("%");
-							state = 30;
-							yield return NextToken(chars);
-						}
-						break;
-					case 32:
-						if (c == ':')
-							NextChar(33);
-						else
-						{
-							chars.Replay(":");
-							state = 30;
-							yield return NextToken(chars);
-						}
-						break;
-					case 33:
-						if (c == '%')
-							NextChar(34);
-						else
-							EatChar(33);
-						break;
-					case 34:
-						if (c == '>') // emit format
-						{
-							pos = chars.CurrentPosition;
-							yield return new Token(LuaToken.Comma, String.Empty, pos, pos);
-							yield return chars.CreateToken(LuaToken.String);
-							pos = chars.CurrentPosition;
-							yield return new Token(LuaToken.BracketClose, String.Empty, pos, pos);
-							yield return new Token(LuaToken.Semicolon, String.Empty, pos, pos);
-							NextChar(0);
-							break;
-						}
-						else
-						{
-							chars.AppendValue('%');
-							state = 33;
-							goto case 33;
-						}
 					#endregion
 					default:
 						throw new InvalidOperationException();
@@ -1525,7 +1574,7 @@ namespace Neo.IronLua
 			{
 				if (chars.HasCurValue) // we have something in the buffer
 				{
-					pos = chars.StartPosition;
+					var pos = chars.StartPosition;
 					yield return new Token(LuaToken.Identifier, "print", pos, pos);
 					yield return chars.CreateToken(LuaToken.String);
 					pos = chars.CurrentPosition;
@@ -1534,7 +1583,7 @@ namespace Neo.IronLua
 			}
 			else // no code emitted --> create a return statement
 			{
-				pos = chars.StartPosition;
+				var pos = chars.StartPosition;
 				yield return new Token(LuaToken.KwReturn, "return", pos, pos);
 				yield return chars.CreateToken(LuaToken.String);
 				yield return new Token(LuaToken.Semicolon, String.Empty, pos, pos);
@@ -1555,6 +1604,9 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static ILuaLexer CreateHtml(LuaCharLexer charStream, bool enforceCode)
 			=> new LuaLexer(CreateHtmlTokenStream(charStream, true, null).GetEnumerator());
+
+		/// <summary></summary>
+		public const int HtmlCharStreamLookAHead = 4;
 
 		#endregion
 

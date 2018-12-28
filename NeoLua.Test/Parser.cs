@@ -48,7 +48,7 @@ namespace LuaDLR.Test
 			=> LuaLexer.Create("test.lua", new StringReader(lines));
 
 		private ILuaLexer CreateHtmlLexer(string lines)
-			=> LuaLexer.CreateHtml(new LuaCharLexer("test.lua", new StringReader(lines)));
+			=> LuaLexer.CreateHtml(new LuaCharLexer("test.lua", new StringReader(lines), LuaLexer.HtmlCharStreamLookAHead));
 
 		private void LuaTokenTest(string lines, params KeyValuePair<LuaToken, string>[] expectedTokens)
 			=> TokenTest(CreateLuaLexer(lines), expectedTokens);
@@ -260,6 +260,77 @@ namespace LuaDLR.Test
 				var g = l.CreateEnvironment();
 				var r = g.DoChunk("repeat break if true then end until true return 23", "TestParserIssue55");
 				Assert.AreEqual(23, r[0]);
+			}
+		}
+
+		[TestMethod]
+		public void TestPosition01()
+		{
+			var t = Lines("return", "  break", "  'a'");
+			using (var lex = CreateLuaLexer(t))
+			{
+				lex.Next();
+
+				Assert.AreEqual(1, lex.Current.Start.Line);
+				Assert.AreEqual(1, lex.Current.Start.Col);
+				Assert.AreEqual(0, lex.Current.Start.Index);
+
+				Assert.AreEqual(1, lex.Current.End.Line);
+				Assert.AreEqual(7, lex.Current.End.Col);
+				Assert.AreEqual(6, lex.Current.End.Index);
+				Assert.AreEqual("return", t.Substring((int)lex.Current.Start.Index, (int)lex.Current.End.Index - (int)lex.Current.Start.Index));
+
+				lex.Next();
+
+				Assert.AreEqual(2, lex.Current.Start.Line);
+				Assert.AreEqual(3, lex.Current.Start.Col);
+				Assert.AreEqual(10, lex.Current.Start.Index);
+
+				Assert.AreEqual(2, lex.Current.End.Line);
+				Assert.AreEqual(8, lex.Current.End.Col);
+				Assert.AreEqual(15, lex.Current.End.Index);
+				Assert.AreEqual("break", t.Substring((int)lex.Current.Start.Index, (int)lex.Current.End.Index - (int)lex.Current.Start.Index));
+
+				lex.Next();
+
+				Assert.AreEqual(3, lex.Current.Start.Line);
+				Assert.AreEqual(3, lex.Current.Start.Col);
+				Assert.AreEqual(19, lex.Current.Start.Index);
+
+				Assert.AreEqual(3, lex.Current.End.Line);
+				Assert.AreEqual(6, lex.Current.End.Col);
+				Assert.AreEqual(22, lex.Current.End.Index);
+				Assert.AreEqual("'a'", t.Substring((int)lex.Current.Start.Index, (int)lex.Current.End.Index - (int)lex.Current.Start.Index));
+			}
+		}
+
+		[TestMethod]
+		public void TestPosition02()
+		{
+			var t = "\nNull(";
+			using (var lex = CreateLuaLexer(t))
+			{
+				lex.Next();
+
+				Assert.AreEqual(2, lex.Current.Start.Line);
+				Assert.AreEqual(1, lex.Current.Start.Col);
+				Assert.AreEqual(1, lex.Current.Start.Index);
+
+				Assert.AreEqual(2, lex.Current.End.Line);
+				Assert.AreEqual(5, lex.Current.End.Col);
+				Assert.AreEqual(5, lex.Current.End.Index);
+				Assert.AreEqual("Null", t.Substring((int)lex.Current.Start.Index, (int)lex.Current.End.Index - (int)lex.Current.Start.Index));
+
+				lex.Next();
+
+				Assert.AreEqual(2, lex.Current.Start.Line);
+				Assert.AreEqual(5, lex.Current.Start.Col);
+				Assert.AreEqual(5, lex.Current.Start.Index);
+
+				Assert.AreEqual(2, lex.Current.End.Line);
+				Assert.AreEqual(6, lex.Current.End.Col);
+				Assert.AreEqual(6, lex.Current.End.Index);
+				Assert.AreEqual("(", t.Substring((int)lex.Current.Start.Index, (int)lex.Current.End.Index - (int)lex.Current.Start.Index));
 			}
 		}
 
