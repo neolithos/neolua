@@ -90,6 +90,7 @@ namespace Neo.IronLua
 					}
 					else
 					{
+						#region -- char groups --
 						switch (c)
 						{
 							case 'a': // all letters
@@ -194,6 +195,7 @@ namespace Neo.IronLua
 								sb.Append(c);
 								break;
 						}
+						#endregion
 						escapeCode = false;
 					}
 				}
@@ -219,6 +221,10 @@ namespace Neo.IronLua
 				{
 					sb.Append('[');
 					inCharList = true;
+				}
+				else if (c == '^' && !inCharList)
+				{
+					sb.Append("\\G");
 				}
 				else if (c == '(')
 				{

@@ -412,6 +412,30 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
+		public void RegexTest04()
+		{
+			TestCode("return string.find('1234567890123456789', '345', 4);", 13, 15);
+		}
+
+		[TestMethod]
+		public void RegexComplex01a()
+		{
+			var m = "str:match('^%s*([^<]-)%s*<!%[CDATA%[(.-)%]%]>()'";
+			TestCode("local str = '<![CDATA[ asd asdas das ]]></'; return " + m + ");", String.Empty, " asd asdas das ", 28);
+			TestCode("local str = 'asd <![CDATA[aa]]>'; return " + m + ");", "asd", "aa", 19);
+			TestCode("local str = 'outer1 <![CDATA[inner]]> '; return " + m + ");", "outer1", "inner", 25);
+			TestCode("local str = '<ele>outer1 <![CDATA[inner]]> outer2</ele>'; return " + m + ", 6);", "outer1", "inner", 30);
+		}
+
+		[TestMethod]
+		public void RegexComplex01b()
+		{
+			var m = "str:match('^%s*([^<]-)%s*<([%?/]?)([%w:]+)(.-)([%?/]?)>()');";
+			TestCode("local str = 'outer1</test>'; return " + m, "outer1", "/", "test", String.Empty, String.Empty, 14);
+			TestCode("local str = '<ele>outer1 <';  return " + m, String.Empty, String.Empty, "ele", String.Empty, String.Empty, 6);
+		}
+
+		[TestMethod]
 		public void RegexComplex01()
 		{
 			using (var l = new Lua())
@@ -437,17 +461,23 @@ namespace LuaDLR.Test
 				);
 
 
+				Assert.AreEqual("", r[0][0]);
+				Assert.AreEqual("", r[0][1]);
 				Assert.AreEqual("ele", r[0][2]);
+				Assert.AreEqual("", r[0][3]);
+				Assert.AreEqual("", r[0][4]);
 				Assert.AreEqual(6, r[0][5]);
 
 				Assert.AreEqual("outer1", r[1][0]);
 				Assert.AreEqual("inner", r[1][1]);
 				Assert.AreEqual(30, r[1][2]);
 
-				Assert.AreEqual("outer2", r[2][2]);
-				Assert.AreEqual("/", r[2][2]);
+				Assert.AreEqual("outer2", r[2][0]);
+				Assert.AreEqual("/", r[2][1]);
 				Assert.AreEqual("ele", r[2][2]);
-				Assert.AreEqual(42, r[2][2]);
+				Assert.AreEqual("", r[2][3]);
+				Assert.AreEqual("", r[2][4]);
+				Assert.AreEqual(43, r[2][5]);
 			}
 		}
 	}
