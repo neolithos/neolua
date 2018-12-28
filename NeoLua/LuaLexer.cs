@@ -345,6 +345,7 @@ namespace Neo.IronLua
 	{
 		/// <summary>Read next token.</summary>
 		void Next();
+
 		/// <summary>Look a head token, aka next token.</summary>
 		Token LookAhead { get; }
 		/// <summary>Look a head token, aka next, next token.</summary>
@@ -592,11 +593,31 @@ namespace Neo.IronLua
 		public Token CreateToken(LuaToken kind)
 		{
 			var endPosition = CurrentPosition;
-			var tok = new Token(kind, CurValue, startPosition, endPosition);
+			var tok = LuaLexer.CreateToken(kind, CurValue, startPosition, endPosition);
 			startPosition = endPosition;
 			currentStringBuilder.Clear();
 			return tok;
 		} // func CreateToken
+
+		/// <summary>Create a new token.</summary>
+		/// <param name="kind">Token type</param>
+		/// <param name="value"></param>
+		/// <returns>Token</returns>
+		public Token CreateTokenAtStart(LuaToken kind, string value = null)
+		{
+			var pos = StartPosition;
+			return LuaLexer.CreateToken(kind, value, pos, pos);
+		} // func CreateTokenAtStart
+
+		/// <summary>Create a new token.</summary>
+		/// <param name="kind">Token type</param>
+		/// <param name="value"></param>
+		/// <returns>Token</returns>
+		public Token CreateTokenAtEnd(LuaToken kind, string value = null)
+		{
+			var pos = CurrentPosition;
+			return LuaLexer.CreateToken(kind, value, pos, pos);
+		} // func CreateTokenAtEnd
 
 		/// <summary></summary>
 		/// <param name="c"></param>
@@ -1465,23 +1486,19 @@ namespace Neo.IronLua
 											foreach (var preamble in scriptPreamble)
 												yield return preamble;
 										}
-										var pos = chars.StartPosition;
-										yield return new Token(LuaToken.Identifier, "print", pos, pos);
+										yield return chars.CreateTokenAtStart(LuaToken.Identifier, "print");
 										yield return chars.CreateToken(LuaToken.String);
-										pos = chars.CurrentPosition;
-										yield return new Token(LuaToken.Semicolon, String.Empty, pos, pos);
+										yield return chars.CreateTokenAtStart(LuaToken.Semicolon);
 									}
 
 									codeEmitted = true;
 									chars.Next(2);
 									if (chars.Cur == '=')
 									{
-										var pos = chars.CurrentPosition;
-
 										chars.Next();
 
-										yield return new Token(LuaToken.Identifier, "printValue", pos, pos);
-										yield return new Token(LuaToken.BracketOpen, String.Empty, pos, pos);
+										yield return chars.CreateTokenAtEnd(LuaToken.Identifier, "printValue");
+										yield return chars.CreateTokenAtEnd(LuaToken.BracketOpen);
 
 										state = 2;
 									}
@@ -1539,8 +1556,7 @@ namespace Neo.IronLua
 						{
 							if (chars.HasCurValue)
 							{
-								var pos = chars.StartPosition;
-								yield return new Token(LuaToken.Comma, String.Empty, pos, pos);
+								yield return chars.CreateTokenAtStart(LuaToken.Comma);
 								yield return chars.CreateToken(LuaToken.String);
 							}
 							goto case 4;
@@ -1553,8 +1569,8 @@ namespace Neo.IronLua
 							var startAt = chars.CurrentPosition;
 							chars.Next(2);
 							var endAt = chars.CurrentPosition;
-							yield return new Token(LuaToken.BracketClose, String.Empty, startAt, endAt);
-							yield return new Token(LuaToken.Semicolon, String.Empty, startAt, endAt);
+							yield return CreateToken(LuaToken.BracketClose, String.Empty, startAt, endAt);
+							yield return CreateToken(LuaToken.Semicolon, String.Empty, startAt, endAt);
 							state = 0;
 						}
 						break;
@@ -1579,19 +1595,16 @@ namespace Neo.IronLua
 			{
 				if (chars.HasCurValue) // we have something in the buffer
 				{
-					var pos = chars.StartPosition;
-					yield return new Token(LuaToken.Identifier, "print", pos, pos);
+					yield return chars.CreateTokenAtStart(LuaToken.Identifier, "print");
 					yield return chars.CreateToken(LuaToken.String);
-					pos = chars.CurrentPosition;
-					yield return new Token(LuaToken.Semicolon, String.Empty, pos, pos);
+					yield return chars.CreateTokenAtStart(LuaToken.Semicolon);
 				}
 			}
 			else // no code emitted --> create a return statement
 			{
-				var pos = chars.StartPosition;
-				yield return new Token(LuaToken.KwReturn, "return", pos, pos);
+				yield return chars.CreateTokenAtStart(LuaToken.KwReturn);
 				yield return chars.CreateToken(LuaToken.String);
-				yield return new Token(LuaToken.Semicolon, String.Empty, pos, pos);
+				yield return chars.CreateTokenAtStart(LuaToken.Semicolon);
 			}
 			yield return chars.CreateToken(LuaToken.Eof);
 		} // func CreateHtmlTokenStream
@@ -1622,10 +1635,56 @@ namespace Neo.IronLua
 			=> Char.IsLetterOrDigit(c) || c == '_';
 
 		/// <summary>Is the given identifier a keyword.</summary>
+		/// <param name="token"></param>
+		/// <returns></returns>
+		public static bool IsKeyWord(LuaToken token)
+		{
+			switch(token)
+			{
+				case LuaToken.KwAnd:
+				case LuaToken.KwBreak:
+				case LuaToken.KwCast:
+				case LuaToken.KwConst:
+				case LuaToken.KwDo:
+				case LuaToken.KwElse:
+				case LuaToken.KwElseif:
+				case LuaToken.KwEnd:
+				case LuaToken.KwFalse:
+				case LuaToken.KwFor:
+				case LuaToken.KwForEach:
+				case LuaToken.KwFunction:
+				case LuaToken.KwGoto:
+				case LuaToken.KwIf:
+				case LuaToken.KwIn:
+				case LuaToken.KwLocal:
+				case LuaToken.KwNil:
+				case LuaToken.KwNot:
+				case LuaToken.KwOr:
+				case LuaToken.KwRepeat:
+				case LuaToken.KwReturn:
+				case LuaToken.KwThen:
+				case LuaToken.KwTrue:
+				case LuaToken.KwUntil:
+				case LuaToken.KwWhile:
+					return true;
+				default:
+					return false;
+			}
+		} // func IsKeyWord
+
+		/// <summary>Is the given identifier a keyword.</summary>
 		/// <param name="member"></param>
 		/// <returns></returns>
 		public static bool IsKeyWord(string member)
 			=> Array.BinarySearch(keywords.Value, member) >= 0;
+
+		/// <summary></summary>
+		/// <param name="token"></param>
+		/// <returns></returns>
+		public static string GetDefaultTokenValue(LuaToken token)
+			=> IsKeyWord(token)
+				? GetTokenName(token)
+				: String.Empty; 
 
 		/// <summary>Resolves the name of the token.</summary>
 		/// <param name="type"></param>
@@ -1646,6 +1705,15 @@ namespace Neo.IronLua
 
 			return name;
 		} // func GetTokenName
+
+		/// <summary>Create a new token.</summary>
+		/// <param name="kind"></param>
+		/// <param name="value"></param>
+		/// <param name="startAt"></param>
+		/// <param name="endAt"></param>
+		/// <returns></returns>
+		public static Token CreateToken(LuaToken kind, string value, Position startAt, Position endAt)
+			=> new Token(kind, value ?? GetDefaultTokenValue(kind), startAt, endAt);
 	} // class LuaLexer
 
 	#endregion
