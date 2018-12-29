@@ -238,26 +238,47 @@ namespace Neo.IronLua
 				return CompileChunkCore(lex, options, args);
 		} // func CompileChunk
 
+		/// <summary>Create a code delegate without executing it.</summary>
+		/// <param name="code">Code of the delegate..</param>
+		/// <param name="options">Options for the compile process.</param>
+		/// <param name="args">Arguments for the code block.</param>
+		/// <returns>Compiled chunk.</returns>
+		public LuaChunk CompileChunk(ILuaLexer code, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
+		{
+			if (code == null)
+				throw new ArgumentNullException(nameof(code));
+			return CompileChunkCore(code, options, args);
+		} // func CompileChunk
+
 		/// <summary>Creates a code delegate or returns a single return constant.</summary>
 		/// <param name="code"></param>
 		/// <param name="options"></param>
 		/// <param name="args"></param>
 		/// <returns></returns>
-		public object CompileOrReturnConstant(ILuaLexer code, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
+		public object CompileOrReturnPrint(ILuaLexer code, LuaCompileOptions options, params KeyValuePair<string, Type>[] args)
 		{
-			code.Next(); // get first token
-
-			if (code.Current.Typ == LuaToken.KwReturn // is first token a return
-				&& (code.LookAhead.Typ == LuaToken.String || code.LookAhead.Typ == LuaToken.Number) // we expect a string or number
-				&& (code.LookAhead2.Typ == LuaToken.Semicolon || code.LookAhead2.Typ == LuaToken.Eof)) // eof
+			if (IsConstantScript(code)) // eof
 			{
 				return code.LookAhead.Typ == LuaToken.String
 					? code.LookAhead.Value
-					: RtParseNumber(code.LookAhead.Value, FloatType == LuaFloatType.Double);
+					: ParseNumber(code.LookAhead.Value);
 			}
 			else
 				return CompileChunkCore(code, options, args);
-		} // func CompileOrReturnConstant
+		} // func CompileOrReturnPrint
+
+		/// <summary>Test for single print expression.</summary>
+		/// <param name="code"></param>
+		/// <returns></returns>
+		public static bool IsConstantScript(ILuaLexer code)
+		{
+			if (code.Current == null)
+				code.Next();
+
+			return (code.Current.Typ == LuaToken.Identifier && code.Current.Value == "print") // is first token is print
+				&& (code.LookAhead.Typ == LuaToken.String || code.LookAhead.Typ == LuaToken.Number) // we expect a string or number
+				&& (code.LookAhead2.Typ == LuaToken.Eof);
+		} // func IsConstantScript
 
 		internal LuaChunk CompileChunkCore(ILuaLexer lex, LuaCompileOptions options, IEnumerable<KeyValuePair<string, Type>> args)
 		{
@@ -381,10 +402,10 @@ namespace Neo.IronLua
 
 		/// <summary>Parses a string to a lua number.</summary>
 		/// <param name="number">String representation of the number.</param>
-		/// <param name="iBase">Base fore the number</param>
+		/// <param name="toBase">Base fore the number</param>
 		/// <returns></returns>
-		public object ParseNumber(string number, int iBase)
-			=> RtParseNumber(null, number, 0, iBase, FloatType == LuaFloatType.Double, false);
+		public object ParseNumber(string number, int toBase)
+			=> RtParseNumber(null, number, 0, toBase, FloatType == LuaFloatType.Double, false);
 
 		internal int NumberType => numberType;
 

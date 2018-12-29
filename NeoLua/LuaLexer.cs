@@ -1602,9 +1602,8 @@ namespace Neo.IronLua
 			}
 			else // no code emitted --> create a return statement
 			{
-				yield return chars.CreateTokenAtStart(LuaToken.KwReturn);
+				yield return chars.CreateTokenAtStart(LuaToken.Identifier, "print");
 				yield return chars.CreateToken(LuaToken.String);
-				yield return chars.CreateTokenAtStart(LuaToken.Semicolon);
 			}
 			yield return chars.CreateToken(LuaToken.Eof);
 		} // func CreateHtmlTokenStream

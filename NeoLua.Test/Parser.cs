@@ -340,9 +340,8 @@ namespace LuaDLR.Test
 		public void ParsePlainTest()
 		{
 			HtmlTokenTest("<html> < a% >",
-				T(LuaToken.KwReturn, "return"),
-				T(LuaToken.String, "<html> < a% >"),
-				T(LuaToken.Semicolon, String.Empty)
+				T(LuaToken.Identifier, "print"),
+				T(LuaToken.String, "<html> < a% >")
 			);
 		}
 
