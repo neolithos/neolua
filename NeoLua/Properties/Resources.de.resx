@@ -240,6 +240,9 @@
   <data name="rsParseInvalidString" xml:space="preserve">
     <value>Zeilenumbruch in Zeichenfolge.</value>
   </data>
+  <data name="rsParseInvalidStringOpening" xml:space="preserve">
+    <value>Ungültige Long-String Eröffnung.</value>
+  </data>
   <data name="rsParseNoArgList" xml:space="preserve">
     <value>Keine Argumentenliste definiert.</value>
   </data>

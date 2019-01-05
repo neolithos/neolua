@@ -58,6 +58,8 @@ namespace Neo.IronLua
 		InvalidChar,
 		/// <summary>Invalid string</summary>
 		InvalidString,
+		/// <summary>Invalid string opening</summary>
+		InvalidStringOpening,
 		/// <summary>Invalid comment</summary>
 		InvalidComment,
 
@@ -984,7 +986,7 @@ namespace Neo.IronLua
 						if (c == '=' || c == '[')
 						{
 							state = 0;
-							return ReadTextBlock(chars, true);
+							return ReadTextBlock(chars, true) ?? chars.CreateToken(LuaToken.InvalidStringOpening);
 						}
 						else
 							return CreateToken(LuaToken.BracketSquareOpen);
@@ -1132,7 +1134,10 @@ namespace Neo.IronLua
 						if (c == '[')
 						{
 							NextChar(0);
-							return ReadTextBlock(chars, false);
+							var t = ReadTextBlock(chars, false);
+							if (t != null)
+								return t;
+							goto case 52;
 						}
 						else if (c == '\n')
 							return CreateToken(LuaToken.Comment);
@@ -1354,7 +1359,7 @@ namespace Neo.IronLua
 			if (chars.Cur != '[')
 			{
 				chars.Next();
-				return chars.CreateToken(stringMode ? LuaToken.InvalidString : LuaToken.InvalidComment);
+				return null;
 			}
 			chars.Next();
 

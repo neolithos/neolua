@@ -10,7 +10,6 @@
 
 namespace Neo.IronLua.Properties {
     using System;
-    using System.Reflection;
     
     
     /// <summary>
@@ -40,7 +39,7 @@ namespace Neo.IronLua.Properties {
         internal static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("Neo.IronLua.Properties.Resources", typeof(Resources).GetTypeInfo().Assembly);
+                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("Neo.IronLua.Properties.Resources", typeof(Resources).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
@@ -427,6 +426,15 @@ namespace Neo.IronLua.Properties {
         internal static string rsParseInvalidString {
             get {
                 return ResourceManager.GetString("rsParseInvalidString", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Invalid long string delimiter..
+        /// </summary>
+        internal static string rsParseInvalidStringOpening {
+            get {
+                return ResourceManager.GetString("rsParseInvalidStringOpening", resourceCulture);
             }
         }
         

@@ -189,6 +189,8 @@ namespace LuaDLR.Test
 			);
 
 			LuaTokenTest("--[===[]==]]===]", T(LuaToken.Eof, String.Empty));
+			LuaTokenTest("--[0] = ", T(LuaToken.Eof, String.Empty));
+			LuaTokenTest("[== ", T(LuaToken.InvalidStringOpening, String.Empty));
 
 			LuaTokenTest("3", T(LuaToken.Number, "3"));
 			LuaTokenTest("3.0", T(LuaToken.Number, "3.0"));
@@ -264,6 +266,23 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
+		public void TestParserIssue92()
+		{
+			TestCode(Lines(
+				"styles = {",
+				"  ['SubStyle'] = {",
+				"    [0] = 'zoop',",
+				"    --[1] = 'removed',",
+				"  }",
+				"};",
+				"return styles.SubStyle[0];"),
+				"zoop"
+			);
+		}
+
+		#region -- Test Position ------------------------------------------------------
+
+		[TestMethod]
 		public void TestPosition01()
 		{
 			var t = Lines("return", "  break", "  'a'");
@@ -334,8 +353,10 @@ namespace LuaDLR.Test
 			}
 		}
 
+		#endregion
+
 		#region -- Html Lexer ---------------------------------------------------------
-		
+
 		[TestMethod]
 		public void ParsePlainTest()
 		{

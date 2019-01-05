@@ -853,12 +853,11 @@ namespace Neo.IronLua
 					ParseConst(scope, code);
 					return true;
 
-				case LuaToken.InvalidString:
-					throw ParseError(code.Current, Properties.Resources.rsParseInvalidString);
-				case LuaToken.InvalidComment:
-					throw ParseError(code.Current, Properties.Resources.rsParseInvalidComment);
 				case LuaToken.InvalidChar:
-					throw ParseError(code.Current, Properties.Resources.rsParseInvalidChar);
+				case LuaToken.InvalidComment:
+				case LuaToken.InvalidString:
+				case LuaToken.InvalidStringOpening:
+					throw ParseError(code);
 
 				default:
 					return false;
@@ -1208,6 +1207,12 @@ namespace Neo.IronLua
 					info = new PrefixMemberInfo(tStart, ParseLamdaDefinition(scope, code, "lambda", false, null), null, null, null);
 					break;
 
+				case LuaToken.InvalidChar:
+				case LuaToken.InvalidComment:
+				case LuaToken.InvalidString:
+				case LuaToken.InvalidStringOpening:
+					throw ParseError(code);
+
 				default:
 					throw ParseError(code.Current, Properties.Resources.rsParseUnexpectedTokenPrefix);
 			}
@@ -1489,8 +1494,10 @@ namespace Neo.IronLua
 		private static Expression ParseExpressionCon(Scope scope, ILuaLexer code, InvokeResult result, ref bool doWrap)
 		{
 			// exprCon::= exprShift { '..' exprShift }
-			var exprs = new List<Expression>();
-			exprs.Add(ParseExpressionShift(scope, code, result, ref doWrap));
+			var exprs = new List<Expression>
+			{
+				ParseExpressionShift(scope, code, result, ref doWrap)
+			};
 
 			while (code.Current.Typ == LuaToken.DotDot)
 			{
@@ -2432,11 +2439,28 @@ namespace Neo.IronLua
 			else if (isOptional)
 				return null;
 			else
-				throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, LuaLexer.GetTokenName(code.Current.Typ), LuaLexer.GetTokenName(typ)));
+				throw ParseError(code, String.Format(Properties.Resources.rsParseUnexpectedToken, LuaLexer.GetTokenName(code.Current.Typ), LuaLexer.GetTokenName(typ)));
 		} // proc FetchToken
 
 		public static LuaParseException ParseError(Token start, string message)
 			=> new LuaParseException(start.Start, message, null);
+		
+		private static Exception ParseError(ILuaLexer code, string message = null)
+		{
+			switch (code.Current.Typ)
+			{
+				case LuaToken.InvalidString:
+					return ParseError(code.Current, Properties.Resources.rsParseInvalidString);
+				case LuaToken.InvalidStringOpening:
+					return ParseError(code.Current, Properties.Resources.rsParseInvalidStringOpening);
+				case LuaToken.InvalidComment:
+					return ParseError(code.Current, Properties.Resources.rsParseInvalidComment);
+				case LuaToken.InvalidChar:
+					return ParseError(code.Current, Properties.Resources.rsParseInvalidChar);
+				default:
+					return ParseError(code.Current, message ?? "Invalid message.");
+			}
+		} // func ParseError
 
 		#endregion
 
