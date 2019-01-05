@@ -237,7 +237,7 @@ namespace LuaDLR.Test
 				TestResult(g.dochunk("return os.date('%x', 906000490)"), new DateTime(1998, 09, 17).ToString("d"));
 				TestResult(g.dochunk("return os.date('%d.%m.%Y')"), DateTime.Today.ToString("d"));
 				g.dochunk("t = os.date('*t');");
-				DateTime dt = DateTime.Now;
+				var dt = DateTime.Now;
 				TestResult(g.dochunk("return t.year"), dt.Year);
 				TestResult(g.dochunk("return t.month"), dt.Month);
 				TestResult(g.dochunk("return t.day"), dt.Day);
