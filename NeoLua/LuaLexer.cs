@@ -1031,6 +1031,7 @@ namespace Neo.IronLua
 						else if (c == '\\') { chars.AppendValue('\\'); NextChar(40); }
 						else if (c == '"') { chars.AppendValue('"'); NextChar(40); }
 						else if (c == '\'') { chars.AppendValue('\''); NextChar(40); }
+						else if (c == '\n') { chars.AppendValue("\n"); NextChar(40); }
 						else if (c == 'x')
 							NextChar(45);
 						else if (c == 'z')
@@ -1042,7 +1043,7 @@ namespace Neo.IronLua
 							NextChar(42);
 						}
 						else
-							EatChar(40);
+							return NextCharAndCreateToken(LuaToken.InvalidString);
 						break;
 					case 42:
 						if (c >= '0' && c <= '9')
@@ -1080,16 +1081,13 @@ namespace Neo.IronLua
 							byteChar = unchecked((byte)(c - 'a' + 10));
 							NextChar(46);
 						}
-						else if (c >= 'A' || c <= 'F')
+						else if (c >= 'A' && c <= 'F')
 						{
 							byteChar = unchecked((byte)(c - 'A' + 10));
 							NextChar(46);
 						}
 						else
-						{
-							chars.AppendValue('x');
-							goto case 40;
-						}
+							return NextCharAndCreateToken(LuaToken.InvalidString);
 						break;
 					case 46:
 						if (c >= '0' && c <= '9')
@@ -1104,17 +1102,14 @@ namespace Neo.IronLua
 							chars.AppendValue((char)byteChar);
 							NextChar(40);
 						}
-						else if (c >= 'A' || c <= 'F')
+						else if (c >= 'A' && c <= 'F')
 						{
 							byteChar = unchecked((byte)((byteChar << 4) + (c - 'A' + 10)));
 							chars.AppendValue((char)byteChar);
 							NextChar(40);
 						}
 						else
-						{
-							chars.AppendValue((char)byteChar);
-							goto case 40;
-						}
+							return NextCharAndCreateToken(LuaToken.InvalidString);
 						break;
 					case 48:
 						if (Char.IsWhiteSpace(c))

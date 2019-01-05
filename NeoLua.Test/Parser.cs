@@ -192,6 +192,14 @@ namespace LuaDLR.Test
 			LuaTokenTest("--[0] = ", T(LuaToken.Eof, String.Empty));
 			LuaTokenTest("[== ", T(LuaToken.InvalidStringOpening, String.Empty));
 
+			LuaTokenTest("'a\n", T(LuaToken.InvalidString, "a"));
+			LuaTokenTest("'a\\\na'", T(LuaToken.String, "a\na"));
+			LuaTokenTest(@"'a\g", T(LuaToken.InvalidString, "a"));
+			LuaTokenTest(@"'a\x", T(LuaToken.InvalidString, "a"));
+			LuaTokenTest(@"'a\xar", T(LuaToken.InvalidString, "a"));
+			LuaTokenTest(@"'a\xa'", T(LuaToken.InvalidString, "a"));
+			LuaTokenTest(@"'a\xaar'", T(LuaToken.String, "a\xaar"));
+
 			LuaTokenTest("3", T(LuaToken.Number, "3"));
 			LuaTokenTest("3.0", T(LuaToken.Number, "3.0"));
 			LuaTokenTest("3.1416", T(LuaToken.Number, "3.1416"));
