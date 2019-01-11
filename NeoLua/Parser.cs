@@ -432,7 +432,7 @@ namespace Neo.IronLua
 					throw new InvalidOperationException("internal: no manipulation after CallInfo creation.");
 
 				if (names.Count > 0)
-					throw ParseError(position, Properties.Resources.rsParseInvalidArgList);
+					throw LuaLexer.ParseError(position, Properties.Resources.rsParseInvalidArgList);
 
 				arguments.Add(expr);
 			} // proc AddArgument
@@ -490,7 +490,7 @@ namespace Neo.IronLua
 					expr = Expression.Assign(Instance, ConvertExpression(scope.Runtime, Position, exprToSet, Instance.Type));
 				}
 				else
-					throw ParseError(Position, Properties.Resources.rsParseExpressionNotAssignable);
+					throw LuaLexer.ParseError(Position, Properties.Resources.rsParseExpressionNotAssignable);
 
 				return expr;
 			} // func GenerateSet
@@ -541,7 +541,7 @@ namespace Neo.IronLua
 					Arguments = null;
 				}
 				else
-					throw ParseError(Position, Properties.Resources.rsParseExpressionNoResult);
+					throw LuaLexer.ParseError(Position, Properties.Resources.rsParseExpressionNoResult);
 
 				return Instance;
 			} // func GenerateGet
@@ -609,7 +609,7 @@ namespace Neo.IronLua
 			ParseBlock(globalScope, code);
 
 			if (code.Current.Typ != LuaToken.Eof)
-				throw ParseError(code.Current, Properties.Resources.rsParseEof);
+				throw LuaLexer.ParseError(code.Current, Properties.Resources.rsParseEof);
 
 			// Create the function
 			return typeDelegate == null ?
@@ -885,7 +885,7 @@ namespace Neo.IronLua
 						registerLocals.Add(exprVar);
 					}
 					else if (exprVar.Type != typeVar)
-						throw ParseError(tVar, Properties.Resources.rsParseTypeRedef);
+						throw LuaLexer.ParseError(tVar, Properties.Resources.rsParseTypeRedef);
 
 					prefixes.Add(new PrefixMemberInfo(tVar, exprVar, null, null, null));
 				}
@@ -996,7 +996,7 @@ namespace Neo.IronLua
 				for (var i = 0; i < prefixes.Count; i++)
 				{
 					if (prefixes[i].Arguments == null) // do not execute getMember
-						throw ParseError(prefixes[i].Position, Properties.Resources.rsParseAssignmentExpected);
+						throw LuaLexer.ParseError(prefixes[i].Position, Properties.Resources.rsParseAssignmentExpected);
 
 					scope.AddExpression(prefixes[i].GenerateGet(scope, InvokeResult.None));
 				}
@@ -1021,9 +1021,9 @@ namespace Neo.IronLua
 		private static void ParseIfStatement(Scope scope, ILuaLexer code)
 		{
 			// if expr then block { elseif expr then block } [ else block ] end
-			FetchToken(LuaToken.KwIf, code);
+			LuaLexer.FetchToken(LuaToken.KwIf, code);
 			var expr = ConvertExpression(scope.Runtime, code.Current, ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug), typeof(bool));
-			FetchToken(LuaToken.KwThen, code);
+			LuaLexer.FetchToken(LuaToken.KwThen, code);
 
 			scope.AddExpression(Expression.IfThenElse(expr, ParseIfElseBlock(scope, code), ParseElseStatement(scope, code)));
 		} // proc ParseIfStatement
@@ -1034,7 +1034,7 @@ namespace Neo.IronLua
 			{
 				code.Next();
 				var expr = ConvertExpression(scope.Runtime, code.Current, ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug), typeof(bool));
-				FetchToken(LuaToken.KwThen, code);
+				LuaLexer.FetchToken(LuaToken.KwThen, code);
 
 				return Expression.IfThenElse(expr, ParseIfElseBlock(scope, code), ParseElseStatement(scope, code));
 			}
@@ -1042,7 +1042,7 @@ namespace Neo.IronLua
 			{
 				code.Next();
 				var block = ParseIfElseBlock(scope, code);
-				FetchToken(LuaToken.KwEnd, code);
+				LuaLexer.FetchToken(LuaToken.KwEnd, code);
 				return block;
 			}
 			else if (code.Current.Typ == LuaToken.KwEnd)
@@ -1051,7 +1051,7 @@ namespace Neo.IronLua
 				return Expression.Empty();
 			}
 			else
-				throw ParseError(code.Current, Properties.Resources.rsParseUnexpectedTokenElse);
+				throw LuaLexer.ParseError(code.Current, Properties.Resources.rsParseUnexpectedTokenElse);
 		} // func ParseElseStatement
 
 		private static Expression ParseIfElseBlock(Scope parent, ILuaLexer code)
@@ -1075,7 +1075,7 @@ namespace Neo.IronLua
 			}
 			else
 			{
-				FetchToken(LuaToken.Assign, code);
+				LuaLexer.FetchToken(LuaToken.Assign, code);
 
 				var exprConst = ParseExpression(scope, code, InvokeResult.Object, false); // No Debug-Emits
 				if (typeVar != typeof(object))
@@ -1083,7 +1083,7 @@ namespace Neo.IronLua
 
 				// Try to eval the statement
 				if (exprConst.Type == typeof(object) || exprConst.Type == typeof(LuaResult)) // dynamic calls, no constant possible
-					throw ParseError(tVarName, Properties.Resources.rsConstExpressionNeeded);
+					throw LuaLexer.ParseError(tVarName, Properties.Resources.rsConstExpressionNeeded);
 				else
 				{
 					try
@@ -1100,7 +1100,7 @@ namespace Neo.IronLua
 					}
 					catch (Exception e)
 					{
-						throw ParseError(tVarName, String.Format(Properties.Resources.rsConstExpressionEvalError, e.Message));
+						throw LuaLexer.ParseError(tVarName, String.Format(Properties.Resources.rsConstExpressionEvalError, e.Message));
 					}
 				}
 			}
@@ -1134,7 +1134,7 @@ namespace Neo.IronLua
 					{
 						code.Next();
 						var expr = ConvertObjectExpression(scope.Runtime, tStart, ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug));
-						FetchToken(LuaToken.BracketClose, code);
+						LuaLexer.FetchToken(LuaToken.BracketClose, code);
 
 						info = new PrefixMemberInfo(tStart, expr, null, null, null);
 					}
@@ -1162,7 +1162,7 @@ namespace Neo.IronLua
 							memberName = t.Value;
 						var p = scope.LookupExpression(memberName);
 						if (t.Typ == LuaToken.DotDotDot && p == null)
-							throw ParseError(t, Properties.Resources.rsParseNoArgList);
+							throw LuaLexer.ParseError(t, Properties.Resources.rsParseNoArgList);
 						code.Next();
 						if (p == null) // No local variable found
 							info = new PrefixMemberInfo(tStart, scope.LookupExpression(csEnv), t.Value, null, null);
@@ -1176,11 +1176,11 @@ namespace Neo.IronLua
 					break;
 
 				case LuaToken.String: // Literal String
-					info = new PrefixMemberInfo(tStart, Expression.Constant(FetchToken(LuaToken.String, code).Value, typeof(string)), null, null, null);
+					info = new PrefixMemberInfo(tStart, Expression.Constant(LuaLexer.FetchToken(LuaToken.String, code).Value, typeof(string)), null, null, null);
 					break;
 
 				case LuaToken.Number: // Literal Zahl
-					info = new PrefixMemberInfo(tStart, ParseNumber(scope.Runtime, FetchToken(LuaToken.Number, code)), null, null, null);
+					info = new PrefixMemberInfo(tStart, ParseNumber(scope.Runtime, LuaLexer.FetchToken(LuaToken.Number, code)), null, null, null);
 					break;
 
 				case LuaToken.KwTrue: // Literal TRUE
@@ -1214,7 +1214,7 @@ namespace Neo.IronLua
 					throw ParseError(code);
 
 				default:
-					throw ParseError(code.Current, Properties.Resources.rsParseUnexpectedTokenPrefix);
+					throw LuaLexer.ParseError(code.Current, Properties.Resources.rsParseUnexpectedTokenPrefix);
 			}
 
 			return ParseSuffix(scope, code, info);
@@ -1237,13 +1237,13 @@ namespace Neo.IronLua
 							info.Indices = new Expression[0];
 						else
 							info.Indices = ParseExpressionList(scope, code).ToArray();
-						FetchToken(LuaToken.BracketSquareClose, code);
+						LuaLexer.FetchToken(LuaToken.BracketSquareClose, code);
 						break;
 
 					case LuaToken.Dot: // Property of an class
 						code.Next();
 						info.GenerateGet(scope, InvokeResult.Object);
-						info.SetMember(FetchToken(LuaToken.Identifier, code), false);
+						info.SetMember(LuaLexer.FetchToken(LuaToken.Identifier, code), false);
 						break;
 
 					case LuaToken.BracketOpen: // List of arguments
@@ -1258,7 +1258,7 @@ namespace Neo.IronLua
 
 					case LuaToken.String: // String as an argument
 						info.GenerateGet(scope, InvokeResult.Object);
-						info.Arguments = new ArgumentsList(Expression.Constant(FetchToken(LuaToken.String, code).Value, typeof(object)));
+						info.Arguments = new ArgumentsList(Expression.Constant(LuaLexer.FetchToken(LuaToken.String, code).Value, typeof(object)));
 						break;
 
 					case LuaToken.Colon: // Methodenaufruf
@@ -1266,7 +1266,7 @@ namespace Neo.IronLua
 
 						// Lese den Namen um den Member zu belegen
 						info.GenerateGet(scope, InvokeResult.Object);
-						info.SetMember(FetchToken(LuaToken.Identifier, code), true);
+						info.SetMember(LuaLexer.FetchToken(LuaToken.Identifier, code), true);
 
 						// Parse die Parameter
 						switch (code.Current.Typ)
@@ -1280,7 +1280,7 @@ namespace Neo.IronLua
 								break;
 
 							case LuaToken.String: // String als Argument
-								info.Arguments = new ArgumentsList(Expression.Constant(FetchToken(LuaToken.String, code).Value, typeof(string)));
+								info.Arguments = new ArgumentsList(Expression.Constant(LuaLexer.FetchToken(LuaToken.String, code).Value, typeof(string)));
 								break;
 						}
 						break;
@@ -1293,7 +1293,7 @@ namespace Neo.IronLua
 
 		private static ArgumentsList ParseArgumentList(Scope scope, ILuaLexer code)
 		{
-			FetchToken(LuaToken.BracketOpen, code);
+			LuaLexer.FetchToken(LuaToken.BracketOpen, code);
 
 			// exprArgumentList := '(' [ exprArg { , exprArg } ] ')'
 			var argumentsList = new ArgumentsList();
@@ -1302,7 +1302,7 @@ namespace Neo.IronLua
 				Token tName = null;
 				if (code.LookAhead.Typ == LuaToken.Assign) // named argument
 				{
-					tName = FetchToken(LuaToken.Identifier, code);
+					tName = LuaLexer.FetchToken(LuaToken.Identifier, code);
 					code.Next(); // equal
 				}
 
@@ -1316,7 +1316,7 @@ namespace Neo.IronLua
 					argumentsList.AddNamedArgument(tName, expr);
 
 				// optinal comma
-				FetchToken(LuaToken.Comma, code, true);
+				LuaLexer.FetchToken(LuaToken.Comma, code, true);
 			}
 			code.Next();
 			return argumentsList;
@@ -1337,7 +1337,7 @@ namespace Neo.IronLua
 				if (v != null)
 					return Expression.Constant(v);
 				else
-					throw ParseError(t, String.Format(Properties.Resources.rsParseConvertNumberError, number));
+					throw LuaLexer.ParseError(t, String.Format(Properties.Resources.rsParseConvertNumberError, number));
 			}
 		} // func ParseNumber
 
@@ -1653,16 +1653,16 @@ namespace Neo.IronLua
 			var t = code.Current;
 			code.Next();
 
-			FetchToken(LuaToken.BracketOpen, code);
+			LuaLexer.FetchToken(LuaToken.BracketOpen, code);
 
 			// Read the type
 			luaType = ParseType(scope, code, true);
-			FetchToken(LuaToken.Comma, code);
+			LuaLexer.FetchToken(LuaToken.Comma, code);
 
 			var doWrap = scope.EmitExpressionDebug;
 			var expr = ParseExpression(scope, code, InvokeResult.Object, ref doWrap);
 
-			FetchToken(LuaToken.BracketClose, code);
+			LuaLexer.FetchToken(LuaToken.BracketClose, code);
 
 			return ConvertExpression(scope.Runtime, t, expr, luaType);
 		} // func ParsePrefixCast
@@ -1670,7 +1670,7 @@ namespace Neo.IronLua
 		private static void ParseIdentifierAndType(Scope scope, ILuaLexer code, out Token tokenName, out Type type)
 		{
 			// var ::= name ':' type
-			tokenName = FetchToken(LuaToken.Identifier, code);
+			tokenName = LuaLexer.FetchToken(LuaToken.Identifier, code);
 			if (code.Current.Typ == LuaToken.Colon)
 			{
 				code.Next();
@@ -1702,12 +1702,12 @@ namespace Neo.IronLua
 							genericeTypes.Add(ParseType(scope, code, needType));
 						}
 					}
-					FetchToken(LuaToken.BracketSquareClose, code);
+					LuaLexer.FetchToken(LuaToken.BracketSquareClose, code);
 
 					if (genericeTypes.Count == 0) // create a array at the end
 					{
 						if (currentType.Type == null)
-							throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
+							throw LuaLexer.ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
 
 						currentType = LuaType.GetType(currentType.AddType("[]", false, 1));
 					}
@@ -1719,26 +1719,26 @@ namespace Neo.IronLua
 						}
 						catch (ArgumentException e)
 						{
-							throw ParseError(code.Current, e.Message);
+							throw LuaLexer.ParseError(code.Current, e.Message);
 						}
 					}
 				}
 				else
 				{
 					code.Next();
-					currentType = LuaType.GetType(currentType.AddType(FetchToken(LuaToken.Identifier, code).Value, false, null));
+					currentType = LuaType.GetType(currentType.AddType(LuaLexer.FetchToken(LuaToken.Identifier, code).Value, false, null));
 				}
 			}
 
 			if (needType && currentType.Type == null)
-				throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
+				throw LuaLexer.ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
 
 			return currentType;
 		} // func ParseType
 
 		private static LuaType ParseFirstType(Scope scope, ILuaLexer code)
 		{
-			var typeName = FetchToken(LuaToken.Identifier, code).Value;
+			var typeName = LuaLexer.FetchToken(LuaToken.Identifier, code).Value;
 			var luaType = LuaType.GetCachedType(typeName);
 			if (luaType == null)
 			{
@@ -1757,21 +1757,21 @@ namespace Neo.IronLua
 		private static void ParseGoto(Scope scope, ILuaLexer code)
 		{
 			// goto Identifier
-			FetchToken(LuaToken.KwGoto, code);
+			LuaLexer.FetchToken(LuaToken.KwGoto, code);
 
-			var t = FetchToken(LuaToken.Identifier, code);
+			var t = LuaLexer.FetchToken(LuaToken.Identifier, code);
 			scope.AddExpression(Expression.Goto(scope.LookupLabel(null, t.Value)));
 		} // proc ParseGoto
 
 		private static void ParseLabel(Scope scope, ILuaLexer code)
 		{
 			// ::identifier::
-			FetchToken(LuaToken.ColonColon, code);
+			LuaLexer.FetchToken(LuaToken.ColonColon, code);
 
 			// Erzeuge das Label
-			scope.AddExpression(Expression.Label(scope.LookupLabel(null, FetchToken(LuaToken.Identifier, code).Value)));
+			scope.AddExpression(Expression.Label(scope.LookupLabel(null, LuaLexer.FetchToken(LuaToken.Identifier, code).Value)));
 
-			FetchToken(LuaToken.ColonColon, code);
+			LuaLexer.FetchToken(LuaToken.ColonColon, code);
 		} // proc ParseLabel
 
 		#endregion
@@ -1788,7 +1788,7 @@ namespace Neo.IronLua
 			var exprDispose = (Expression[])null;
 
 			// fetch do
-			FetchToken(LuaToken.KwDo, code);
+			LuaLexer.FetchToken(LuaToken.KwDo, code);
 			if (code.Current.Typ == LuaToken.BracketOpen) // look for disposable variables
 			{
 				code.Next();
@@ -1802,7 +1802,7 @@ namespace Neo.IronLua
 						Expression.Call(Expression.Convert(c, typeof(IDisposable)), Lua.DisposeDisposeMethodInfo)
 					)).ToArray();
 
-				FetchToken(LuaToken.BracketClose, code);
+				LuaLexer.FetchToken(LuaToken.BracketClose, code);
 			}
 
 			var loopScope = new LoopScope(outerScope);
@@ -1814,7 +1814,7 @@ namespace Neo.IronLua
 			// create the break label
 			loopScope.AddExpression(Expression.Label(loopScope.BreakLabel));
 
-			FetchToken(LuaToken.KwEnd, code);
+			LuaLexer.FetchToken(LuaToken.KwEnd, code);
 
 			// check for catch blocks
 			var exprFinallyBlock = (Expression)null;
@@ -1825,12 +1825,12 @@ namespace Neo.IronLua
 
 				while (code.Current.Typ != LuaToken.BracketClose)
 				{
-					FetchToken(LuaToken.KwFunction, code);
+					LuaLexer.FetchToken(LuaToken.KwFunction, code);
 					if (code.Current.Typ == LuaToken.BracketOpen)
 					{
 						code.Next();
 
-						var exceptionName = FetchToken(LuaToken.Identifier, code);
+						var exceptionName = LuaLexer.FetchToken(LuaToken.Identifier, code);
 						Type exceptionType;
 
 						if (code.Current.Typ == LuaToken.Colon)
@@ -1840,12 +1840,12 @@ namespace Neo.IronLua
 							// check if the type is inherited from Exception
 							exceptionType = ParseType(scope, code, true).Type;
 							if (!typeof(Exception).GetTypeInfo().IsAssignableFrom(exceptionType.GetTypeInfo()))
-								throw ParseError(code.Current, String.Format(Properties.Resources.rsParseCatchVarTypeMustAssignableToException, exceptionType.FullName));
+								throw LuaLexer.ParseError(code.Current, String.Format(Properties.Resources.rsParseCatchVarTypeMustAssignableToException, exceptionType.FullName));
 						}
 						else
 							exceptionType = typeof(Exception);
 
-						FetchToken(LuaToken.BracketClose, code);
+						LuaLexer.FetchToken(LuaToken.BracketClose, code);
 
 						var exceptionScope = new CatchScope(outerScope, Expression.Parameter(exceptionType, exceptionName.Value));
 						ParseBlock(exceptionScope, code, true);
@@ -1860,11 +1860,11 @@ namespace Neo.IronLua
 						exprFinallyBlock = finallyScope.ExpressionBlock;
 					}
 
-					FetchToken(LuaToken.KwEnd, code);
-					FetchToken(LuaToken.Comma, code, true);
+					LuaLexer.FetchToken(LuaToken.KwEnd, code);
+					LuaLexer.FetchToken(LuaToken.Comma, code, true);
 				}
 
-				FetchToken(LuaToken.BracketClose, code);
+				LuaLexer.FetchToken(LuaToken.BracketClose, code);
 			}
 
 			// build finally block
@@ -1898,7 +1898,7 @@ namespace Neo.IronLua
 			var loopScope = new LoopScope(scope);
 
 			// get the expression
-			FetchToken(LuaToken.KwWhile, code);
+			LuaLexer.FetchToken(LuaToken.KwWhile, code);
 
 			loopScope.AddExpression(Expression.Label(loopScope.ContinueLabel));
 			loopScope.AddExpression(
@@ -1910,9 +1910,9 @@ namespace Neo.IronLua
 			);
 
 			// append the block
-			FetchToken(LuaToken.KwDo, code);
+			LuaLexer.FetchToken(LuaToken.KwDo, code);
 			ParseBlock(loopScope, code);
-			FetchToken(LuaToken.KwEnd, code);
+			LuaLexer.FetchToken(LuaToken.KwEnd, code);
 
 			// goto continue
 			loopScope.AddExpression(Expression.Goto(loopScope.ContinueLabel));
@@ -1929,11 +1929,11 @@ namespace Neo.IronLua
 			loopScope.AddExpression(Expression.Label(loopScope.ContinueLabel));
 
 			// loop content
-			FetchToken(LuaToken.KwRepeat, code);
+			LuaLexer.FetchToken(LuaToken.KwRepeat, code);
 			ParseBlock(loopScope, code);
 
 			// get the loop expression
-			FetchToken(LuaToken.KwUntil, code);
+			LuaLexer.FetchToken(LuaToken.KwUntil, code);
 			loopScope.AddExpression(
 				Expression.IfThenElse(
 					ConvertExpression(scope.Runtime, code.Current, ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug), typeof(bool)),
@@ -1950,14 +1950,14 @@ namespace Neo.IronLua
 		private static void ParseForLoop(Scope scope, ILuaLexer code)
 		{
 			// for name
-			FetchToken(LuaToken.KwFor, code);
+			LuaLexer.FetchToken(LuaToken.KwFor, code);
 			ParseIdentifierAndType(scope, code, out var tLoopVar, out var typeLoopVar);
 			if (code.Current.Typ == LuaToken.Assign)
 			{
 				// = exp, exp [, exp] do block end
-				FetchToken(LuaToken.Assign, code);
+				LuaLexer.FetchToken(LuaToken.Assign, code);
 				var loopStart = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
-				FetchToken(LuaToken.Comma, code);
+				LuaLexer.FetchToken(LuaToken.Comma, code);
 				var loopEnd = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
 				Expression loopStep;
 				if (code.Current.Typ == LuaToken.Comma)
@@ -1971,9 +1971,9 @@ namespace Neo.IronLua
 				var loopScope = new LoopScope(scope);
 				var loopVarParameter = loopScope.RegisterVariable(typeLoopVar == typeof(object) ? LuaEmit.LiftType(LuaEmit.LiftType(loopStart.Type, loopEnd.Type), loopStep.Type) : typeLoopVar, tLoopVar.Value);
 
-				FetchToken(LuaToken.KwDo, code);
+				LuaLexer.FetchToken(LuaToken.KwDo, code);
 				ParseBlock(loopScope, code);
-				FetchToken(LuaToken.KwEnd, code);
+				LuaLexer.FetchToken(LuaToken.KwEnd, code);
 				scope.AddExpression(GenerateForLoop(loopScope, tLoopVar, loopVarParameter, loopStart, loopEnd, loopStep));
 			}
 			else
@@ -1994,13 +1994,13 @@ namespace Neo.IronLua
 				}
 
 				// get the loop expressions
-				FetchToken(LuaToken.KwIn, code);
+				LuaLexer.FetchToken(LuaToken.KwIn, code);
 				var explist = ParseExpressionList(scope, code).ToArray();
 
 				// parse the loop body
-				FetchToken(LuaToken.KwDo, code);
+				LuaLexer.FetchToken(LuaToken.KwDo, code);
 				ParseBlock(loopScope, code);
-				FetchToken(LuaToken.KwEnd, code);
+				LuaLexer.FetchToken(LuaToken.KwEnd, code);
 
 				scope.AddExpression(GenerateForLoop(loopScope, tLoopVar, loopVars, explist));
 			}
@@ -2021,13 +2021,13 @@ namespace Neo.IronLua
 			var loopVar = loopScope.RegisterVariable(typeLoopVar, tLoopVar.Value);
 
 			// get the enumerable expression
-			FetchToken(LuaToken.KwIn, code);
+			LuaLexer.FetchToken(LuaToken.KwIn, code);
 			var exprEnum = Lua.EnsureType(ParseExpression(scope, code, InvokeResult.None, scope.EmitExpressionDebug), typeof(object));
 
 			// parse the loop body
-			FetchToken(LuaToken.KwDo, code);
+			LuaLexer.FetchToken(LuaToken.KwDo, code);
 			ParseBlock(loopScope, code);
-			FetchToken(LuaToken.KwEnd, code);
+			LuaLexer.FetchToken(LuaToken.KwEnd, code);
 
 			loopScope.InsertExpression(0, Expression.Assign(loopVar, ConvertExpression(scope.Runtime, tLoopVar, Expression.Property(varEnumerator, Lua.EnumeratorCurrentPropertyInfo), loopVar.Type)));
 			scope.AddExpression(
@@ -2155,13 +2155,13 @@ namespace Neo.IronLua
 
 		private static void ParseBreak(Scope scope, ILuaLexer code)
 		{
-			FetchToken(LuaToken.KwBreak, code);
+			LuaLexer.FetchToken(LuaToken.KwBreak, code);
 
 			// Erzeuge die Expression
 			scope.AddExpression(Expression.Goto(scope.LookupLabel(null, csBreakLabel)));
 
 			// Optionales Semicolon
-			FetchToken(LuaToken.Semicolon, code, true);
+			LuaLexer.FetchToken(LuaToken.Semicolon, code, true);
 		} // func ParseBreak
 
 		#endregion
@@ -2170,11 +2170,11 @@ namespace Neo.IronLua
 
 		private static void ParseFunction(Scope scope, ILuaLexer code, bool isLocal)
 		{
-			FetchToken(LuaToken.KwFunction, code);
+			LuaLexer.FetchToken(LuaToken.KwFunction, code);
 
 			if (isLocal) // Local function, only one identifier is allowed
 			{
-				var t = FetchToken(LuaToken.Identifier, code);
+				var t = LuaLexer.FetchToken(LuaToken.Identifier, code);
 				ParameterExpression funcVar = null;
 				var exprFunction = ParseLamdaDefinition(scope, code, t.Value, false,
 					typeDelegate => funcVar = scope.RegisterVariable(typeDelegate, t.Value)
@@ -2184,7 +2184,7 @@ namespace Neo.IronLua
 			else // Function that is assigned to a table. A chain of identifiers is allowed.
 			{
 				Expression assignee = null;
-				var tCurrent = FetchToken(LuaToken.Identifier, code);
+				var tCurrent = LuaLexer.FetchToken(LuaToken.Identifier, code);
 				var memberName = tCurrent.Value;
 
 				// Collect the chain of members
@@ -2194,7 +2194,7 @@ namespace Neo.IronLua
 
 					// Create the get-member for the current assignee
 					assignee = ParseFunctionAddChain(scope, tCurrent, assignee, memberName);
-					memberName = FetchToken(LuaToken.Identifier, code).Value;
+					memberName = LuaLexer.FetchToken(LuaToken.Identifier, code).Value;
 				}
 				// add a method to the table. methods get a hidden parameter and will bo marked
 				bool lMethodMember;
@@ -2205,7 +2205,7 @@ namespace Neo.IronLua
 					// add the last member to the assignee chain
 					assignee = ParseFunctionAddChain(scope, tCurrent, assignee, memberName);
 					// fetch the method name
-					memberName = FetchToken(LuaToken.Identifier, code).Value;
+					memberName = LuaLexer.FetchToken(LuaToken.Identifier, code).Value;
 					lMethodMember = true;
 				}
 				else
@@ -2241,7 +2241,7 @@ namespace Neo.IronLua
 			var scope = new LambdaScope(parent);
 
 			// Lese die Parameterliste ein
-			FetchToken(LuaToken.BracketOpen, code);
+			LuaLexer.FetchToken(LuaToken.BracketOpen, code);
 			if (hasSelfParameter)
 				parameters.Add(scope.RegisterParameter(typeof(object), "self"));
 
@@ -2274,7 +2274,7 @@ namespace Neo.IronLua
 					}
 				}
 			}
-			FetchToken(LuaToken.BracketClose, code);
+			LuaLexer.FetchToken(LuaToken.BracketClose, code);
 
 			// Is there a specific result 
 			if (code.Current.Typ == LuaToken.Colon)
@@ -2299,7 +2299,7 @@ namespace Neo.IronLua
 			// Lese den Code-Block
 			ParseBlock(scope, code);
 
-			FetchToken(LuaToken.KwEnd, code);
+			LuaLexer.FetchToken(LuaToken.KwEnd, code);
 			return Expression.Lambda(
 				scope.ExpressionBlock,
 				(parent.EmitDebug & LuaDebugLevel.RegisterMethods) == LuaDebugLevel.RegisterMethods ? Lua.RegisterUniqueName(name) : name,
@@ -2322,7 +2322,7 @@ namespace Neo.IronLua
 		{
 			// table ::= '{' [field] { fieldsep field } [fieldsep] '}'
 			// fieldsep ::= ',' | ';'
-			FetchToken(LuaToken.BracketCurlyOpen, code);
+			LuaLexer.FetchToken(LuaToken.BracketCurlyOpen, code);
 
 			if (code.Current.Typ != LuaToken.BracketCurlyClose)
 			{
@@ -2353,13 +2353,13 @@ namespace Neo.IronLua
 				scopeTable.ExpressionBlockType = typeof(LuaTable);
 
 				// Closing bracket
-				FetchToken(LuaToken.BracketCurlyClose, code);
+				LuaLexer.FetchToken(LuaToken.BracketCurlyClose, code);
 
 				return scopeTable.ExpressionBlock;
 			}
 			else
 			{
-				FetchToken(LuaToken.BracketCurlyClose, code);
+				LuaLexer.FetchToken(LuaToken.BracketCurlyClose, code);
 				return CreateEmptyTableExpression();
 			}
 		} // func ParseTableConstructor
@@ -2372,8 +2372,8 @@ namespace Neo.IronLua
 				// Parse the index
 				code.Next();
 				var index = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
-				FetchToken(LuaToken.BracketSquareClose, code);
-				FetchToken(LuaToken.Assign, code);
+				LuaLexer.FetchToken(LuaToken.BracketSquareClose, code);
+				LuaLexer.FetchToken(LuaToken.Assign, code);
 
 				// Expression that results in a value
 				scope.AddExpression(
@@ -2387,7 +2387,7 @@ namespace Neo.IronLua
 				// Read the identifier
 				var tokenMember = code.Current;
 				code.Next();
-				FetchToken(LuaToken.Assign, code);
+				LuaLexer.FetchToken(LuaToken.Assign, code);
 
 				// Expression
 				scope.AddExpression(
@@ -2427,38 +2427,21 @@ namespace Neo.IronLua
 		#endregion
 
 		#region -- FetchToken, ParseError ---------------------------------------------
-
-		public static Token FetchToken(LuaToken typ, ILuaLexer code, bool isOptional = false)
-		{
-			if (code.Current.Typ == typ)
-			{
-				var t = code.Current;
-				code.Next();
-				return t;
-			}
-			else if (isOptional)
-				return null;
-			else
-				throw ParseError(code, String.Format(Properties.Resources.rsParseUnexpectedToken, LuaLexer.GetTokenName(code.Current.Typ), LuaLexer.GetTokenName(typ)));
-		} // proc FetchToken
-
-		public static LuaParseException ParseError(Token start, string message)
-			=> new LuaParseException(start.Start, message, null);
 		
 		private static Exception ParseError(ILuaLexer code, string message = null)
 		{
 			switch (code.Current.Typ)
 			{
 				case LuaToken.InvalidString:
-					return ParseError(code.Current, Properties.Resources.rsParseInvalidString);
+					return LuaLexer.ParseError(code.Current, Properties.Resources.rsParseInvalidString);
 				case LuaToken.InvalidStringOpening:
-					return ParseError(code.Current, Properties.Resources.rsParseInvalidStringOpening);
+					return LuaLexer.ParseError(code.Current, Properties.Resources.rsParseInvalidStringOpening);
 				case LuaToken.InvalidComment:
-					return ParseError(code.Current, Properties.Resources.rsParseInvalidComment);
+					return LuaLexer.ParseError(code.Current, Properties.Resources.rsParseInvalidComment);
 				case LuaToken.InvalidChar:
-					return ParseError(code.Current, Properties.Resources.rsParseInvalidChar);
+					return LuaLexer.ParseError(code.Current, Properties.Resources.rsParseInvalidChar);
 				default:
-					return ParseError(code.Current, message ?? "Invalid message.");
+					return LuaLexer.ParseError(code.Current, message ?? "Invalid message.");
 			}
 		} // func ParseError
 

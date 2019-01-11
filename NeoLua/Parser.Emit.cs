@@ -96,7 +96,7 @@ namespace Neo.IronLua
 			}
 			catch (LuaEmitException e)
 			{
-				throw ParseError(tokenStart, e.Message);
+				throw LuaLexer.ParseError(tokenStart, e.Message);
 			}
 		} // func SafeExpression
 
@@ -121,7 +121,7 @@ namespace Neo.IronLua
 			if (LuaEmit.TryConvert(expr, expr.Type, toType, runtime.GetConvertBinder, out var result))
 				return (Expression)result;
 			else
-				throw ParseError(tokenStart, ((LuaEmitException)result).Message);
+				throw LuaLexer.ParseError(tokenStart, ((LuaEmitException)result).Message);
 		} // func ConvertExpression
 
 		private static Expression GetResultExpression(Lua runtime, Token tStart, Expression expr, int iIndex)
@@ -173,9 +173,9 @@ namespace Neo.IronLua
 				switch (LuaEmit.TryGetMember(instance, instance.Type, memberName, false, out result))
 				{
 					case LuaTryGetMemberReturn.None:
-						throw ParseError(tokenStart, LuaEmitException.GetMessageText(LuaEmitException.MemberNotFound, instance.Type.Name, memberName));
+						throw LuaLexer.ParseError(tokenStart, LuaEmitException.GetMessageText(LuaEmitException.MemberNotFound, instance.Type.Name, memberName));
 					case LuaTryGetMemberReturn.NotReadable:
-						throw ParseError(tokenStart, LuaEmitException.GetMessageText(LuaEmitException.CanNotReadMember, instance.Type.Name, memberName));
+						throw LuaLexer.ParseError(tokenStart, LuaEmitException.GetMessageText(LuaEmitException.CanNotReadMember, instance.Type.Name, memberName));
 					case LuaTryGetMemberReturn.ValidExpression:
 						return result;
 					default:
@@ -202,9 +202,9 @@ namespace Neo.IronLua
 				switch (LuaEmit.TrySetMember(instance, instance.Type, memberName, false, (setType) => ConvertExpression(lua, tokenStart, set, setType), out result))
 				{
 					case LuaTrySetMemberReturn.None:
-						throw ParseError(tokenStart, LuaEmitException.GetMessageText(LuaEmitException.MemberNotFound, instance.Type.Name, memberName));
+						throw LuaLexer.ParseError(tokenStart, LuaEmitException.GetMessageText(LuaEmitException.MemberNotFound, instance.Type.Name, memberName));
 					case LuaTrySetMemberReturn.NotWritable:
-						throw ParseError(tokenStart, LuaEmitException.GetMessageText(LuaEmitException.CanNotWriteMember, instance.Type.Name, memberName));
+						throw LuaLexer.ParseError(tokenStart, LuaEmitException.GetMessageText(LuaEmitException.CanNotWriteMember, instance.Type.Name, memberName));
 					case LuaTrySetMemberReturn.ValidExpression:
 						return result;
 					default:
@@ -349,9 +349,7 @@ namespace Neo.IronLua
 		private static Expression InvokeExpression(Scope scope, Token tStart, Expression instance, InvokeResult result, ArgumentsList arguments, bool lParse)
 		{
 			MethodInfo mi;
-			ConstantExpression constInstance = instance as ConstantExpression;
-			LuaType t;
-			if (constInstance != null && (t = constInstance.Value as LuaType) != null && t.Type != null) // we have a type, bind the ctor
+			if (instance is ConstantExpression constInstance && constInstance.Value is LuaType t && t.Type != null) // we have a type, bind the ctor
 			{
 				var type = t.Type;
 				var typeInfo = type.GetTypeInfo();
@@ -361,7 +359,7 @@ namespace Neo.IronLua
 						LuaEmit.FindMember(typeInfo.DeclaredConstructors.Where(c => c.IsPublic), arguments.CallInfo, arguments.Expressions, getExpressionTypeFunction, false);
 
 				if (ci == null && !typeInfo.IsValueType)
-					throw ParseError(tStart, String.Format(Properties.Resources.rsMemberNotResolved, type.Name, "ctor"));
+					throw LuaLexer.ParseError(tStart, String.Format(Properties.Resources.rsMemberNotResolved, type.Name, "ctor"));
 
 				return SafeExpression(() => LuaEmit.BindParameter(scope.Runtime,
 					args => ci == null ? Expression.New(type) : Expression.New(ci, args),
@@ -398,7 +396,7 @@ namespace Neo.IronLua
 				);
 			}
 			else
-				throw ParseError(tStart, LuaEmitException.GetMessageText(LuaEmitException.InvokeNoDelegate, instance.Type.Name));
+				throw LuaLexer.ParseError(tStart, LuaEmitException.GetMessageText(LuaEmitException.InvokeNoDelegate, instance.Type.Name));
 		}  // func InvokeExpression
 
 		private static Expression InvokeMemberExpression(Scope scope, Token tStart, Expression instance, string memberName, InvokeResult result, ArgumentsList arguments)
