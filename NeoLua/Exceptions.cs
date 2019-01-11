@@ -100,7 +100,7 @@ namespace Neo.IronLua
 		/// <param name="position"></param>
 		/// <param name="message"></param>
 		/// <param name="innerException"></param>
-		internal LuaParseException(Position position, string message, Exception innerException)
+		public LuaParseException(Position position, string message, Exception innerException = null)
 			: base(message, innerException)
 		{
 			this.fileName = position.FileName;
