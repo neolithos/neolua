@@ -1713,32 +1713,6 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static Token CreateToken(LuaToken kind, string value, Position startAt, Position endAt)
 			=> new Token(kind, value ?? GetDefaultTokenValue(kind), startAt, endAt);
-
-		/// <summary></summary>
-		/// <param name="typ"></param>
-		/// <param name="code"></param>
-		/// <param name="isOptional"></param>
-		/// <returns></returns>
-		public static Token FetchToken(LuaToken typ, ILuaLexer code, bool isOptional = false)
-		{
-			if (code.Current.Typ == typ)
-			{
-				var t = code.Current;
-				code.Next();
-				return t;
-			}
-			else if (isOptional)
-				return null;
-			else
-				throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, GetTokenName(code.Current.Typ), GetTokenName(typ)));
-		} // proc FetchToken
-
-		/// <summary></summary>
-		/// <param name="start"></param>
-		/// <param name="message"></param>
-		/// <returns></returns>
-		public static LuaParseException ParseError(Token start, string message)
-			=> new LuaParseException(start.Start, message, null);
 	} // class LuaLexer
 
 	#endregion

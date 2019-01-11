@@ -4158,16 +4158,16 @@ namespace Neo.IronLua
 						lex.Next();
 						return false;
 					case LuaToken.String:
-						return LuaLexer.FetchToken(LuaToken.String, lex).Value;
+						return Parser.FetchToken(LuaToken.String, lex).Value;
 					case LuaToken.Minus:
 						lex.Next();
-						return ParserNumber(LuaLexer.FetchToken(LuaToken.Number, lex), true);
+						return ParserNumber(Parser.FetchToken(LuaToken.Number, lex), true);
 					case LuaToken.Number:
-						return ParserNumber(LuaLexer.FetchToken(LuaToken.Number, lex), false);
+						return ParserNumber(Parser.FetchToken(LuaToken.Number, lex), false);
 					case LuaToken.BracketCurlyOpen:
 						return FromLsonParse(lex);
 					default:
-						throw LuaLexer.ParseError(lex.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, LuaLexer.GetTokenName(lex.Current.Typ), "string|number"));
+						throw Parser.ParseError(lex.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, LuaLexer.GetTokenName(lex.Current.Typ), "string|number"));
 				}
 			} // func ParseTableValue
 
@@ -4178,8 +4178,8 @@ namespace Neo.IronLua
 					// Parse the index
 					lex.Next();
 					var index = ParseTableValue();
-					LuaLexer.FetchToken(LuaToken.BracketSquareClose, lex);
-					LuaLexer.FetchToken(LuaToken.Assign, lex);
+					Parser.FetchToken(LuaToken.BracketSquareClose, lex);
+					Parser.FetchToken(LuaToken.Assign, lex);
 
 					// Expression that results in a value
 					result[index] = ParseTableValue();
@@ -4189,7 +4189,7 @@ namespace Neo.IronLua
 					// Read the identifier
 					var memberName = lex.Current.Value;
 					lex.Next();
-					LuaLexer.FetchToken(LuaToken.Assign, lex);
+					Parser.FetchToken(LuaToken.Assign, lex);
 
 					// Expression
 					result[memberName] = ParseTableValue();
@@ -4200,7 +4200,7 @@ namespace Neo.IronLua
 				}
 			} // proc ParseTableField
 
-			if (LuaLexer.FetchToken(LuaToken.BracketCurlyOpen, lex, true) != null)
+			if (Parser.FetchToken(LuaToken.BracketCurlyOpen, lex, true) != null)
 			{
 				if (lex.Current.Typ != LuaToken.BracketCurlyClose)
 				{
@@ -4223,10 +4223,10 @@ namespace Neo.IronLua
 					}
 
 					// Closing bracket
-					LuaLexer.FetchToken(LuaToken.BracketCurlyClose, lex);
+					Parser.FetchToken(LuaToken.BracketCurlyClose, lex);
 				}
 				else
-					LuaLexer.FetchToken(LuaToken.BracketCurlyClose, lex, false);
+					Parser.FetchToken(LuaToken.BracketCurlyClose, lex, false);
 			}
 
 			return result;
