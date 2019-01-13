@@ -593,6 +593,8 @@ namespace Neo.IronLua
 		{
 			while (!IsEof && Cur != '\n')
 				Eat();
+			if (Cur == '\n')
+				Next();
 
 			var curValue = CurValue;
 			ResetCurValue();
