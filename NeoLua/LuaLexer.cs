@@ -681,14 +681,15 @@ namespace Neo.IronLua
 		} // func LookAHead
 
 		/// <summary>Get look a head.</summary>
-		/// <param name="offset"></param>
+		/// <param name="idx"></param>
 		/// <returns></returns>
-		public char GetLookAHead(int offset = 0)
+		public char GetLookAHead(int idx = 0)
 		{
-			if (offset > lookAheadBuffer.Length)
-				throw new ArgumentOutOfRangeException(nameof(offset), lookAheadBuffer.Length, "Look a head buffer is to small.");
+			if (idx > lookAheadBuffer.Length)
+				throw new ArgumentOutOfRangeException(nameof(idx), lookAheadBuffer.Length, "Look a head buffer is to small.");
 
-			return lookAheadBuffer[offset];
+			var i = (lookAheadOffset + idx) % lookAheadBuffer.Length;
+			return lookAheadBuffer[i];
 		}// func GetLookAHead
 		
 		/// <summary></summary>
