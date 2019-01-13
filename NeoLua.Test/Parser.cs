@@ -40,7 +40,7 @@ namespace LuaDLR.Test
 					lex.Next();
 				}
 				if (lex.Current.Typ != LuaToken.Eof)
-					Assert.Fail();
+					Assert.Fail("Eof expected.");
 			}
 		} // func TokenTest
 
@@ -247,6 +247,8 @@ namespace LuaDLR.Test
 
 		#endregion
 
+		#region -- Test Parser --------------------------------------------------------
+
 		[TestMethod]
 		public void TestParser01()
 		{
@@ -287,6 +289,8 @@ namespace LuaDLR.Test
 				"zoop"
 			);
 		}
+
+		#endregion
 
 		#region -- Test Position ------------------------------------------------------
 
@@ -357,6 +361,36 @@ namespace LuaDLR.Test
 				Assert.AreEqual(2, lex.Current.End.Line);
 				Assert.AreEqual(6, lex.Current.End.Col);
 				Assert.AreEqual(6, lex.Current.End.Index);
+				Assert.AreEqual("(", t.Substring((int)lex.Current.Start.Index, (int)lex.Current.End.Index - (int)lex.Current.Start.Index));
+			}
+		}
+
+		[TestMethod]
+		public void TestPosition03()
+		{
+			var t = "\r\nNull(";
+			using (var lex = CreateLuaLexer(t))
+			{
+				lex.Next();
+
+				Assert.AreEqual(2, lex.Current.Start.Line);
+				Assert.AreEqual(1, lex.Current.Start.Col);
+				Assert.AreEqual(2, lex.Current.Start.Index);
+
+				Assert.AreEqual(2, lex.Current.End.Line);
+				Assert.AreEqual(5, lex.Current.End.Col);
+				Assert.AreEqual(6, lex.Current.End.Index);
+				Assert.AreEqual("Null", t.Substring((int)lex.Current.Start.Index, (int)lex.Current.End.Index - (int)lex.Current.Start.Index));
+
+				lex.Next();
+
+				Assert.AreEqual(2, lex.Current.Start.Line);
+				Assert.AreEqual(5, lex.Current.Start.Col);
+				Assert.AreEqual(6, lex.Current.Start.Index);
+
+				Assert.AreEqual(2, lex.Current.End.Line);
+				Assert.AreEqual(6, lex.Current.End.Col);
+				Assert.AreEqual(7, lex.Current.End.Index);
 				Assert.AreEqual("(", t.Substring((int)lex.Current.Start.Index, (int)lex.Current.End.Index - (int)lex.Current.Start.Index));
 			}
 		}
@@ -446,6 +480,5 @@ namespace LuaDLR.Test
 
 
 		#endregion
-
 	} // class Lexer
 }

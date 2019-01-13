@@ -368,6 +368,7 @@ namespace Neo.IronLua
 		private readonly bool leaveOpen;            // do not dispose the text reader at the end
 
 		private readonly char[] lookAheadBuffer;
+		private readonly byte[] moveIndex;
 		private int lookAheadOffset;
 		private int lookAheadEof;
 
@@ -375,10 +376,7 @@ namespace Neo.IronLua
 		private int currentColumn;                  // Column in the source file
 		private readonly int firstColumnIndex;      // Index of the first char in line
 		private long currentIndex;                  // Index in the source file
-
-		private bool incrementLine = false;
-		private bool moveIndex = false;
-
+		
 		private Position startPosition;             // Start of the current token
 		private StringBuilder currentStringBuilder = new StringBuilder(); // Char buffer, for collected chars
 		
@@ -404,31 +402,40 @@ namespace Neo.IronLua
 			this.leaveOpen = leaveOpen;
 
 			this.lookAheadBuffer = new char[lookAheadLength];
+			this.moveIndex = new byte[lookAheadLength];
 			this.lookAheadOffset = lookAheadLength - 1;
 			this.lookAheadEof = -1;
 
 			this.currentLine = currentLine;
 			this.currentColumn = currentColumn - 1;
 			this.firstColumnIndex = firstColumnIndex;
-			this.currentIndex = -1;
+			this.currentIndex = 0;
 
 			// inital fill buffer
 			for (var i = 0; i < lookAheadLength - 1; i++)
 			{
 				if (lookAheadEof >= 0)
+				{
 					lookAheadBuffer[i] = '\0';
+					moveIndex[i] = 0;
+				}
 				else
 				{
-					var c = ReadCore();
-					if (c == -1)
+					var c = ReadCore(out var len);
+					if (len == 0)
 					{
 						lookAheadEof = i;
 						lookAheadBuffer[i] = '\0';
+						moveIndex[i] = 0;
 					}
 					else
+					{
 						lookAheadBuffer[i] = (char)c;
+						moveIndex[i] = len;
+					}
 				}
 			}
+			moveIndex[lookAheadOffset] = 0;
 
 			// read first char from the buffer
 			Next();
@@ -460,10 +467,13 @@ namespace Neo.IronLua
 		public void AppendValue(string value)
 			=> currentStringBuilder.Append(Cur);
 
-		private int ReadCore()
+		private char ReadCore(out byte len)
 		{
 			if (tr == null) // Source file is readed
-				return -1;
+			{
+				len = 0;
+				return '\0';
+			}
 			else
 			{
 				var i = tr.Read();
@@ -472,8 +482,41 @@ namespace Neo.IronLua
 					if (!leaveOpen)
 						tr.Dispose();
 					tr = null;
+
+					len = 0;
+					return '\0';
 				}
-				return i;
+				else if (i == 10)
+				{
+					if (tr.Peek() == 13)
+					{
+						tr.Read();
+						len = 2;
+						return (char)i;
+					}
+					else
+					{
+						len = 1;
+						return (char)i;
+					}
+				}
+				else if (i == 13)
+				{
+					if (tr.Peek() == 10)
+					{
+						tr.Read();
+						len = 2;
+						return '\n';
+					}
+					else
+					{
+						len = 1;
+						return '\n';
+					}
+				}
+
+				len = 1;
+				return (char)i;
 			}
 		} // func ReadCore
 
@@ -481,28 +524,43 @@ namespace Neo.IronLua
 		{
 			if (lookAheadEof < 0)
 			{
-				var c = ReadCore();
-				if (c == -1)
+				var c = ReadCore(out var len);
+				if (len == 0)
 				{
 					lookAheadEof = lookAheadOffset;
 					lookAheadBuffer[lookAheadOffset] = '\0';
+					moveIndex[lookAheadOffset] = 0;
 				}
 				else
+				{
 					lookAheadBuffer[lookAheadOffset] = (char)c;
+					moveIndex[lookAheadOffset] = len;
+				}
 
 				return true;
 			}
 			else if (lookAheadEof != lookAheadOffset)
 			{
 				lookAheadBuffer[lookAheadOffset] = '\0';
+				moveIndex[lookAheadOffset] = 0;
 				return true;
 			}
 			else
 				return false;
 		} // func ReadCharToBuffer
-
-		private bool MoveNextCore()
+		
+		/// <summary>Move the char stream and discard the buffer.</summary>
+		public void Next()
 		{
+			currentIndex += moveIndex[lookAheadOffset];
+			if (lookAheadBuffer[lookAheadOffset] == '\n')
+			{
+				currentColumn = firstColumnIndex;
+				currentLine++;
+			}
+			else
+				currentColumn++;
+
 			if (ReadCharToBuffer())
 			{
 				if (lookAheadBuffer.Length > 1)
@@ -511,66 +569,6 @@ namespace Neo.IronLua
 					if (lookAheadOffset >= lookAheadBuffer.Length)
 						lookAheadOffset = 0;
 				}
-
-				return true;
-			}
-			else
-				return false;
-		} // func MoveNextCore
-		
-		/// <summary>Move the char stream and discard the buffer.</summary>
-		public void Next()
-		{
-			if (moveIndex)
-			{
-				moveIndex = false;
-				currentIndex++;
-			}
-
-			if (MoveNextCore())
-			{
-				currentIndex++;
-
-				var c = lookAheadBuffer[lookAheadOffset];
-
-				// Normalize new line
-				if (c == '\n')
-				{
-					if (lookAheadBuffer.Length > 1 && IsLookAHead('\r', 1))
-					{
-						moveIndex = MoveNextCore();
-						lookAheadBuffer[lookAheadOffset] = '\n'; // replace with unique new line
-					}
-					else if (tr != null && tr.Peek() == 13)
-					{
-						moveIndex = MoveNextCore();
-						lookAheadBuffer[lookAheadOffset] = '\n'; // replace with unique new line
-					}
-
-					currentColumn++;
-					incrementLine = true;
-				}
-				else if (c == '\r')
-				{
-					if (lookAheadBuffer.Length > 1 && IsLookAHead('\n', 1))
-						moveIndex = MoveNextCore();
-					else if (tr != null && tr.Peek() == 10)
-						moveIndex = MoveNextCore();
-					else
-						lookAheadBuffer[lookAheadOffset] = '\n'; // replace with unique new line
-
-					currentColumn++;
-					incrementLine = true;
-				}
-				else if (incrementLine)
-				{
-					currentColumn = firstColumnIndex;
-					currentLine++;
-
-					incrementLine = false;
-				}
-				else
-					currentColumn++;
 			}
 		} // proc Next
 
@@ -588,6 +586,25 @@ namespace Neo.IronLua
 			AppendValue(Cur);
 			Next();
 		} // proc Eat
+
+		/// <summary>Read a whole line</summary>
+		/// <returns></returns>
+		public string ReadLine()
+		{
+			while (!IsEof && Cur != '\n')
+				Eat();
+
+			var curValue = CurValue;
+			ResetCurValue();
+			return curValue;
+		} // func ReadLine
+
+		/// <summary>Skip white spaces</summary>
+		public void SkipWhiteSpaces()
+		{
+			while (!IsEof && Cur != '\n' && Char.IsWhiteSpace(Cur))
+				Next();
+		} // proc SkipWhiteSpaces
 
 		/// <summary>Create a new token with the current buffer.</summary>
 		/// <param name="kind">Token type</param>
@@ -661,6 +678,17 @@ namespace Neo.IronLua
 			return true;
 		} // func LookAHead
 
+		/// <summary>Get look a head.</summary>
+		/// <param name="offset"></param>
+		/// <returns></returns>
+		public char GetLookAHead(int offset = 0)
+		{
+			if (offset > lookAheadBuffer.Length)
+				throw new ArgumentOutOfRangeException(nameof(offset), lookAheadBuffer.Length, "Look a head buffer is to small.");
+
+			return lookAheadBuffer[offset];
+		}// func GetLookAHead
+		
 		/// <summary></summary>
 		public void ResetCurValue()
 		{
