@@ -4151,6 +4151,9 @@ namespace Neo.IronLua
 				// in this mode we only except one token
 				switch (lex.Current.Typ)
 				{
+					case LuaToken.KwNil:
+						lex.Next();
+						return null;
 					case LuaToken.KwTrue:
 						lex.Next();
 						return true;
@@ -4228,6 +4231,8 @@ namespace Neo.IronLua
 				else
 					Parser.FetchToken(LuaToken.BracketCurlyClose, lex, false);
 			}
+			else
+				throw Parser.ParseError(lex.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, LuaLexer.GetTokenName(lex.Current.Typ), "{"));
 
 			return result;
 		} // proc FromLsonParse

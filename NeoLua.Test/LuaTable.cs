@@ -1183,6 +1183,14 @@ namespace LuaDLR.Test
 			}
 			catch (LuaParseException)
 			{ }
+
+			try
+			{
+				t = LuaTable.FromLson("a {}");
+				Assert.Fail("Invalid table without Error.");
+			}
+			catch (LuaParseException)
+			{ }
 		}
 
 		[TestMethod]
