@@ -1353,5 +1353,51 @@ namespace LuaDLR.Test
 			dynamic t = LuaTable.FromLson("{ a = true, b = false, c = 10, d = 1099511627776, e = 'test', f = 1.0, g = 1.23, h = 1e10 }");
 			TestResult(new LuaResult(t.a, t.b, t.c, t.d, t.e, t.f, t.g, t.h), true, false, 10, 1099511627776L, "test", 1.0, 1.23, 1e10);
 		}
+
+		[TestMethod]
+		public void TestJson01()
+		{
+			var t = new LuaTable()
+			{
+				["int"] = 1,
+				[1] = 1,
+				["float"] = 1.0,
+				["byte"] = (byte)1,
+				["str"] = "test",
+				["do"] = true,
+				["t"] = new LuaTable() { 1, 2, 3, 4 },
+				[2] = 2,
+				[3] = 3,
+				[10] = 10
+			};
+
+			var s = t.ToJson();
+
+			Console.WriteLine(s);
+			var t2 = LuaTable.FromJson(s);
+
+			Assert.AreEqual(10, t2.Values.Count);
+		}
+
+		[TestMethod]
+		public void TestJsonDateTime()
+		{
+			var dt = new DateTime(2012, 4, 23, 18, 25, 43, 511, DateTimeKind.Utc);
+			var t = new LuaTable()
+			{
+				["test"] = dt
+			};
+			var s = t.ToJson(false);
+			Assert.AreEqual("{\"test\":\"2012-04-23T18:25:43.5110000Z\"}", s);
+			Console.WriteLine(s);
+			var t2 = LuaTable.FromJson(s);
+			Assert.AreEqual(dt.ToString("o"), t2["test"]);
+		}
+		[TestMethod]
+		public void TestFromJson01()
+		{
+			dynamic t = LuaTable.FromJson("{ \"a\":true, \"b\" : false, \"c\": 10, \"d\": 1099511627776, \"e\": \"test\", \"f\": 1.0, \"g\": 1.23, \"h\": 1e10 }");
+			TestResult(new LuaResult(t.a, t.b, t.c, t.d, t.e, t.f, t.g, t.h), true, false, 10, 1099511627776L, "test", 1.0, 1.23, 1e10);
+		}
 	} // class LuaTableTests
 }

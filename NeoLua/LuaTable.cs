@@ -2282,9 +2282,9 @@ namespace Neo.IronLua
 
 		private int ArrayOnlyAdd(object value)
 		{
-			int iTmp = arrayLength;
+			var idx = arrayLength;
 			SetArrayValue(arrayLength + 1, value, true);
-			return iTmp;
+			return idx;
 		} // func ArrayOnlyAdd
 
 		/// <summary>zero based</summary>
@@ -4257,6 +4257,593 @@ namespace Neo.IronLua
 			using (var tr = new StringReader(value))
 				return FromLson(tr);
 		} // func FromLson
+
+		#endregion
+
+		#region -- Java Script Object Notation -- To ----------------------------------
+
+		private static void ToJson(LuaTable table, TextWriter tw, bool prettyFormatted, int currentLevel, string indent)
+		{
+			void WriteIndent()
+			{
+				if (!prettyFormatted)
+					return;
+
+				tw.WriteLine();
+				for (var i = 0; i < currentLevel; i++)
+					tw.Write(indent);
+			} // proc WriteIndent
+
+			void WriteValue(object value)
+			{
+				var type = value.GetType();
+				var typeCode = LuaEmit.GetTypeCode(type);
+				switch (typeCode)
+				{
+					case LuaEmitTypeCode.Boolean:
+						tw.Write((bool)value ? "true" : "false");
+						break;
+					case LuaEmitTypeCode.String:
+						{
+							var s = (string)value;
+							tw.Write("\"");
+							for (var i = 0; i < s.Length; i++)
+							{
+								switch (s[i])
+								{
+									case '\0':
+										tw.Write("\\u0000");
+										break;
+									case '\\':
+										tw.Write("\\\\");
+										break;
+									case '"':
+										tw.Write("\\\"");
+										break;
+									case '\b':
+										tw.Write("\\b");
+										break;
+									case '\n':
+										tw.Write("\\n");
+										break;
+									case '\r':
+										tw.Write("\\r");
+										break;
+									case '\t':
+										tw.Write("\\t");
+										break;
+									default:
+										tw.Write(s[i]);
+										break;
+								}
+							}
+							tw.Write("\"");
+						}
+						break;
+					case LuaEmitTypeCode.Char:
+						value = value.ToString();
+						goto case LuaEmitTypeCode.String;
+
+					case LuaEmitTypeCode.Byte:
+					case LuaEmitTypeCode.SByte:
+					case LuaEmitTypeCode.Int16:
+					case LuaEmitTypeCode.UInt16:
+					case LuaEmitTypeCode.Int32:
+					case LuaEmitTypeCode.UInt32:
+					case LuaEmitTypeCode.Int64:
+					case LuaEmitTypeCode.UInt64:
+						tw.Write(value);
+						break;
+
+					case LuaEmitTypeCode.Single:
+					case LuaEmitTypeCode.Double:
+					case LuaEmitTypeCode.Decimal:
+						{
+							var num = Convert.ToString(value, CultureInfo.InvariantCulture);
+							if (num.IndexOfAny(new char[] { '.', 'e', 'E' }) == -1)
+							{
+								tw.Write(num);
+								tw.Write(".0");
+							}
+							else
+								tw.Write(num);
+						}
+						break;
+
+					case LuaEmitTypeCode.DateTime:
+						value = ((DateTime)value).ToString("o"); // ISO8601
+						goto case LuaEmitTypeCode.String;
+
+					case LuaEmitTypeCode.Object:
+						if (type == typeof(LuaTable))
+						{
+							ToJson((LuaTable)value, tw, prettyFormatted, currentLevel + 1, indent);
+							break;
+						}
+						else if (type == typeof(Guid))
+						{
+							value = ((Guid)value).ToString("B");
+							goto case LuaEmitTypeCode.String;
+						}
+						else if (type == typeof(char[]))
+						{
+							value = new string((char[])value);
+							goto case LuaEmitTypeCode.String;
+						}
+						else
+							goto default;
+					default:
+						throw new ArgumentException(String.Format(Properties.Resources.rsTypeIsNotSupported, type.Name));
+				}
+			} // proc WriteValue
+
+			void WriteKey(object key)
+				=> WriteValue(key.ToString());
+
+			if (currentLevel > 100)
+				throw new ArgumentOutOfRangeException(nameof(table), Properties.Resources.rsTableRecursionLevelError);
+
+			// test if table has members
+			var isObject = table.Members.Count > 0;
+
+			var lastIndex = 0;
+			if (table.Values.Count > 0)
+			{
+				tw.Write(isObject ? "{" : "[");
+				var first = true;
+				foreach (var kv in table.Values)
+				{
+					// comma
+					if (kv.Value == null)
+						continue;
+					else
+					{
+						if (first)
+							first = false;
+						else
+							tw.Write(',');
+					}
+
+					// formatting
+					if (isObject)
+						WriteIndent();
+
+					// write values
+					if (isObject)
+					{
+						WriteKey(kv.Key);
+						tw.Write(prettyFormatted ? ": " : ":");
+						WriteValue(kv.Value);
+					}
+					else if (IsIndexKey(kv.Key, out var index))
+					{
+						while (++lastIndex < index)
+							tw.Write(prettyFormatted ? "null ," : "null,");
+						WriteValue(kv.Value);
+						lastIndex = index;
+					}
+					else
+						throw new ArgumentOutOfRangeException("key", kv.Key, "Index expected.");
+
+				}
+
+				// formatting
+				currentLevel--;
+				if (isObject)
+					WriteIndent();
+
+				tw.Write(isObject ? "}" : "]");
+			}
+			else
+				tw.Write("{}");
+		} // proc ToLson
+
+		/// <summary>Convert the table to a json-string</summary>
+		/// <param name="table"></param>
+		/// <param name="prettyFormatting"></param>
+		/// <param name="indent"></param>
+		public static string ToJson(LuaTable table, bool prettyFormatting = true, string indent = "\t")
+		{
+			using (var sw = new StringWriter())
+			{
+				ToJson(table, sw, prettyFormatting, indent);
+				return sw.GetStringBuilder().ToString();
+			}
+		} // func ToLson
+
+		/// <summary>Convert the table to a json-string</summary>
+		/// <param name="table"></param>
+		/// <param name="tw"></param>
+		/// <param name="prettyFormatting"></param>
+		/// <param name="indent"></param>
+		public static void ToJson(LuaTable table, TextWriter tw, bool prettyFormatting = true, string indent = "\t")
+			=> ToJson(table, tw, prettyFormatting, 1, indent);
+
+		/// <summary>Convert the table to a json-string</summary>
+		/// <param name="prettyFormatting"></param>
+		/// <param name="indent"></param>
+		/// <returns></returns>
+		public string ToJson(bool prettyFormatting = true, string indent = "\t")
+			=> ToJson(this, prettyFormatting, indent);
+
+		#endregion
+
+		#region -- Java Script Object Notation - From ---------------------------------
+
+		private static LuaTable FromJsonParse(LuaCharLexer lex)
+		{
+			void ParseWhitespaces()
+			{
+				while (!lex.IsEof && Char.IsWhiteSpace(lex.Cur))
+					lex.Next();
+			} // proc ParseWhitespaces
+
+			void CheckEof()
+			{
+				if (lex.IsEof)
+					throw new LuaParseException(lex.CurrentPosition, "Unexpected eof.");
+			} // proc CheckEof
+
+			Exception UnExpected(string expected) 
+				=> new LuaParseException(lex.CurrentPosition, String.Format("{0} (found: {1})", expected, lex.Cur)); // todo: translate
+
+			void ParseChar(char c, string expected = null)
+			{
+				if (lex.Cur != c)
+					throw UnExpected(expected ?? "Expected " + c);
+				lex.Next();
+			} // func ParseChar
+
+			int ParseHex(int nums)
+			{
+				var value = 0;
+
+				while (nums-- > 0)
+				{
+					var c = lex.Cur;
+
+					value <<= 4;
+
+					if (c >= '0' && c <= '9')
+						value |= c - '0';
+					else if (c >= 'A' && c <= 'F')
+						value |= c - 'A' + 10;
+					else if (c >= 'a' && c <= 'f')
+						value |= c - 'a' + 10;
+					else
+						throw UnExpected("Hex expected.");
+				}
+
+				return value;
+			} // func ParseHex
+
+			string GetCurrentValue()
+			{
+				var v = lex.CurValue;
+				lex.ResetCurValue();
+				return v;
+			} // func GetCurrentValue
+
+			string ParseIdentifier()
+			{
+				while (Char.IsLetterOrDigit(lex.Cur))
+					lex.Eat();
+				return GetCurrentValue();
+			} // func ParseIdentifier
+
+			object ParseNumber()
+			{
+				var state = 0;
+
+				var isDouble = false;
+				var isNeg = lex.Cur == '-';
+				if (isNeg)
+					lex.Next();
+
+				var isNegExp = false;
+				var expValue = 0;
+				var fractionDigit = 0;
+				var integerValue = 0L;
+				var doubleValue = 0.0;
+				var isParsing = true;
+				const long integerBorder = Int64.MaxValue / 10;
+				while (isParsing)
+				{
+					CheckEof();
+
+					var c = lex.Cur;
+					switch (state)
+					{
+						case 0: // integer part
+							if (c == '.')
+							{
+								if (!isDouble)
+								{
+									doubleValue = integerValue;
+									isDouble = true;
+								}
+								state = 1;
+							}
+							else if (c == 'E' || c == 'e')
+							{
+								if (!isDouble)
+								{
+									doubleValue = integerValue;
+									isDouble = true;
+								}
+								state = 10;
+							}
+							else if (c >= '0' && c <= '9')
+							{
+								if (integerValue > integerBorder)
+								{
+									doubleValue = integerValue;
+									isDouble = true;
+								}
+								if (isDouble)
+									doubleValue = doubleValue * 10 + (c - '0');
+								else
+									integerValue = integerValue * 10 + (c - '0');
+							}
+							else
+								isParsing = false;
+							break;
+
+						case 1: // fraction
+							if (c == 'E' || c == 'e')
+							{
+								if (!isDouble)
+								{
+									doubleValue = integerValue;
+									isDouble = true;
+								}
+								state = 10;
+							}
+							else if (c >= '0' && c <= '9')
+							{
+								fractionDigit++;
+								doubleValue = doubleValue * 10 + (c - '0');
+							}
+							else
+								isParsing = false;
+							break;
+
+						case 10:
+							if (c == '-')
+								isNegExp = true;
+							else if (c == '+')
+								isNegExp = false;
+							else
+							{
+								state = 11;
+								goto case 11;
+							}
+							break;
+
+						case 11:
+							if (c >= '0' && c <= '9')
+								expValue = expValue * 10 + (c - '0');
+							else
+								isParsing = false;
+							break;
+
+						default:
+							throw new InvalidOperationException();
+					}
+
+					if (isParsing)
+						lex.Next();
+				}
+			
+				if (isDouble)
+				{
+					if (isNeg)
+						doubleValue = -doubleValue;
+					if (isNegExp)
+						expValue = -expValue;
+
+					var realExp = expValue - fractionDigit;
+					doubleValue = doubleValue * Math.Pow(10, realExp);
+
+					return doubleValue;
+				}
+				else if (integerValue < Int32.MaxValue)
+					return (int)integerValue;
+				else
+					return integerValue;
+			} // func ParseNumber
+
+			string ParseString(bool asMember)
+			{
+				ParseChar('"', asMember ? "Member expected." : "String expected.");
+
+				while (lex.Cur != '"')
+				{
+					CheckEof();
+
+					#region -- escape sequence --
+					if (lex.Cur == '\\')
+					{
+						lex.Next();
+						switch (lex.Cur)
+						{
+							case '"':
+								lex.Eat();
+								break;
+							case '\\':
+								lex.Eat();
+								break;
+							case '/':
+								lex.Eat();
+								break;
+							case 'b':
+								lex.AppendValue('\b');
+								lex.Next();
+								break;
+							case 'n':
+								lex.AppendValue('\n');
+								lex.Next();
+								break;
+							case 'r':
+								lex.AppendValue('\r');
+								lex.Next();
+								break;
+							case 't':
+								lex.AppendValue('\t');
+								lex.Next();
+								break;
+							case 'u':
+								lex.Next();
+								lex.AppendValue((char)ParseHex(4));
+								break;
+							default:
+								throw new LuaParseException(lex.CurrentPosition, "Invalid escape sequence.");
+						}
+					}
+					#endregion
+					else
+						lex.Eat();
+				}
+				lex.Next();
+
+				return GetCurrentValue();
+			} // func ParseString
+
+			LuaTable ParseArray()
+			{
+				var table = new LuaTable();
+
+				ParseChar('[');
+				ParseWhitespaces();
+
+				while (lex.Cur != ']')
+				{
+					CheckEof();
+					
+						var value = ParseElement();
+						if (value != null)
+							table.ArrayOnlyAdd(value);
+
+					if (lex.Cur == ',')
+					{
+						lex.Next();
+						ParseWhitespaces();
+					}
+					else if (lex.Cur != ']')
+						throw UnExpected(", expected.");
+				}
+				lex.Next();
+
+				return table;
+			} // func ParseArray
+
+			LuaTable ParseObject()
+			{
+				var table = new LuaTable();
+
+				ParseChar('{');
+				ParseWhitespaces();
+
+				while (lex.Cur != '}')
+				{
+					CheckEof();
+
+					var memberName = ParseString(true);
+					ParseWhitespaces();
+					ParseChar(':', "Value expected.");
+					var value = ParseElement();
+					if (value != null)
+						table[memberName] = value;
+
+					if (lex.Cur == ',')
+					{
+						lex.Next();
+						ParseWhitespaces();
+					}
+					else if (lex.Cur != '}')
+						throw UnExpected(", expected.");
+				}
+				lex.Next();
+
+				return table;
+			} // func ParseObject
+
+			object ParseValue()
+			{
+				switch (lex.Cur)
+				{
+					case '{': // object
+						return ParseObject();
+					case '[': // array
+						return ParseArray();
+					case '"': // string
+						return ParseString(false);
+					case '0':
+					case '1':
+					case '2':
+					case '3':
+					case '4':
+					case '5':
+					case '6':
+					case '7':
+					case '8':
+					case '9':
+					case '-': // number
+						return ParseNumber();
+					default:
+						if (Char.IsLetter(lex.Cur)) // identifier
+						{
+							var ident = ParseIdentifier();
+							switch (ident)
+							{
+								case "true":
+									return true;
+								case "false":
+									return false;
+								case "null":
+									return null;
+								default:
+									throw new LuaParseException(lex.CurrentPosition, String.Format("Unexpected token: {0}", ident)); // todo: translate
+							}
+						}
+						else
+							throw new LuaParseException(lex.CurrentPosition, String.Format("Unexpected character: {0}", lex.Cur)); // todo: translate
+				}
+			}
+
+			object ParseElement()
+			{
+				ParseWhitespaces();
+				try
+				{
+					return ParseValue();
+				}
+				finally
+				{
+					ParseWhitespaces();
+				}
+			} // func ReadElement
+
+			var r = ParseElement();
+			return r is LuaTable t
+				? t
+				: new LuaTable() { [1] = r };
+		} // func FromJsonParse
+																																																   /// <returns></returns>
+		public static LuaTable FromJson(TextReader tr)
+		{
+			using (var lex = new LuaCharLexer("json", tr, 1))
+				return FromJsonParse(lex);
+		} // func FromJson
+
+		/// <summary>Parse json to a lua table</summary>
+		/// <param name="value"></param>
+		/// <returns></returns>
+		public static LuaTable FromJson(string value)
+		{
+			using (var tr = new StringReader(value))
+				return FromJson(tr);
+		} // func FromJson
 
 		#endregion
 
