@@ -645,17 +645,17 @@ namespace Neo.IronLua
 					this.type = type;
 
 					// update the base type
-					baseType = typeInfo.BaseType == null ? null : LuaType.GetType(typeInfo.BaseType);
+					baseType = typeInfo.BaseType == null ? null : GetType(typeInfo.BaseType);
 
 					// update known types
 					lock (knownTypes)
 					{
 						knownTypes[type] =
-							knownTypeStrings[fullName] = LuaType.GetTypeIndex(this); // update type cache
+							knownTypeStrings[fullName] = GetTypeIndex(this); // update type cache
 					}
 
 					// update implemented types
-					implementedInterfaces = new Lazy<LuaType[]>(() => (from c in typeInfo.ImplementedInterfaces select LuaType.GetType(c)).ToArray(), true);
+					implementedInterfaces = new Lazy<LuaType[]>(() => (from c in typeInfo.ImplementedInterfaces select GetType(c)).ToArray(), true);
 				}
 
 				return true;
@@ -755,20 +755,20 @@ namespace Neo.IronLua
 			return index;
 		} // func AddType
 
-		private int FindIndexByName(string sName, bool ignoreCase)
+		private int FindIndexByName(string name, bool ignoreCase)
 		{
 			var index = -1;
 			lock (currentTypeLock)
 			{
 				if (namespaceIndex != null)
 				{
-					if (!namespaceIndex.TryGetValue(sName, out index))
+					if (!namespaceIndex.TryGetValue(name, out index))
 					{
 						if (ignoreCase)
 						{
 							foreach (var k in namespaceIndex)
 							{
-								if (String.Compare(sName, k.Key, StringComparison.OrdinalIgnoreCase) == 0)
+								if (String.Compare(name, k.Key, StringComparison.OrdinalIgnoreCase) == 0)
 								{
 									index = k.Value;
 									break;
@@ -838,7 +838,7 @@ namespace Neo.IronLua
 					return null;
 			}
 			else
-				return LuaType.GetType(AddType("[]", false, rank));
+				return GetType(AddType("[]", false, rank));
 		} // func MakeArrayLuaType
 
 		#endregion
@@ -894,27 +894,34 @@ namespace Neo.IronLua
 				// Enum extensions
 				if (extensionMethods != null)
 				{
+					MemberInfo[] memberInfo;
 					lock (currentTypeLock)
-					{
-						foreach (var mi in (getDeclaredMembers == null ? extensionMethods : getDeclaredMembers(extensionMethods)))
-							yield return (T)(MemberInfo)mi;
-					}
+						memberInfo = (getDeclaredMembers == null ? extensionMethods : getDeclaredMembers(extensionMethods)).ToArray();
+
+					foreach (var mi in memberInfo)
+						yield return (T)(MemberInfo)mi;
 				}
 
 				// Enum generic extensions
 				if (parent != null && parent.genericExtensionMethods != null)
 				{
+					MethodInfo[] methodInfos;
 					lock (parent.currentTypeLock)
 					{
-						foreach (var mi in (getDeclaredMembers == null ? parent.genericExtensionMethods : getDeclaredMembers(parent.genericExtensionMethods)))
-						{
-							var methodInfo = (MethodInfo)mi;
+						methodInfos = (getDeclaredMembers == null
+							? (IEnumerable<MethodInfo>)parent.genericExtensionMethods
+							: getDeclaredMembers(parent.genericExtensionMethods).Cast<MethodInfo>()
+						).ToArray();
+					}
 
-							// get first argument
-							var firstArgumentType = methodInfo.GetParameters()[0].ParameterType;
-							if (firstArgumentType.GetGenericTypeDefinition() == type.GetGenericTypeDefinition())
-								yield return (T)(MemberInfo)mi;
-						}
+					foreach (var mi in methodInfos)
+					{
+						var methodInfo = (MethodInfo)mi;
+
+						// get first argument
+						var firstArgumentType = methodInfo.GetParameters()[0].ParameterType;
+						if (firstArgumentType.GetGenericTypeDefinition() == type.GetGenericTypeDefinition())
+							yield return (T)(MemberInfo)mi;
 					}
 				}
 			}

@@ -61,6 +61,11 @@ namespace Neo.IronLua
 			this.name = name;
 		} // ctor
 
+		/// <summary></summary>
+		/// <returns></returns>
+		public override string ToString()
+			=> "LuaMember: " + LuaName;
+
 		/// <summary>Use the name of the  method.</summary>
 		public bool UseDefault => useDefault;
 		/// <summary>Register this member as method.</summary>
