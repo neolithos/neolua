@@ -490,7 +490,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		private readonly object currentTypeLock = new object();
+		private static readonly object currentTypeLock = new object();
 
 		private readonly LuaType parent;    // Access to parent type or namespace
 		private LuaType baseType;           // If the type is inherited, then this points to the base type
@@ -894,34 +894,28 @@ namespace Neo.IronLua
 				// Enum extensions
 				if (extensionMethods != null)
 				{
-					MemberInfo[] memberInfo;
 					lock (currentTypeLock)
-						memberInfo = (getDeclaredMembers == null ? extensionMethods : getDeclaredMembers(extensionMethods)).ToArray();
-
-					foreach (var mi in memberInfo)
-						yield return (T)(MemberInfo)mi;
+					{
+						foreach (var mi in (getDeclaredMembers == null ? extensionMethods : getDeclaredMembers(extensionMethods)))
+							yield return (T)(MemberInfo)mi;
+					}
 				}
 
 				// Enum generic extensions
 				if (parent != null && parent.genericExtensionMethods != null)
 				{
-					MethodInfo[] methodInfos;
-					lock (parent.currentTypeLock)
+					//lock (parent.currentTypeLock)
+					lock (currentTypeLock)
 					{
-						methodInfos = (getDeclaredMembers == null
-							? (IEnumerable<MethodInfo>)parent.genericExtensionMethods
-							: getDeclaredMembers(parent.genericExtensionMethods).Cast<MethodInfo>()
-						).ToArray();
-					}
+						foreach (var mi in (getDeclaredMembers == null ? parent.genericExtensionMethods : getDeclaredMembers(parent.genericExtensionMethods)))
+						{
+							var methodInfo = (MethodInfo)mi;
 
-					foreach (var mi in methodInfos)
-					{
-						var methodInfo = (MethodInfo)mi;
-
-						// get first argument
-						var firstArgumentType = methodInfo.GetParameters()[0].ParameterType;
-						if (firstArgumentType.GetGenericTypeDefinition() == type.GetGenericTypeDefinition())
-							yield return (T)(MemberInfo)mi;
+							// get first argument
+							var firstArgumentType = methodInfo.GetParameters()[0].ParameterType;
+							if (firstArgumentType.GetGenericTypeDefinition() == type.GetGenericTypeDefinition())
+								yield return (T)(MemberInfo)mi;
+						}
 					}
 				}
 			}
