@@ -1480,12 +1480,15 @@ namespace Neo.IronLua
 		/// <param name="currentLine">Start line for the text reader.</param>
 		/// <param name="currentColumn"></param>
 		/// <param name="firstColumnIndex"></param>
+		/// <returns></returns>
 		public static ILuaLexer Create(string fileName, TextReader tr, bool leaveOpen = false, int currentLine = 1, int currentColumn = 1, int firstColumnIndex = 1)
-		{
-			return new LuaLexer(
-				CreateTokenStream(new LuaCharLexer(fileName, tr, 1, leaveOpen, currentLine, currentColumn, firstColumnIndex)).GetEnumerator()
-			);
-		} // func Create
+			=> Create(new LuaCharLexer(fileName, tr, 1, leaveOpen, currentLine, currentColumn, firstColumnIndex));
+
+		/// <summary>Creates the lexer for the lua parser</summary>
+		/// <param name="charLexer"></param>
+		/// <returns></returns>
+		public static ILuaLexer Create(LuaCharLexer charLexer)
+			=> new LuaLexer(CreateTokenStream(charLexer).GetEnumerator());
 
 		#endregion
 

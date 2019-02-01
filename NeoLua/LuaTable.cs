@@ -4144,7 +4144,10 @@ namespace Neo.IronLua
 
 		#region -- Lua Script Object Notation -- From -----------------------------------
 
-		private static LuaTable FromLsonParse(ILuaLexer lex)
+		/// <summary></summary>
+		/// <param name="lex"></param>
+		/// <returns></returns>
+		public static LuaTable FromLson(ILuaLexer lex)
 		{
 			var result = new LuaTable();
 
@@ -4173,7 +4176,7 @@ namespace Neo.IronLua
 					case LuaToken.Number:
 						return ParserNumber(Parser.FetchToken(LuaToken.Number, lex), false);
 					case LuaToken.BracketCurlyOpen:
-						return FromLsonParse(lex);
+						return FromLson(lex);
 					default:
 						throw Parser.ParseError(lex.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, LuaLexer.GetTokenName(lex.Current.Typ), "string|number"));
 				}
@@ -4240,7 +4243,7 @@ namespace Neo.IronLua
 				throw Parser.ParseError(lex.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, LuaLexer.GetTokenName(lex.Current.Typ), "{"));
 
 			return result;
-		} // proc FromLsonParse
+		} // proc FromLson
 
 		/// <summary></summary>
 		/// <param name="tr"></param>
@@ -4250,7 +4253,7 @@ namespace Neo.IronLua
 			using (var lex = LuaLexer.Create("lson.lua", tr))
 			{
 				lex.Next();
-				return FromLsonParse(lex);
+				return FromLson(lex);
 			}
 		} // proc FromLson
 
