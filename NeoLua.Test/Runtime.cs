@@ -190,7 +190,7 @@ namespace LuaDLR.Test
 		[TestMethod]
 		public void TestRuntimeLua14()
 		{
-			using (Lua l = new Lua())
+			using (var l = new Lua())
 			{
 				var g = l.CreateEnvironment();
 				l.PrintExpressionTree = Console.Out;
@@ -479,6 +479,19 @@ namespace LuaDLR.Test
 				Assert.AreEqual("", r[2][4]);
 				Assert.AreEqual(43, r[2][5]);
 			}
+		}
+
+		[TestMethod]
+		public void LuaNextLoop()
+		{
+			TestCode(Lines("local t = { a = 1 , b = 2 , c = 3 };",
+				"local r = {};",
+				"for k, v in next, t, nil do",
+				"   table.insert(r, k ..'='..v);",
+				"end;",
+				"return table.unpack(r)"),
+				"a=1", "b=2", "c=3"
+			);
 		}
 	}
  } //class Runtime 

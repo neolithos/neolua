@@ -3392,6 +3392,13 @@ namespace Neo.IronLua
 				return entryIndex == -1 ? null : entries[entryIndex].key;
 			} // func NextHashKey
 
+			object NextHashKey2(int currrentIndex)
+			{
+				if (currrentIndex < 0 || currrentIndex == entries.Length - 1)
+					return null;
+				return NextHashKey(currrentIndex + 1);
+			} // func NextHashKey2
+
 			switch (next)
 			{
 				case null:
@@ -3415,11 +3422,10 @@ namespace Neo.IronLua
 					}
 					else
 						goto default;
+				case string memberName:
+					return NextHashKey2(FindKey(next, GetMemberHashCode(memberName), compareString));
 				default:
-					var currentEntryIndex = FindKey(next, next.GetHashCode() & 0x7FFFFFFF, comparerObject);
-					if (currentEntryIndex < 0 || currentEntryIndex == entries.Length - 1)
-						return null;
-					return NextHashKey(currentEntryIndex + 1);
+					return NextHashKey2(FindKey(next, next.GetHashCode() & 0x7FFFFFFF, comparerObject));
 			}
 		} // func NextKey
 
