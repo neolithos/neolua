@@ -12,7 +12,7 @@ The goal is to follow the reference of the C-Lua implementation and combine this
 be easy access variables and functions from a .net language (e.g. C#, VB.NET, ...).
 
 NeoLua is implemented in C# and uses the [Dynamic Language Runtime](https://dlr.codeplex.com/). It therefore 
-integrates very well with the .net framework.
+integrates very well with the .NET Framework.
 
 ### Quickstart
 
@@ -23,28 +23,28 @@ You can play and test the language with the tool NeoCmd.
 Or there are two easy ways to use NeoLua in your project.
 
 * Download the Neo.Lua.dll and add the reference. For full desktop support also a reference to Neo.Lua.Desktop.dll is useful.
-* Install the [NuGet-Package](http://www.nuget.org/packages/NeoLua/) of NeoLua.
+* Install the [NuGet package](http://www.nuget.org/packages/NeoLua/) of NeoLua.
 
 
 Simple example:
 ```C#
-using (Lua l = new Lua()) // create the lua script engine
+using (Lua lua = new Lua()) // Create the Lua script engine
 {
-  dynamic g = l.CreateEnvironment(); // create a environment
-  g.dochunk("a = 'Hallo World!';", "test.lua"); // create a variable in lua
-  Console.WriteLine(g.a); // access a variable in c#
-  g.dochunk("function add(b) return b + 3; end;", "test.lua"); // create a function in lua
-  Console.WriteLine("Add(3) = {0}", g.add(3)); // call the function in c#
+    dynamic env = lua.CreateEnvironment(); // Create a environment
+    env.dochunk("a = 'Hallo World!';", "test.lua"); // Create a variable in Lua
+    Console.WriteLine(env.a); // Access a variable in C#
+    env.dochunk("function add(b) return b + 3; end;", "test.lua"); // Create a function in Lua
+    Console.WriteLine("Add(3) = {0}", env.add(3)); // Call the function in C#
 }
 ```
 
 ```VB
-Using l As Lua = New Lua ' create the lua script engine
-    Dim g As Object = l.CreateEnvironment(Of LuaGlobal)() ' create a environment
-    g.dochunk("a = 'Hallo World!';", "test.lua") ' create a variable in lua
-    Console.WriteLine(g.a) ' access a variable in VB
-    g.dochunk("function add(b) return b + 3; end;", "test.lua") ' create a function in lua
-    Console.WriteLine("Add(3) = {0}", (New LuaResult(g.add(3)))(0)) ' call the function in VB
+Using lua As Lua = New Lua ' Create the Lua script engine
+    Dim env As Object = lua.CreateEnvironment(Of LuaGlobal)() ' Create a environment
+    env.dochunk("a = 'Hallo World!';", "test.lua") ' Create a variable in Lua
+    Console.WriteLine(env.a) ' Access a variable in VB
+    env.dochunk("function add(b) return b + 3; end;", "test.lua") ' Create a function in Lua
+    Console.WriteLine("Add(3) = {0}", (New LuaResult(env.add(3)))(0)) ' Call the function in VB
 End Using
 ```
 
@@ -54,17 +54,17 @@ local t = clr.System.Int32[](6, 8, 9, 19);",
 return t:Sum(), t:Where(function(c : int) : bool return c < 10 end):Sum()
 ```
 
-NeoLua is a .net portable assembly (IL) for 
-* .net framework 4.5.1
+NeoLua is a .NET portable assembly (IL) for 
+* .NET Framework 4.5.1
 * Windows Phone 8.1
 * Windows Store Apps 8.1
 * Xamarin.Android
 
-There will be no support for .net frameworks lower than 4.5. 
+There will be no support for .NET Frameworks lower than 4.5. 
 
 It does not work with
 * Xamarin.iOS.
-and every .net runtime that does not support code generation.
+or any .NET runtime that does not support code generation.
 
 
 ### What NeoLua is useful for
@@ -75,7 +75,7 @@ and every .net runtime that does not support code generation.
 * As a formula parser
 * ...
 
-So, this could be reliable partner for your compiled .NET application or engine (e.g. Game Engines).
+So, this could be reliable partner for your compiled .NET application or engine (e.g. game engines).
 
 ### What I did not have in mind
 
@@ -84,13 +84,13 @@ So, this could be reliable partner for your compiled .NET application or engine 
 
 ### Advantages of NeoLua
 
-* Dynamic access between Lua script and and the host application/.NET framework and vice-versa.
+* Dynamic access between Lua script and and the host application/.NET Framework and vice-versa.
 * NeoLua is based on the DLR. So you get compiled code that is collectable and well-optimized.
 * It is compatible with the .NET world (e.g. C#, VB.NET, IronPython, ...).
-* Full and easy access to the .NET framework or your own libraries (with no stub code).
-* A rich implementation of the lua table, for a got integration in the .net world e.g. Binding, Enumeration, ...
-* A .NET Framework Garbage Collector that is well-tested and very fast.
-* Pure IL (x86,x64 support)
+* Full and easy access to the .NET Framework or your own libraries (with no stub code).
+* A rich implementation of the Lua table, for a got integration in the .NET world e.g. binding, enumeration, ...
+* A .NET Framework garbage collector that is well-tested and very fast.
+* Pure IL (x86, x64 support)
 
 ### Drawbacks of NeoLua
 
@@ -130,4 +130,4 @@ If there is something unclear, wrong or misunderstanding please use the discussi
 ## Links
 
 * Article on CodeProject: http://www.codeproject.com/Articles/674128/NeoLua-Lua-for-the-net-dynamic-lanuguage-runtime
-* Nuget package: https://www.nuget.org/packages/NeoLua/
+* NuGet package: https://www.nuget.org/packages/NeoLua/
