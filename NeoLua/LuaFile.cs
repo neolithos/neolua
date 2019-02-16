@@ -433,7 +433,7 @@ namespace Neo.IronLua
 	/// <summary></summary>
 	public class LuaFileStream : LuaFile
 	{
-		private readonly FileStream src;
+		private readonly Stream src;
 
 		#region -- Ctor/Dtor ----------------------------------------------------------
 
@@ -441,7 +441,7 @@ namespace Neo.IronLua
 		/// <param name="src"></param>
 		/// <param name="tr"></param>
 		/// <param name="tw"></param>
-		protected LuaFileStream(FileStream src, StreamReader tr, StreamWriter tw)
+		protected LuaFileStream(Stream src, StreamReader tr, StreamWriter tw)
 			: base(tr, tw)
 		{
 			this.src = src ?? throw new ArgumentNullException(nameof(src));
@@ -575,7 +575,7 @@ namespace Neo.IronLua
 		/// <param name="src">File stream.</param>
 		/// <param name="encoding">Encoding for the text access.</param>
 		/// <returns></returns>
-		public static LuaFile OpenFile(FileStream src, Encoding encoding = null)
+		public static LuaFile OpenFile(Stream src, Encoding encoding = null)
 		{
 			return new LuaFileStream(src,
 				src.CanRead ? new StreamReader(src, encoding ?? Encoding.UTF8) : null,
