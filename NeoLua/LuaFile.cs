@@ -559,12 +559,29 @@ namespace Neo.IronLua
 			}
 
 			// open the file
-			var src = new FileStream(fileName, fileMode, fileAccess, (fileAccess & FileAccess.Write) != 0 ? FileShare.None : FileShare.Read);
-			return new LuaFileStream(src,
-				(fileAccess & FileAccess.Read) == 0 ? null : new StreamReader(src, encoding),
-				(fileAccess & FileAccess.Write) == 0 ? null : new StreamWriter(src, encoding)
-			);
+			return OpenFile(fileName, encoding, fileMode, fileAccess);
 		} // proc OpenFile
+
+		/// <summary>Creates a new lua compatible file access.</summary>
+		/// <param name="fileName">Name of the file.</param>
+		/// <param name="encoding">Encoding for the text access.</param>
+		/// <param name="fileMode">Open mode</param>
+		/// <param name="fileAccess">Access mode.</param>
+		/// <returns></returns>
+		public static LuaFile OpenFile(string fileName, Encoding encoding, FileMode fileMode, FileAccess fileAccess)
+			=> OpenFile(new FileStream(fileName, fileMode, fileAccess, (fileAccess & FileAccess.Write) != 0 ? FileShare.None : FileShare.Read), encoding);
+
+		/// <summary>Creates a new lua compatible file access.</summary>
+		/// <param name="src">File stream.</param>
+		/// <param name="encoding">Encoding for the text access.</param>
+		/// <returns></returns>
+		public static LuaFile OpenFile(FileStream src, Encoding encoding = null)
+		{
+			return new LuaFileStream(src,
+				src.CanRead ? new StreamReader(src, encoding ?? Encoding.UTF8) : null,
+				src.CanWrite ? new StreamWriter(src, encoding ?? Encoding.UTF8) : null
+			);
+		} // func OpenFile
 
 		#endregion
 	} // class LuaFileStream
