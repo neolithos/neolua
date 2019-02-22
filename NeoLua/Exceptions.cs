@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Neo.IronLua
@@ -82,6 +83,18 @@ namespace Neo.IronLua
 		public abstract int Line { get; }
 		/// <summary>Source column</summary>
 		public abstract int Column { get; }
+
+		/// <summary>Exception to use for not implementated functions, that might be implemented later.</summary>
+		/// <param name="caller"></param>
+		/// <returns></returns>
+		public static NotImplementedException GetNotImplementedException([CallerMemberName] string caller = "function")
+			=> new NotImplementedException(String.Format("'{0}' is not implemented. Please open a kind request or better a pull request on https://github.com/neolithos/neolua", caller));
+
+		/// <summary>Exception to use for functions, that can not implemented by design.</summary>
+		/// <param name="caller"></param>
+		/// <returns></returns>
+		public static NotSupportedException GetNotSupportedException([CallerMemberName] string caller = "function")
+			=> new NotSupportedException(String.Format("'{0}' is not supported.", caller));
 	} // class LuaException
 
 	#endregion
