@@ -255,7 +255,7 @@ namespace AT.MIN
 		{
 			#region Variables
 			StringBuilder f = new StringBuilder();
-			Regex r = new Regex(@"\%(\d*\$)?([\'\#\-\+ ]*)(\d*)(?:\.(\d+))?([hl])?([dioxXucsfeEgGpn%])");
+			Regex r = new Regex(@"\%(\d*\$)?([\'\#\-\+ ]*)(\d*)(?:\.(\d+))?([hl])?([dioxXucsfeEgGpnq%])");
 			//"%[parameter][flags][width][.precision][length]type"
 			Match m = null;
 			string w = String.Empty;
@@ -479,6 +479,15 @@ namespace AT.MIN
 							else
 								w = w.PadLeft(fieldLength, paddingCharacter);
 						defaultParamIx++;
+						break;
+					#endregion
+					#region -- q - string --
+					case 'q':
+						using (var tw = new StringWriter())
+						{
+							Lua.RtWriteValue(tw, o, false, 0, String.Empty);
+							w = tw.GetStringBuilder().ToString();
+						}
 						break;
 					#endregion
 					#region f - double number

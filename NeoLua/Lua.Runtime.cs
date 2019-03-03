@@ -23,6 +23,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Dynamic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -691,6 +692,110 @@ namespace Neo.IronLua
 				return null;
 		} // func ThrowFormatExpression
 
+		#endregion
+
+		#region -- RtWriteValue -------------------------------------------------------
+
+		internal static void RtWriteValue(TextWriter tw, object value, bool prettyFormatted, int currentLevel, string indent)
+		{
+			var type = value.GetType();
+			var typeCode = LuaEmit.GetTypeCode(type);
+			switch (typeCode)
+			{
+				case LuaEmitTypeCode.Boolean:
+					tw.Write((bool)value ? "true" : "false");
+					break;
+				case LuaEmitTypeCode.String:
+					{
+						var s = (string)value;
+						tw.Write("\"");
+						for (var i = 0; i < s.Length; i++)
+						{
+							switch (s[i])
+							{
+								case '\0':
+									tw.Write("\\x00");
+									break;
+								case '\\':
+									tw.Write("\\\\");
+									break;
+								case '"':
+									tw.Write("\\\"");
+									break;
+								case '\n':
+									tw.Write("\\n");
+									break;
+								case '\r':
+									tw.Write("\\r");
+									break;
+								case '\t':
+									tw.Write("\\t");
+									break;
+								default:
+									tw.Write(s[i]);
+									break;
+							}
+						}
+						tw.Write("\"");
+					}
+					break;
+				case LuaEmitTypeCode.Char:
+					value = value.ToString();
+					goto case LuaEmitTypeCode.String;
+
+				case LuaEmitTypeCode.Byte:
+				case LuaEmitTypeCode.SByte:
+				case LuaEmitTypeCode.Int16:
+				case LuaEmitTypeCode.UInt16:
+				case LuaEmitTypeCode.Int32:
+				case LuaEmitTypeCode.UInt32:
+				case LuaEmitTypeCode.Int64:
+				case LuaEmitTypeCode.UInt64:
+					tw.Write(value);
+					break;
+
+				case LuaEmitTypeCode.Single:
+				case LuaEmitTypeCode.Double:
+				case LuaEmitTypeCode.Decimal:
+					{
+						var num = Convert.ToString(value, CultureInfo.InvariantCulture);
+						if (num.IndexOfAny(new char[] { '.', 'e', 'E' }) == -1)
+						{
+							tw.Write(num);
+							tw.Write(".0");
+						}
+						else
+							tw.Write(num);
+					}
+					break;
+
+				case LuaEmitTypeCode.DateTime:
+					value = ((DateTime)value).ToString("o"); // ISO8601
+					goto case LuaEmitTypeCode.String;
+
+				case LuaEmitTypeCode.Object:
+					if (type == typeof(LuaTable))
+					{
+						LuaTable.ToLson((LuaTable)value, tw, prettyFormatted, currentLevel + 1, indent);
+						break;
+					}
+					else if (type == typeof(Guid))
+					{
+						value = ((Guid)value).ToString("B");
+						goto case LuaEmitTypeCode.String;
+					}
+					else if (type == typeof(char[]))
+					{
+						value = new string((char[])value);
+						goto case LuaEmitTypeCode.String;
+					}
+					else
+						goto default;
+				default:
+					throw new ArgumentException(String.Format(Properties.Resources.rsTypeIsNotSupported, type.Name));
+			}
+		} // proc RtWriteValue
+		
 		#endregion
 
 		#region -- RtConvertValue, RtConvertDelegate ----------------------------------
