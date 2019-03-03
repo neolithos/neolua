@@ -540,9 +540,9 @@ namespace Neo.IronLua
 					case 'w':
 						fileAccess |= FileAccess.Write;
 						if (isExtend)
-							fileMode = FileMode.Create;
-						else
 							fileMode = FileMode.OpenOrCreate;
+						else
+							fileMode = FileMode.Truncate;
 						break;
 					case 'a':
 						fileAccess |= FileAccess.Write;
