@@ -894,28 +894,29 @@ namespace Neo.IronLua
 				// Enum extensions
 				if (extensionMethods != null)
 				{
+					MemberInfo[] copyOfExtensionMethods;
 					lock (currentTypeLock)
-					{
-						foreach (var mi in (getDeclaredMembers == null ? extensionMethods : getDeclaredMembers(extensionMethods)))
-							yield return (T)(MemberInfo)mi;
-					}
+						copyOfExtensionMethods = extensionMethods.ToArray();
+
+					foreach (var mi in (getDeclaredMembers == null ? copyOfExtensionMethods : getDeclaredMembers(copyOfExtensionMethods)))
+						yield return (T)(MemberInfo)mi;
 				}
 
 				// Enum generic extensions
 				if (parent != null && parent.genericExtensionMethods != null)
 				{
-					//lock (parent.currentTypeLock)
+					MemberInfo[] copyOfExtensionMethods;
 					lock (currentTypeLock)
-					{
-						foreach (var mi in (getDeclaredMembers == null ? parent.genericExtensionMethods : getDeclaredMembers(parent.genericExtensionMethods)))
-						{
-							var methodInfo = (MethodInfo)mi;
+						copyOfExtensionMethods = parent.genericExtensionMethods.ToArray();
 
-							// get first argument
-							var firstArgumentType = methodInfo.GetParameters()[0].ParameterType;
-							if (firstArgumentType.GetGenericTypeDefinition() == type.GetGenericTypeDefinition())
-								yield return (T)(MemberInfo)mi;
-						}
+					foreach (var mi in (getDeclaredMembers == null ? copyOfExtensionMethods : getDeclaredMembers(copyOfExtensionMethods)))
+					{
+						var methodInfo = (MethodInfo)mi;
+
+						// get first argument
+						var firstArgumentType = methodInfo.GetParameters()[0].ParameterType;
+						if (firstArgumentType.GetGenericTypeDefinition() == type.GetGenericTypeDefinition())
+							yield return (T)(MemberInfo)mi;
 					}
 				}
 			}
