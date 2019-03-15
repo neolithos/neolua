@@ -2236,44 +2236,44 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- High level Array/Member functions --------------------------------------
+		#region -- High level Array/Member functions ----------------------------------
 
 		private void MembersCopyTo(KeyValuePair<string, object>[] array, int arrayIndex)
 		{
 			if (arrayIndex < 0 || arrayIndex + memberCount - hiddenMemberCount > array.Length)
 				throw new ArgumentOutOfRangeException();
 
-			for (int i = hiddenMemberCount; i < entries.Length; i++)
+			for (var i = hiddenMemberCount; i < entries.Length; i++)
 			{
-				object key = entries[i].key;
-				if (key is string)
-					array[arrayIndex++] = new KeyValuePair<string, object>((string)key, entries[i].value);
+				if (entries[i].key is string member)
+					array[arrayIndex++] = new KeyValuePair<string, object>(member, entries[i].value);
 			}
 		} // proc MembersCopyTo
 
 		private IEnumerator<KeyValuePair<string, object>> MembersGetEnumerator()
 		{
-			int iVersion = this.version;
-			for (int i = hiddenMemberCount; i < entries.Length; i++)
+			var version = this.version;
+			for (var i = hiddenMemberCount; i < entries.Length; i++)
 			{
-				if (iVersion != this.version)
+				if (version != this.version)
 					throw new InvalidOperationException();
 
-				object key = entries[i].key;
-				if (key is string)
-					yield return new KeyValuePair<string, object>((string)key, entries[i].value);
+				if (entries[i].key is string member)
+					yield return new KeyValuePair<string, object>(member, entries[i].value);
 			}
 		} // func MembersGetEnumerator
 
 		private void ClearMembers()
 		{
-			for (int i = hiddenMemberCount; i < entries.Length; i++)
+			for (var i = hiddenMemberCount; i < entries.Length; i++)
 			{
 				if (i < classDefinition.Count)
+				{
 					if (classDefinition[i].mode == LuaTableDefineMode.Init)
 						SetClassMemberValue(i, null, classDefinition[i].GetInitialValue(this), false);
 					else
 						SetClassMemberValue(i, null, null, false);
+				}
 				else if (entries[i].hashCode != -1 && entries[i].key is string)
 					RemoveValue(i);
 			}
@@ -2382,7 +2382,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Simple Set/GetValue/Contains -------------------------------------------
+		#region -- Simple Set/GetValue/Contains ---------------------------------------
 
 		/// <summary>Is the type a index type.</summary>
 		/// <param name="type"></param>
@@ -2416,7 +2416,7 @@ namespace Neo.IronLua
 				case LuaEmitTypeCode.UInt32:
 					unchecked
 					{
-						uint t = (uint)item;
+						var t = (uint)item;
 						if (t < Int32.MaxValue)
 						{
 							index = (int)t;
@@ -2460,7 +2460,7 @@ namespace Neo.IronLua
 					}
 				case LuaEmitTypeCode.Single:
 					{
-						float f = (float)item;
+						var f = (float)item;
 						if (f % 1 == 0 && f >= 1 && f <= Int32.MaxValue)
 						{
 							index = Convert.ToInt32(f);
@@ -2474,7 +2474,7 @@ namespace Neo.IronLua
 					}
 				case LuaEmitTypeCode.Double:
 					{
-						double f = (double)item;
+						var f = (double)item;
 						if (f % 1 == 0 && f >= 1 && f <= Int32.MaxValue)
 						{
 							index = Convert.ToInt32(f);
@@ -2488,7 +2488,7 @@ namespace Neo.IronLua
 					}
 				case LuaEmitTypeCode.Decimal:
 					{
-						decimal f = (decimal)item;
+						var f = (decimal)item;
 						if (f % 1 == 0 && f >= 1 && f <= Int32.MaxValue)
 						{
 							index = Convert.ToInt32(f);
@@ -2889,13 +2889,13 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Metatable --------------------------------------------------------------
+		#region -- Metatable ----------------------------------------------------------
 
 		private bool TryInvokeMetaTableOperator<TRETURN>(string key, bool raise, out TRETURN r, params object[] args)
 		{
 			if (metaTable != null)
 			{
-				object o = metaTable[key];
+				var o = metaTable[key];
 				if (o != null)
 				{
 					if (Lua.RtInvokeable(o))
@@ -2915,25 +2915,13 @@ namespace Neo.IronLua
 		} // func GetMetaTableOperator
 
 		private object UnaryOperation(string key)
-		{
-			object o;
-			TryInvokeMetaTableOperator<object>(key, true, out o, this);
-			return o;
-		} // proc UnaryOperation
+			=> TryInvokeMetaTableOperator<object>(key, true, out var o, this) ? o : null;
 
 		private object BinaryOperation(string key, object arg)
-		{
-			object o;
-			TryInvokeMetaTableOperator<object>(key, true, out o, this, arg);
-			return o;
-		} // proc BinaryOperation
+			=> TryInvokeMetaTableOperator<object>(key, true, out var o, this, arg) ? o : null;
 
 		private bool BinaryBoolOperation(string key, object arg)
-		{
-			bool o;
-			TryInvokeMetaTableOperator<bool>(key, true, out o, this, arg);
-			return o;
-		} // proc BinaryBoolOperation
+			=> TryInvokeMetaTableOperator<bool>(key, true, out var o, this, arg) ? o : false;
 
 		/// <summary></summary>
 		/// <param name="arg"></param>
@@ -3032,12 +3020,7 @@ namespace Neo.IronLua
 		/// <summary></summary>
 		/// <returns></returns>
 		protected virtual int OnLen()
-		{
-			int l;
-			if (TryInvokeMetaTableOperator<int>("__len", false, out l, this))
-				return l;
-			return Length;
-		} // func OnLen
+			=> TryInvokeMetaTableOperator<int>("__len", false, out var l, this) ? l : Length;
 
 		/// <summary></summary>
 		/// <param name="arg"></param>
@@ -3062,13 +3045,11 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		protected virtual object OnIndex(object key)
 		{
-			if (Object.ReferenceEquals(metaTable, null))
+			if (metaTable is null)
 				return null;
 
 			var index = metaTable["__index"];
-			LuaTable t;
-
-			if ((t = index as LuaTable) != null) // default table
+			if (index is LuaTable t) // default table
 				return t.GetValue(key, false);
 			else if (Lua.RtInvokeable(index)) // default function
 				return new LuaResult(RtInvokeSite(index, this, key))[0];
@@ -3082,7 +3063,7 @@ namespace Neo.IronLua
 		/// <returns><c>true</c>, if __newindex is defined.</returns>
 		protected virtual bool OnNewIndex(object key, object value)
 		{
-			if (Object.ReferenceEquals(metaTable, null))
+			if (metaTable is null)
 				return false;
 
 			var o = metaTable["__newindex"];
@@ -3100,23 +3081,13 @@ namespace Neo.IronLua
 		protected virtual LuaResult OnCall(object[] args)
 		{
 			if (args == null || args.Length == 0)
-			{
-				LuaResult o;
-				if (TryInvokeMetaTableOperator<LuaResult>("__call", true, out o, this))
-					return o;
-				else
-					return LuaResult.Empty;
-			}
+				return TryInvokeMetaTableOperator<LuaResult>("__call", true, out var o, this) ? o : LuaResult.Empty;
 			else
 			{
 				var argsEnlarged = new object[args.Length + 1];
 				argsEnlarged[0] = this;
 				Array.Copy(args, 0, argsEnlarged, 1, args.Length);
-				LuaResult o;
-				if (TryInvokeMetaTableOperator<LuaResult>("__call", false, out o, argsEnlarged))
-					return o;
-				else
-					return LuaResult.Empty;
+				return TryInvokeMetaTableOperator<LuaResult>("__call", false, out var o, argsEnlarged) ? o : LuaResult.Empty;
 			}
 		} // func OnCall
 
@@ -3541,19 +3512,19 @@ namespace Neo.IronLua
 		/// <summary>Returns or sets an value in the lua-table.</summary>
 		/// <param name="index">Index.</param>
 		/// <returns>Value or <c>null</c></returns>
-		public object this[int index] { get { return GetArrayValue(index, false); } set { SetArrayValue(index, value, false); } }
+		public object this[int index] { get => GetArrayValue(index, false); set => SetArrayValue(index, value, false); }
 		/// <summary>Returns or sets an value in the lua-table.</summary>
 		/// <param name="key">Index.</param>
 		/// <returns>Value or <c>null</c></returns>
-		public object this[string key] { get { return GetMemberValue(key, false, false); } set { SetMemberValue(key, value, false, false); } }
+		public object this[string key] { get => GetMemberValue(key, false, false); set => SetMemberValue(key, value, false, false); }
 		/// <summary>Returns or sets an value in the lua-table.</summary>
 		/// <param name="key">Index.</param>
 		/// <returns>Value or <c>null</c></returns>
-		public object this[object key] { get { return GetValue(key, false); } set { SetValue(key, value, false); } }
+		public object this[object key] { get => GetValue(key, false); set => SetValue(key, value, false); }
 		/// <summary>Returns or sets an value in the lua-table.</summary>
 		/// <param name="keyList">Index list.</param>
 		/// <returns>Value or <c>null</c></returns>
-		public object this[params object[] keyList] { get { return GetValue(keyList, false); } set { SetValue(keyList, value, false); } }
+		public object this[params object[] keyList] { get => GetValue(keyList, false); set => SetValue(keyList, value, false); }
 
 		/// <summary>Access to the array part</summary>
 		public IList<object> ArrayList => new ArrayImplementation(this);
@@ -3566,7 +3537,7 @@ namespace Neo.IronLua
 		public int Length => arrayLength;
 		/// <summary>Access to the __metatable</summary>
 		[LuaMember(csMetaTable)]
-		public LuaTable MetaTable { get { return metaTable; } set { metaTable = value; } }
+		public LuaTable MetaTable { get => metaTable; set => metaTable = value; }
 
 		// -- Static --------------------------------------------------------------
 
@@ -3915,13 +3886,20 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Lua Script Object Notation -- To -------------------------------------
+		#region -- Lua Script Object Notation -- To -----------------------------------
 
-		internal static void ToLson(LuaTable table, TextWriter tw, bool prettyFormatted, int currentLevel, string indent)
+
+		/// <summary>Convert the table to a string</summary>
+		/// <param name="table"></param>
+		/// <param name="tw"></param>
+		/// <param name="prettyFormatting"></param>
+		/// <param name="currentLevel"></param>
+		/// <param name="indent"></param>
+		public static void ToLsonCore(LuaTable table, TextWriter tw, bool prettyFormatting = true, string indent = "\t", int currentLevel = 1)
 		{
 			void WriteIndent()
 			{
-				if (!prettyFormatted)
+				if (!prettyFormatting)
 					return;
 
 				tw.WriteLine();
@@ -3957,9 +3935,12 @@ namespace Neo.IronLua
 			void WriteKey(object key)
 			{
 				tw.Write("[");
-				Lua.RtWriteValue(tw, key, prettyFormatted, currentLevel + 1, indent);
+				Lua.RtWriteValue(tw, key, prettyFormatting, currentLevel + 1, indent);
 				tw.Write("]");
 			} // proc WriteKey
+
+			if (tw == null)
+				throw new ArgumentNullException(nameof(tw));
 
 			if (currentLevel > 100)
 				throw new ArgumentOutOfRangeException(nameof(table), Properties.Resources.rsTableRecursionLevelError);
@@ -3991,7 +3972,7 @@ namespace Neo.IronLua
 					if ((isIndex = IsIndexKey(kv.Key, out var index)) && lastIndex + 1 == index && kv.Value != null)
 					{
 						lastIndex = index;
-						Lua.RtWriteValue(tw, kv.Value, prettyFormatted, currentLevel + 1, indent);
+						Lua.RtWriteValue(tw, kv.Value, prettyFormatting, currentLevel + 1, indent);
 					}
 					else if (kv.Value != null) // use key/value pair notation
 					{
@@ -4001,8 +3982,8 @@ namespace Neo.IronLua
 							WriteMember(member);
 						else
 							WriteKey(kv.Key);
-						tw.Write(prettyFormatted ? " = " : "=");
-						Lua.RtWriteValue(tw, kv.Value, prettyFormatted, currentLevel + 1, indent);
+						tw.Write(prettyFormatting ? " = " : "=");
+						Lua.RtWriteValue(tw, kv.Value, prettyFormatting, currentLevel + 1, indent);
 					}
 					else
 						skipCommand = true;
@@ -4016,7 +3997,7 @@ namespace Neo.IronLua
 			}
 			else
 				tw.Write("{}");
-		} // proc ToLson
+		}
 
 		/// <summary>Convert the table to a string</summary>
 		/// <param name="table"></param>
@@ -4026,29 +4007,21 @@ namespace Neo.IronLua
 		{
 			using (var sw = new StringWriter())
 			{
-				ToLson(table, sw, prettyFormatting, indent);
+				ToLsonCore(table, sw, prettyFormatting, indent, 1);
 				return sw.GetStringBuilder().ToString();
 			}
 		} // func ToLson
-
-		/// <summary>Convert the table to a string</summary>
-		/// <param name="table"></param>
-		/// <param name="tw"></param>
-		/// <param name="prettyFormatting"></param>
-		/// <param name="indent"></param>
-		public static void ToLson(LuaTable table, TextWriter tw, bool prettyFormatting = true, string indent = "\t")
-			=> ToLson(table, tw, prettyFormatting, 1, indent);
 
 		/// <summary>Convert the table to a string</summary>
 		/// <param name="prettyFormatting"></param>
 		/// <param name="indent"></param>
 		/// <returns></returns>
 		public string ToLson(bool prettyFormatting = true, string indent = "\t")
-			=> ToLson(this, prettyFormatting, indent);
+		=> ToLson(this, prettyFormatting, indent);
 
 		#endregion
 
-		#region -- Lua Script Object Notation -- From -----------------------------------
+		#region -- Lua Script Object Notation -- From ---------------------------------
 
 		/// <summary></summary>
 		/// <param name="lex"></param>
@@ -4398,7 +4371,7 @@ namespace Neo.IronLua
 					throw new LuaParseException(lex.CurrentPosition, "Unexpected eof.");
 			} // proc CheckEof
 
-			Exception UnExpected(string expected) 
+			Exception UnExpected(string expected)
 				=> new LuaParseException(lex.CurrentPosition, String.Format("{0} (found: {1})", expected, lex.Cur)); // todo: translate
 
 			void ParseChar(char c, string expected = null)
@@ -4548,7 +4521,7 @@ namespace Neo.IronLua
 					if (isParsing)
 						lex.Next();
 				}
-			
+
 				if (isDouble)
 				{
 					if (isNeg)
@@ -4633,10 +4606,10 @@ namespace Neo.IronLua
 				while (lex.Cur != ']')
 				{
 					CheckEof();
-					
-						var value = ParseElement();
-						if (value != null)
-							table.ArrayOnlyAdd(value);
+
+					var value = ParseElement();
+					if (value != null)
+						table.ArrayOnlyAdd(value);
 
 					if (lex.Cur == ',')
 					{
@@ -4743,7 +4716,7 @@ namespace Neo.IronLua
 				? t
 				: new LuaTable() { [1] = r };
 		} // func FromJsonParse
-																																																   /// <returns></returns>
+		  /// <returns></returns>
 		public static LuaTable FromJson(TextReader tr)
 		{
 			using (var lex = new LuaCharLexer("json", tr, 1))
@@ -4761,7 +4734,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- c#/vb.net operators --------------------------------------------------
+		#region -- c#/vb.net operators ------------------------------------------------
 
 		/// <summary></summary>
 		/// <param name="table"></param>
@@ -4809,14 +4782,14 @@ namespace Neo.IronLua
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static bool operator ==(LuaTable table, object arg)
-			=> Object.ReferenceEquals(table, null) ? Object.ReferenceEquals(arg, null) : table.Equals(arg);
+			=> table is null ? arg is null : table.Equals(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>
 		/// <param name="arg"></param>
 		/// <returns></returns>
 		public static bool operator !=(LuaTable table, object arg)
-			=> Object.ReferenceEquals(table, null) ? !Object.ReferenceEquals(arg, null) : !table.Equals(arg);
+			=> table is null ? !(arg is null) : !table.Equals(arg);
 
 		/// <summary></summary>
 		/// <param name="table"></param>

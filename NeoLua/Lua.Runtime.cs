@@ -776,7 +776,7 @@ namespace Neo.IronLua
 				case LuaEmitTypeCode.Object:
 					if (type == typeof(LuaTable))
 					{
-						LuaTable.ToLson((LuaTable)value, tw, prettyFormatted, currentLevel + 1, indent);
+						LuaTable.ToLsonCore((LuaTable)value, tw, prettyFormatted, indent, currentLevel + 1);
 						break;
 					}
 					else if (type == typeof(Guid))
