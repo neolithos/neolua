@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Neo.IronLua;
 
@@ -350,18 +351,20 @@ namespace LuaDLR.Test
 			TestResult(new LuaResult(Lua.RtConvertValue(null, typeof(string))), "");
 			TestResult(new LuaResult(Lua.RtConvertValue(new object(), typeof(string))), "System.Object");
 
-			TestResult(new LuaResult(Lua.RtConvertValue(1, typeof(Decimal))), 1m);
-			TestResult(new LuaResult(Lua.RtConvertValue("1.2", typeof(Decimal))), 1.2m);
+			TestResult(new LuaResult(Lua.RtConvertValue(1, typeof(decimal))), 1m);
+			TestResult(new LuaResult(Lua.RtConvertValue("1.2", typeof(decimal))), 1.2m);
 			TestResult(new LuaResult(Lua.RtConvertValue(1.2m, typeof(string))), "1.2");
 			TestResult(new LuaResult(Lua.RtConvertValue(1.2m, typeof(int))), 1);
 
 			TestResult(new LuaResult(Lua.RtConvertValue("90238fad-cb41-4efa-bb2f-4d56a0088a01", typeof(Guid))), new Guid("90238fad-cb41-4efa-bb2f-4d56a0088a01"));
+
+			TestResult(new LuaResult(Lua.RtConvertValue(new XElement("test", new XText("value")), typeof(string))), "value");
 		}
 
 		[TestMethod]
 		public void TestConvert04()
 		{
-			using (Lua l = new Lua())
+			using (var l = new Lua())
 			{
 				l.PrintExpressionTree = Console.Out;
 				dynamic g = l.CreateEnvironment();

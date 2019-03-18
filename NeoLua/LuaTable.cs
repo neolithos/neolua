@@ -691,7 +691,7 @@ namespace Neo.IronLua
 			/// <summary></summary>
 			/// <returns></returns>
 			public override IEnumerable<string> GetDynamicMemberNames()
-				=> ((LuaTable)Value).Members.Keys;
+				=> ((LuaTable)Value).GetKeys();
 		} // class LuaTableMetaObject
 
 		#endregion
@@ -3399,6 +3399,11 @@ namespace Neo.IronLua
 					return NextHashKey2(FindKey(next, next.GetHashCode() & 0x7FFFFFFF, comparerObject));
 			}
 		} // func NextKey
+
+		/// <summary>Return visible keys.</summary>
+		/// <returns></returns>
+		protected virtual IEnumerable<string> GetKeys()
+			=> ((IDictionary<object, object>)this).Keys.Select(c => (string)Lua.RtConvertValue(c, typeof(string)));
 
 		#endregion
 

@@ -347,7 +347,7 @@ namespace Neo.IronLua
 					implicitMethod = testImplicit;
 					currentMethodInfo = mi;
 				}
-				else if (isExactTo) // check only testExactFrom
+				else if (testExactTo) // check only testExactFrom
 				{
 					if (testExactFrom) // nice
 					{
