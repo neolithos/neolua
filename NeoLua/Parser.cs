@@ -908,88 +908,90 @@ namespace Neo.IronLua
 				code.Next();
 
 				// parse all expressions
-				var expr = ParseExpressionList(scope, code).GetEnumerator();
-				expr.MoveNext();
+				using (var expr = ParseExpressionList(scope, code).GetEnumerator())
+				{
+					expr.MoveNext();
 
-				if (prefixes.Count == 1) // one expression, one variable?
-				{
-					scope.AddExpression(
-						prefixes[0].GenerateSet(scope, expr.Current != null ? expr.Current : Expression.Constant(null, typeof(object)))
-					);
-				}
-				else if (expr.Current == null) // No expression, assign null
-				{
-					for (var i = 0; i < prefixes.Count; i++)
-						scope.AddExpression(prefixes[i].GenerateSet(scope, Expression.Constant(null, typeof(object))));
-				}
-				else // assign on an unknown number of expressions
-				{
-					#region -- unknown number --
-					var assignTempVars = new List<ParameterExpression>();
-					var assignExprs = new List<Expression>();
-					int expressionVarOffset;
-
-					// Safe the prefixes in variables
-					for (var k = 0; k < prefixes.Count; k++)
+					if (prefixes.Count == 1) // one expression, one variable?
 					{
-						var p = prefixes[k];
-						if (p.Member != null || prefixes[k].Indices != null)
-						{
-							p.Instance = ParseExpressionStatementExchangeToTempVar(assignTempVars, assignExprs, p.Instance);
+						scope.AddExpression(
+							prefixes[0].GenerateSet(scope, expr.Current ?? Expression.Constant(null, typeof(object)))
+						);
+					}
+					else if (expr.Current == null) // No expression, assign null
+					{
+						for (var i = 0; i < prefixes.Count; i++)
+							scope.AddExpression(prefixes[i].GenerateSet(scope, Expression.Constant(null, typeof(object))));
+					}
+					else // assign on an unknown number of expressions
+					{
+						#region -- unknown number --
+						var assignTempVars = new List<ParameterExpression>();
+						var assignExprs = new List<Expression>();
+						int expressionVarOffset;
 
-							if (p.Indices != null)
+						// Safe the prefixes in variables
+						for (var k = 0; k < prefixes.Count; k++)
+						{
+							var p = prefixes[k];
+							if (p.Member != null || prefixes[k].Indices != null)
 							{
-								for (var l = 0; l < p.Indices.Length; l++)
-									p.Indices[l] = ParseExpressionStatementExchangeToTempVar(assignTempVars, assignExprs, p.Indices[l]);
+								p.Instance = ParseExpressionStatementExchangeToTempVar(assignTempVars, assignExprs, p.Instance);
+
+								if (p.Indices != null)
+								{
+									for (var l = 0; l < p.Indices.Length; l++)
+										p.Indices[l] = ParseExpressionStatementExchangeToTempVar(assignTempVars, assignExprs, p.Indices[l]);
+								}
 							}
 						}
-					}
 
-					// collect the results of the expressions
-					expressionVarOffset = assignTempVars.Count;
-					do
-					{
-						ParseExpressionStatementExchangeToTempVar(assignTempVars, assignExprs, expr.Current);
-					} while (expr.MoveNext());
-
-					// Assign the Result to the prefixes
-					var i = 0;
-					var j = 0;
-					var lastVariable = (ParameterExpression)null;
-					while (i < prefixes.Count)
-					{
-						if (i < assignTempVars.Count - expressionVarOffset) // are the variables
+						// collect the results of the expressions
+						expressionVarOffset = assignTempVars.Count;
+						do
 						{
-							if (i == assignTempVars.Count - expressionVarOffset - 1 && assignTempVars[i + expressionVarOffset].Type == typeof(LuaResult)) // check if the last expression is a LuaResult
+							ParseExpressionStatementExchangeToTempVar(assignTempVars, assignExprs, expr.Current);
+						} while (expr.MoveNext());
+
+						// Assign the Result to the prefixes
+						var i = 0;
+						var j = 0;
+						var lastVariable = (ParameterExpression)null;
+						while (i < prefixes.Count)
+						{
+							if (i < assignTempVars.Count - expressionVarOffset) // are the variables
 							{
-								lastVariable = assignTempVars[i + expressionVarOffset];
+								if (i == assignTempVars.Count - expressionVarOffset - 1 && assignTempVars[i + expressionVarOffset].Type == typeof(LuaResult)) // check if the last expression is a LuaResult
+								{
+									lastVariable = assignTempVars[i + expressionVarOffset];
+									assignExprs.Add(prefixes[i].GenerateSet(scope, GetResultExpression(scope.Runtime, code.Current, lastVariable, j++)));
+								}
+								else
+								{
+									assignExprs.Add(prefixes[i].GenerateSet(scope, assignTempVars[i + expressionVarOffset]));
+								}
+							}
+							else if (lastVariable != null) // we enroll the last expression
+							{
 								assignExprs.Add(prefixes[i].GenerateSet(scope, GetResultExpression(scope.Runtime, code.Current, lastVariable, j++)));
 							}
-							else
+							else // no variable left
 							{
-								assignExprs.Add(prefixes[i].GenerateSet(scope, assignTempVars[i + expressionVarOffset]));
+								assignExprs.Add(prefixes[i].GenerateSet(scope, Expression.Default(typeof(object))));
 							}
+							i++;
 						}
-						else if (lastVariable != null) // we enroll the last expression
-						{
-							assignExprs.Add(prefixes[i].GenerateSet(scope, GetResultExpression(scope.Runtime, code.Current, lastVariable, j++)));
-						}
-						else // no variable left
-						{
-							assignExprs.Add(prefixes[i].GenerateSet(scope, Expression.Default(typeof(object))));
-						}
-						i++;
+
+						// add the block
+						scope.AddExpression(Expression.Block(assignTempVars, assignExprs));
+
+						#endregion
 					}
 
-					// add the block
-					scope.AddExpression(Expression.Block(assignTempVars, assignExprs));
-
-					#endregion
+					// Führe die restlichen Expressions aus
+					while (expr.MoveNext())
+						scope.AddExpression(expr.Current);
 				}
-
-				// Führe die restlichen Expressions aus
-				while (expr.MoveNext())
-					scope.AddExpression(expr.Current);
 			}
 			else if (!isLocal)
 			{

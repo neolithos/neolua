@@ -1690,8 +1690,7 @@ namespace Neo.IronLua
 			var luaTargetType = LuaType.GetType(targetType);
 			var enumerateType = GetMethodEnumeratorType(target, targetType);
 
-			var memberEnum = luaTargetType.EnumerateMembers<MemberInfo>(enumerateType, memberName, ignoreCase).GetEnumerator();
-			try
+			using (var memberEnum = luaTargetType.EnumerateMembers<MemberInfo>(enumerateType, memberName, ignoreCase).GetEnumerator())
 			{
 				if (!memberEnum.MoveNext()) // no member found
 				{
@@ -1764,10 +1763,6 @@ namespace Neo.IronLua
 					}
 				}
 			}
-			finally
-			{
-				(memberEnum as IDisposable)?.Dispose();
-			}
 		} // func GetMember
 
 		private static LuaMethodEnumerate GetMethodEnumeratorType<TARG>(TARG target, Func<TARG, Expression> getExpr, Func<TARG, Type> getType)
@@ -1793,34 +1788,35 @@ namespace Neo.IronLua
 		public static LuaTrySetMemberReturn TrySetMember(Expression target, Type targetType, string memberName, bool ignoreCase, Func<Type, Expression> set, out Expression result)
 		{
 			var luaType = LuaType.GetType(targetType);
-			var memberEnum = luaType.EnumerateMembers<MemberInfo>(GetMethodEnumeratorType(target, targetType), memberName, ignoreCase).GetEnumerator();
-
-			if (!memberEnum.MoveNext())
+			using (var memberEnum = luaType.EnumerateMembers<MemberInfo>(GetMethodEnumeratorType(target, targetType), memberName, ignoreCase).GetEnumerator())
 			{
-				result = null;
-				return LuaTrySetMemberReturn.None;
-			}
+				if (!memberEnum.MoveNext())
+				{
+					result = null;
+					return LuaTrySetMemberReturn.None;
+				}
 
-			var memberInfo = memberEnum.Current;
-			if (memberInfo is PropertyInfo propertyInfo)
-			{
-				if (!propertyInfo.CanWrite)
+				var memberInfo = memberEnum.Current;
+				if (memberInfo is PropertyInfo propertyInfo)
+				{
+					if (!propertyInfo.CanWrite)
+					{
+						result = null;
+						return LuaTrySetMemberReturn.NotWritable;
+					}
+					result = Expression.Assign(Expression.Property(target != null ? Lua.EnsureType(target, targetType) : null, propertyInfo), set(propertyInfo.PropertyType));
+					return LuaTrySetMemberReturn.ValidExpression;
+				}
+				else if (memberInfo is FieldInfo fieldInfo)
+				{
+					result = Expression.Assign(Expression.Field(target != null ? Lua.EnsureType(target, targetType) : null, fieldInfo), set(fieldInfo.FieldType));
+					return LuaTrySetMemberReturn.ValidExpression;
+				}
+				else
 				{
 					result = null;
 					return LuaTrySetMemberReturn.NotWritable;
 				}
-				result = Expression.Assign(Expression.Property(target != null ? Lua.EnsureType(target, targetType) : null, propertyInfo), set(propertyInfo.PropertyType));
-				return LuaTrySetMemberReturn.ValidExpression;
-			}
-			else if (memberInfo is FieldInfo fieldInfo)
-			{
-				result = Expression.Assign(Expression.Field(target != null ? Lua.EnsureType(target, targetType) : null, fieldInfo), set(fieldInfo.FieldType));
-				return LuaTrySetMemberReturn.ValidExpression;
-			}
-			else
-			{
-				result = null;
-				return LuaTrySetMemberReturn.NotWritable;
 			}
 		} // func TrySetMember
 
@@ -2561,29 +2557,19 @@ namespace Neo.IronLua
 			var memberMatchBind = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
 
 			// get argument list
-			var memberEnum = members.GetEnumerator();
-
-			// reset the result with the first one
-			if (memberEnum.MoveNext())
-				memberMatch.Reset(memberEnum.Current, isMemberCall, memberMatchBind);
-			else
-				return null;
-
-			// text the rest if there is better one
-			if (memberEnum.MoveNext() && !memberMatchBind.IsPerfect)
+			using (var memberEnum = members.GetEnumerator())
 			{
-				var memberMatchCurrent = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
+				// reset the result with the first one
+				if (memberEnum.MoveNext())
+					memberMatch.Reset(memberEnum.Current, isMemberCall, memberMatchBind);
+				else
+					return null;
 
-				// test
-				memberMatch.Reset(memberEnum.Current, isMemberCall, memberMatchCurrent);
-				if (memberMatchCurrent.IsBetter(memberMatchBind))
+				// text the rest if there is better one
+				if (memberEnum.MoveNext() && !memberMatchBind.IsPerfect)
 				{
-					memberMatchBind = memberMatchCurrent;
-					memberMatchCurrent = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
-				}
+					var memberMatchCurrent = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
 
-				while (memberEnum.MoveNext() && !memberMatchBind.IsPerfect)
-				{
 					// test
 					memberMatch.Reset(memberEnum.Current, isMemberCall, memberMatchCurrent);
 					if (memberMatchCurrent.IsBetter(memberMatchBind))
@@ -2591,12 +2577,23 @@ namespace Neo.IronLua
 						memberMatchBind = memberMatchCurrent;
 						memberMatchCurrent = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
 					}
+
+					while (memberEnum.MoveNext() && !memberMatchBind.IsPerfect)
+					{
+						// test
+						memberMatch.Reset(memberEnum.Current, isMemberCall, memberMatchCurrent);
+						if (memberMatchCurrent.IsBetter(memberMatchBind))
+						{
+							memberMatchBind = memberMatchCurrent;
+							memberMatchCurrent = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
+						}
+					}
 				}
+
+				Debug.WriteLine("USED: {0}", memberMatchBind.CurrentMember);
+
+				return memberMatchBind.CurrentMember;
 			}
-
-			Debug.WriteLine("USED: {0}", memberMatchBind.CurrentMember);
-
-			return memberMatchBind.CurrentMember;
 		} // func FindMember
 
 		private static MethodInfo MakeNonGenericMethod<TARG>(MethodInfo mi, TARG[] arguments, Func<TARG, Type> getType)
@@ -2834,22 +2831,24 @@ namespace Neo.IronLua
 				return list;
 		} // func FilterNeeded
 
-		private static T GetOneResult<T>(TypeInfo ti, string sName, ReflectionFlag flags, IEnumerable<T> list, [CallerMemberName] string sCaller = null)
+		private static T GetOneResult<T>(TypeInfo ti, string name, ReflectionFlag flags, IEnumerable<T> list, [CallerMemberName] string caller = null)
 		{
 			if ((flags & ReflectionFlag.NoException) != 0)
 				return list.FirstOrDefault();
 			else
 			{
-				var e = list.GetEnumerator();
-				if (e.MoveNext()) // first element for return
+				using (var e = list.GetEnumerator())
 				{
-					var miFind = e.Current;
-					if (e.MoveNext())
-						throw new ArgumentException(String.Format("{0} for {1}.{2}, is not unique.", sCaller, ti.Name, sName));
-					return miFind;
+					if (e.MoveNext()) // first element for return
+					{
+						var miFind = e.Current;
+						if (e.MoveNext())
+							throw new ArgumentException(String.Format("{0} for {1}.{2}, is not unique.", caller, ti.Name, name));
+						return miFind;
+					}
+					else
+						throw new ArgumentException(String.Format("{0} failed for {1}.{2}.", caller, ti.Name, name));
 				}
-				else
-					throw new ArgumentException(String.Format("{0} failed for {1}.{2}.", sCaller, ti.Name, sName));
 			}
 		} // func GetOneResult
 

@@ -453,7 +453,7 @@ namespace Neo.IronLua
 			if (t == null)
 				throw new ArgumentNullException("#1");
 
-			var e = new ArrayIndexEnumerator(t.ArrayList).GetEnumerator();
+			var e = new ArrayIndexEnumerator(t.ArrayList).GetEnumerator(); // todo: possible memory leak if the enumeration does not reach the end
 			return new LuaResult(new Func<object, object, LuaResult>(PairsEnum<int>), e, e);
 		} // func ipairs
 
@@ -466,7 +466,7 @@ namespace Neo.IronLua
 			if (t == null)
 				throw new ArgumentNullException("#1");
 
-			var e = t.Members.GetEnumerator();
+			var e = t.Members.GetEnumerator(); // todo: possible memory leak if the enumeration does not reach the end
 			return new LuaResult(new Func<object, object, LuaResult>(PairsEnum<string>), e, e);
 		} // func LuaPairs
 
@@ -479,7 +479,7 @@ namespace Neo.IronLua
 			if (t == null)
 				throw new ArgumentNullException("#1");
 
-			var e = ((System.Collections.IEnumerable)t).GetEnumerator();
+			var e = ((System.Collections.IEnumerable)t).GetEnumerator(); // todo: possible memory leak if the enumeration does not reach the end
 			return new LuaResult(new Func<object, object, LuaResult>(PairsEnum<object>), e, e);
 		} // func LuaPairs
 

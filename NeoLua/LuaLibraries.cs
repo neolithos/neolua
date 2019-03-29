@@ -378,7 +378,7 @@ namespace Neo.IronLua
 			pattern = TranslateRegularExpression(pattern).Item1;
 
 			// Find Matches
-			var e = Regex.Matches(s, pattern).GetEnumerator();
+			var e = Regex.Matches(s, pattern).GetEnumerator(); // todo: possible memory leak if the enumeration does not reach the end
 			return new LuaResult(new Func<object, object, LuaResult>(MatchEnum), e, e);
 		} // func gmatch
 
