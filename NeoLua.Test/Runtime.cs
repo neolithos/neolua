@@ -493,6 +493,13 @@ namespace LuaDLR.Test
 				"a=1", "b=2", "c=3"
 			);
 		}
+
+		[TestMethod]
+		public void LuaReadValue01()
+		{
+			Assert.AreEqual(true, Lua.RtReadValue("true"));
+			Assert.AreEqual(42, Lua.RtReadValue(" 42 "));
+		}
 	}
  } //class Runtime 
 
