@@ -299,7 +299,7 @@ namespace Neo.IronLua
 		LuaDebugLevel ILuaDebug.Level => LuaDebugLevel.Line;
 
 		/// <summary>Instance of the exception debugger.</summary>
-		public static LuaExceptionDebugger Default { get; } = new LuaExceptionDebugger();
+		public static ILuaDebug Default { get; } = new LuaExceptionDebugger();
 	} // class LuaExceptionDebugger
 
 	#endregion

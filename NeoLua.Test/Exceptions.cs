@@ -54,5 +54,43 @@ namespace LuaDLR.Test
 				}
 			}
 		} // proc Exception01
+
+		private void ExceptionStackCore(LuaCompileOptions options)
+		{
+			using (var lua = new Lua())
+			{
+				var g = lua.CreateEnvironment();
+				var chunk = lua.CompileChunk(
+					Lines(
+						"do",
+						"  error('test');",
+						"end(function (e) return e; end);"
+					),
+					"test.lua", options
+				);
+				try
+				{
+					if (chunk.Run(g)[0] is LuaRuntimeException ex)
+					{
+						var data = LuaExceptionData.GetData(ex, true);
+						Assert.AreEqual(2, data[3].LineNumber);
+					}
+					else
+						Assert.Fail();
+				}
+				catch (LuaRuntimeException)
+				{
+					Assert.Fail();
+				}
+			}
+		}
+
+		[TestMethod]
+		public void ExceptionStack01()
+			=> ExceptionStackCore(new LuaCompileOptions() { DebugEngine = LuaExceptionDebugger.Default });
+
+		[TestMethod]
+		public void ExceptionStack02()
+			=> ExceptionStackCore(Lua.StackTraceCompileOptions);
 	} // class Runtime
 }

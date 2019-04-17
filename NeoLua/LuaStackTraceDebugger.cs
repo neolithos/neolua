@@ -271,7 +271,7 @@ namespace Neo.IronLua
 
 			public LuaChunk InitChunk(Delegate chunk)
 			{
-				this.Chunk = chunk;
+				Chunk = chunk;
 
 				// register the debug infos
 				var currentMethodName = (string)null;
