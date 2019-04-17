@@ -4022,7 +4022,7 @@ namespace Neo.IronLua
 		/// <param name="indent"></param>
 		/// <returns></returns>
 		public string ToLson(bool prettyFormatting = true, string indent = "\t")
-		=> ToLson(this, prettyFormatting, indent);
+			=> ToLson(this, prettyFormatting, indent);
 
 		#endregion
 
@@ -4035,49 +4035,18 @@ namespace Neo.IronLua
 		{
 			var result = new LuaTable();
 
-			object ParserNumber(Token t, bool neg)
-				=> Lua.RtParseNumber(neg, t.Value, 0, 10, true, true);
-
-			object ParseTableValue()
-			{
-				// in this mode we only except one token
-				switch (lex.Current.Typ)
-				{
-					case LuaToken.KwNil:
-						lex.Next();
-						return null;
-					case LuaToken.KwTrue:
-						lex.Next();
-						return true;
-					case LuaToken.KwFalse:
-						lex.Next();
-						return false;
-					case LuaToken.String:
-						return Parser.FetchToken(LuaToken.String, lex).Value;
-					case LuaToken.Minus:
-						lex.Next();
-						return ParserNumber(Parser.FetchToken(LuaToken.Number, lex), true);
-					case LuaToken.Number:
-						return ParserNumber(Parser.FetchToken(LuaToken.Number, lex), false);
-					case LuaToken.BracketCurlyOpen:
-						return FromLson(lex);
-					default:
-						throw Parser.ParseError(lex.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, LuaLexer.GetTokenName(lex.Current.Typ), "string|number"));
-				}
-			} // func ParseTableValue
-
 			void ParseTableField(ref int defaultIndex)
 			{
 				if (lex.Current.Typ == LuaToken.BracketSquareOpen)
 				{
 					// Parse the index
 					lex.Next();
-					var index = ParseTableValue();
+					var index = Lua.RtReadValue(lex);
 					Parser.FetchToken(LuaToken.BracketSquareClose, lex);
 					Parser.FetchToken(LuaToken.Assign, lex);
 
 					// Expression that results in a value
-					result[index] = ParseTableValue();
+					result[index] = Lua.RtReadValue(lex);
 				}
 				else if (lex.Current.Typ == LuaToken.Identifier && lex.LookAhead.Typ == LuaToken.Assign)
 				{
@@ -4087,11 +4056,11 @@ namespace Neo.IronLua
 					Parser.FetchToken(LuaToken.Assign, lex);
 
 					// Expression
-					result[memberName] = ParseTableValue();
+					result[memberName] = Lua.RtReadValue(lex);
 				}
 				else
 				{
-					result[defaultIndex++] = ParseTableValue();
+					result[defaultIndex++] = Lua.RtReadValue(lex);
 				}
 			} // proc ParseTableField
 

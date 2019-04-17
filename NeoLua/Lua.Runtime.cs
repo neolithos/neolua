@@ -694,7 +694,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- RtWriteValue -------------------------------------------------------
+		#region -- RtWriteValue, RtReadValue ------------------------------------------
 
 		internal static void RtWriteValue(TextWriter tw, object value, bool prettyFormatted, int currentLevel, string indent)
 		{
@@ -795,7 +795,81 @@ namespace Neo.IronLua
 					throw new ArgumentException(String.Format(Properties.Resources.rsTypeIsNotSupported, type.Name));
 			}
 		} // proc RtWriteValue
-		
+
+		/// <summary>Write a lua value in a textwriter</summary>
+		/// <param name="tw"></param>
+		/// <param name="value"></param>
+		/// <param name="prettyFormatted"></param>
+		public static void RtWriteValue(TextWriter tw, object value, bool prettyFormatted = true)
+			=> RtWriteValue(tw, value, prettyFormatted, 0, "    ");
+
+		/// <summary>Write a lua value in a textwriter</summary>
+		/// <param name="value"></param>
+		/// <param name="prettyFormatted"></param>
+		public static string RtFormatValue(object value, bool prettyFormatted = true)
+		{
+			using (var tw = new StringWriter())
+			{
+				RtWriteValue(tw, value, prettyFormatted, 0, "    ");
+				return tw.GetStringBuilder().ToString();
+			}
+		} // func RtFormatValue
+
+		/// <summary>Read a lua value from a token stream.</summary>
+		/// <param name="lex">LuaLexer</param>
+		/// <returns></returns>
+		public static object RtReadValue(ILuaLexer lex)
+		{
+			object ParserNumber(Token t, bool neg)
+				=> RtParseNumber(neg, t.Value, 0, 10, true, true);
+
+			// in this mode we only except one token
+			switch (lex.Current.Typ)
+			{
+				case LuaToken.KwNil:
+					lex.Next();
+					return null;
+				case LuaToken.KwTrue:
+					lex.Next();
+					return true;
+				case LuaToken.KwFalse:
+					lex.Next();
+					return false;
+				case LuaToken.String:
+					return Parser.FetchToken(LuaToken.String, lex).Value;
+				case LuaToken.Minus:
+					lex.Next();
+					return ParserNumber(Parser.FetchToken(LuaToken.Number, lex), true);
+				case LuaToken.Number:
+					return ParserNumber(Parser.FetchToken(LuaToken.Number, lex), false);
+				case LuaToken.BracketCurlyOpen:
+					return LuaTable.FromLson(lex);
+				default:
+					throw Parser.ParseError(lex.Current, String.Format(Properties.Resources.rsParseUnexpectedToken, LuaLexer.GetTokenName(lex.Current.Typ), "string|number"));
+			}
+		} // func RtReadValue
+
+		/// <summary>Read a lua value from a text reader.</summary>
+		/// <param name="tr"></param>
+		/// <returns></returns>
+		public static object RtReadValue(TextReader tr)
+		{
+			using (var lex = LuaLexer.Create("value.lua", tr))
+			{
+				lex.Next();
+				return RtReadValue(lex);
+			}
+		} // proc RtReadValue
+
+		/// <summary>Read a lua value from a string.</summary>
+		/// <param name="value"></param>
+		/// <returns></returns>
+		public static object RtReadValue(string value)
+		{
+			using (var tr = new StringReader(value))
+				return RtReadValue(tr);
+		} // func RtReadValue
+
 		#endregion
 
 		#region -- RtConvertValue, RtConvertDelegate ----------------------------------
@@ -1067,7 +1141,7 @@ namespace Neo.IronLua
 					PropertyInfo pi;
 
 					// search for a generic collection
-					var tInterface = t.ImplementedInterfaces.Where(ii => ii.GetTypeInfo().IsGenericTypeDefinition 
+					var tInterface = t.ImplementedInterfaces.Where(ii => ii.GetTypeInfo().IsGenericTypeDefinition
 						&& ii.GetTypeInfo().GetGenericTypeDefinition() == typeof(ICollection<>)
 					).FirstOrDefault();
 

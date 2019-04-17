@@ -37,7 +37,7 @@ namespace LuaDLR.Test
 		[TestMethod]
 		public void Exception02()
 		{
-			using (Lua l = new Lua())
+			using (var l = new Lua())
 			{
 				var g = l.CreateEnvironment();
 				try
