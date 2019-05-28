@@ -279,7 +279,7 @@ namespace Neo.IronLua
 			var tiString = typeof(string).GetTypeInfo();
 			StringEmptyFieldInfo = tiString.FindDeclaredField(nameof(String.Empty), ReflectionFlag.Public | ReflectionFlag.Static);
 			StringConcatMethodInfo = tiString.FindDeclaredMethod(nameof(String.Concat), ReflectionFlag.None, typeof(string[]));
-			StringItemPropertyInfo = tiString.FindDeclaredProperty("Chars", ReflectionFlag.Public | ReflectionFlag.Instance);
+			StringItemPropertyInfo = tiString.FindDeclaredProperty("Chars", ReflectionFlag.Public | ReflectionFlag.Instance, typeof(int));
 
 			// CulureInfo
 			var tiCultureInfo = typeof(CultureInfo).GetTypeInfo();
