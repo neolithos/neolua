@@ -791,7 +791,7 @@ namespace Neo.IronLua
 					}
 					else if (type == typeof(DateTimeOffset))
 					{
-						value = ((DateTime)value).ToString("o"); // ISO8601
+						value = ((DateTimeOffset)value).ToString("o"); // ISO8601
 						goto case LuaEmitTypeCode.String;
 					}
 					else
