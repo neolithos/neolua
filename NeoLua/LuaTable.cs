@@ -4509,9 +4509,9 @@ namespace Neo.IronLua
 					return doubleValue;
 				}
 				else if (integerValue < Int32.MaxValue)
-					return (int)integerValue;
+					return isNeg ? -(int)integerValue : (int)integerValue;
 				else
-					return integerValue;
+					return isNeg ? -integerValue : integerValue;
 			} // func ParseNumber
 
 			string ParseString(bool asMember)
