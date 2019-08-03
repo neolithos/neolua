@@ -105,8 +105,8 @@ namespace Neo.IronLua
 				callTypes = new KeyValuePair<string, Type>[0];
 			}
 
-			// Führe den Block aus
-			return DoChunk(lua.CompileChunk(tr, name, null, callTypes), callArgs);
+			// execute block, set compile options
+			return DoChunk(lua.CompileChunk(tr, name, DefaultCompileOptions, callTypes), callArgs);
 		} // proc DoChunk
 
 		/// <summary>Executes a precompiled chunk on the lua environment.</summary>
@@ -117,9 +117,13 @@ namespace Neo.IronLua
 		{
 			if (chunk == null)
 				throw new ArgumentException(Properties.Resources.rsChunkNotCompiled, "chunk");
-
+			
 			return chunk.Run(this, callArgs);
 		} // func DoChunk
+
+		/// <summary>Change the default compile options of dochunk or dofile</summary>
+		/// <example>DefaultCompileOptions = Lua.StackTraceCompileOptions;</example>
+		public LuaCompileOptions DefaultCompileOptions { get; set; } = null;
 
 		#endregion
 
@@ -330,7 +334,7 @@ namespace Neo.IronLua
 				}
 
 				// create the chunk
-				return LuaLoadReturn(Lua.CompileChunk((string)ld, source, null, new KeyValuePair<string, Type>("...", typeof(object[]))), env);
+				return LuaLoadReturn(Lua.CompileChunk((string)ld, source, DefaultCompileOptions, new KeyValuePair<string, Type>("...", typeof(object[]))), env);
 			}
 			catch (Exception e)
 			{
@@ -350,7 +354,7 @@ namespace Neo.IronLua
 				throw new NotImplementedException();
 
 			// create the chunk
-			return LuaLoadReturn(Lua.CompileChunk(filename, null, new KeyValuePair<string, Type>("...", typeof(object[]))), env);
+			return LuaLoadReturn(Lua.CompileChunk(filename, DefaultCompileOptions, new KeyValuePair<string, Type>("...", typeof(object[]))), env);
 		} // func LuaLoadFile
 
 		#endregion
