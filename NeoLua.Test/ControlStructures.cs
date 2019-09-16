@@ -357,6 +357,12 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
+		public void Control19()
+		{
+			TestCode(GetLines("Lua.Control19.lua"), 4);
+		}
+
+		[TestMethod]
 		public void TestVariableAssign01()
 		{
 			TestCode(Lines(

@@ -1938,7 +1938,7 @@ namespace Neo.IronLua
 			FetchToken(LuaToken.KwUntil, code);
 			loopScope.AddExpression(
 				Expression.IfThenElse(
-					ConvertExpression(scope.Runtime, code.Current, ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug), typeof(bool)),
+					ConvertExpression(scope.Runtime, code.Current, ParseExpression(loopScope, code, InvokeResult.Object, loopScope.EmitExpressionDebug), typeof(bool)),
 					Expression.Empty(),
 					Expression.Goto(loopScope.ContinueLabel)
 				)
