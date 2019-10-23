@@ -1671,10 +1671,10 @@ namespace Neo.IronLua
 		{
 			// check the parameter
 			if (command == null)
-				throw new ArgumentNullException("command");
+				throw new ArgumentNullException(nameof(command));
 			command = command.Trim();
 			if (command.Length == 0)
-				throw new ArgumentNullException("command");
+				throw new ArgumentNullException(nameof(command));
 
 			// split the command
 			if (command[0] == '"')
@@ -1705,8 +1705,21 @@ namespace Neo.IronLua
 			try
 			{
 				SplitCommand(command, out var fileName, out var arguments);
-				using (var p = Process.Start(fileName, arguments))
+				var psi = new ProcessStartInfo(fileName, arguments)
 				{
+					RedirectStandardOutput = output != null,
+					RedirectStandardError = error != null,
+				};
+
+				psi.UseShellExecute = !psi.RedirectStandardOutput && !psi.RedirectStandardError;
+				psi.CreateNoWindow = !psi.UseShellExecute;
+
+				using (var p = Process.Start(psi))
+				{
+					p.OutputDataReceived += (sender, e) => output.Invoke(e.Data);
+					p.ErrorDataReceived += (sender, e) => error.Invoke(e.Data);
+					p.EnableRaisingEvents = true;
+
 					p.WaitForExit();
 					return new LuaResult(true, "exit", p.ExitCode);
 				}
