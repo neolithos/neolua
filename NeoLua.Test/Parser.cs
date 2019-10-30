@@ -40,7 +40,7 @@ namespace LuaDLR.Test
 					lex.Next();
 				}
 				if (lex.Current.Typ != LuaToken.Eof)
-					Assert.Fail("Eof expected.");
+					Assert.Fail($"Invalid token {lex.Current.Typ} (Expected: Eof)");
 			}
 		} // func TokenTest
 
@@ -474,6 +474,26 @@ namespace LuaDLR.Test
 
 				T(LuaToken.Identifier, "print"),
 				T(LuaToken.String, "</html>"),
+				T(LuaToken.Semicolon, String.Empty)
+			);
+		}
+
+		[TestMethod]
+		public void TestEmptyEnd()
+		{
+			HtmlTokenTest(
+				Lines("<% if true then %>",
+					"<html></html>",
+					"<% end; %>",
+					""
+				),
+				T(LuaToken.KwIf, "if"),
+				T(LuaToken.KwTrue, "true"),
+				T(LuaToken.KwThen, "then"),
+				T(LuaToken.Identifier, "print"),
+				T(LuaToken.String, "<html></html>\n"),
+				T(LuaToken.Semicolon, String.Empty),
+				T(LuaToken.KwEnd, "end"),
 				T(LuaToken.Semicolon, String.Empty)
 			);
 		}

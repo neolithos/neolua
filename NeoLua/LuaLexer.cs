@@ -1627,14 +1627,14 @@ namespace Neo.IronLua
 
 			if (codeEmitted) // something emitted
 			{
-				if (chars.HasCurValue) // we have something in the buffer
+				if (chars.HasCurValue && !String.IsNullOrWhiteSpace(chars.CurValue)) // we have something in the buffer
 				{
 					yield return chars.CreateTokenAtStart(LuaToken.Identifier, "print");
 					yield return chars.CreateToken(LuaToken.String);
 					yield return chars.CreateTokenAtStart(LuaToken.Semicolon);
 				}
 			}
-			else // no code emitted --> create a return statement
+			else // no code emitted --> create a single print statement
 			{
 				yield return chars.CreateTokenAtStart(LuaToken.Identifier, "print");
 				yield return chars.CreateToken(LuaToken.String);
