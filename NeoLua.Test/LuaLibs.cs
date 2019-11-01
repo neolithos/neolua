@@ -42,23 +42,47 @@ namespace LuaDLR.Test
 			}
 		}
 
+		private static string GetEchoBatch()
+		{
+			var f = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(typeof(LuaLibs).Assembly.Location), "..\\..\\..\\Lua", "Echo.bat"));
+			return File.Exists(f)
+				? f
+				: throw new FileNotFoundException("Batch file missing.", f);
+		} // func GetEchoBatch
+
+		private const string echoOutput = "\nThis text goes to Standard Output\n\nLine";
+
 		[TestMethod]
 		public void TestExecute04()
 		{
-			string sBatch = Path.Combine(Path.GetDirectoryName(typeof(LuaLibs).Assembly.Location), "Lua", "Echo.bat");
-			string sCode = String.Join(Environment.NewLine,
-				String.Format("do (f = io.popen([[{0}]], 'r+'))", sBatch),
-				"while true do",
-				"  local l = f:read();",
-				"  if l ~= nil then",
-				"    print(l);",
-				"  else",
-				"    break;",
+			TestCode(Lines(
+				String.Format("do (f = io.popen([[{0}]], 'r+'))", GetEchoBatch()),
+				"  local s = '';",
+				"  while true do",
+				"    local l = f:read();",
+				"    if l ~= nil then",
+				"      s = s .. '\\n' .. l;",
+				"    else",
+				"      break;",
+				"    end;",
 				"  end;",
-				"end;",
+				"  return f:close(), s",
 				"end;"
-			);
-			TestCode(sCode);
+			), 0, echoOutput);
+		}
+
+		[TestMethod]
+		public void TestExecute05()
+		{
+			TestCode(Lines(
+				String.Format("do (f = io.popen([[{0}]], 'r+'))", GetEchoBatch()),
+				"  local s = '';",
+				"  for l in f:lines() do",
+				"    s = s .. '\\n' .. l;",
+				"  end;",
+				"  return f:close(), s",
+				"end;"
+			), 0, echoOutput);
 		}
 
 		[TestMethod]

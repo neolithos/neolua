@@ -80,9 +80,9 @@ namespace LuaDLR.Test
 						TestTable((LuaTable)valueResult, (KeyValuePair<object, object>[])valueExpected);
 					else
 					{
-						var lOk = Object.Equals(valueResult, valueExpected);
-						Console.WriteLine("{0}: {1} {2} {3}", lOk ? "OK" : "FAIL", FormatValue(valueResult), lOk ? "==" : "!=", FormatValue(valueExpected));
-						if (!lOk)
+						var isOk = Equals(valueResult, valueExpected);
+						Console.WriteLine("{0}: {1} {2} {3}", isOk ? "OK" : "FAIL", FormatValue(valueResult), isOk ? "==" : "!=", FormatValue(valueExpected));
+						if (!isOk)
 							Assert.Fail();
 					}
 				}

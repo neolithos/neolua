@@ -55,7 +55,7 @@ namespace Neo.IronLua
 
 		public bool MoveNext()
 		{
-			if (file.IsClosed || file.IsEndOfStream)
+			if (file.IsClosed)
 			{
 				if (closeOnEnd)
 					file.close();

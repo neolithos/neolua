@@ -141,7 +141,7 @@ namespace Neo.IronLua
 		/// <summary>Creates a empty result-object.</summary>
 		public LuaResult()
 		{
-			this.result = emptyArray;
+			result = emptyArray;
 		} // ctor
 
 		/// <summary>Creates a empty result-object.</summary>
@@ -149,23 +149,26 @@ namespace Neo.IronLua
 		public LuaResult(object v)
 		{
 			if (v != null && v.GetType() == typeof(object[]))
-				this.result = CopyResult((object[])v);
+				result = CopyResult((object[])v);
 			else if (v is LuaResult)
-				this.result = (LuaResult)v;
+				result = (LuaResult)v;
 			else
-				this.result = new object[] { v };
+				result = new object[] { v };
 		} // ctor
 
 		internal LuaResult(CopyMode copyMode, object[] values)
 		{
-			this.result = values;
+			if (copyMode != CopyMode.None)
+				throw new ArgumentException(nameof(copyMode));
+
+			result = values;
 		} // ctor
 
 		/// <summary>Creates a empty result-object.</summary>
 		/// <param name="values">Result values</param>
 		public LuaResult(params object[] values)
 		{
-			this.result = CopyResult(values);
+			result = CopyResult(values);
 		} // ctor
 
 		/// <summary></summary>
@@ -188,9 +191,7 @@ namespace Neo.IronLua
 		} // func ToString
 
 		private static object GetObject(object v)
-		{
-			return v is LuaResult ? ((LuaResult)v)[0] : v;
-		} // func GetObject
+			=> v is LuaResult ? ((LuaResult)v)[0] : v;
 
 		private static object[] CopyResult(object[] values)
 		{
