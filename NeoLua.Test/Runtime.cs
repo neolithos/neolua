@@ -235,7 +235,7 @@ namespace LuaDLR.Test
 				g.dochunk("print(os.date('Today is %A, in %B'))");
 
 				TestResult(g.dochunk("return os.date('%x', 906000490)"), new DateTime(1998, 09, 17).ToString("d"));
-				TestResult(g.dochunk("return os.date('%d.%m.%Y')"), DateTime.Today.ToString("d"));
+				TestResult(g.dochunk("return os.date('%d.%m.%Y')"), DateTime.Today.ToString("dd.MM.yyyy"));
 				g.dochunk("t = os.date('*t');");
 				var dt = DateTime.Now;
 				TestResult(g.dochunk("return t.year"), dt.Year);
