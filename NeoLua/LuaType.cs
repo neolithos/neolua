@@ -676,7 +676,7 @@ namespace Neo.IronLua
 			var firstType = parameterInfo[0].ParameterType;
 			if (firstType.FullName == null && firstType.IsConstructedGenericType) // generic extension
 			{
-				if (checkFirstParameter && LuaType.GetType(firstType) != this)
+				if (checkFirstParameter && GetType(firstType) != this)
 					throw new ArgumentException(String.Format(Properties.Resources.rsTypeExtentionInvalidMethod, mi.DeclaringType.Name, mi.Name));
 
 				lock (currentTypeLock)
@@ -1542,7 +1542,7 @@ namespace Neo.IronLua
 					type = null;
 				}
 				else
-					throw new ArgumentNullException(String.Format(Properties.Resources.rsTypeInvalidType, type.Name));
+					throw new ArgumentNullException(nameof(type), String.Format(Properties.Resources.rsTypeInvalidType, type.Name));
 			}
 
 			return GetType(clr, 0, fullName, false, type);
@@ -1656,6 +1656,9 @@ namespace Neo.IronLua
 					{
 						// Get the lua type
 						var currentType = mi.GetParameters()[0].ParameterType;
+						if (currentType.IsGenericParameter)
+							continue; // we do not support generic types
+
 						if (lastType == null || currentType != lastType.Type)
 							lastType = GetType(currentType);
 
