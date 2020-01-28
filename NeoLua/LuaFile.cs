@@ -530,8 +530,8 @@ namespace Neo.IronLua
 				switch (c)
 				{
 					case 'r':
-						fileAccess |= FileAccess.Read;
-						if (isExtend)
+						fileAccess |= FileAccess.Read; // "r": read mode
+						if (isExtend) // "r+": update mode, all previous data is preserved;
 						{
 							fileAccess |= FileAccess.Write;
 							fileMode = FileMode.Open;
@@ -540,13 +540,15 @@ namespace Neo.IronLua
 					case 'w':
 						fileAccess |= FileAccess.Write;
 						if (isExtend)
-							fileMode = FileMode.OpenOrCreate;
+							fileMode = FileMode.Create; // "w+": update mode, all previous data is erased;
 						else
-							fileMode = FileMode.Truncate;
+							fileMode = FileMode.OpenOrCreate; // "w": write mode
 						break;
-					case 'a':
+					case 'a': // "a": append mode
 						fileAccess |= FileAccess.Write;
 						fileMode = FileMode.Append;
+						// not supported:
+						// "a+": append update mode, previous data is preserved, writing is only allowed at the end of file.
 						break;
 					case 'b':
 						break;
