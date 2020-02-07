@@ -1145,6 +1145,7 @@ namespace Neo.IronLua
 				case LuaToken.DotDotDot:
 				case LuaToken.Identifier:
 				case LuaToken.KwForEach:
+				case LuaToken.KwConst:
 					var t = code.Current;
 					if (t.Value == csClr) // clr is a special package, that always exists
 					{
@@ -1158,6 +1159,8 @@ namespace Neo.IronLua
 							memberName = csArgList;
 						else if (t.Typ == LuaToken.KwCast)
 							memberName = "cast";
+						else if (t.Typ == LuaToken.KwConst)
+							memberName = "const";
 						else if (t.Typ == LuaToken.KwForEach)
 							memberName = "foreach";
 						else
