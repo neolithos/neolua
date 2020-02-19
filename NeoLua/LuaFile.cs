@@ -114,8 +114,8 @@ namespace Neo.IronLua
 		/// <summary>Closes the file stream</summary>
 		public void Dispose()
 		{
-			GC.SuppressFinalize(this);
 			Dispose(true);
+			GC.SuppressFinalize(this);
 		} // proc Dispose
 
 		/// <summary></summary>
@@ -366,7 +366,7 @@ namespace Neo.IronLua
 		/// <summary></summary>
 		/// <param name="args"></param>
 		/// <returns></returns>
-		public LuaResult write(object[] args)
+		public LuaResult write(params object[] args)
 		{
 			if (tw == null)
 				return new LuaResult(null, Properties.Resources.rsFileNotWriteable);
@@ -462,6 +462,10 @@ namespace Neo.IronLua
 			}
 		} // proc Dispose
 
+		#endregion
+
+		#region -- flush, seek --------------------------------------------------------
+
 		/// <summary>Invoke filestream flush.</summary>
 		public override void flush()
 		{
@@ -503,7 +507,7 @@ namespace Neo.IronLua
 		} // func seek
 
 		/// <summary>Length of the file</summary>
-		public override long Length => src.Length;
+		public override long Length { get { flush(); return src.Length; } }
 
 		#endregion
 
@@ -516,7 +520,7 @@ namespace Neo.IronLua
 		public static LuaFile OpenFile(string fileName, string mode, Encoding encoding)
 		{
 			if (String.IsNullOrEmpty(mode))
-				throw new ArgumentNullException("mode");
+				throw new ArgumentNullException(nameof(mode));
 
 			var fileMode = FileMode.Open;
 			var fileAccess = (FileAccess)0;
@@ -534,7 +538,6 @@ namespace Neo.IronLua
 						if (isExtend) // "r+": update mode, all previous data is preserved;
 						{
 							fileAccess |= FileAccess.Write;
-							fileMode = FileMode.Open;
 						}
 						break;
 					case 'w':
@@ -580,8 +583,8 @@ namespace Neo.IronLua
 		public static LuaFile OpenFile(Stream src, Encoding encoding = null)
 		{
 			return new LuaFileStream(src,
-				src.CanRead ? new StreamReader(src, encoding ?? Encoding.UTF8) : null,
-				src.CanWrite ? new StreamWriter(src, encoding ?? Encoding.UTF8) : null
+				src.CanRead ? new StreamReader(src, encoding ?? Encoding.UTF8, true, 1024, true) : null,
+				src.CanWrite ? new StreamWriter(src, encoding ?? Encoding.UTF8, 1024, true) : null
 			);
 		} // func OpenFile
 

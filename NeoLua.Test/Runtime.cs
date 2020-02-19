@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Dynamic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -499,6 +500,44 @@ namespace LuaDLR.Test
 		{
 			Assert.AreEqual(true, Lua.RtReadValue("true"));
 			Assert.AreEqual(42, Lua.RtReadValue(" 42 "));
+		}
+
+		[TestMethod]
+		public void LuaFileOpen()
+		{
+			// remove file
+			var fileName = Path.GetTempFileName();
+			if (File.Exists(fileName))
+				File.Delete(fileName);
+			try
+			{
+				// create file
+				var f = LuaFileStream.OpenFile(fileName, "w", Encoding.ASCII);
+				f.write("Hello World.");
+				Assert.AreEqual(f.Length, 12L);
+				f.close();
+
+				// create new file
+				f = LuaFileStream.OpenFile(fileName, "w+", Encoding.ASCII);
+				Assert.AreEqual(f.Length, 0L);
+				f.write("Hello World.");
+				Assert.AreEqual(f.Length, 12L);
+				f.close();
+
+				f = LuaFileStream.OpenFile(fileName, "rw", Encoding.ASCII);
+				Assert.AreEqual(f.Length, 12L);
+				f.close();
+
+				f = LuaFileStream.OpenFile(fileName, "a", Encoding.ASCII);
+				f.write(" append");
+				Assert.AreEqual(f.Length, 19L);
+				f.close();
+			}
+			finally
+			{
+				if (File.Exists(fileName))
+					File.Delete(fileName);
+			}
 		}
 	}
  } //class Runtime 
