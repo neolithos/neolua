@@ -28,7 +28,7 @@ namespace Neo.IronLua
 		/// <param name="lua">The lua script compiler.</param>
 		public LuaGlobal(Lua lua)
 		{
-			this.lua = lua ?? throw new ArgumentNullException("lua");
+			this.lua = lua ?? throw new ArgumentNullException(nameof(lua));
 		} // ctor
 
 		/// <summary>Redirects the invoke binder to the script manager/compiler.</summary>
@@ -116,7 +116,7 @@ namespace Neo.IronLua
 		public LuaResult DoChunk(LuaChunk chunk, params object[] callArgs)
 		{
 			if (chunk == null)
-				throw new ArgumentException(Properties.Resources.rsChunkNotCompiled, "chunk");
+				throw new ArgumentException(Properties.Resources.rsChunkNotCompiled, nameof(chunk));
 			
 			return chunk.Run(this, callArgs);
 		} // func DoChunk
@@ -157,8 +157,8 @@ namespace Neo.IronLua
 		{
 			if (value == null)
 				return false;
-			else if (value is bool)
-				return (bool)value;
+			else if (value is bool l)
+				return l;
 			else
 			{
 				try
@@ -246,34 +246,35 @@ namespace Neo.IronLua
 		{
 			if (args == null || args.Length == 0)
 				throw new ArgumentException();
-			if (args[0] is LuaChunk)
+
+			if (args[0] is LuaChunk chunk)
 			{
 				if (args.Length == 1)
-					return DoChunk((LuaChunk)args[0]);
+					return DoChunk(chunk);
 				else
 				{
 					var p = new object[args.Length - 1];
 					Array.Copy(args, 1, p, 0, p.Length);
-					return DoChunk((LuaChunk)args[0], p);
+					return DoChunk(chunk, p);
 				}
 			}
-			else if (args[0] is string)
+			else if (args[0] is string code)
 			{
 				if (args.Length == 1)
-					return DoChunk((string)args[0], "dummy.lua");
+					return DoChunk(code, "dummy.lua");
 				else if (args.Length == 2)
-					return DoChunk((string)args[0], (string)args[1]);
+					return DoChunk(code, (string)args[1]);
 				else
-					return DoChunk((string)args[0], (string)args[1], CreateArguments(2, args));
+					return DoChunk(code, (string)args[1], CreateArguments(2, args));
 			}
-			else if (args[0] is TextReader)
+			else if (args[0] is TextReader reader)
 			{
 				if (args.Length == 1)
 					throw new ArgumentOutOfRangeException();
 				else if (args.Length == 2)
-					return DoChunk((TextReader)args[0], (string)args[1]);
+					return DoChunk(reader, (string)args[1]);
 				else
-					return DoChunk((TextReader)args[0], (string)args[1], CreateArguments(2, args));
+					return DoChunk(reader, (string)args[1], CreateArguments(2, args));
 			}
 			else
 				throw new ArgumentException();
@@ -370,8 +371,8 @@ namespace Neo.IronLua
 				throw new ArgumentNullException();
 
 			// check if the modul is loaded in this global
-			if (loaded.ContainsKey(modname))
-				return new LuaResult(loaded[modname]);
+			if (loaded.TryGetValue(modname, out var currentlyLoaded))
+				return new LuaResult(currentlyLoaded);
 
 			// check if the modul is loaded in a different global
 			var chunk = ((LuaLibraryPackage)LuaPackage).LuaRequire(this, modname as string);
@@ -706,8 +707,8 @@ namespace Neo.IronLua
 				return "function";
 			else if (v is LuaThread)
 				return "thread";
-			else if (v is LuaFile)
-				return ((LuaFile)v).IsClosed ? "closed file" : "file";
+			else if (v is LuaFile f)
+				return f.IsClosed ? "closed file" : "file";
 			else
 				return clr ? v.GetType().FullName : "userdata";
 		} // func LuaType

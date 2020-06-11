@@ -1395,6 +1395,18 @@ namespace Neo.IronLua
 					return value;
 				return base.OnIndex(key);
 			} // func OnIndex
+
+			protected override bool OnNewIndex(object key, object value)
+			{
+				if (global.loaded != null)
+				{
+					if (value == null)
+						global.loaded.Remove(key);
+					else
+						global.loaded[key] = value;
+				}
+				return true;
+			} // func OnNewIndex
 		} // class LuaLoadedTable
 
 		#endregion

@@ -1906,7 +1906,7 @@ namespace Neo.IronLua
 
 			if (value == null) // key will be removed
 			{
-				if (entryIndex >= 0)
+				if (entryIndex >= 0) // key exists
 				{
 					if (entryIndex < classDefinition.Count)
 					{
@@ -1925,7 +1925,11 @@ namespace Neo.IronLua
 					return removedIndex;
 				}
 				else
-					return indexNotFound;
+				{
+					if (!rawSet)
+						OnNewIndex(memberName, value); // __newindex will take care
+					return indexNotFound; // unknown index
+				}
 			}
 			else if (entryIndex >= 0) // key will be setted
 			{
