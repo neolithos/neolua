@@ -42,7 +42,9 @@ namespace Neo.IronLua
 			Debug,
 			Environment,
 			Cache,
-			Help
+			Help,
+			ClrOn,
+			ClrOff
 		} // enum Commands
 
 		#endregion
@@ -196,6 +198,7 @@ namespace Neo.IronLua
 		private static Lua lua = new Lua(); // create lua script compiler
 		private static LuaGlobal global;
 		private static ILuaDebug debugEngine = LuaStackTraceDebugger.Default;
+		private static bool ClrEnabled = true;
 		private static readonly ILuaDebug debugConsole = new LuaTraceLineConsoleDebugger();
 
 		private static void WriteText(ConsoleColor textColor, string text)
@@ -351,6 +354,16 @@ namespace Neo.IronLua
 						line = command.Substring(6).Trim();
 						return Commands.Cache;
 					}
+					else if (command.StartsWith(":clron", StringComparison.OrdinalIgnoreCase))
+					{
+						line = command.Substring(6).Trim();
+						return Commands.ClrOn;
+					}
+					else if (command.StartsWith(":clroff", StringComparison.OrdinalIgnoreCase))
+					{
+						line = command.Substring(7).Trim();
+						return Commands.ClrOff;
+					}
 					else if (command.StartsWith(":c", StringComparison.OrdinalIgnoreCase))
 					{
 						sbLine.Clear();
@@ -443,7 +456,7 @@ namespace Neo.IronLua
 				sw.Start();
 
 				// compile chunk
-				var c = lua.CompileChunk(code(), name, new LuaCompileOptions() { DebugEngine = debugEngine });
+				var c = lua.CompileChunk(code(), name, new LuaCompileOptions() { DebugEngine = debugEngine, ClrEnabled = ClrEnabled });
 
 				var compileTime = String.Format("{0:N0} ms", sw.ElapsedMilliseconds);
 				sw.Reset();
@@ -592,6 +605,16 @@ namespace Neo.IronLua
 						lua.DumpRuleCaches(Console.Out);
 						Console.WriteLine();
 						break;
+					case Commands.ClrOn:
+						ClrEnabled = true;
+						WriteText(ConsoleColor.DarkYellow, "Clr access enabled."); Console.WriteLine();
+						Console.WriteLine();
+						break;
+					case Commands.ClrOff:
+						WriteText(ConsoleColor.DarkYellow, "Clr access disabled."); Console.WriteLine();
+						ClrEnabled = false;
+						Console.WriteLine();
+						break;
 					case Commands.Help:
 						WriteText(ConsoleColor.DarkYellow, "Commands:"); Console.WriteLine();
 						WriteCommand(":q", "Exit the application.");
@@ -604,6 +627,8 @@ namespace Neo.IronLua
 						WriteCommand(":c", "Clears the current script buffer.");
 						WriteCommand(":env", "Create a fresh environment.");
 						WriteCommand(":cache", "Shows the content of the binder cache.");
+						WriteCommand(":clron", "Enables access to the clr.");
+						WriteCommand(":clroff", "Disables access to the clr.");
 						Console.WriteLine();
 						break;
 					case Commands.Run:
