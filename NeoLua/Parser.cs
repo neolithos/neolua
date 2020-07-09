@@ -1147,6 +1147,7 @@ namespace Neo.IronLua
 				case LuaToken.KwForEach:
 				case LuaToken.KwConst:
 					var t = code.Current;
+					if (scope.Options.ClrEnabled && t.Value == csClr) // clr is a special package, that always exists if it's enabled (it's on by default)
 					{
 						code.Next();
 						info = new PrefixMemberInfo(tStart, Expression.Property(null, Lua.TypeClrPropertyInfo), null, null, null);
