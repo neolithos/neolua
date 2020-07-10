@@ -198,7 +198,7 @@ namespace Neo.IronLua
 		private static Lua lua = new Lua(); // create lua script compiler
 		private static LuaGlobal global;
 		private static ILuaDebug debugEngine = LuaStackTraceDebugger.Default;
-		private static bool ClrEnabled = true;
+		private static bool clrEnabled = true;
 		private static readonly ILuaDebug debugConsole = new LuaTraceLineConsoleDebugger();
 
 		private static void WriteText(ConsoleColor textColor, string text)
@@ -456,7 +456,7 @@ namespace Neo.IronLua
 				sw.Start();
 
 				// compile chunk
-				var c = lua.CompileChunk(code(), name, new LuaCompileOptions() { DebugEngine = debugEngine, ClrEnabled = ClrEnabled });
+				var c = lua.CompileChunk(code(), name, new LuaCompileOptions() { DebugEngine = debugEngine, ClrEnabled = clrEnabled });
 
 				var compileTime = String.Format("{0:N0} ms", sw.ElapsedMilliseconds);
 				sw.Reset();
@@ -606,13 +606,13 @@ namespace Neo.IronLua
 						Console.WriteLine();
 						break;
 					case Commands.ClrOn:
-						ClrEnabled = true;
+						clrEnabled = true;
 						WriteText(ConsoleColor.DarkYellow, "Clr access enabled."); Console.WriteLine();
 						Console.WriteLine();
 						break;
 					case Commands.ClrOff:
 						WriteText(ConsoleColor.DarkYellow, "Clr access disabled."); Console.WriteLine();
-						ClrEnabled = false;
+						clrEnabled = false;
 						Console.WriteLine();
 						break;
 					case Commands.Help:
