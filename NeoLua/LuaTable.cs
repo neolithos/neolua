@@ -1666,7 +1666,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Core hash functionality ------------------------------------------------
+		#region -- Core hash functionality --------------------------------------------
 
 		private static int NextArraySize(int currentLength, int capacity)
 		{
@@ -1864,13 +1864,13 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Get/SetMemberValue -----------------------------------------------------
+		#region -- Get/SetMemberValue -------------------------------------------------
 
 		/// <summary>Notify property changed</summary>
 		/// <param name="propertyName">Name of property</param>
 		protected virtual void OnPropertyChanged(string propertyName)
 		{
-			if (!Object.ReferenceEquals(metaTable, null))
+			if (metaTable is object)
 			{
 				var o = metaTable["__changed"];
 				if (Lua.RtInvokeable(o))
@@ -1961,13 +1961,6 @@ namespace Neo.IronLua
 				return indexNotFound;
 		} // func SetMemberValueIntern
 
-		private void SetClassMemberValue(int entryIndex, object value)
-		{
-			object key = entries[entryIndex].key;
-			if (SetClassMemberValue(entryIndex, key, value, false))
-				OnPropertyChanged((string)key);
-		} // proc SetClassMemberValue
-
 		private bool SetClassMemberValue(int entryIndex, object key, object value, bool markAsMethod)
 		{
 			switch (classDefinition[entryIndex].mode)
@@ -2015,21 +2008,18 @@ namespace Neo.IronLua
 				return entries[entryIndex].value;
 		} // func GetMemberValue
 
-		private object GetClassMemberValue(int iEntryIndex, bool lRawGet)
-			=> GetClassMemberValue(iEntryIndex, entries[iEntryIndex].key, lRawGet);
-
-		private object GetClassMemberValue(int iEntryIndex, object key, bool lRawGet)
+		private object GetClassMemberValue(int entryIndex, object key, bool rawGet)
 		{
-			switch (classDefinition[iEntryIndex].mode)
+			switch (classDefinition[entryIndex].mode)
 			{
 				case LuaTableDefineMode.Default:
-					return (entries[iEntryIndex].value ?? classDefinition[iEntryIndex].getValue(this)) ?? (lRawGet ? null : OnIndex(key));
+					return (entries[entryIndex].value ?? classDefinition[entryIndex].getValue(this)) ?? (rawGet ? null : OnIndex(key));
 
 				case LuaTableDefineMode.Direct:
-					return classDefinition[iEntryIndex].getValue(this) ?? (lRawGet ? null : OnIndex(key));
+					return classDefinition[entryIndex].getValue(this) ?? (rawGet ? null : OnIndex(key));
 
 				default:
-					return entries[iEntryIndex].value ?? (lRawGet ? null : OnIndex(key));
+					return entries[entryIndex].value ?? (rawGet ? null : OnIndex(key));
 			}
 		} // func GetClassMemberValue
 
@@ -2047,7 +2037,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Get/SetArrayValue ------------------------------------------------------
+		#region -- Get/SetArrayValue --------------------------------------------------
 
 		private int FindKey(int index)
 			=> FindKey(index, index.GetHashCode() & 0x7FFFFFFF, comparerInt);
@@ -2071,16 +2061,11 @@ namespace Neo.IronLua
 			{
 				for (var i = 0; i < entries.Length; i++)
 				{
-					if (entries[i].key is int)
+					if (entries[i].key is int k && startAt < k && k <= newArray.Length)
 					{
-						var k = (int)entries[i].key;
-
-						if (startAt < k && k <= newArray.Length)
-						{
-							newArray[k - 1] = entries[i].value;
-							RemoveValue(i);
-							count++;
-						}
+						newArray[k - 1] = entries[i].value;
+						RemoveValue(i);
+						count++;
 					}
 				}
 			}
@@ -2109,9 +2094,9 @@ namespace Neo.IronLua
 						version++;
 					}
 				}
-				else if (rawSet || // always set a value
-					oldValue != null || // reset the value
-					!OnNewIndex(index, value)) // no value, notify __newindex to set the array element
+				else if (rawSet // always set a value
+					|| oldValue != null // reset the value
+					|| !OnNewIndex(index, value)) // no value, notify __newindex to set the array element
 				{
 					if (oldValue == null)
 						count++;
@@ -2263,7 +2248,13 @@ namespace Neo.IronLua
 					throw new InvalidOperationException();
 
 				if (entries[i].key is string member)
-					yield return new KeyValuePair<string, object>(member, entries[i].value);
+				{
+					yield return new KeyValuePair<string, object>(member,
+						i < classDefinition.Count
+							? GetClassMemberValue(i, member, true)
+							: entries[i].value
+					);
+				}
 			}
 		} // func MembersGetEnumerator
 
@@ -2361,7 +2352,7 @@ namespace Neo.IronLua
 		private IEnumerator<object> ArrayOnlyGetEnumerator()
 		{
 			var version = this.version;
-			for (int i = 0; i < arrayLength; i++)
+			for (var i = 0; i < arrayLength; i++)
 			{
 				if (version != this.version)
 					throw new InvalidOperationException();
@@ -2644,7 +2635,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- DefineFunction, DefineMethod -------------------------------------------
+		#region -- DefineFunction, DefineMethod ---------------------------------------
 
 		/// <summary>Defines a normal function attached to a table.</summary>
 		/// <param name="functionName">Name of the member for the function.</param>
@@ -2655,9 +2646,9 @@ namespace Neo.IronLua
 		public Delegate DefineFunction(string functionName, Delegate function, bool ignoreCase = false)
 		{
 			if (String.IsNullOrEmpty(functionName))
-				throw new ArgumentNullException("functionName");
+				throw new ArgumentNullException(nameof(functionName));
 			if (function == null)
-				throw new ArgumentNullException("function");
+				throw new ArgumentNullException(nameof(function));
 
 			SetMemberValueIntern(functionName, function, ignoreCase, false, false, false);
 			return function;
@@ -2672,11 +2663,11 @@ namespace Neo.IronLua
 		public Delegate DefineMethod(string methodName, Delegate method, bool ignoreCase = false)
 		{
 			if (String.IsNullOrEmpty(methodName))
-				throw new ArgumentNullException("methodName");
+				throw new ArgumentNullException(nameof(methodName));
 			if (method == null)
-				throw new ArgumentNullException("method");
+				throw new ArgumentNullException(nameof(method));
 
-			Type typeFirstParameter = method.GetMethodInfo().GetParameters()[0].ParameterType;
+			var typeFirstParameter = method.GetMethodInfo().GetParameters()[0].ParameterType;
 			if (!typeFirstParameter.GetTypeInfo().IsAssignableFrom(typeof(LuaTable).GetTypeInfo()))
 				throw new ArgumentException(String.Format(Properties.Resources.rsTableMethodExpected, methodName));
 
@@ -2692,7 +2683,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- CallMember -------------------------------------------------------------
+		#region -- CallMember ---------------------------------------------------------
 
 		internal enum CallMethod
 		{
@@ -2861,7 +2852,7 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- SetObjectMember --------------------------------------------------------
+		#region -- SetObjectMember ----------------------------------------------------
 
 		/// <summary>Sets the given object with the members of the table.</summary>
 		/// <param name="obj"></param>
@@ -2875,17 +2866,17 @@ namespace Neo.IronLua
 			// set all fields
 			foreach (var field in type.GetRuntimeFields().Where(fi => fi.IsPublic && !fi.IsStatic && !fi.IsInitOnly))
 			{
-				int iEntryIndex = FindKey(field.Name, GetMemberHashCode(field.Name), compareString);
-				if (iEntryIndex >= 0)
-					field.SetValue(obj, Lua.RtConvertValue(entries[iEntryIndex].value, field.FieldType));
+				var entryIndex = FindKey(field.Name, GetMemberHashCode(field.Name), compareString);
+				if (entryIndex >= 0)
+					field.SetValue(obj, Lua.RtConvertValue(entries[entryIndex].value, field.FieldType));
 			}
 
 			// set all properties
 			foreach (var property in type.GetRuntimeProperties().Where(pi => pi.SetMethod != null && pi.SetMethod.IsPublic && !pi.SetMethod.IsStatic))
 			{
-				int iEntryIndex = FindKey(property.Name, GetMemberHashCode(property.Name), compareString);
-				if (iEntryIndex >= 0)
-					property.SetValue(obj, Lua.RtConvertValue(entries[iEntryIndex].value, property.PropertyType), null);
+				var entryIndex = FindKey(property.Name, GetMemberHashCode(property.Name), compareString);
+				if (entryIndex >= 0)
+					property.SetValue(obj, Lua.RtConvertValue(entries[entryIndex].value, property.PropertyType), null);
 			}
 
 			return obj;
@@ -3734,12 +3725,12 @@ namespace Neo.IronLua
 				{
 					// Call the comparer
 					var r = t.RtInvokeSite(compare, x, y);
-					if (r is LuaResult)
-						r = ((LuaResult)r)[0];
+					if (r is LuaResult result)
+						r = result[0];
 
 					// check the value
-					if (r is int)
-						return (int)r;
+					if (r is int i)
+						return i;
 					else if (r is bool b)
 						return b ? -1 : 1;
 					else if ((bool)Lua.RtConvertValue(r, typeof(bool)))
