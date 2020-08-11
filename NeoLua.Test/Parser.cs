@@ -290,6 +290,54 @@ namespace LuaDLR.Test
 			);
 		}
 
+		[TestMethod]
+		public void TestClrDisabled()
+		{
+			string code = "return type(clr) == type(nil);";
+			using (var l = new Lua())
+			{
+				l.PrintExpressionTree = PrintExpressionTree ? Console.Out : null;
+				var g = l.CreateEnvironment<LuaGlobal>();
+				g.DefaultCompileOptions = new LuaCompileOptions()
+				{
+					ClrEnabled = false
+				};
+				Console.WriteLine("Test: {0}", code);
+				Console.WriteLine(new string('=', 66));
+				var sw = new Stopwatch();
+				sw.Start();
+				TestResult(g.DoChunk(code, "test.lua"), true);
+				Console.WriteLine("  Dauer: {0}ms", sw.ElapsedMilliseconds);
+				Console.WriteLine();
+				Console.WriteLine();
+			}
+		}
+
+		[TestMethod]
+		public void TestClrEnabled()
+		{
+			// As the type of the clr object could change, let's air on the side of safety
+			// and only check if it exists as it could be anything
+			string code = "return type(clr) == type(nil);";
+			using (var l = new Lua())
+			{
+				l.PrintExpressionTree = PrintExpressionTree ? Console.Out : null;
+				var g = l.CreateEnvironment<LuaGlobal>();
+				g.DefaultCompileOptions = new LuaCompileOptions()
+				{
+					ClrEnabled = true
+				};
+				Console.WriteLine("Test: {0}", code);
+				Console.WriteLine(new string('=', 66));
+				var sw = new Stopwatch();
+				sw.Start();
+				TestResult(g.DoChunk(code, "test.lua"), false);
+				Console.WriteLine("  Dauer: {0}ms", sw.ElapsedMilliseconds);
+				Console.WriteLine();
+				Console.WriteLine();
+			}
+		}
+
 		#endregion
 
 		#region -- Test Position ------------------------------------------------------

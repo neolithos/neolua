@@ -124,6 +124,8 @@ namespace Neo.IronLua
 		public Func<object, object> DynamicSandbox { get; set; }
 		/// <summary>Set this member to compile the script with Debug-Infos.</summary>
 		public ILuaDebug DebugEngine { get; set; }
+		/// <summary>Wether or not to recognize the local</summary>
+		public bool ClrEnabled { get; set; } = true;
 	} // class LuaCompileOptions
 
 	#endregion
