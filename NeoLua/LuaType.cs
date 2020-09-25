@@ -599,20 +599,20 @@ namespace Neo.IronLua
 					{
 						typeResolved = SetType(typeResolver.GetType(FullName));
 					}
-					else if (resolveArguments is Type) // resolve normal known type
+					else if (resolveArguments is Type typeArgument) // resolve normal known type
 					{
-						typeResolved = SetType((Type)resolveArguments);
+						typeResolved = SetType(typeArgument);
 					}
-					else if (resolveArguments is int) // create an array
+					else if (resolveArguments is int arrayLength) // create an array
 					{
 						if (parent.Type != null)
-							typeResolved = SetType(parent.MakeArrayClrType((int)resolveArguments));
+							typeResolved = SetType(parent.MakeArrayClrType(arrayLength));
 						else
 							typeResolved = false;
 					}
-					else if (resolveArguments is LuaType[]) // create a generic type
+					else if (resolveArguments is LuaType[] genericArguments) // create a generic type
 					{
-						typeResolved = SetType(parent.MakeGenericClrType((LuaType[])resolveArguments, false));
+						typeResolved = SetType(parent.MakeGenericClrType(genericArguments, false));
 					}
 					else
 						throw new InvalidOperationException();
@@ -787,7 +787,7 @@ namespace Neo.IronLua
 		{
 			// get the type definition
 			var genericTypeDefinitionString = fullName + "`" + genericArguments.Length.ToString(CultureInfo.InvariantCulture);
-			var genericTypeDefinition = Type.GetType(genericTypeDefinitionString, throwException);
+			var genericTypeDefinition = typeResolver.GetType(genericTypeDefinitionString);
 			if (genericTypeDefinition == null)
 			{
 				if (throwException)

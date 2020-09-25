@@ -135,6 +135,19 @@ namespace LuaDLR.Test
 			}
 		}
 
+		public class TestGen<T>
+		{
+			private readonly T a;
+
+			public TestGen(T a)
+			{
+				this.a = a;
+				Console.WriteLine("ctor called");
+			}
+
+			public T D => a;
+		}
+
 		public static void Test()
 		{
 			Console.WriteLine("Hallo");
@@ -752,6 +765,13 @@ namespace LuaDLR.Test
 		public void TestTypeInitializer01()
 		{
 			// idea: TestCode("d = clr.System.Collections.Generic.Dictionary[clr.System.String, clr.System.Int32]() { a = 1, b = 2 }; return #d;", 2);
+		}
+
+		[TestMethod]
+		public void TestGeneric()
+		{
+			TestCode(Lines("const testGen typeof LuaDLR.Test.LuaTypeTests.TestGen[System.Object]",
+				"return testGen(42).D;"), 42);
 		}
 	} // class LuaTypeTests 
 
