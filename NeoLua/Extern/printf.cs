@@ -625,6 +625,19 @@ namespace AT.MIN
 
 			if (IsNumericType(Value))
 			{
+				switch (Value)
+				{
+					case float f:
+						Value = Convert.ToInt64(f);
+						break;
+					case double d:
+						Value = Convert.ToInt64(d);
+						break;
+					case decimal dd:
+						Value = Convert.ToInt64(dd);
+						break;
+				}
+
 				w = String.Format(numberFormat, Value);
 
 				if (Left2Right || Padding == ' ')
