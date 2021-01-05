@@ -644,15 +644,15 @@ namespace Neo.IronLua
 					// set the value
 					this.type = type;
 
-					// update the base type
-					baseType = typeInfo.BaseType == null ? null : GetType(typeInfo.BaseType);
-
 					// update known types
 					lock (knownTypes)
 					{
 						knownTypes[type] =
 							knownTypeStrings[fullName] = GetTypeIndex(this); // update type cache
 					}
+
+					// update the base type
+					baseType = typeInfo.BaseType == null ? null : GetType(typeInfo.BaseType);
 
 					// update implemented types
 					implementedInterfaces = new Lazy<LuaType[]>(() => (from c in typeInfo.ImplementedInterfaces select GetType(c)).ToArray(), true);
@@ -1343,7 +1343,7 @@ namespace Neo.IronLua
 		{
 			lock (types)
 			{
-				int index = types.IndexOf(type);
+				var index = types.IndexOf(type);
 #if DEBUG
 				if (index == -1)
 					throw new InvalidOperationException();

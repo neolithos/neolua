@@ -148,6 +148,8 @@ namespace LuaDLR.Test
 			public T D => a;
 		}
 
+		public class TestRek : List<TestRek> { }
+
 		public static void Test()
 		{
 			Console.WriteLine("Hallo");
@@ -221,6 +223,9 @@ namespace LuaDLR.Test
 
 			t = LuaType.GetType("System.Tuple[System.AAA]");
 			Assert.IsNull(t.Type);
+
+			t = LuaType.GetType(typeof(TestRek));
+			Assert.AreEqual(typeof(TestRek), t.Type);
 		}
 
 		[TestMethod]
