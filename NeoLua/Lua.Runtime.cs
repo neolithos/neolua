@@ -489,7 +489,7 @@ namespace Neo.IronLua
 						else if ((c == 'p' || c == 'P') && (numberBase == 2 || numberBase == 8 || numberBase == 16)) // goto read binary exponent
 							state = 5;
 						else if (Char.IsWhiteSpace(c)) // goto read trailing whitespaces
-							state = state | 0x100;
+							state |= 0x100;
 						else
 						{
 							n = GetDigit(c);
@@ -513,7 +513,7 @@ namespace Neo.IronLua
 					case 2: // integer overflow
 					case 3: // decimal overflow
 						if (Char.IsWhiteSpace(c)) // goto read trailing whitespaces
-							state = state | 0x100;
+							state |= 0x100;
 						else if ((c == 'e' || c == 'E') && numberBase == 10) // goto read exponent
 							state = 4;
 						else if ((c == 'p' || c == 'P') && numberBase <= 16) // goto read binary exponent
@@ -549,7 +549,7 @@ namespace Neo.IronLua
 					case 6: // exponent
 					case 7: // b exponent
 						if (Char.IsWhiteSpace(c)) // goto read trailing whitespaces
-							state = state | 0x100;
+							state |= 0x100;
 						else
 						{
 							n = GetDigit(c);
@@ -578,7 +578,7 @@ namespace Neo.IronLua
 				return ThrowFormatExpression(throwException, number, numberBase);
 
 			// correct state
-			state = state & 0xFF;
+			state &= 0xFF;
 
 			// return the value
 			if (state == 0) // a integer value
@@ -698,6 +698,17 @@ namespace Neo.IronLua
 
 		internal static void RtWriteValue(TextWriter tw, object value, bool prettyFormatted, int currentLevel, string indent)
 		{
+			void WriteNumber(string num)
+			{
+				if (num.IndexOfAny(new char[] { '.', 'e', 'E' }) == -1)
+				{
+					tw.Write(num);
+					tw.Write(".0");
+				}
+				else
+					tw.Write(num);
+			} // proc WriteNumber
+
 			var type = value.GetType();
 			var typeCode = LuaEmit.GetTypeCode(type);
 			switch (typeCode)
@@ -755,18 +766,26 @@ namespace Neo.IronLua
 					break;
 
 				case LuaEmitTypeCode.Single:
-				case LuaEmitTypeCode.Double:
-				case LuaEmitTypeCode.Decimal:
 					{
-						var num = Convert.ToString(value, CultureInfo.InvariantCulture);
-						if (num.IndexOfAny(new char[] { '.', 'e', 'E' }) == -1)
-						{
-							tw.Write(num);
-							tw.Write(".0");
-						}
+						// if you run return tonumber(tostring(0/0)) in c-lua it will return nil
+						var n = (float)value;
+						if (Single.IsNaN(n))
+							tw.Write("nil");
 						else
-							tw.Write(num);
+							WriteNumber(n.ToString(CultureInfo.InvariantCulture));
 					}
+					break;
+				case LuaEmitTypeCode.Double:
+					{
+						var n = (double)value;
+						if (Double.IsNaN(n))
+							tw.Write("nil");
+						else
+							WriteNumber(n.ToString(CultureInfo.InvariantCulture));
+					}
+					break;
+				case LuaEmitTypeCode.Decimal:
+					WriteNumber(((decimal)value).ToString(CultureInfo.InvariantCulture));
 					break;
 
 				case LuaEmitTypeCode.DateTime:

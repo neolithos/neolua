@@ -4,7 +4,7 @@
 		<AssemblyName>Neo.Lua.Dbg</AssemblyName>
 		<RootNamespace>Neo.IronLua</RootNamespace>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-		<TargetFrameworks>net45;netcoreapp2.0</TargetFrameworks>
+		<TargetFrameworks>net45;netcoreapp2.1</TargetFrameworks>
 		<SignAssembly>true</SignAssembly>
 		<AssemblyOriginatorKeyFile>NeoLua.snk</AssemblyOriginatorKeyFile>
 		<PackageId>NeoLuaDebug</PackageId>
@@ -14,6 +14,11 @@
 	</PropertyGroup>
 	<Import Project="..\NeoLua.NuGet\common.nupkg.targets" />
 	<ItemGroup>
+	  <Compile Remove="Properties\**" />
+	  <EmbeddedResource Remove="Properties\**" />
+	  <None Remove="Properties\**" />
+	</ItemGroup>
+	<ItemGroup>
 	  <None Include="..\NeoLua\NeoLua.licenseheader" Link="NeoLua.licenseheader" />
 	</ItemGroup>
 	<ItemGroup>
@@ -21,8 +26,5 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\NeoLua\NeoLua.csproj" />
-	</ItemGroup>
-	<ItemGroup>
-	  <Folder Include="Properties\" />
 	</ItemGroup>
 </Project>

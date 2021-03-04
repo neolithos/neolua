@@ -1070,10 +1070,17 @@ namespace LuaDLR.Test
 		{
 			var t = new LuaTable()
 			{
-				["test"] = 1.0
+				["test1"] = 1.0,
+				["test2"] = 1.32,
+				["test3"] = Double.NaN
 			};
 
-			Assert.AreEqual(1.0, LuaTable.FromLson(t.ToLson())["test"]);
+			var data = t.ToLson();
+			Assert.IsTrue(data.IndexOf("test3 = nil") >= 0, "Tag nicht generiert.");
+			var r = LuaTable.FromLson(data);
+			Assert.AreEqual(1.0, r["test1"]);
+			Assert.AreEqual(1.32, r["test2"]);
+			Assert.AreEqual(null, r["test3"]);
 		}
 
 		[TestMethod]
