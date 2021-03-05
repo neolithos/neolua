@@ -370,9 +370,9 @@ namespace Neo.IronLua
 		{
 			// f,s,v
 			if (String.IsNullOrEmpty(s))
-				return LuaResult.Empty;
+				return new LuaResult(new Func<object, object, LuaResult>(MatchEnum), Enumerable.Empty<object>().GetEnumerator(), Enumerable.Empty<object>().GetEnumerator());
 			if (String.IsNullOrEmpty(pattern))
-				return LuaResult.Empty;
+				return new LuaResult(new Func<object, object, LuaResult>(MatchEnum), Enumerable.Empty<object>().GetEnumerator(), Enumerable.Empty<object>().GetEnumerator());
 
 			// translate the regular expression
 			pattern = TranslateRegularExpression(pattern).Item1;
