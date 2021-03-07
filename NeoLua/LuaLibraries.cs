@@ -368,17 +368,24 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static LuaResult gmatch(this string s, string pattern)
 		{
+			System.Collections.IEnumerator e;
+
 			// f,s,v
-			if (String.IsNullOrEmpty(s))
-				return new LuaResult(new Func<object, object, LuaResult>(MatchEnum), Enumerable.Empty<object>().GetEnumerator(), Enumerable.Empty<object>().GetEnumerator());
-			if (String.IsNullOrEmpty(pattern))
-				return new LuaResult(new Func<object, object, LuaResult>(MatchEnum), Enumerable.Empty<object>().GetEnumerator(), Enumerable.Empty<object>().GetEnumerator());
+			if (String.IsNullOrEmpty(s)
+				|| String.IsNullOrEmpty(pattern))
+			{
+				e = Enumerable.Empty<object>().GetEnumerator();
+			}
+			else
+			{
 
-			// translate the regular expression
-			pattern = TranslateRegularExpression(pattern).Item1;
+				// translate the regular expression
+				pattern = TranslateRegularExpression(pattern).Item1;
 
-			// Find Matches
-			var e = Regex.Matches(s, pattern).GetEnumerator(); // todo: possible memory leak if the enumeration does not reach the end
+				// Find Matches
+				e = Regex.Matches(s, pattern).GetEnumerator();
+			}
+
 			return new LuaResult(new Func<object, object, LuaResult>(MatchEnum), e, e);
 		} // func gmatch
 
@@ -544,8 +551,8 @@ namespace Neo.IronLua
 				n = Int32.MaxValue;
 
 			GSubMatchEvaluator matchEvaluator;
-			if (repl is LuaTable)
-				matchEvaluator = new GSubLuaTableMatchEvaluator((LuaTable)repl);
+			if (repl is LuaTable table)
+				matchEvaluator = new GSubLuaTableMatchEvaluator(table);
 			else if (repl is Delegate || repl is ILuaMethod)
 				matchEvaluator = new GSubFunctionMatchEvaluator(repl);
 			else
