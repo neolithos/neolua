@@ -3613,9 +3613,7 @@ namespace Neo.IronLua
 		/// <param name="e"></param>
 		/// <param name="t"></param>
 		public static void move(LuaTable t1, int f, int e, int t)
-		{
-			move(t1, f, e, t, t1);
-		} // proc move
+			=> move(t1, f, e, t, t1);
 
 		/// <summary></summary>
 		/// <param name="t1"></param>
@@ -3626,15 +3624,43 @@ namespace Neo.IronLua
 		public static void move(LuaTable t1, int f, int e, int t, LuaTable t2)
 		{
 			if (f < 0)
-				throw new ArgumentOutOfRangeException("f");
+				throw new ArgumentOutOfRangeException(nameof(f));
 			if (t < 0)
-				throw new ArgumentOutOfRangeException("t");
+				throw new ArgumentOutOfRangeException(nameof(t));
 			if (f > e)
 				return;
 
 			while (f < e)
 				t2[t++] = t1[f++];
 		} // proc move
+
+		#endregion
+
+		#region -- merge --
+
+		/// <summary>merge the second table into the first one.</summary>
+		/// <param name="targetTable"></param>
+		/// <param name="mergeTable"></param>
+		/// <param name="overwrite"></param>
+		/// <returns></returns>
+		public static LuaTable merge(LuaTable targetTable, LuaTable mergeTable, bool overwrite = true)
+		{
+			foreach (var kv in mergeTable)
+			{
+				if (kv.Value is LuaTable m)
+				{
+					var v = targetTable[kv.Key];
+					if (v is LuaTable t)
+						merge(t, m, overwrite);
+					else if (v == null || (v != null && overwrite))
+						targetTable[kv.Key] = merge(new LuaTable(), m, true);
+				}
+				else if (overwrite || kv.Value == null)
+					targetTable[kv.Key] = kv.Value;
+			}
+
+			return targetTable;
+		} // proc merge
 
 		#endregion
 
