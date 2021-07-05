@@ -200,10 +200,13 @@ namespace Neo.IronLua
 
 			private static Expression ConvertToIndexKey(DynamicMetaObject arg)
 			{
-				if (arg.LimitType == typeof(sbyte) ||
-					arg.LimitType == typeof(byte) ||
-					arg.LimitType == typeof(short) ||
-					arg.LimitType == typeof(ushort))
+				if (arg.LimitType == typeof(sbyte)
+					|| arg.LimitType == typeof(byte)
+					|| arg.LimitType == typeof(short)
+					|| arg.LimitType == typeof(ushort)
+					|| arg.LimitType == typeof(uint)
+					|| arg.LimitType == typeof(long)
+					|| arg.LimitType == typeof(ulong))
 					return Expression.Convert(Lua.EnsureType(arg.Expression, arg.LimitType), typeof(int));
 				else if (arg.LimitType == typeof(int))
 					return Lua.EnsureType(arg.Expression, typeof(int));

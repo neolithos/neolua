@@ -136,10 +136,10 @@ namespace LuaDLR.Test
 		[TestMethod]
 		public void TestIndex01()
 		{
-			LuaTable t = new LuaTable();
+			var t = new LuaTable();
 			t[1] = 1;
 			t[(object)2] = 2;
-			for (int i = 4; i <= 16; i++)
+			for (var i = 4; i <= 16; i++)
 				t[i] = i;
 			Assert.AreEqual(t.Length, 2);
 			Assert.AreEqual(t.Values.Count, 15);
@@ -165,7 +165,7 @@ namespace LuaDLR.Test
 			t[1] = 1;
 			Assert.AreEqual(t.Values.Count, 19);
 			Assert.AreEqual(t.Length, 18);
-			for (int i = 1; i <= 18; i++)
+			for (var i = 1; i <= 18; i++)
 				Assert.AreEqual(t[i], i);
 			Assert.AreEqual(t[20], 20);
 
@@ -233,9 +233,28 @@ namespace LuaDLR.Test
 		[TestMethod]
 		public void TestIndex08()
 		{
-			LuaTable t = new LuaTable();
-			t[-1] = 50;
+			var t = new LuaTable
+			{
+				[-1] = 50
+			};
 			Assert.AreEqual(50, t[-1]);
+		}
+
+		[TestMethod]
+		public void TestIndex09()
+		{
+			uint key = 2;
+			var code = @"
+				local tbl = {}
+				tbl[key] = 5
+				return tbl[key]";
+
+			var lua = new Lua();
+			dynamic env = lua.CreateEnvironment();
+			env.key = key;
+			var chunk = lua.CompileChunk(code, "lua.lua", new LuaCompileOptions());
+			var r = env.dochunk(chunk);
+			Assert.AreEqual(5, (int)r);
 		}
 
 		#endregion
