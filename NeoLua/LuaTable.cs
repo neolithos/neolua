@@ -319,23 +319,6 @@ namespace Neo.IronLua
 						);
 						restrictions = restrictions.Merge(BindingRestrictions.GetTypeRestriction(arg.Expression, arg.LimitType));
 					}
-					else if (arg.LimitType == typeof(uint) || arg.LimitType == typeof(long) || arg.LimitType == typeof(ulong))
-					{
-						expr = Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableSetValueKeyIntMethodInfo,
-							ConvertToIndexKey(arg),
-							exprSet,
-							Expression.Constant(false)
-						);
-						restrictions = restrictions.Merge(BindingRestrictions.GetExpressionRestriction(
-							Expression.AndAlso(
-								Expression.TypeEqual(arg.Expression, arg.LimitType),
-								Expression.AndAlso(
-									Expression.GreaterThanOrEqual(Lua.EnsureType(arg.Expression, arg.LimitType), Lua.EnsureType(Expression.Constant(1), arg.LimitType)),
-									Expression.LessThanOrEqual(Lua.EnsureType(arg.Expression, arg.LimitType), Lua.EnsureType(Expression.Constant(Int32.MaxValue), arg.LimitType))
-								)
-							)
-						));
-					}
 					else if (arg.LimitType == typeof(string))
 					{
 						expr = Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableSetValueKeyStringMethodInfo,
@@ -398,22 +381,6 @@ namespace Neo.IronLua
 							Expression.Constant(false)
 						);
 						restrictions = restrictions.Merge(BindingRestrictions.GetTypeRestriction(arg.Expression, arg.LimitType));
-					}
-					else if (arg.LimitType == typeof(uint) || arg.LimitType == typeof(long) || arg.LimitType == typeof(ulong))
-					{
-						expr = Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableGetValueKeyIntMethodInfo,
-							ConvertToIndexKey(arg),
-							Expression.Constant(false)
-						);
-						restrictions = restrictions.Merge(BindingRestrictions.GetExpressionRestriction(
-							Expression.AndAlso(
-								Expression.TypeEqual(arg.Expression, arg.LimitType),
-								Expression.AndAlso(
-									Expression.GreaterThanOrEqual(Lua.EnsureType(arg.Expression, arg.LimitType), Lua.EnsureType(Expression.Constant(1), arg.LimitType)),
-									Expression.LessThanOrEqual(Lua.EnsureType(arg.Expression, arg.LimitType), Lua.EnsureType(Expression.Constant(Int32.MaxValue), arg.LimitType))
-								)
-							)
-						));
 					}
 					else if (arg.LimitType == typeof(string))
 					{
@@ -2091,7 +2058,7 @@ namespace Neo.IronLua
 					{
 						arrayList[arrayIndex] = null;
 						if (arrayIndex < arrayLength)
-							arrayLength = arrayIndex; // iArrayLength = iIndex - 1
+							arrayLength = arrayIndex; // arrayLength = arrayIndex - 1
 
 						count--;
 						version++;
@@ -2108,7 +2075,7 @@ namespace Neo.IronLua
 					version++;
 
 					// correct the array length
-					if (arrayLength == arrayIndex) // iArrayLength == iIndex - 1
+					if (arrayLength == arrayIndex) // arrayLength = arrayIndex - 1
 					{
 						// search for the end of the array
 						arrayLength = index;
@@ -2429,7 +2396,7 @@ namespace Neo.IronLua
 				case LuaEmitTypeCode.Int64:
 					unchecked
 					{
-						long t = (uint)item;
+						var t = (long)item;
 						if (t < Int32.MaxValue)
 						{
 							index = (int)t;
@@ -2444,7 +2411,7 @@ namespace Neo.IronLua
 				case LuaEmitTypeCode.UInt64:
 					unchecked
 					{
-						ulong t = (uint)item;
+						var t = (ulong)item;
 						if (t < Int32.MaxValue)
 						{
 							index = (int)t;
