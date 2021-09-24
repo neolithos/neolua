@@ -1091,15 +1091,21 @@ namespace LuaDLR.Test
 			{
 				["test1"] = 1.0,
 				["test2"] = 1.32,
-				["test3"] = Double.NaN
+				["test3"] = Double.NaN,
+				["test4"] = Double.PositiveInfinity,
+				["test5"] = Double.NegativeInfinity,
 			};
 
 			var data = t.ToLson();
 			Assert.IsTrue(data.IndexOf("test3 = nil") >= 0, "Tag nicht generiert.");
+			Assert.IsTrue(data.IndexOf("test4 = \"+Infinity\"") >= 0, "Tag nicht generiert.");
+			Assert.IsTrue(data.IndexOf("test5 = \"-Infinity\"") >= 0, "Tag nicht generiert.");
 			var r = LuaTable.FromLson(data);
 			Assert.AreEqual(1.0, r["test1"]);
 			Assert.AreEqual(1.32, r["test2"]);
 			Assert.AreEqual(null, r["test3"]);
+			Assert.AreEqual("+Infinity", r["test4"]);
+			Assert.AreEqual("-Infinity", r["test5"]);
 		}
 
 		[TestMethod]

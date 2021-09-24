@@ -39,6 +39,8 @@ namespace Neo.IronLua
 	{
 #pragma warning disable IDE1006 // Naming Styles
 		internal const ExpressionType IntegerDivide = (ExpressionType)(-100);
+		private const string jsonPositiveInfinityValue = "\"+Infinity\"";
+		private const string jsonNegativeInfinityValue = "\"-Infinity\"";
 
 		// LuaResult
 		internal readonly static ConstructorInfo ResultConstructorInfoArg1;
@@ -771,6 +773,10 @@ namespace Neo.IronLua
 						var n = (float)value;
 						if (Single.IsNaN(n))
 							tw.Write("nil");
+						else if (Single.IsPositiveInfinity(n))
+							tw.Write(jsonPositiveInfinityValue);
+						else if (Single.IsNegativeInfinity(n))
+							tw.Write(jsonNegativeInfinityValue);
 						else
 							WriteNumber(n.ToString(CultureInfo.InvariantCulture));
 					}
@@ -780,6 +786,10 @@ namespace Neo.IronLua
 						var n = (double)value;
 						if (Double.IsNaN(n))
 							tw.Write("nil");
+						else if (Double.IsPositiveInfinity(n))
+							tw.Write(jsonPositiveInfinityValue);
+						else if (Double.IsNegativeInfinity(n))
+							tw.Write(jsonNegativeInfinityValue);
 						else
 							WriteNumber(n.ToString(CultureInfo.InvariantCulture));
 					}
