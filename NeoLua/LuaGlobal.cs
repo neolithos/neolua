@@ -644,7 +644,7 @@ namespace Neo.IronLua
 		/// <param name="iBase"></param>
 		/// <returns></returns>
 		[LuaMember("tonumber")]
-		public object LuaToNumber(object v, Nullable<int> iBase = null)
+		public object LuaToNumber(object v, int? iBase = null)
 		{
 			if (v == null)
 				return null;

@@ -295,9 +295,9 @@ namespace Neo.IronLua
 
 		internal static MethodInfo FindConvertOperator(Type fromType, Type toType)
 		{
-			bool implicitMethod = false;
-			bool isExactFrom = false;
-			bool isExactTo = false;
+			var implicitMethod = false;
+			var isExactFrom = false;
+			var isExactTo = false;
 			return FindConvertOperator(fromType, toType, null, ref implicitMethod, ref isExactFrom, ref isExactTo);
 		} // func FindConvertOperator
 
@@ -415,17 +415,6 @@ namespace Neo.IronLua
 
 			return currentMethodInfo;
 		} // func FindParseMethod
-
-		private static MethodInfo FindToStringMethod(Type toType)
-		{
-			foreach (var mi in typeof(Convert).GetRuntimeMethods().Where(c => c.IsPublic && c.IsStatic && c.Name == csToString))
-			{
-				var parameters = mi.GetParameters();
-				if (parameters.Length == 2 && parameters[0].ParameterType == toType && parameters[1].ParameterType == typeof(IFormatProvider))
-					return mi;
-			}
-			return null;
-		} // func FindToStringMethod
 
 		private static string GetOperationMethodName(ExpressionType op)
 		{
@@ -589,11 +578,8 @@ namespace Neo.IronLua
 						return true;
 
 					// just call to string or specialized to string
-					var methodInfo = FindToStringMethod(fromType) ?? Lua.ConvertToStringMethodInfo;
-
-					result = Expression.Call(methodInfo,
-						Lua.EnsureType(expr, methodInfo.GetParameters()[0].ParameterType),
-						Expression.Property(null, Lua.CultureInvariantPropertyInfo)
+					result = Expression.Call(Lua.RtConvertToStringMethodInfo,
+						Lua.EnsureType(expr, typeof(object))
 					);
 					return true;
 				}
@@ -2109,7 +2095,7 @@ namespace Neo.IronLua
 					}
 					else
 					{
-						for (int i = 0; i < argumentsWorkedWith.Length; i++)
+						for (var i = 0; i < argumentsWorkedWith.Length; i++)
 						{
 							if (!argumentsWorkedWith[i])
 								callBlock.Add(getExpr(arguments[i]));

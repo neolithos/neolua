@@ -539,6 +539,28 @@ namespace LuaDLR.Test
 					File.Delete(fileName);
 			}
 		}
+
+		[TestMethod]
+		public void Invoke01()
+		{
+			var g = new LuaGlobal(new Lua());
+			g.DoChunk(Lines("function f(a : string, b : string)",
+				"return a,b;",
+				"end;"
+			), "test.lua");
+
+			var f = g.GetMemberValue("f");
+
+			var r = new LuaResult(Lua.RtInvoke(f, null, "b"));
+			Assert.AreEqual(r[0], null);
+			Assert.AreEqual(r[1], "b");
+			r = new LuaResult(Lua.RtInvoke(f, "a", null));
+			Assert.AreEqual(r[0], "a");
+			Assert.AreEqual(r[1], null);
+			r = new LuaResult(Lua.RtInvoke(f, "a"));
+			Assert.AreEqual(r[0], "a");
+			Assert.AreEqual(r[1], null);
+		}
 	}
  } //class Runtime 
 

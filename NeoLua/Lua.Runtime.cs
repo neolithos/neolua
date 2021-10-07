@@ -125,11 +125,10 @@ namespace Neo.IronLua
 		internal readonly static MethodInfo InitArray1MethodInfo;
 		internal readonly static MethodInfo InitArrayNMethodInfo;
 		internal readonly static MethodInfo RtConvertValueDynamicMethodInfo;
+		internal readonly static MethodInfo RtConvertToStringMethodInfo;
 		// Object
 		internal readonly static MethodInfo ObjectEqualsMethodInfo;
 		internal readonly static MethodInfo ObjectReferenceEqualsMethodInfo;
-		// Convert
-		internal readonly static MethodInfo ConvertToStringMethodInfo;
 		// Enum
 		internal readonly static MethodInfo EnumParseMethodInfo;
 		// String
@@ -263,15 +262,12 @@ namespace Neo.IronLua
 			InitArray1MethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtInitArray), ReflectionFlag.None, typeof(Type), typeof(object));
 			InitArrayNMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtInitArray), ReflectionFlag.None, typeof(Type), typeof(object[]));
 			RtConvertValueDynamicMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConvertValueDynamic), ReflectionFlag.NoArguments | ReflectionFlag.Static);
+			RtConvertToStringMethodInfo = tiLua.FindDeclaredMethod(nameof(RtConvertToString), ReflectionFlag.Static | ReflectionFlag.Public, typeof(object));
 
 			// Object
 			var tiObject = typeof(object).GetTypeInfo();
 			ObjectEqualsMethodInfo = tiObject.FindDeclaredMethod(nameof(Object.Equals), ReflectionFlag.Public | ReflectionFlag.Static | ReflectionFlag.NoArguments);
 			ObjectReferenceEqualsMethodInfo = tiObject.FindDeclaredMethod(nameof(Object.ReferenceEquals), ReflectionFlag.Public | ReflectionFlag.Static | ReflectionFlag.NoArguments);
-
-			// Convert
-			var tiConvert = typeof(Convert).GetTypeInfo();
-			ConvertToStringMethodInfo = tiConvert.FindDeclaredMethod(nameof(Convert.ToString), ReflectionFlag.Static | ReflectionFlag.Public, typeof(object), typeof(IFormatProvider));
 
 			// Enum
 			var tiEnum = typeof(Enum).GetTypeInfo();
@@ -949,18 +945,18 @@ namespace Neo.IronLua
 				else if (toType == typeof(string))
 				{
 					if (fromType == typeof(bool))
-						return (bool)value ? "true" : "false";
+						return  RtConvertBoolToString((bool)value);
 					else
 					{
 						if (value == null)
-							return String.Empty;
+							return null;
 						else
 						{
 							var convertToString = LuaEmit.GetTypeCode(fromType) != LuaEmitTypeCode.Object ? null : LuaEmit.FindConvertOperator(fromType, typeof(string));
 							if (convertToString != null)
 								return RtConvertValue(convertToString.Invoke(null, new object[] { value }), toType);
 							else
-								return Convert.ToString(value, CultureInfo.InvariantCulture);
+								return RtConvertToString(value);
 						}
 					}
 				}
@@ -1085,6 +1081,26 @@ namespace Neo.IronLua
 				throw new LuaRuntimeException(String.Format(Properties.Resources.rsBindConversionNotDefined, dlg.GetType().Name, toType.Name), e);
 			}
 		} // func RtConvertDelegate
+
+		private static string RtConvertBoolToString(bool value)
+			=> value ? "true" : "false";
+
+		/// <summary>Convert object to string (fixed).</summary>
+		/// <param name="value"></param>
+		/// <returns></returns>
+		public static string RtConvertToString(object value)
+		{
+			if (value == null)
+				return null;
+			else if (value is bool b)
+				return RtConvertBoolToString(b);
+			else if (value is IConvertible c)
+				return c.ToString(CultureInfo.InvariantCulture);
+			else if (value is IFormattable f)
+				return f.ToString(null, CultureInfo.InvariantCulture);
+			else
+				return value.ToString();
+		} // func RtConvertToString
 
 		#endregion
 
