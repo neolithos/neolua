@@ -2252,6 +2252,9 @@ namespace Neo.IronLua
 
 		private int ArrayOnlyAdd(object value)
 		{
+			if (value == null)
+				throw new ArgumentNullException(nameof(value)); // null, values do not change arrayLength (a, nil, b) -> (a, b)
+
 			var idx = arrayLength;
 			SetArrayValue(arrayLength + 1, value, true);
 			return idx;
