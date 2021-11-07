@@ -2180,10 +2180,19 @@ namespace Neo.IronLua
 			if (isLocal) // Local function, only one identifier is allowed
 			{
 				var t = FetchToken(LuaToken.Identifier, code);
-				ParameterExpression funcVar = null;
-				var exprFunction = ParseLamdaDefinition(scope, code, t.Value, false,
-					typeDelegate => funcVar = scope.RegisterVariable(typeDelegate, t.Value)
-				);
+
+				ParameterExpression funcVar = scope.LookupExpression(t.Value, true) as ParameterExpression;
+				Expression exprFunction;
+				if (funcVar == null)
+				{
+					exprFunction = ParseLamdaDefinition(scope, code, t.Value, false,
+					typeDelegate => funcVar = scope.RegisterVariable(typeDelegate, t.Value));
+				}
+				else
+				{
+					exprFunction = ParseLamdaDefinition(scope, code, t.Value, false, null);
+				}
+					
 				scope.AddExpression(Expression.Assign(funcVar, exprFunction));
 			}
 			else // Function that is assigned to a table. A chain of identifiers is allowed.
@@ -2202,7 +2211,7 @@ namespace Neo.IronLua
 					memberName = FetchToken(LuaToken.Identifier, code).Value;
 				}
 				// add a method to the table. methods get a hidden parameter and will bo marked
-				bool lMethodMember;
+				bool lMethodMember = false;
 				if (code.Current.Typ == LuaToken.Colon)
 				{
 					code.Next();
@@ -2216,8 +2225,17 @@ namespace Neo.IronLua
 				else
 				{
 					if (assignee == null)
+					{
+						// there was no member access, so try to find a local to assign to
+						var local = scope.LookupExpression(memberName, true);
+						if (local != null)
+						{
+							scope.AddExpression(Expression.Assign(local, ParseLamdaDefinition(scope, code, memberName, false, null)));
+							return;
+						}
+
 						assignee = scope.LookupExpression(csEnv); // create a global function
-					lMethodMember = false;
+					}
 				}
 
 				// generate lambda
@@ -2295,7 +2313,7 @@ namespace Neo.IronLua
 			// register the delegate
 			if (functionTypeCollected != null)
 			{
-				var functionType = scope.ReturnType == typeof(void) 
+				var functionType = scope.ReturnType == typeof(void)
 					? Expression.GetActionType((from p in parameters select p.Type).ToArray())
 					: Expression.GetFuncType((from p in parameters select p.Type).Concat(new Type[] { scope.ReturnType }).ToArray());
 				functionTypeCollected(functionType);
@@ -2428,7 +2446,7 @@ namespace Neo.IronLua
 
 		private static Expression CreateEmptyTableExpression()
 			=> Expression.New(typeof(LuaTable));
-		
+
 		#endregion
 
 		#region -- FetchToken, ParseError ---------------------------------------------
@@ -2449,7 +2467,7 @@ namespace Neo.IronLua
 
 		public static LuaParseException ParseError(Token start, string message)
 			=> new LuaParseException(start.Start, message, null);
-		
+
 		private static Exception ParseError(ILuaLexer code, string message = null)
 		{
 			switch (code.Current.Typ)
