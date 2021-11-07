@@ -2181,7 +2181,7 @@ namespace Neo.IronLua
 			{
 				var t = FetchToken(LuaToken.Identifier, code);
 
-				ParameterExpression funcVar = scope.LookupExpression(t.Value, true) as ParameterExpression;
+				ParameterExpression funcVar = scope.LookupExpression(t.Value) as ParameterExpression;
 				Expression exprFunction;
 				if (funcVar == null)
 				{
@@ -2227,8 +2227,8 @@ namespace Neo.IronLua
 					if (assignee == null)
 					{
 						// there was no member access, so try to find a local to assign to
-						var local = scope.LookupExpression(memberName, true);
-						if (local != null)
+						var local = scope.LookupExpression(memberName);
+						if (local is ParameterExpression)
 						{
 							scope.AddExpression(Expression.Assign(local, ParseLamdaDefinition(scope, code, memberName, false, null)));
 							return;
