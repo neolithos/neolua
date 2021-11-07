@@ -403,6 +403,22 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
+		public void TestAssignFunctionToParentLocal()
+		{
+			TestCode(@"
+local f
+function g()
+	function f()
+		return 'Hello'
+	end
+end
+g()
+return f()
+",
+"Hello");
+		}
+
+		[TestMethod]
 		public void TestFunctionConvert01()
 		{
 			var f = new TestDelegateConvert();
