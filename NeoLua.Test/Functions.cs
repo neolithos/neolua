@@ -364,42 +364,45 @@ namespace LuaDLR.Test
 		public void TestForwardDeclaration()
 		{
 			TestCode(
-			@"local f
-			function f()
-				return 'Hello'
-			end
+				@"local f
+function f()
+	return 'Hello'
+end
 
-			return f()",
-			"Hello");
+return f()",
+				"Hello"
+			);
 		}
 		[TestMethod]
 		public void TestDoubleLocalFunction()
 		{
 			TestCode(
-			@"local function f()
-				return 'Hello'
-			end
-			local function f()
-				return 'World'
-			end
-			return f()",
-			"World");
+				@"local function f()
+	return 'Hello'
+end
+local function f()
+	return 'World'
+end
+return f()",
+				"World"
+			);
 		}
 
 		[TestMethod]
 		public void TestLocalMutualRecursiveFunction()
 		{
 			TestCode(
-			@"
-			local f1, f2
-			function f2()
-				return f1()
-			end
-			function f1()
-				return 'Hello'
-			end
-			return _G['f2'] == nil",
-			true);
+				@"
+local f1, f2
+function f2()
+	return f1()
+end
+function f1()
+	return 'Hello'
+end
+return _G['f2'] == nil",
+				true
+			);
 		}
 
 		[TestMethod]

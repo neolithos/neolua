@@ -99,8 +99,7 @@ namespace Neo.IronLua
 			public virtual Expression LookupExpression(string name, bool isLocalOnly = false)
 			{
 				// Lookup the current scope
-				Expression p;
-				if (scopeVariables != null && scopeVariables.TryGetValue(name, out p))
+				if (scopeVariables != null && scopeVariables.TryGetValue(name, out var p))
 					return p;
 
 				return parent != null && !isLocalOnly ? // lookup the parent scope
@@ -2181,17 +2180,16 @@ namespace Neo.IronLua
 			{
 				var t = FetchToken(LuaToken.Identifier, code);
 
-				ParameterExpression funcVar = scope.LookupExpression(t.Value) as ParameterExpression;
+				var funcVar = scope.LookupExpression(t.Value) as ParameterExpression;
 				Expression exprFunction;
 				if (funcVar == null)
 				{
 					exprFunction = ParseLamdaDefinition(scope, code, t.Value, false,
-					typeDelegate => funcVar = scope.RegisterVariable(typeDelegate, t.Value));
+						typeDelegate => funcVar = scope.RegisterVariable(typeDelegate, t.Value)
+					);
 				}
 				else
-				{
 					exprFunction = ParseLamdaDefinition(scope, code, t.Value, false, null);
-				}
 					
 				scope.AddExpression(Expression.Assign(funcVar, exprFunction));
 			}
@@ -2211,7 +2209,7 @@ namespace Neo.IronLua
 					memberName = FetchToken(LuaToken.Identifier, code).Value;
 				}
 				// add a method to the table. methods get a hidden parameter and will bo marked
-				bool lMethodMember = false;
+				var isMemberMethod = false;
 				if (code.Current.Typ == LuaToken.Colon)
 				{
 					code.Next();
@@ -2220,7 +2218,7 @@ namespace Neo.IronLua
 					assignee = ParseFunctionAddChain(scope, tCurrent, assignee, memberName);
 					// fetch the method name
 					memberName = FetchToken(LuaToken.Identifier, code).Value;
-					lMethodMember = true;
+					isMemberMethod = true;
 				}
 				else
 				{
@@ -2239,7 +2237,7 @@ namespace Neo.IronLua
 				}
 
 				// generate lambda
-				scope.AddExpression(MemberSetExpression(scope.Runtime, tCurrent, assignee, memberName, lMethodMember, ParseLamdaDefinition(scope, code, memberName, lMethodMember, null)));
+				scope.AddExpression(MemberSetExpression(scope.Runtime, tCurrent, assignee, memberName, isMemberMethod, ParseLamdaDefinition(scope, code, memberName, isMemberMethod, null)));
 			}
 		} // proc ParseLamdaDefinition
 
