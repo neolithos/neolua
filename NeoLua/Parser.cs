@@ -1969,8 +1969,16 @@ namespace Neo.IronLua
 					code.Next();
 					loopStep = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
 				}
+				else if (loopStart.Type == typeof(int))
+					loopStep = Expression.Constant(1);
+				else if (loopStart.Type == typeof(long))
+					loopStep = Expression.Constant(1L);
+				else if (loopStart.Type == typeof(float))
+					loopStep = Expression.Constant(1.0f);
+				else if (loopStart.Type == typeof(double))
+					loopStep = Expression.Constant(1.0);
 				else
-					loopStep = Expression.Constant(1, loopStart.Type);
+					loopStep = Expression.Constant(Lua.RtConvertValue(1, loopStart.Type));
 
 				var loopScope = new LoopScope(scope);
 				var loopVarParameter = loopScope.RegisterVariable(typeLoopVar == typeof(object) ? LuaEmit.LiftType(LuaEmit.LiftType(loopStart.Type, loopEnd.Type), loopStep.Type) : typeLoopVar, tLoopVar.Value);
