@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Neo.IronLua;
 
@@ -13,6 +11,43 @@ namespace LuaDLR.Test
 	[TestClass]
 	public class LuaTableTests : TestHelper
 	{
+		#region -- class ObjectInit ---------------------------------------------------
+
+		public class ObjectInit
+		{
+			private object[] values = new object[10];
+
+			public void TestEvent()
+			{
+				Assert.IsNotNull(Event);
+			}
+
+			public object this[int idx] { get => values[idx]; set => values[idx] = value; }
+
+			public int fieldValue;
+
+			public int Value { get; set; } = 100;
+			public Func<int> Action { get; set; }
+
+			public event EventHandler Event;
+		}
+
+		#endregion
+
+		#region -- class ObjectInitS --------------------------------------------------
+
+		public class ObjectInitS
+		{
+			public ObjectInitS(LuaTable t)
+			{
+				Value = (int)t.GetMemberValue(nameof(Value));
+			}
+
+			public int Value { get; }
+		}
+
+		#endregion
+
 		#region -- TestMember -------------------------------------------------------------
 
 		[TestMethod]
@@ -395,16 +430,76 @@ namespace LuaDLR.Test
 		[TestMethod]
 		public void TestConvert01()
 		{
-			using (Lua l = new Lua())
+			using (var l = new Lua())
 			{
 				l.PrintExpressionTree = Console.Out;
 				var g = l.CreateEnvironment();
-				var r = g.DoChunk("return cast(System.Diagnostics.ProcessStartInfo, { FileName = 'Test.exe', Arguments = 'aaa' });", "dummy");
-				ProcessStartInfo psi = (ProcessStartInfo)r[0];
-				Assert.IsTrue(psi.FileName == "Test.exe");
-				Assert.IsTrue(psi.Arguments == "aaa");
+				var r = g.DoChunk("return cast(LuaDLR.Test.LuaTableTests.ObjectInit, { Value = 42, 1, 2, 3 });", "dummy");
+				var o = (ObjectInit)r[0];
+				Assert.AreEqual(o.Value, 42);
+				Assert.AreEqual(o[0], 1);
+				Assert.AreEqual(o[1], 2);
+				Assert.AreEqual(o[2], 3);
 			}
 		} // func TestConvert01
+
+		[TestMethod]
+		public void TestConvert02a()
+		{
+			using (var l = new Lua())
+			{
+				var g = l.CreateEnvironment();
+				var t = (LuaTable)g.DoChunk("return { fieldValue = 42, Value = 23, Action = function() : int return 44 end, Event = function(s, e) : void print('test') end, 1, 2, 3 };", "dummy")[0];
+
+				var o = t.InitObject<ObjectInit>(true);
+				Assert.AreEqual(o.Value, 23);
+				Assert.AreEqual(o.fieldValue, 42);
+				Assert.AreEqual(o.Action(), 44);
+				o.TestEvent();
+				Assert.AreEqual(o[0], 1);
+				Assert.AreEqual(o[1], 2);
+				Assert.AreEqual(o[2], 3);
+			}
+		}
+
+		[TestMethod]
+		public void TestConvert02b()
+		{
+			using (var l = new Lua())
+			{
+				var g = l.CreateEnvironment();
+				var t = (LuaTable)g.DoChunk("return { fieldValue = 42, err = 23, Value = 23, Action = function() : int return 44 end, Event = function(s, e) : void print('test') end, 1, 2, 3 };", "dummy")[0];
+
+				var o = t.InitObject<ObjectInit>(false);
+				Assert.AreEqual(o.Value, 23);
+				Assert.AreEqual(o.fieldValue, 42);
+				Assert.AreEqual(o.Action(), 44);
+				o.TestEvent();
+				Assert.AreEqual(o[0], 1);
+				Assert.AreEqual(o[1], 2);
+				Assert.AreEqual(o[2], 3);
+			}
+		}
+
+		[TestMethod]
+		public void TestConvert02c()
+		{
+			using (var l = new Lua())
+			{
+				var g = l.CreateEnvironment();
+				var t = (LuaTable)g.DoChunk("return { err = 23 };", "dummy")[0];
+
+				try
+				{
+					var o = t.InitObject<ObjectInit>(true);
+					Assert.Fail();
+				}
+				catch (InvalidOperationException e)
+				{
+					Console.WriteLine(e.Message);
+				}
+			}
+		}
 
 		#endregion
 

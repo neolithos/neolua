@@ -2,12 +2,11 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Text;
-using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Neo.IronLua;
+using static LuaDLR.Test.LuaTableTests;
 
 namespace LuaDLR.Test
 {
@@ -35,6 +34,9 @@ namespace LuaDLR.Test
 		public class DataTypeTest
 		{
 			public Type DataType;
+
+			public static explicit operator DataTypeTest(LuaTable t)
+				=> t.SetObjectMember(new DataTypeTest());
 		}
 
 		public class Graph
@@ -308,14 +310,14 @@ namespace LuaDLR.Test
 		public void TypeTest08()
 		{
 			TestCode(Lines("local t : System.Type = clr.System.Text.StringBuilder;",
-				"return t"), typeof(System.Text.StringBuilder));
+				"return t"), typeof(StringBuilder));
 		}
 
 		[TestMethod]
 		public void TypeTest09()
 		{
 			TestCode(Lines("local t : LuaDLR.Test.LuaTypeTests.DataTypeTest = { DataType = clr.System.Text.StringBuilder };",
-				"return t.DataType"), typeof(System.Text.StringBuilder));
+				"return t.DataType"), typeof(StringBuilder));
 		}
 
 		[TestMethod]
@@ -500,6 +502,35 @@ namespace LuaDLR.Test
 		public void CtorTest03()
 		{
 			TestCode("return cast(LuaDLR.Test.LuaTypeTests.SubStruct, { Value = 2 }).Value", 2);
+		}
+
+		[TestMethod]
+		public void CtorTest10()
+		{
+			using (var l = new Lua())
+			{
+				l.PrintExpressionTree = Console.Out;
+				var g = l.CreateEnvironment();
+				var r = g.DoChunk("return clr.LuaDLR.Test.LuaTableTests.ObjectInit{ Value = 42, 1, 2, 3 };", "dummy");
+				var o = (ObjectInit)r[0];
+				Assert.AreEqual(o.Value, 42);
+				Assert.AreEqual(o[0], 1);
+				Assert.AreEqual(o[1], 2);
+				Assert.AreEqual(o[2], 3);
+			}
+		}
+
+		[TestMethod]
+		public void CtorTest11()
+		{
+			using (var l = new Lua())
+			{
+				l.PrintExpressionTree = Console.Out;
+				var g = l.CreateEnvironment();
+				var r = g.DoChunk("return clr.LuaDLR.Test.LuaTableTests.ObjectInitS{ Value = 42, 1, 2, 3 };", "dummy");
+				var o = (ObjectInitS)r[0];
+				Assert.AreEqual(o.Value, 42);
+			}
 		}
 
 		[TestMethod]

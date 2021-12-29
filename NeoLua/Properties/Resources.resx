@@ -294,6 +294,9 @@
   <data name="rsTableRecursionLevelError" xml:space="preserve">
     <value>Recursion level is to deep.</value>
   </data>
+  <data name="rsTableSetValueFailed" xml:space="preserve">
+    <value>Could not set member {1}.{0}.</value>
+  </data>
   <data name="rsTypeAliasInvalidName" xml:space="preserve">
     <value>Name for type alias is invalid '{0}'.</value>
   </data>

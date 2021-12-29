@@ -72,7 +72,7 @@ namespace Neo.IronLua
 			try
 			{
 				var r = chunk.DynamicInvoke(args);
-				return r is LuaResult ? (LuaResult)r : new LuaResult(r);
+				return r is LuaResult t ? t : new LuaResult(r);
 			}
 			catch (TargetInvocationException e)
 			{

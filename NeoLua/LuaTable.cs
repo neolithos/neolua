@@ -138,9 +138,7 @@ namespace Neo.IronLua
 			} // func GetBinaryRestrictions
 
 			private BindingRestrictions GetLuaTableRestriction()
-			{
-				return BindingRestrictions.GetExpressionRestriction(Expression.TypeIs(Expression, typeof(LuaTable)));
-			} // func GetLuaTableRestriction
+				=> BindingRestrictions.GetExpressionRestriction(Expression.TypeIs(Expression, typeof(LuaTable)));
 
 			private Expression CreateSetExpresion(object binder, DynamicMetaObject value, Type typeConvertTo, ref BindingRestrictions restrictions)
 			{
@@ -634,27 +632,6 @@ namespace Neo.IronLua
 				);
 				return new DynamicMetaObject(expr, restrictions.Merge(Lua.GetMethodSignatureRestriction(null, args)));
 			} // BindInvokeMember
-
-			#endregion
-
-			#region -- BindConvert ----------------------------------------------------------
-
-			public override DynamicMetaObject BindConvert(ConvertBinder binder)
-			{
-				// Automatic convert to a special type, only for classes and structure
-				var typeInfo = binder.Type.GetTypeInfo();
-				if (!typeInfo.IsPrimitive && // no primitiv
-					!typeInfo.IsAssignableFrom(Value.GetType().GetTypeInfo()) && // not assignable by defaut
-					binder.Type != typeof(LuaResult)) // no result
-				{
-					return new DynamicMetaObject(
-						Lua.EnsureType(
-							Expression.Call(Lua.EnsureType(Expression, typeof(LuaTable)), Lua.TableSetObjectMemberMethodInfo, Lua.EnsureType(Expression.New(binder.Type), typeof(object))),
-							binder.ReturnType),
-						GetLuaTableRestriction());
-				}
-				return base.BindConvert(binder);
-			} // func BindConvert
 
 			#endregion
 
@@ -1964,16 +1941,9 @@ namespace Neo.IronLua
 			// find the member
 			var entryIndex = FindKey(memberName, GetMemberHashCode(memberName), ignoreCase ? compareStringIgnoreCase : comparerObject);
 			if (entryIndex < 0)
-			{
-				if (rawGet)
-					return null;
-				else
-					return OnIndex(memberName);
-			}
+				return rawGet ? null : OnIndex(memberName);
 			else if (entryIndex < classDefinition.Count)
-			{
 				return GetClassMemberValue(entryIndex, memberName, rawGet);
-			}
 			else
 				return entries[entryIndex].value;
 		} // func GetMemberValue
@@ -2827,33 +2797,139 @@ namespace Neo.IronLua
 
 		#region -- SetObjectMember ----------------------------------------------------
 
-		/// <summary>Sets the given object with the members of the table.</summary>
-		/// <param name="obj"></param>
-		public object SetObjectMember(object obj)
+		private static bool IsPublicMethod(MethodInfo methodInfo)
+			=> methodInfo != null && methodInfo.IsPublic && !methodInfo.IsStatic;
+
+		private static bool IsIndexSetter(PropertyInfo propertyInfo)
 		{
-			if (obj == null)
-				return obj;
+			var setMethod = propertyInfo.SetMethod;
+			if (IsPublicMethod(setMethod))
+			{
+				var args = setMethod.GetParameters();
+				return args.Length == 2 && args[0].ParameterType == typeof(int);
+			}
+			else
+				return false;
+		} // func IsIndexSetter
 
-			var type = obj.GetType();
+		private bool TryGetMemberValue(string memberName, Type type, out object value)
+		{
+			value = GetMemberValue(memberName);
+			if (value is null)
+				return false;
+			else
+			{
+				value = Lua.RtConvertValue(value, type);
+				return true;
+			}
+		} // func TryGetMemberValue
 
+		/// <summary>Initialize an object with the current set of members.</summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="strict">Only allows to set direct declared values.</param>
+		/// <returns>The new object</returns>
+		public T InitObject<T>(bool strict = false)
+			=> SetObjectMember(Activator.CreateInstance<T>(), strict);
+
+		/// <summary>Initialize an object with the current set of members.</summary>
+		/// <param name="type"></param>
+		/// <param name="strict">Only allows to set direct declared values.</param>
+		/// <returns>The new object</returns>
+		public object InitObject(Type type, bool strict = false)
+			=> SetObjectMember(Activator.CreateInstance(type), strict);
+
+		private object SetObjectArray(PropertyInfo indexProperty, object obj)
+		{
+			var idx = new object[1];
+			for (var i = 1; i <= ArrayList.Count; i++)
+			{
+				idx[0] = i - 1;
+				indexProperty.SetValue(obj, GetArrayValue(i, rawGet: true), idx);
+			}
+			return obj;
+		} // proc SetObjectArray
+
+		private object SetObjectMemberStrict(Type type, object obj)
+		{
+			foreach (var kv in Members)
+			{
+				var memberName = kv.Key;
+
+				var memberInfo = type.GetMember(memberName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.SetField | BindingFlags.SetProperty).FirstOrDefault();
+				switch (memberInfo)
+				{
+					case null:
+						throw new InvalidOperationException(String.Format(Properties.Resources.rsTableSetValueFailed, memberName, type.Name));
+					case PropertyInfo pi:
+						pi.SetValue(obj, Lua.RtConvertValue(kv.Value, pi.PropertyType));
+						break;
+					case FieldInfo fi:
+						fi.SetValue(obj, Lua.RtConvertValue(kv.Value, fi.FieldType));
+						break;
+					case EventInfo ev:
+						ev.AddEventHandler(obj, (Delegate)Lua.RtConvertValue(kv.Value, ev.EventHandlerType));
+						break;
+				}
+			}
+
+			// set array elements
+			var indexProperty = type.GetRuntimeProperties().Where(IsIndexSetter).FirstOrDefault();
+			return indexProperty == null ? obj : SetObjectArray(indexProperty, obj);
+		} // func SetObjectMemberStrict
+
+		private object SetObjectMemberDynamic(Type type, object obj)
+		{
 			// set all fields
 			foreach (var field in type.GetRuntimeFields().Where(fi => fi.IsPublic && !fi.IsStatic && !fi.IsInitOnly))
 			{
-				var entryIndex = FindKey(field.Name, GetMemberHashCode(field.Name), compareString);
-				if (entryIndex >= 0)
-					field.SetValue(obj, Lua.RtConvertValue(entries[entryIndex].value, field.FieldType));
+				if (TryGetMemberValue(field.Name, field.FieldType, out var value))
+					field.SetValue(obj, value);
 			}
 
 			// set all properties
-			foreach (var property in type.GetRuntimeProperties().Where(pi => pi.SetMethod != null && pi.SetMethod.IsPublic && !pi.SetMethod.IsStatic))
+			foreach (var property in type.GetRuntimeProperties().Where(c => IsPublicMethod(c.SetMethod)))
 			{
-				var entryIndex = FindKey(property.Name, GetMemberHashCode(property.Name), compareString);
-				if (entryIndex >= 0)
-					property.SetValue(obj, Lua.RtConvertValue(entries[entryIndex].value, property.PropertyType), null);
+				var arguments = property.SetMethod.GetParameters();
+				if (arguments.Length == 1)
+				{
+					if (TryGetMemberValue(property.Name, property.PropertyType, out var value))
+						property.SetValue(obj, value);
+				}
+				else if (arguments.Length == 2 && arguments[0].ParameterType == typeof(int))
+					SetObjectArray(property, obj);
 			}
 
+			// set all events
+			foreach (var ev in type.GetRuntimeEvents().Where(c => c.AddMethod.IsPublic && !c.AddMethod.IsStatic))
+			{
+				if (TryGetMemberValue(ev.Name, ev.EventHandlerType, out var value))
+					ev.AddEventHandler(obj, (Delegate)value);
+			}
+
+			// set array elements
 			return obj;
-		} // proc SetObjectMember
+		} // func SetObjectMemberDynamic
+
+		/// <summary>Update members of an object.</summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="obj"></param>
+		/// <param name="strict">Only allows to set direct declared values.</param>
+		/// <returns></returns>
+		public T SetObjectMember<T>(T obj, bool strict = false)
+			=> (T)(strict ? SetObjectMemberStrict(typeof(T), obj) : SetObjectMemberDynamic(typeof(T), obj));
+
+		/// <summary>Sets the given object with the members of the table.</summary>
+		/// <param name="obj"></param>
+		/// <param name="strict">Only allows to set direct declared values.</param>
+		/// <returns></returns>
+		public object SetObjectMember(object obj, bool strict)
+		{
+			if (obj == null)
+				return null;
+
+			var type = obj.GetType();
+			return strict ? SetObjectMemberStrict(type, obj) : SetObjectMemberDynamic(type, obj);
+		} // func SetObjectMember
 
 		#endregion
 
@@ -3523,7 +3599,7 @@ namespace Neo.IronLua
 		private static readonly object[] emptyObjectArray = new object[0];
 		private static readonly int[] emptyIntArray = new int[0];
 
-		#region -- Table Manipulation ---------------------------------------------------
+		#region -- Table Manipulation -------------------------------------------------
 
 		#region -- concat --
 
@@ -3533,7 +3609,7 @@ namespace Neo.IronLua
 		/// <param name="i"></param>
 		/// <param name="j"></param>
 		/// <returns></returns>
-		public static string concat(LuaTable t, string sep = null, Nullable<int> i = null, Nullable<int> j = null)
+		public static string concat(LuaTable t, string sep = null, int? i = null, int? j = null)
 		{
 			if (!i.HasValue)
 				i = 1;
@@ -3541,7 +3617,7 @@ namespace Neo.IronLua
 				j = t.arrayLength;
 
 			var r = collect<string>(t, i.Value, j.Value, null);
-			return r == null ? String.Empty : String.Join(sep == null ? String.Empty : sep, r);
+			return r == null ? String.Empty : String.Join(sep ?? String.Empty, r);
 		} // func concat
 
 		#endregion
@@ -3568,8 +3644,7 @@ namespace Neo.IronLua
 			else
 			{
 				// insert the value at the position
-				int index;
-				if (IsIndexKey(pos, out index) && index >= 1 && index <= t.arrayLength + 1)
+				if (IsIndexKey(pos, out var index) && index >= 1 && index <= t.arrayLength + 1)
 					t.ArrayOnlyInsert(index - 1, value);
 				else
 					t.SetValue(pos, value, true);
@@ -3618,6 +3693,9 @@ namespace Neo.IronLua
 		/// <returns></returns>
 		public static LuaTable merge(LuaTable targetTable, LuaTable mergeTable, bool overwrite = true)
 		{
+			if (targetTable == null)
+				targetTable = new LuaTable();
+
 			foreach (var kv in mergeTable)
 			{
 				if (kv.Value is LuaTable m)
@@ -3677,8 +3755,7 @@ namespace Neo.IronLua
 		public static object remove(LuaTable t, int pos)
 		{
 			object r;
-			int index;
-			if (IsIndexKey(pos, out index))
+			if (IsIndexKey(pos, out var index))
 			{
 				if (index >= 1 && index <= t.arrayLength)  // remove the element and shift the follower
 				{
@@ -3703,8 +3780,8 @@ namespace Neo.IronLua
 
 		#region -- sort --
 
-		///////////////////////////////////////////////////////////////////////////////
-		/// <summary></summary>
+		#region -- class SortComparer -------------------------------------------------
+
 		private sealed class SortComparer : IComparer<object>
 		{
 			private readonly LuaTable t;
@@ -3741,6 +3818,8 @@ namespace Neo.IronLua
 				}
 			} // func Compare
 		} // class SortComparer
+
+		#endregion
 
 		/// <summary></summary>
 		/// <param name="t"></param>
@@ -3784,8 +3863,8 @@ namespace Neo.IronLua
 			if (j < i)
 				return empty;
 
-			T[] list = new T[j - i + 1];
-			for (int k = 0; k < list.Length; k++)
+			var list = new T[j - i + 1];
+			for (var k = 0; k < list.Length; k++)
 				list[k] = (T)Lua.RtConvertValue(t[k + i], typeof(T));
 
 			return list;
@@ -3833,8 +3912,8 @@ namespace Neo.IronLua
 				var list = new T[j - i + 1];
 
 				// convert the values
-				int iLength = list.Length;
-				for (int k = 0; k < iLength; k++)
+				var l = list.Length;
+				for (var k = 0; k < l; k++)
 					list[k] = (T)Lua.RtConvertValue(t.arrayList[i + k - 1], typeof(T));
 
 				return list;
@@ -3846,9 +3925,9 @@ namespace Neo.IronLua
 				// scan array part
 				if (i <= t.arrayList.Length && j >= 1)
 				{
-					int idxStart = Math.Max(i - 1, 0);
-					int idxEnd = Math.Min(t.arrayList.Length - 1, j - 1);
-					for (int k = idxStart; k <= idxEnd; k++)
+					var idxStart = Math.Max(i - 1, 0);
+					var idxEnd = Math.Min(t.arrayList.Length - 1, j - 1);
+					for (var k = idxStart; k <= idxEnd; k++)
 						if (t.arrayList[k] != null)
 							indexList.Add(new KeyValuePair<int, T>(k + 1, (T)Lua.RtConvertValue(t.arrayList[k], typeof(T))));
 				}
@@ -3858,7 +3937,7 @@ namespace Neo.IronLua
 				{
 					if (t.entries[k].key is int)
 					{
-						int l = (int)t.entries[k].key;
+						var l = (int)t.entries[k].key;
 						if (l >= i && l <= j)
 							indexList.Add(new KeyValuePair<int, T>(l, (T)Lua.RtConvertValue(t.entries[k].value, typeof(T))));
 					}
@@ -3873,13 +3952,33 @@ namespace Neo.IronLua
 
 					// create the result array
 					var result = new T[indexList.Count];
-					for (int k = 0; k < result.Length; k++)
+					for (var k = 0; k < result.Length; k++)
 						result[k] = indexList[k].Value;
 
 					return result;
 				}
 			}
 		} // func unpack
+
+		#endregion
+
+		#region -- new, set --
+
+		/// <summary>Sets the given object with the members of the table.</summary>
+		/// <param name="obj"></param>
+		/// <param name="t"></param>
+		/// <param name="strict">Only allows to set direct declared values.</param>
+		/// <returns></returns>
+		public static object set(object obj, LuaTable t, bool strict)
+			=> t.SetObjectMember(obj, strict);
+
+		/// <summary>Initialize an object with the current set of members.</summary>
+		/// <param name="strict">Only allows to set direct declared values.</param>
+		/// <param name="t"></param>
+		/// <param name="luaType"></param>
+		/// <returns>The new object</returns>
+		public static object @new(LuaTable t, LuaType luaType, bool strict)
+			=> t.InitObject(luaType.Type, strict);
 
 		#endregion
 
@@ -4684,7 +4783,7 @@ namespace Neo.IronLua
 				? t
 				: new LuaTable() { [1] = r };
 		} // func FromJsonParse
-		  /// <returns></returns>
+		/// <returns></returns>
 		public static LuaTable FromJson(TextReader tr)
 		{
 			using (var lex = new LuaCharLexer("json", tr, 1))

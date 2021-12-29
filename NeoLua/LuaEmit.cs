@@ -2769,7 +2769,7 @@ namespace Neo.IronLua
 				emitCall = convertedArguments => Expression.Call(null, methodInfo, convertedArguments);
 			}
 
-			result = BindParameter<TARG>(lua,
+			result = BindParameter(lua,
 				 emitCall,
 				 methodInfo.GetParameters(),
 				 callInfo,

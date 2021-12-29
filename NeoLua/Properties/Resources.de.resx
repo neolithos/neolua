@@ -294,6 +294,9 @@
   <data name="rsTableRecursionLevelError" xml:space="preserve">
     <value>Tabelle ist zu tief geschachtelt.</value>
   </data>
+  <data name="rsTableSetValueFailed" xml:space="preserve">
+    <value>Member kann nicht gesetzt werden {1}.{0}.</value>
+  </data>
   <data name="rsTypeAliasInvalidName" xml:space="preserve">
     <value>Name für Type ist ungültig '{0}'.</value>
   </data>

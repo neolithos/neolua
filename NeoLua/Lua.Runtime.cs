@@ -185,7 +185,7 @@ namespace Neo.IronLua
 
 			TableDefineMethodLightMethodInfo = tiLuaTable.FindDeclaredMethod(nameof(LuaTable.DefineMethodLight), ReflectionFlag.None, typeof(string), typeof(Delegate));
 			TableGetCallMemberMethodInfo = tiLuaTable.FindDeclaredMethod(nameof(LuaTable.GetCallMember), ReflectionFlag.NoArguments);
-			TableSetObjectMemberMethodInfo = tiLuaTable.FindDeclaredMethod(nameof(LuaTable.SetObjectMember), ReflectionFlag.None, typeof(object));
+			TableSetObjectMemberMethodInfo = tiLuaTable.FindDeclaredMethod(nameof(LuaTable.SetObjectMember), ReflectionFlag.None, typeof(object), typeof(bool));
 
 			TableEntriesFieldInfo = tiLuaTable.FindDeclaredField("entries", ReflectionFlag.None);
 			TablePropertyChangedMethodInfo = tiLuaTable.FindDeclaredMethod("OnPropertyChanged", ReflectionFlag.None, typeof(string));
