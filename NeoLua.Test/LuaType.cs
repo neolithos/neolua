@@ -499,19 +499,13 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
-		public void CtorTest03()
-		{
-			TestCode("return cast(LuaDLR.Test.LuaTypeTests.SubStruct, { Value = 2 }).Value", 2);
-		}
-
-		[TestMethod]
 		public void CtorTest10()
 		{
 			using (var l = new Lua())
 			{
 				l.PrintExpressionTree = Console.Out;
 				var g = l.CreateEnvironment();
-				var r = g.DoChunk("return clr.LuaDLR.Test.LuaTableTests.ObjectInit{ Value = 42, 1, 2, 3 };", "dummy");
+				var r = g.DoChunk("return clr.LuaDLR.Test.LuaTableTests.ObjectInit(){ Value = 42, 1, 2, 3 };", "dummy");
 				var o = (ObjectInit)r[0];
 				Assert.AreEqual(o.Value, 42);
 				Assert.AreEqual(o[0], 1);

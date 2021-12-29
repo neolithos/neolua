@@ -1,14 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Dynamic;
-using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Neo.IronLua;
+using static LuaDLR.Test.LuaTableTests;
 
 namespace LuaDLR.Test
 {
@@ -229,7 +225,7 @@ namespace LuaDLR.Test
 		[TestMethod]
 		public void TestDateTime01()
 		{
-			using (Lua l = new Lua())
+			using (var l = new Lua())
 			{
 				dynamic g = l.CreateEnvironment<LuaGlobal>();
 
@@ -561,7 +557,73 @@ namespace LuaDLR.Test
 			Assert.AreEqual(r[0], "a");
 			Assert.AreEqual(r[1], null);
 		}
+
+		[TestMethod]
+		public void Invoke02()
+		{
+			using (var l = new Lua())
+			{
+				var g = new LuaGlobal(l);
+				l.PrintExpressionTree = Console.Out;
+				var o = new ObjectInit();
+				var r = g.DoChunk(Lines("local function f456() return 4,5,6; end; local t = o{ fieldValue = 42, Value = 23, Action = function() : int return 44 end, Event = function(s, e) : void print('test') end, 1, 2, 3, f456() }.Value; return t;"), "dummy", new KeyValuePair<string, object>("o", o));
+
+				Assert.AreEqual(r[0], 23);
+				Assert.AreEqual(o.Value, 23);
+				Assert.AreEqual(o.fieldValue, 42);
+				Assert.AreEqual(o.Action(), 44);
+				o.TestEvent();
+				Assert.AreEqual(o[0], 1);
+				Assert.AreEqual(o[1], 2);
+				Assert.AreEqual(o[2], 3);
+				Assert.AreEqual(o[3], 4);
+				Assert.AreEqual(o[4], 5);
+				Assert.AreEqual(o[5], 6);
+			}
+		}
+
+		[TestMethod]
+		public void Invoke03()
+		{
+			using (var l = new Lua())
+			{
+				var g = new LuaGlobal(l);
+				l.PrintExpressionTree = Console.Out;
+
+				var o = new ObjectInit();
+				var c = l.CompileChunk(Lines("o{ fieldValue = 42, Value = 23, Action = function() : int return 44 end, Event = function(s, e) : void print('test') end, 1, 2, 3 }"), "dummy", null, new KeyValuePair<string, Type>("o", typeof(object)));
+				c.Run(g, o);
+
+				Assert.AreEqual(o.Value, 23);
+				Assert.AreEqual(o.fieldValue, 42);
+				Assert.AreEqual(o.Action(), 44);
+				o.TestEvent();
+				Assert.AreEqual(o[0], 1);
+				Assert.AreEqual(o[1], 2);
+				Assert.AreEqual(o[2], 3);
+			}
+		}
+
+		[TestMethod]
+		public void Invoke04()
+		{
+			using (var l = new Lua())
+			{
+				var g = new LuaGlobal(l);
+				l.PrintExpressionTree = Console.Out;
+				var o = new ObjectInit();
+				g.DoChunk(Lines("local t : table = { fieldValue = 42, Value = 23, Action = function() : int return 44 end, Event = function(s, e) : void print('test') end, 1, 2, 3 }; o(t)"), "dummy", new KeyValuePair<string, object>("o", o));
+
+				Assert.AreEqual(o.Value, 23);
+				Assert.AreEqual(o.fieldValue, 42);
+				Assert.AreEqual(o.Action(), 44);
+				o.TestEvent();
+				Assert.AreEqual(o[0], 1);
+				Assert.AreEqual(o[1], 2);
+				Assert.AreEqual(o[2], 3);
+			}
+		}
 	}
- } //class Runtime 
+} //class Runtime 
 
 

@@ -284,15 +284,8 @@ namespace Neo.IronLua
 				{
 					var restrictions = GetMethodSignatureRestriction(target, args);
 					Expression expr;
-					var invokeTarget = target.Value as Delegate;
 
-					if (invokeTarget == null)
-					{
-						if (errorSuggestion != null)
-							return errorSuggestion;
-						expr = ThrowExpression(LuaEmitException.GetMessageText(LuaEmitException.InvokeNoDelegate, target.LimitType.Name), typeof(object));
-					}
-					else
+					if (target.Value is Delegate invokeTarget)
 					{
 						var methodParameters = invokeTarget.GetMethodInfo().GetParameters();
 						var parameters = (ParameterInfo[])null;
@@ -332,6 +325,16 @@ namespace Neo.IronLua
 								return errorSuggestion;
 							expr = ThrowExpression(e.Message, ReturnType);
 						}
+					}
+					else if (IsTypeInitializable(target.LimitType) && args.Length == 1 && args[0].LimitType == typeof(LuaTable))
+					{
+						expr = Expression.Call(EnsureType(args[0].Expression, typeof(LuaTable)), TableSetObjectMemberMethodInfo, EnsureType(target.Expression, typeof(object)), Expression.Constant(false, typeof(bool)));
+					}
+					else
+					{
+						if (errorSuggestion != null)
+							return errorSuggestion;
+						expr = ThrowExpression(LuaEmitException.GetMessageText(LuaEmitException.InvokeNoDelegate, target.LimitType.Name), typeof(object));
 					}
 
 					return new DynamicMetaObject(expr, restrictions);
@@ -851,6 +854,9 @@ namespace Neo.IronLua
 				expr = Expression.Convert(expr, exprType);
 			return EnsureType(expr, returnType, forResult);
 		} // func Expression
+
+		internal static bool IsTypeInitializable(Type type)
+			=> !type.IsPrimitive && type != typeof(string);
 
 		#endregion
 	} // class Lua

@@ -198,8 +198,7 @@ namespace Neo.IronLua
 			}
 			else
 			{
-				Expression result;
-				switch (LuaEmit.TrySetMember(instance, instance.Type, memberName, false, (setType) => ConvertExpression(lua, tokenStart, set, setType), out result))
+				switch (LuaEmit.TrySetMember(instance, instance.Type, memberName, false, (setType) => ConvertExpression(lua, tokenStart, set, setType), out var result))
 				{
 					case LuaTrySetMemberReturn.None:
 						throw ParseError(tokenStart, LuaEmitException.GetMessageText(LuaEmitException.MemberNotFound, instance.Type.Name, memberName));
@@ -346,12 +345,10 @@ namespace Neo.IronLua
 				return SafeExpression(() => LuaEmit.SetIndex(runtime, instance, indexes, set, getExpressionFunction, getExpressionTypeFunction, true), tStart);
 		} // func IndexSetExpression
 
-		private static Expression InvokeExpression(Scope scope, Token tStart, Expression instance, InvokeResult result, ArgumentsList arguments, bool lParse)
+		private static Expression InvokeExpression(Scope scope, Token tStart, Expression instance, InvokeResult result, ArgumentsList arguments)
 		{
 			MethodInfo mi;
-			ConstantExpression constInstance = instance as ConstantExpression;
-			LuaType t;
-			if (constInstance != null && (t = constInstance.Value as LuaType) != null && t.Type != null) // we have a type, bind the ctor
+			if (instance is ConstantExpression constInstance && constInstance.Value is LuaType t && t.Type != null) // we have a type, bind the ctor
 			{
 				var type = t.Type;
 				var typeInfo = type.GetTypeInfo();
@@ -387,7 +384,7 @@ namespace Neo.IronLua
 				(mi = instance.Type.GetRuntimeMethods().Where(c => !c.IsStatic && c.IsPublic && c.Name == "Invoke").FirstOrDefault()) != null) // Search the Invoke method for the arguments
 			{
 				return EnsureInvokeResult(scope, tStart,
-					SafeExpression(() => LuaEmit.BindParameter<Expression>(
+					SafeExpression(() => LuaEmit.BindParameter(
 						scope.Runtime,
 						args => Expression.Invoke(instance, args),
 						mi.GetParameters(),
@@ -395,6 +392,13 @@ namespace Neo.IronLua
 						arguments.Expressions,
 						getExpressionFunction, getExpressionTypeFunction, true), tStart),
 					result, instance, null
+				);
+			}
+			else if (arguments.Count == 1 && typeof(LuaTable).IsAssignableFrom(arguments.FirstArgument.Type))
+			{
+				return SafeExpression(
+					() => Expression.Call(arguments.FirstArgument, Lua.TableSetObjectMemberMethodInfo, instance, Expression.Constant(false, typeof(bool)))
+					, tStart
 				);
 			}
 			else
@@ -433,8 +437,7 @@ namespace Neo.IronLua
 				return EnsureInvokeResult(scope, tStart,
 					SafeExpression(() =>
 					{
-						Expression expr;
-						if (!LuaEmit.TryInvokeMember<Expression>(scope.Runtime, LuaType.GetType(instance.Type), instance, arguments.CallInfo, arguments.Expressions, memberName, false, e => e, e => e.Type, true, out expr))
+						if (!LuaEmit.TryInvokeMember(scope.Runtime, LuaType.GetType(instance.Type), instance, arguments.CallInfo, arguments.Expressions, memberName, false, e => e, e => e.Type, true, out var expr))
 							throw new LuaEmitException(LuaEmitException.MemberNotFound, instance.Type, memberName);
 						return expr;
 					}, tStart), result, instance, memberName

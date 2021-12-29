@@ -256,7 +256,7 @@ namespace Neo.IronLua
 			GetResultValuesMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtGetResultValues), ReflectionFlag.None, typeof(LuaResult), typeof(int), typeof(Type));
 			CombineArrayWithResultMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtCombineArrayWithResult), ReflectionFlag.None, typeof(Array), typeof(LuaResult), typeof(Type));
 			ConvertArrayMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConvertArray), ReflectionFlag.None, typeof(Array), typeof(Type));
-			TableSetObjectsMethod = tiLua.FindDeclaredMethod(nameof(Lua.RtTableSetObjects), ReflectionFlag.None, typeof(LuaTable), typeof(object), typeof(int));
+			TableSetObjectsMethod = tiLua.FindDeclaredMethod(nameof(Lua.RtTableSetObjects), ReflectionFlag.None, typeof(object), typeof(object), typeof(int));
 			ConcatStringMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConcatString), ReflectionFlag.None | ReflectionFlag.NoArguments);
 			ConvertDelegateMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConvertDelegate), ReflectionFlag.None | ReflectionFlag.NoArguments);
 			InitArray1MethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtInitArray), ReflectionFlag.None, typeof(Type), typeof(object));
@@ -1219,7 +1219,7 @@ namespace Neo.IronLua
 
 		#region -- RtTableSetObjects --------------------------------------------------
 
-		internal static object RtTableSetObjects(LuaTable t, object value, int startIndex)
+		internal static LuaTable RtTableSetObjects(LuaTable t, object value, int startIndex)
 		{
 			if (value is LuaResult r)
 			{
@@ -1229,6 +1229,34 @@ namespace Neo.IronLua
 			else if (value != null)
 				t.SetArrayValue(startIndex, value, true);
 			return t;
+		} // func RtTableSetObjects
+
+		internal static object RtTableSetObjects(object o, object value, int startIndex)
+		{
+			if (o is LuaTable t)
+				return RtTableSetObjects(t, value, startIndex);
+			else
+			{
+				var type = o.GetType();
+				var indexProperty = type.GetRuntimeProperties().Where(LuaTable.IsIndexSetter).FirstOrDefault()
+					?? throw new LuaEmitException(LuaEmitException.IndexNotFound, type.Name);
+
+				var idx = new object[1];
+				if (value is LuaResult r)
+				{
+					for (var i = 0; i < r.Count; i++)
+					{
+						idx[0] = startIndex++;
+						indexProperty.SetValue(o, r[i], idx);
+					}
+				}
+				else if (value != null)
+				{
+					idx[0] = startIndex;
+					indexProperty.SetValue(o, value, idx);
+				}
+			}
+			return o;
 		} // func RtTableSetObjects
 
 		#endregion

@@ -436,53 +436,22 @@ namespace Neo.IronLua
 
 			private DynamicMetaObject BindNewObject(LuaType luaType, CallInfo callInfo, DynamicMetaObject[] args, Type returnType)
 			{
-				bool IsLuaTableInit(ConstructorInfo c)
-				{
-					var a = c.GetParameters();
-					return a.Length == 0 || (a.Length == 1 && a[0].ParameterType == typeof(LuaTable));
-				} // func IsLuaTableInit
-
 				var type = luaType.Type;
 
 				// find the ctor
-				var initObject = false;
 				ConstructorInfo constructorInfo;
 				var isValueType = type.GetTypeInfo().IsValueType;
 				if (isValueType && args.Length == 0) // value-types with zero arguments always constructable
 					constructorInfo = null;
 				else
 				{
-					if (args.Length == 1 && args[0].LimitType == typeof(LuaTable))
-					{
-						constructorInfo = null;
-
-						foreach (var c in luaType.EnumerateMembers<ConstructorInfo>(
+					constructorInfo = LuaEmit.FindMember(
+						luaType.EnumerateMembers<ConstructorInfo>(
 							LuaMethodEnumerate.Typed,
-							declaredMembers => declaredMembers.OfType<ConstructorInfo>().Where(c => c.DeclaringType == type && IsLuaTableInit(c))
-						))
-						{
-							if (c.GetParameters().Length == 1) // table init
-							{
-								constructorInfo = c;
-								break; // always use this
-							}
-							else // default ctor found
-							{
-								constructorInfo = c;
-								initObject = true;
-							}
-						}
-					}
-					else
-					{
-						constructorInfo = LuaEmit.FindMember(
-							luaType.EnumerateMembers<ConstructorInfo>(
-								LuaMethodEnumerate.Typed,
-								declaredMembers => declaredMembers.OfType<ConstructorInfo>().Where(c => c.DeclaringType == type)
-							),
-							callInfo, args, mo => mo.LimitType, false
-						);
-					}
+							declaredMembers => declaredMembers.OfType<ConstructorInfo>().Where(c => c.DeclaringType == type)
+						),
+						callInfo, args, mo => mo.LimitType, false
+					);
 				}
 
 				var restrictions = BindingRestrictions.GetInstanceRestriction(Expression, Value).Merge(Lua.GetMethodSignatureRestriction(null, args));
@@ -501,9 +470,6 @@ namespace Neo.IronLua
 							mo => mo.Expression, mo => mo.LimitType, false),
 						returnType, true
 					);
-
-					if (initObject)
-						expr = Expression.Call(Lua.EnsureType(args[0].Expression, typeof(LuaTable)), Lua.TableSetObjectMemberMethodInfo, expr, Expression.Constant(true, typeof(bool)));
 
 					return new DynamicMetaObject(expr, restrictions);
 				}

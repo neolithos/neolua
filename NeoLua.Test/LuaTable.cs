@@ -13,9 +13,11 @@ namespace LuaDLR.Test
 	{
 		#region -- class ObjectInit ---------------------------------------------------
 
+		public const string ObjectInitLua = "";
+
 		public class ObjectInit
 		{
-			private object[] values = new object[10];
+			private readonly object[] values = new object[10];
 
 			public void TestEvent()
 			{
@@ -428,7 +430,11 @@ namespace LuaDLR.Test
 		#region -- TestConvert ------------------------------------------------------------
 
 		[TestMethod]
-		public void TestConvert01()
+		public void TestConvert01a()
+			=> TestCode("return cast(LuaDLR.Test.LuaTypeTests.SubStruct, { Value = 2 }).Value", 2);
+
+		[TestMethod]
+		public void TestConvert01b()
 		{
 			using (var l = new Lua())
 			{

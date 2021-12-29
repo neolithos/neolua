@@ -416,7 +416,7 @@ namespace Neo.IronLua
 			private readonly List<Expression> arguments = new List<Expression>();
 			private readonly List<string> names = new List<string>();
 
-			private Lazy<CallInfo> callInfo;
+			private readonly Lazy<CallInfo> callInfo;
 
 			public ArgumentsList(params Expression[] expr)
 			{
@@ -458,6 +458,8 @@ namespace Neo.IronLua
 
 			public int Count
 				=> arguments.Count;
+
+			public Expression FirstArgument => arguments.First();
 		} // class ArgumentsList
 
 		#endregion
@@ -474,16 +476,17 @@ namespace Neo.IronLua
 				Member = sMember;
 				Indices = indices;
 				Arguments = arguments;
+				NextInstance = null;
 			} // ctor
 
 			public Expression GenerateSet(Scope scope, Expression exprToSet)
 			{
 				Expression expr;
-				if (Instance != null && Member == null && Indices != null && Arguments == null)
+				if (Instance != null && Member == null && Indices != null && Arguments == null && NextInstance == null)
 					expr = IndexSetExpression(scope.Runtime, Position, Instance, Indices, exprToSet);
-				else if (Instance != null && Member != null && Indices == null && Arguments == null)
+				else if (Instance != null && Member != null && Indices == null && Arguments == null && NextInstance == null)
 					return MemberSetExpression(scope.Runtime, Position, Instance, Member, MethodMember, exprToSet);
-				else if (Instance != null && Member == null && Indices == null && Arguments == null && Instance is ParameterExpression)
+				else if (Instance != null && Member == null && Indices == null && Arguments == null && NextInstance == null && Instance is ParameterExpression)
 				{
 					// Assign the value to a variable
 					expr = Expression.Assign(Instance, ConvertExpression(scope.Runtime, Position, exprToSet, Instance.Type));
@@ -496,7 +499,7 @@ namespace Neo.IronLua
 
 			public Expression GenerateGet(Scope scope, InvokeResult result)
 			{
-				if (Instance != null && Member == null && Indices != null && Arguments == null)
+				if (Instance != null && Member == null && Indices != null && Arguments == null && NextInstance== null)
 				{
 					if (Indices.Length > 0)
 					{
@@ -507,7 +510,7 @@ namespace Neo.IronLua
 					Instance = IndexGetExpression(scope, Position, Instance, Indices);
 					Indices = null;
 				}
-				else if (Instance != null && Member != null && Indices == null && Arguments == null && !MethodMember)
+				else if (Instance != null && Member != null && Indices == null && Arguments == null && NextInstance == null && !MethodMember)
 				{
 					// Convert the member to an instance
 					Instance = WrapDebugInfo(scope.EmitExpressionDebug, true, Position, Position, Instance);
@@ -515,11 +518,16 @@ namespace Neo.IronLua
 					Member = null;
 					MethodMember = false;
 				}
-				else if (Instance != null && Member == null && Indices == null && Arguments == null)
+				else if (Instance != null && Member == null && Indices == null && Arguments == null && NextInstance == null)
 				{
 					// Nothing to todo, we have already an instance
 				}
-				else if (Instance != null && Indices == null && (Arguments != null || MethodMember))
+				else if (Instance != null && Member == null && Indices == null && Arguments == null && NextInstance != null)
+				{
+					Instance = NextInstance;
+					NextInstance = null;
+				}
+				else if (Instance != null && Indices == null && (Arguments != null || MethodMember) && NextInstance == null)
 				{
 					Arguments = Arguments ?? new ArgumentsList();
 					if (Arguments.Count > 0)
@@ -531,7 +539,7 @@ namespace Neo.IronLua
 						Instance = WrapDebugInfo(scope.EmitExpressionDebug, true, Position, Position, Instance);
 
 					if (String.IsNullOrEmpty(Member))
-						Instance = InvokeExpression(scope, Position, Instance, result, Arguments, true);
+						Instance = InvokeExpression(scope, Position, Instance, result, Arguments);
 					else
 						Instance = InvokeMemberExpression(scope, Position, Instance, Member, result, Arguments);
 
@@ -554,6 +562,7 @@ namespace Neo.IronLua
 
 			public Token Position { get; set; }
 			public Expression Instance { get; set; }
+			public Expression NextInstance { get; set; }
 			public string Member { get; private set; }
 			public bool MethodMember { get; private set; }
 			public Expression[] Indices { get; set; }
@@ -875,16 +884,18 @@ namespace Neo.IronLua
 				{
 					ParseIdentifierAndType(scope, code, out var tVar, out var typeVar);
 
-					var exprVar = scope.LookupExpression(tVar.Value, true) as ParameterExpression;
-					if (exprVar == null)
+					if (scope.LookupExpression(tVar.Value, true) is ParameterExpression exprVar)
+					{
+						if (exprVar.Type != typeVar)
+							throw ParseError(tVar, Properties.Resources.rsParseTypeRedef);
+					}
+					else
 					{
 						exprVar = Expression.Variable(typeVar, tVar.Value);
 						if (registerLocals == null)
 							registerLocals = new List<ParameterExpression>();
 						registerLocals.Add(exprVar);
 					}
-					else if (exprVar.Type != typeVar)
-						throw ParseError(tVar, Properties.Resources.rsParseTypeRedef);
 
 					prefixes.Add(new PrefixMemberInfo(tVar, exprVar, null, null, null));
 				}
@@ -987,7 +998,7 @@ namespace Neo.IronLua
 						#endregion
 					}
 
-					// Führe die restlichen Expressions aus
+					// Execute all remaining expressions
 					while (expr.MoveNext())
 						scope.AddExpression(expr.Current);
 				}
@@ -996,7 +1007,7 @@ namespace Neo.IronLua
 			{
 				for (var i = 0; i < prefixes.Count; i++)
 				{
-					if (prefixes[i].Arguments == null) // do not execute getMember
+					if (prefixes[i].Arguments == null && prefixes[i].NextInstance == null) // do not execute getMember
 						throw ParseError(prefixes[i].Position, Properties.Resources.rsParseAssignmentExpected);
 
 					scope.AddExpression(prefixes[i].GenerateGet(scope, InvokeResult.None));
@@ -1257,7 +1268,12 @@ namespace Neo.IronLua
 
 					case LuaToken.BracketCurlyOpen: // LuaTable as an argument
 						info.GenerateGet(scope, InvokeResult.Object);
-						info.Arguments = new ArgumentsList(ParseTableConstructor(scope, code));
+						if (Lua.IsTypeInitializable(info.Instance.Type) && !LuaEmit.IsDynamicType(info.Instance.Type))
+						{ 
+							info.NextInstance = ParseObjectConstructor(scope, code, info.Instance);
+						}
+						else
+							info.Arguments = new ArgumentsList(ParseTableConstructor(scope, code));
 						break;
 
 					case LuaToken.String: // String as an argument
@@ -1663,8 +1679,14 @@ namespace Neo.IronLua
 			luaType = ParseType(scope, code, true);
 			FetchToken(LuaToken.Comma, code);
 
-			var doWrap = scope.EmitExpressionDebug;
-			var expr = ParseExpression(scope, code, InvokeResult.Object, ref doWrap);
+			Expression expr;
+			if (code.Current.Typ == LuaToken.BracketCurlyOpen)
+				expr = ParseObjectConstructor(scope, code, Expression.New(luaType.Type));
+			else
+			{
+				var doWrap = scope.EmitExpressionDebug;
+				expr = ParseExpression(scope, code, InvokeResult.Object, ref doWrap);
+			}
 
 			FetchToken(LuaToken.BracketClose, code);
 
@@ -2141,7 +2163,8 @@ namespace Neo.IronLua
 
 				// local tmp = f(s, var)
 				Expression.Assign(varTmp, InvokeExpression(loopScope, tStart, varFunc, InvokeResult.LuaResult,
-					new ArgumentsList(varState, varVar), true)
+						new ArgumentsList(varState, varVar)
+					)
 				),
 
 				// var = tmp[0]
@@ -2337,7 +2360,27 @@ namespace Neo.IronLua
 
 		#endregion
 
-		#region -- Parse TableConstructor ---------------------------------------------
+		#region -- Parse TableConstructor, ParseObjectConstructor ---------------------
+	
+		private static Expression ParseObjectConstructor(Scope scope, ILuaLexer code, Expression objectExpression)
+		{
+			//// table ::= '{' [field] { fieldsep field } [fieldsep] '}'
+			//// fieldsep ::= ',' | ';'
+			FetchToken(LuaToken.BracketCurlyOpen, code);
+
+			if (code.Current.Typ != LuaToken.BracketCurlyClose)
+			{
+				if (objectExpression is ParameterExpression parameterExpression)
+					return ParseTableConstructorContent(scope, code, null, parameterExpression, 0);
+				else
+					return ParseTableConstructorContent(scope, code, "#obj", objectExpression, 0);
+			}
+			else
+			{
+				FetchToken(LuaToken.BracketCurlyClose, code);
+				return objectExpression;
+			}
+		} // func ParseTableConstructor
 
 		private static Expression ParseTableConstructor(Scope scope, ILuaLexer code)
 		{
@@ -2346,38 +2389,7 @@ namespace Neo.IronLua
 			FetchToken(LuaToken.BracketCurlyOpen, code);
 
 			if (code.Current.Typ != LuaToken.BracketCurlyClose)
-			{
-				var index = 1;
-				var scopeTable = new Scope(scope);
-
-				// Create the variable for the table
-				var tableVar = scopeTable.RegisterVariable(typeof(LuaTable), "#table");
-				scopeTable.AddExpression(Expression.Assign(tableVar, CreateEmptyTableExpression()));
-
-				// fiest field
-				ParseTableField(tableVar, scopeTable, code, ref index);
-
-				// collect more table fields
-				while (code.Current.Typ == LuaToken.Comma || code.Current.Typ == LuaToken.Semicolon)
-				{
-					code.Next();
-
-					// Optional last separator
-					if (code.Current.Typ == LuaToken.BracketCurlyClose)
-						break;
-
-					// Parse the field
-					ParseTableField(tableVar, scopeTable, code, ref index);
-				}
-
-				scopeTable.AddExpression(tableVar);
-				scopeTable.ExpressionBlockType = typeof(LuaTable);
-
-				// Closing bracket
-				FetchToken(LuaToken.BracketCurlyClose, code);
-
-				return scopeTable.ExpressionBlock;
-			}
+				return ParseTableConstructorContent(scope, code, "#table", CreateEmptyTableExpression(), 1);
 			else
 			{
 				FetchToken(LuaToken.BracketCurlyClose, code);
@@ -2385,20 +2397,64 @@ namespace Neo.IronLua
 			}
 		} // func ParseTableConstructor
 
-		private static void ParseTableField(ParameterExpression tableVar, Scope scope, ILuaLexer code, ref int iIndex)
+		private static Expression ParseTableConstructorContent(Scope scope, ILuaLexer code, string targetVar, Expression initExpression, int index)
+		{
+			var scopeObject = new Scope(scope);
+
+			// Create the variable for the table
+			ParameterExpression targetVariable;
+			if (targetVar == null)
+				targetVariable = (ParameterExpression)initExpression;
+			else
+			{
+				targetVariable = scopeObject.RegisterVariable(initExpression.Type, targetVar);
+				scopeObject.AddExpression(Expression.Assign(targetVariable, initExpression));
+			}
+
+			ParseTableConstructor(scopeObject, code, targetVariable, ref index);
+
+			scopeObject.AddExpression(targetVariable);
+			scopeObject.ExpressionBlockType = targetVariable.Type;
+
+			// Closing bracket
+			FetchToken(LuaToken.BracketCurlyClose, code);
+
+			return scopeObject.ExpressionBlock;
+		} // proc ParseTableConstructorContent
+
+		private static void ParseTableConstructor(Scope scope, ILuaLexer code, ParameterExpression objectVariable, ref int index)
+		{
+			// first field
+			ParseTableField(objectVariable, scope, code, ref index);
+
+			// collect more table fields
+			while (code.Current.Typ == LuaToken.Comma || code.Current.Typ == LuaToken.Semicolon)
+			{
+				code.Next();
+
+				// Optional last separator
+				if (code.Current.Typ == LuaToken.BracketCurlyClose)
+					break;
+
+				// Parse the field
+				ParseTableField(objectVariable, scope, code, ref index);
+			}
+		} // proc ParseTableConstructor
+
+		private static void ParseTableField(ParameterExpression objectVariable, Scope scope, ILuaLexer code, ref int index)
 		{
 			// field ::= '[' exp ']' '=' exp | Name '=' exp | exp
 			if (code.Current.Typ == LuaToken.BracketSquareOpen)
 			{
 				// Parse the index
 				code.Next();
-				var index = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
+				var indexExpression = ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug);
 				FetchToken(LuaToken.BracketSquareClose, code);
 				FetchToken(LuaToken.Assign, code);
 
 				// Expression that results in a value
 				scope.AddExpression(
-					IndexSetExpression(scope.Runtime, code.Current, tableVar, new Expression[] { index },
+					IndexSetExpression(scope.Runtime, code.Current, objectVariable, new Expression[] { indexExpression },
 						ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug)
 					)
 				);
@@ -2411,11 +2467,22 @@ namespace Neo.IronLua
 				FetchToken(LuaToken.Assign, code);
 
 				// Expression
-				scope.AddExpression(
-					IndexSetExpression(scope.Runtime, code.Current, tableVar, new Expression[] { Expression.Constant(tokenMember.Value) },
-						ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug)
-					)
-				);
+				if (typeof(LuaTable).IsAssignableFrom(objectVariable.Type)) // use set method
+				{
+					scope.AddExpression(
+						IndexSetExpression(scope.Runtime, code.Current, objectVariable, new Expression[] { Expression.Constant(tokenMember.Value) },
+							ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug)
+						)
+					);
+				}
+				else
+				{
+					scope.AddExpression(
+						MemberSetExpression(scope.Runtime, code.Current, objectVariable, tokenMember.Value, false,
+							ParseExpression(scope, code, InvokeResult.Object, scope.EmitExpressionDebug)
+						)
+					);
+				}
 			}
 			else
 			{
@@ -2425,18 +2492,20 @@ namespace Neo.IronLua
 				// Last assign, enroll parameter
 				if (code.Current.Typ == LuaToken.BracketCurlyClose && LuaEmit.IsDynamicType(expr.Type))
 				{
+					var i = index;
 					scope.AddExpression(
-						Expression.Call(Lua.TableSetObjectsMethod,
-							tableVar,
-							Expression.Convert(expr, typeof(object)),
-							Expression.Constant(iIndex, typeof(int))
+						SafeExpression(() => Expression.Call(Lua.TableSetObjectsMethod,
+								Expression.Convert( objectVariable, typeof(object)),
+								Expression.Convert(expr, typeof(object)),
+								Expression.Constant(i, typeof(int))
+							), tStart
 						)
 					);
 				}
 				else // Normal index set
 				{
 					scope.AddExpression(
-						IndexSetExpression(scope.Runtime, code.Current, tableVar, new Expression[] { Expression.Constant(iIndex++, typeof(object)) }, expr)
+						IndexSetExpression(scope.Runtime, code.Current, objectVariable, new Expression[] { Expression.Constant(index++, typeof(int)) }, expr)
 					);
 				}
 			}

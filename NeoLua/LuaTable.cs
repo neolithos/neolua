@@ -2800,7 +2800,7 @@ namespace Neo.IronLua
 		private static bool IsPublicMethod(MethodInfo methodInfo)
 			=> methodInfo != null && methodInfo.IsPublic && !methodInfo.IsStatic;
 
-		private static bool IsIndexSetter(PropertyInfo propertyInfo)
+		internal static bool IsIndexSetter(PropertyInfo propertyInfo)
 		{
 			var setMethod = propertyInfo.SetMethod;
 			if (IsPublicMethod(setMethod))
@@ -2823,20 +2823,6 @@ namespace Neo.IronLua
 				return true;
 			}
 		} // func TryGetMemberValue
-
-		/// <summary>Initialize an object with the current set of members.</summary>
-		/// <typeparam name="T"></typeparam>
-		/// <param name="strict">Only allows to set direct declared values.</param>
-		/// <returns>The new object</returns>
-		public T InitObject<T>(bool strict = false)
-			=> SetObjectMember(Activator.CreateInstance<T>(), strict);
-
-		/// <summary>Initialize an object with the current set of members.</summary>
-		/// <param name="type"></param>
-		/// <param name="strict">Only allows to set direct declared values.</param>
-		/// <returns>The new object</returns>
-		public object InitObject(Type type, bool strict = false)
-			=> SetObjectMember(Activator.CreateInstance(type), strict);
 
 		private object SetObjectArray(PropertyInfo indexProperty, object obj)
 		{
@@ -2930,6 +2916,20 @@ namespace Neo.IronLua
 			var type = obj.GetType();
 			return strict ? SetObjectMemberStrict(type, obj) : SetObjectMemberDynamic(type, obj);
 		} // func SetObjectMember
+
+		/// <summary>Initialize an object with the current set of members.</summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="strict">Only allows to set direct declared values.</param>
+		/// <returns>The new object</returns>
+		public T InitObject<T>(bool strict = false)
+			=> SetObjectMember(Activator.CreateInstance<T>(), strict);
+
+		/// <summary>Initialize an object with the current set of members.</summary>
+		/// <param name="type"></param>
+		/// <param name="strict">Only allows to set direct declared values.</param>
+		/// <returns>The new object</returns>
+		public object InitObject(Type type, bool strict = false)
+			=> SetObjectMember(Activator.CreateInstance(type), strict);
 
 		#endregion
 
@@ -3969,7 +3969,7 @@ namespace Neo.IronLua
 		/// <param name="t"></param>
 		/// <param name="strict">Only allows to set direct declared values.</param>
 		/// <returns></returns>
-		public static object set(object obj, LuaTable t, bool strict)
+		public static object set(object obj, LuaTable t, bool strict = false)
 			=> t.SetObjectMember(obj, strict);
 
 		/// <summary>Initialize an object with the current set of members.</summary>
@@ -3977,7 +3977,7 @@ namespace Neo.IronLua
 		/// <param name="t"></param>
 		/// <param name="luaType"></param>
 		/// <returns>The new object</returns>
-		public static object @new(LuaTable t, LuaType luaType, bool strict)
+		public static object @new(LuaTable t, LuaType luaType, bool strict = false)
 			=> t.InitObject(luaType.Type, strict);
 
 		#endregion
