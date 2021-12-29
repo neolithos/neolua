@@ -363,6 +363,12 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
+		public void Control20()
+		{
+			TestCode(GetLines("Lua.Control20.lua"), 500000500000, 500000500001);
+		}
+
+		[TestMethod]
 		public void TestVariableAssign01()
 		{
 			TestCode(Lines(
