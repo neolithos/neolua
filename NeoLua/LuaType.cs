@@ -1419,7 +1419,7 @@ namespace Neo.IronLua
 					throw TypeParseException(offset, fullName, "array|generic");
 				else if (fullName[offset] == ',' || fullName[offset] == ']') // array
 				{
-				#region -- array --
+					#region -- array --
 					// count the number of dimension
 					var startAt = offset - 1;
 					var rank = 1;
@@ -1442,11 +1442,11 @@ namespace Neo.IronLua
 					}
 					else
 						throw TypeParseException(offset, fullName, "]");
-				#endregion
+					#endregion
 				}
 				else // generic definition
 				{
-				#region -- generic --
+					#region -- generic --
 					// collect generic arguments
 					var genericArguments = new List<LuaType>();
 					var sbTypeName = new StringBuilder("[");
