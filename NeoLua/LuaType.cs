@@ -1069,9 +1069,24 @@ namespace Neo.IronLua
 							{
 								try
 								{
+#if NETCOREAPP1_0_OR_GREATER
+									if (UseUnsafeLookup)
+									{
+										currentAssembly =
+											current.reflected =
+											Assembly.UnsafeLoadFrom(current.Name.FullName);
+									}
+									else
+									{
+										currentAssembly =
+											current.reflected =
+											Assembly.Load(current.Name.FullName);
+									}
+#else
 									currentAssembly =
 										current.reflected =
 										Assembly.ReflectionOnlyLoad(current.Name.FullName);
+#endif
 								}
 								catch
 								{
@@ -1099,7 +1114,7 @@ namespace Neo.IronLua
 				object System.Collections.IEnumerator.Current { get { return Current; } }
 			} // class AssemblyCacheEnumerator
 
-			#endregion
+#endregion
 
 			private readonly Dictionary<string, CacheItem> cache = new Dictionary<string, CacheItem>(StringComparer.OrdinalIgnoreCase);
 			private CacheItem first = null;
@@ -1260,7 +1275,7 @@ namespace Neo.IronLua
 			int ILuaTypeResolver.Version => assemblyCount;
 		} // class AssemblyCacheList
 
-		#endregion
+#endregion
 
 		private static readonly LuaType clr = new LuaType();                 // root type
 
@@ -1311,7 +1326,7 @@ namespace Neo.IronLua
 			LookupReferencedAssemblies = true;
 		} // /sctor
 
-		#region -- Operator -----------------------------------------------------------
+#region -- Operator -----------------------------------------------------------
 
 		/// <summary>implicit convert to type</summary>
 		/// <param name="type">lua-type that should convert.</param>
@@ -1319,9 +1334,9 @@ namespace Neo.IronLua
 		public static implicit operator Type(LuaType type)
 			=> type?.Type;
 
-		#endregion
+#endregion
 
-		#region -- AddType ------------------------------------------------------------
+#region -- AddType ------------------------------------------------------------
 
 		private static int AddType(LuaType type)
 		{
@@ -1353,9 +1368,9 @@ namespace Neo.IronLua
 			}
 		} // func GetTypeIndex
 
-		#endregion
+#endregion
 
-		#region -- GetType ------------------------------------------------------------
+#region -- GetType ------------------------------------------------------------
 
 		internal static LuaType GetType(int index)
 		{
@@ -1404,7 +1419,7 @@ namespace Neo.IronLua
 					throw TypeParseException(offset, fullName, "array|generic");
 				else if (fullName[offset] == ',' || fullName[offset] == ']') // array
 				{
-					#region -- array --
+#region -- array --
 					// count the number of dimension
 					var startAt = offset - 1;
 					var rank = 1;
@@ -1427,11 +1442,11 @@ namespace Neo.IronLua
 					}
 					else
 						throw TypeParseException(offset, fullName, "]");
-					#endregion
+#endregion
 				}
 				else // generic definition
 				{
-					#region -- generic --
+#region -- generic --
 					// collect generic arguments
 					var genericArguments = new List<LuaType>();
 					var sbTypeName = new StringBuilder("[");
@@ -1475,12 +1490,12 @@ namespace Neo.IronLua
 					else
 						return GetType(luaType, offset, fullName, ignoreCase, type);
 
-					#endregion
+#endregion
 				}
 			}
 			else // type or namespace
 			{
-				#region -- type, namespace --
+#region -- type, namespace --
 				// get the current part of the name
 				var nextOffset = fullName.IndexOfAny(new char[] { '.', '+', '[', ',' }, offset);
 				var currentPart = nextOffset == -1 ? fullName.Substring(offset) : fullName.Substring(offset, nextOffset - offset);
@@ -1514,7 +1529,7 @@ namespace Neo.IronLua
 				{
 					return GetType(GetType(current.AddType(currentPart, ignoreCase, null)), nextOffset + 1, fullName, ignoreCase, type);
 				}
-				#endregion
+#endregion
 			}
 		} // func GetType
 
@@ -1616,9 +1631,9 @@ namespace Neo.IronLua
 			}
 		} // func GetCachedType
 
-		#endregion
+#endregion
 
-		#region -- RegisterTypeAlias --------------------------------------------------
+#region -- RegisterTypeAlias --------------------------------------------------
 
 		/// <summary>Register a new type alias.</summary>
 		/// <param name="aliasName">Name of the type alias. It should be a identifier.</param>
@@ -1699,7 +1714,7 @@ namespace Neo.IronLua
 			}
 		} // proc RegisterMethodExtension
 
-		#endregion
+#endregion
 
 		/// <summary>Root for all clr-types.</summary>
 		public static LuaType Clr => clr;
@@ -1710,11 +1725,19 @@ namespace Neo.IronLua
 		public static ILuaTypeResolver DefaultResolver { get; } = new AssemblyCacheList();
 		/// <summary>Should the type resolve also scan references assemblies (default is true).</summary>
 		public static bool LookupReferencedAssemblies { get; set; }
+		/// <summary>
+		/// Should assemblies be loaded in an unsafe manner. <br/>
+		/// False by default, set it to true to speed up loading at the cost of safety. <br/>
+		/// Only has an effect if <see cref="LookupReferencedAssemblies"/> is true. <br/>
+		/// When this property is true assemblies are loaded through <see cref="Assembly.UnsafeLoadFrom"/> 
+		/// instead of <see cref="Assembly.Load(string)"/>
+		/// </summary>
+		public static bool UseUnsafeLookup { get; set; } = false;
 	} // class LuaType
 
-	#endregion
+#endregion
 
-	#region -- interface ILuaMethod ---------------------------------------------------
+#region -- interface ILuaMethod ---------------------------------------------------
 
 	/// <summary></summary>
 	public interface ILuaMethod
@@ -1729,14 +1752,14 @@ namespace Neo.IronLua
 		bool IsMemberCall { get; }
 	} // interface ILuaMethod
 
-	#endregion
+#endregion
 
-	#region -- class LuaMethod --------------------------------------------------------
+#region -- class LuaMethod --------------------------------------------------------
 
 	/// <summary>Represents overloaded members.</summary>
 	public sealed class LuaMethod : ILuaMethod, IDynamicMetaObjectProvider
 	{
-		#region -- class LuaMethodMetaObject ------------------------------------------
+#region -- class LuaMethodMetaObject ------------------------------------------
 
 		private class LuaMethodMetaObject : DynamicMetaObject
 		{
@@ -1774,13 +1797,13 @@ namespace Neo.IronLua
 			} // func BindConvert
 		} // class LuaMethodMetaObject
 
-		#endregion
+#endregion
 
 		private readonly object instance;
 		private readonly bool isMemberCall;
 		private readonly MethodInfo method;
 
-		#region -- Ctor/Dtor -----------------------------------------------------------
+#region -- Ctor/Dtor -----------------------------------------------------------
 
 		/// <summary></summary>
 		/// <param name="instance"></param>
@@ -1796,7 +1819,7 @@ namespace Neo.IronLua
 		DynamicMetaObject IDynamicMetaObjectProvider.GetMetaObject(Expression parameter)
 			=> new LuaMethodMetaObject(parameter, this);
 
-		#endregion
+#endregion
 
 		/// <summary></summary>
 		/// <returns></returns>
@@ -1911,14 +1934,14 @@ namespace Neo.IronLua
 		} // func ConvertToType
 	} // class LuaMethod
 
-	#endregion
+#endregion
 
-	#region -- class LuaOverloadedMethod ----------------------------------------------
+#region -- class LuaOverloadedMethod ----------------------------------------------
 
 	/// <summary>Represents overloaded members.</summary>
 	public sealed class LuaOverloadedMethod : ILuaMethod, IDynamicMetaObjectProvider, IEnumerable<Delegate>
 	{
-		#region -- class LuaOverloadedMethodMetaObject --------------------------------
+#region -- class LuaOverloadedMethodMetaObject --------------------------------
 
 		private class LuaOverloadedMethodMetaObject : DynamicMetaObject
 		{
@@ -1927,7 +1950,7 @@ namespace Neo.IronLua
 			{
 			} // ctor
 
-			#region -- BindGetIndex ---------------------------------------------------
+#region -- BindGetIndex ---------------------------------------------------
 
 			private static Expression ConvertToType(DynamicMetaObject mo)
 			{
@@ -1968,9 +1991,9 @@ namespace Neo.IronLua
 				);
 			} // func BindGetIndex
 
-			#endregion
+#endregion
 
-			#region -- BindInvoke -----------------------------------------------------
+#region -- BindInvoke -----------------------------------------------------
 
 			public override DynamicMetaObject BindInvoke(InvokeBinder binder, DynamicMetaObject[] args)
 			{
@@ -2002,9 +2025,9 @@ namespace Neo.IronLua
 				}
 			} // proc BindInvoke
 
-			#endregion
+#endregion
 
-			#region -- BindConvert ----------------------------------------------------
+#region -- BindConvert ----------------------------------------------------
 
 			public override DynamicMetaObject BindConvert(ConvertBinder binder)
 			{
@@ -2028,16 +2051,16 @@ namespace Neo.IronLua
 					return base.BindConvert(binder);
 			} // func BindConvert
 
-			#endregion
+#endregion
 		} // class LuaOverloadedMethodMetaObject
 
-		#endregion
+#endregion
 
 		private readonly object instance;
 		private readonly bool isMemberCall;
 		private readonly MethodInfo[] methods;
 
-		#region -- Ctor/Dtor ----------------------------------------------------------
+#region -- Ctor/Dtor ----------------------------------------------------------
 
 		/// <summary></summary>
 		/// <param name="instance"></param>
@@ -2059,9 +2082,9 @@ namespace Neo.IronLua
 		DynamicMetaObject IDynamicMetaObjectProvider.GetMetaObject(Expression parameter)
 			=> new LuaOverloadedMethodMetaObject(parameter, this);
 
-		#endregion
+#endregion
 
-		#region -- GetDelegate, GetMethod ---------------------------------------------
+#region -- GetDelegate, GetMethod ---------------------------------------------
 
 		private MethodInfo FindMethod(bool exactMatchesOnly, CallInfo callInfo, params Type[] types)
 		{
@@ -2148,7 +2171,7 @@ namespace Neo.IronLua
 		public LuaMethod GetMethod(int index)
 			=> index >= 0 && index < methods.Length ? new LuaMethod(instance, methods[index], false) : null;
 
-		#endregion
+#endregion
 
 		/// <summary></summary>
 		/// <returns></returns>
@@ -2184,14 +2207,14 @@ namespace Neo.IronLua
 		public int Count => methods.Length;
 	} // class LuaOverloadedMethod
 
-	#endregion
+#endregion
 
-	#region -- class LuaEvent ---------------------------------------------------------
+#region -- class LuaEvent ---------------------------------------------------------
 
 	/// <summary></summary>
 	public sealed class LuaEvent : ILuaMethod, IDynamicMetaObjectProvider
 	{
-		#region -- class LuaEventMetaObject -------------------------------------------
+#region -- class LuaEventMetaObject -------------------------------------------
 
 		private class LuaEventMetaObject : DynamicMetaObject
 		{
@@ -2204,7 +2227,7 @@ namespace Neo.IronLua
 			{
 			} // ctor
 
-			#region -- BindAddMethod, BindRemoveMethod, BindGetMember -----------------
+#region -- BindAddMethod, BindRemoveMethod, BindGetMember -----------------
 
 			private DynamicMetaObject BindAddMethod(DynamicMetaObjectBinder binder, DynamicMetaObject[] args)
 			{
@@ -2234,9 +2257,9 @@ namespace Neo.IronLua
 				);
 			} // func BindGetMember
 
-			#endregion
+#endregion
 
-			#region -- Binder ---------------------------------------------------------
+#region -- Binder ---------------------------------------------------------
 
 			public override DynamicMetaObject BindBinaryOperation(BinaryOperationBinder binder, DynamicMetaObject arg)
 			{
@@ -2280,15 +2303,15 @@ namespace Neo.IronLua
 					return base.BindInvokeMember(binder, args);
 			} // func BindInvokeMember
 
-			#endregion
+#endregion
 		} // class LuaEventMetaObject
 
-		#endregion
+#endregion
 
 		private readonly object instance;
 		private readonly EventInfo eventInfo;
 
-		#region -- Ctor/Dtor ----------------------------------------------------------
+#region -- Ctor/Dtor ----------------------------------------------------------
 
 		internal LuaEvent(object instance, EventInfo eventInfo)
 		{
@@ -2299,7 +2322,7 @@ namespace Neo.IronLua
 		DynamicMetaObject IDynamicMetaObjectProvider.GetMetaObject(Expression parameter)
 			=> new LuaEventMetaObject(parameter, this);
 
-		#endregion
+#endregion
 
 		/// <summary></summary>
 		/// <returns></returns>
@@ -2320,5 +2343,5 @@ namespace Neo.IronLua
 		internal MethodInfo RaiseMethodInfo => eventInfo.RaiseMethod;
 	} // class LuaEvent
 
-	#endregion
+#endregion
 }
