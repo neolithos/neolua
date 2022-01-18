@@ -19,7 +19,7 @@ namespace Neo.IronLua.Properties {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "16.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Resources {
@@ -295,6 +295,24 @@ namespace Neo.IronLua.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Module name cannot be null.
+        /// </summary>
+        internal static string rsModuleCannotBeNull {
+            get {
+                return ResourceManager.GetString("rsModuleCannotBeNull", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to module &apos;{0}&apos; not found:.
+        /// </summary>
+        internal static string rsModuleNotFound {
+            get {
+                return ResourceManager.GetString("rsModuleNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Can not call nil value..
         /// </summary>
         internal static string rsNilNotCallable {
@@ -309,6 +327,15 @@ namespace Neo.IronLua.Properties {
         internal static string rsNilOperatorError {
             get {
                 return ResourceManager.GetString("rsNilOperatorError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to no file &apos;{0}&apos;.
+        /// </summary>
+        internal static string rsNoFile {
+            get {
+                return ResourceManager.GetString("rsNoFile", resourceCulture);
             }
         }
         
@@ -651,6 +678,15 @@ namespace Neo.IronLua.Properties {
         internal static string rsTypeParseError {
             get {
                 return ResourceManager.GetString("rsTypeParseError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Unexpected searcher type: {0}.
+        /// </summary>
+        internal static string rsUnexpectedSearcherType {
+            get {
+                return ResourceManager.GetString("rsUnexpectedSearcherType", resourceCulture);
             }
         }
     }

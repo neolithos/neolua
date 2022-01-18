@@ -1380,152 +1380,148 @@ namespace Neo.IronLua
 	/// <summary></summary>
 	public sealed class LuaLibraryPackage
 	{
-		/// <summary></summary>
-		public const string CurrentDirectoryPathVariable = "%currentdirectory%";
-		/// <summary></summary>
-		public const string ExecutingDirectoryPathVariable = "%executingdirectory%";
-
-		#region -- class LuaLoadedTable -----------------------------------------------
-
-		private class LuaLoadedTable : LuaTable
-		{
-			private LuaGlobal global;
-
-			public LuaLoadedTable(LuaGlobal global)
-			{
-				this.global = global;
-			} // ctor
-
-			protected override object OnIndex(object key)
-			{
-				if (global.loaded != null && global.loaded.TryGetValue(key, out var value))
-					return value;
-				return base.OnIndex(key);
-			} // func OnIndex
-
-			protected override bool OnNewIndex(object key, object value)
-			{
-				if (global.loaded != null)
-				{
-					if (value == null)
-						global.loaded.Remove(key);
-					else
-						global.loaded[key] = value;
-				}
-				return true;
-			} // func OnNewIndex
-		} // class LuaLoadedTable
-
-		#endregion
-
-		private readonly object packageLock = new object();
-		private Dictionary<string, WeakReference> loadedModuls = null;
-
 		private string[] paths;
-		private LuaCompileOptions compileOptions = null;
+        private LuaGlobal         globals;
 
 		/// <summary></summary>
 		/// <param name="global"></param>
 		public LuaLibraryPackage(LuaGlobal global)
 		{
-			this.loaded = new LuaLoadedTable(global);
-			this.path = CurrentDirectoryPathVariable;
+            globals = global;
+            string currentDirectory = System.IO.Path.GetDirectoryName(Environment.CurrentDirectory);
+            currentDirectory = currentDirectory.Replace(System.IO.Path.DirectorySeparatorChar, '/');
+			this.path = string.Format("{0}/?;{0}/?.lua", currentDirectory);
+
+            //Setup the searchers like lua 5.3  (ignoring antrhing after the unloaded package searcher, since we don't support C packages)
+            this.searchers[1] = new Func<object, LuaResult>(LuaPreloadPackage);  //Preloads don't actually work, but keep this in index 1 for Lua consistency
+            this.searchers[2] = new Func<object, LuaResult>(LuaFindUnloadedPackage);
 		} // ctor
 
-		internal LuaChunk LuaRequire(LuaGlobal global, string moduleName)
+        /// <summary>
+        /// Loads the LuaChunk for the require using the set searchers
+        /// </summary>
+		internal LuaResult LuaRequire(string moduleName, out string checkedPathsOnFailed)
 		{
+            checkedPathsOnFailed = null;
 			if (String.IsNullOrEmpty(moduleName))
-				return null;
+				throw new ArgumentException(Properties.Resources.rsModuleCannotBeNull);
+            
+            int searchIndex = 1;
+            object oSearcher;
+            List<string> loadErrors = new List<string>();
+            
+            LuaChunk chunkFound = null;
+            while (chunkFound == null && (oSearcher = searchers[searchIndex++]) != null)
+            {
+                Func<string, LuaResult> searcherFunc = oSearcher as Func<string, LuaResult>;
+                if (searcherFunc != null)
+                {
+                    LuaResult searcherResult = searcherFunc(moduleName);
+                    if(searcherResult.Values == null || searcherResult.Values.Length == 0) continue;
 
-			if (LuaRequireFindFile(moduleName, out var fileName, out var stamp))
-			{
-				lock (packageLock)
-				{
-					LuaChunk chunk;
-					var cacheId = fileName + ";" + stamp.ToString("o");
+                    //this is an error detailing why it was not loaded
+                    if(searcherResult.Values[0] is string)
+                    {
+                        loadErrors.Add(searcherResult.Values[0] as string);
+                    }
+                    else if(searcherResult[0] is Func<object [], LuaResult>)
+                    {
+                        //custom loader
+                        Func<object [], LuaResult> loader = searcherResult[0] as Func<object [], LuaResult>;
+                        string extraData = (searcherResult.Values.Length > 1 ? searcherResult.Values[1] : null) as string;
+                        LuaResult res = loader(new object [] {extraData});
+                        return res;
+                    }
+                    else if(searcherResult[0] != null)
+                    {
+                        loadErrors.Add(String.Format(Properties.Resources.rsUnexpectedSearcherType, searcherResult[0].GetType() ));
+                    }
+                }
+            }
 
-					// is the modul loaded
-					if (loadedModuls == null 
-						|| !loadedModuls.TryGetValue(cacheId, out var rc) 
-						|| !rc.IsAlive)
-					{
-						// compile the modul
-						chunk = global.Lua.CompileChunk(fileName, compileOptions);
-
-						// Update Cache
-						if (loadedModuls == null)
-							loadedModuls = new Dictionary<string, WeakReference>();
-						loadedModuls[cacheId] = new WeakReference(chunk);
-					}
-					else
-						chunk = (LuaChunk)rc.Target;
-
-					return chunk;
-				}
-			}
-			else
-				return null;
+            checkedPathsOnFailed = string.Join("\n", loadErrors);
+			return null;
 		} // func LuaRequire
 
-		private DateTime? LuaRequireCheckFile(ref string fileName)
+        /// <summary>
+        /// Preloader
+        /// </summary>
+        private LuaResult LuaPreloadPackage(object oModuleName)
+        {
+            //Preloading is not supported
+            return new LuaResult();
+        }
+
+        /// <summary>
+        /// Return a chunk that looks for the already loaded package and just returns that value
+        /// </summary>
+        /// <param name="oModuleName"></param>
+        /// <returns></returns>
+        private LuaResult LuaFindUnloadedPackage(object oModuleName)
+        {
+            string moduleName = oModuleName.ToString();
+            LuaResult searchResult = this.searchpath(moduleName, this.path);
+            if(searchResult.Values[0] == null)
+            {
+                //notfound return the searchpath as a string
+                return new LuaResult(searchResult.Values[1] as string);
+            }
+            else if(searchResult.Values[0] is string)
+            {
+                //found, return a result value that takes the filename
+                string foundFilePath = searchResult.Values[0] as string;
+                LuaChunk chunk = globals.Lua.CompileChunk(foundFilePath, globals.Lua.DefaultCompileOptions);
+                var loader = new Func<object [], LuaResult>( (prms) => chunk.Run(globals) );
+                return new LuaResult(loader, foundFilePath);
+            }
+            else
+            {
+                //How did we get here?
+                throw new ApplicationException("Invalid result from searchpath");
+            }
+        }
+
+        #region -- package.searchpath ---------------------------------------------------------
+
+		private LuaResult searchpath(string name, string path, string sep=";", string rep="/")
 		{
-			try
-			{
-				// replace variables
-				if (fileName.Contains(CurrentDirectoryPathVariable))
-					fileName = fileName.Replace(CurrentDirectoryPathVariable, Environment.CurrentDirectory);
-				if (fileName.Contains(ExecutingDirectoryPathVariable))
-					fileName = fileName.Replace(ExecutingDirectoryPathVariable, System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+			if (name == null)
+				throw new ArgumentNullException();
 
-				// check if the file exists
-				if (!File.Exists(fileName))
-					return null;
+			string [] pathsToSearch = path.Split(new string[] {sep}, StringSplitOptions.None);
+            List<string> pathsSearched = new List<string>(pathsToSearch.Length);
+            foreach(string pathCheckWC in pathsToSearch)
+            {
+                string pathCheck = pathCheckWC.Replace("?", name);
 
-				// get the time stamp
-				return File.GetLastWriteTime(fileName);
-			}
-			catch (IOException)
-			{
-				return null;
-			}
-		} // func LuaRequireCheckFile
+                if(File.Exists(pathCheck))
+                {
+                    return new LuaResult(pathCheck);
+                }
 
-		private bool LuaRequireFindFile(string modulName, out string fileName, out DateTime stamp)
-		{
-			stamp = DateTime.MinValue;
-			fileName = null;
+                pathsSearched.Add(pathCheck);
+            }
 
-			// replace dots blind to directory seperator, like lua it does.
-			if (modulName.IndexOf(System.IO.Path.DirectorySeparatorChar) >= 0)
-				modulName = modulName.Replace('.', System.IO.Path.DirectorySeparatorChar);
-			// add .lua
-			if (!modulName.EndsWith(".lua", StringComparison.OrdinalIgnoreCase))
-				modulName += ".lua";
+            //No file could be found, return nil and an error containing all the paths searched (this mimics the Lua 5.3 function)
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            foreach(string pathSearched in pathsSearched)
+            {
+                sb.AppendFormat(Properties.Resources.rsNoFile, pathSearched);
+                sb.AppendLine();
+            }
+            return new LuaResult(null, sb.ToString());
+		} // func searchpath
 
-			foreach (var c in paths)
-			{
-				if (String.IsNullOrEmpty(c))
-					continue;
-				else
-				{
-					var testFileName = System.IO.Path.Combine(c, modulName);
-					var testStamp = LuaRequireCheckFile(ref testFileName);
-					if (testStamp.HasValue)
-					{
-						if (fileName == null || stamp < testStamp.Value)
-						{
-							fileName = testFileName;
-							stamp = testStamp.Value;
-						}
-					}
-				}
-			}
-
-			return fileName != null;
-		} // func LuaRequireFindFile
+		#endregion
 
 		/// <summary></summary>
-		public LuaTable loaded { get; private set; }
+		public LuaTable loaded { get; private set; } = new LuaTable();
+
+        /// <summary>Searchers, see https://www.lua.org/manual/5.3/manual.html#pdf-package.searchers 
+        /// The general gist of this table is that it is used by require to set the search order of the functions
+        /// </summary>
+        public LuaTable searchers { get; private set; } = new LuaTable();
+
 		/// <summary></summary>
 		public string path
 		{
@@ -1540,8 +1536,7 @@ namespace Neo.IronLua
 
 		/// <summary></summary>
 		public string[] Path => paths;
-		/// <summary></summary>
-		public LuaCompileOptions CompileOptions { get => compileOptions; set => compileOptions = value; }
+		
 	} // class LuaLibraryPackage
 
 	#endregion

@@ -195,11 +195,20 @@
   <data name="rsMethodStaticMix" xml:space="preserve">
     <value>Can not mix static and non-static methods ({0}).</value>
   </data>
+  <data name="rsModuleCannotBeNull" xml:space="preserve">
+    <value>Module name cannot be null</value>
+  </data>
+  <data name="rsModuleNotFound" xml:space="preserve">
+    <value>module '{0}' not found:</value>
+  </data>
   <data name="rsNilNotCallable" xml:space="preserve">
     <value>Can not call nil value.</value>
   </data>
   <data name="rsNilOperatorError" xml:space="preserve">
     <value>Operator is not defined for nil-values.</value>
+  </data>
+  <data name="rsNoFile" xml:space="preserve">
+    <value>no file '{0}'</value>
   </data>
   <data name="rsNoLengthOperator" xml:space="preserve">
     <value>No length for {0}.</value>
@@ -314,5 +323,8 @@
   </data>
   <data name="rsTypeParseError" xml:space="preserve">
     <value>Invalid type format for '{0}' (unexpected: {1} at {2}; expected: {3})</value>
+  </data>
+  <data name="rsUnexpectedSearcherType" xml:space="preserve">
+    <value>Unexpected searcher type: {0}</value>
   </data>
 </root>
