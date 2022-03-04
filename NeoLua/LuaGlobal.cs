@@ -29,6 +29,8 @@ namespace Neo.IronLua
 		public LuaGlobal(Lua lua)
 		{
 			this.lua = lua ?? throw new ArgumentNullException(nameof(lua));
+
+            InitializeLibraries();
 		} // ctor
 
 		/// <summary>Redirects the invoke binder to the script manager/compiler.</summary>
@@ -37,14 +39,119 @@ namespace Neo.IronLua
 		protected override CallSiteBinder GetInvokeBinder(CallInfo callInfo)
 			=> lua.GetInvokeBinder(callInfo);
 
-		#endregion
+        #endregion
 
-		#region -- void RegisterPackage -----------------------------------------------
+        #region -- Initialize libraries-------------------------------------------------
 
-		/// <summary>Registers a type as an library.</summary>
-		/// <param name="name"></param>
-		/// <param name="type"></param>
-		public void RegisterPackage(string name, Type type)
+        /// <summary>
+        /// Initialize the library  tables with the appropriate functions (and constants)
+        /// </summary>
+        private void InitializeLibraries()
+        {
+            InitializeMathLibrary();
+            InitializeStringLibrary();
+            InitializeTableLibrary();
+        }
+
+        #region --- Math Lib ----------------------------------------------------------
+        private void InitializeMathLibrary()
+        {
+            LuaTable math = new LuaTable();
+            this["math"] = math;
+
+            math["huge"]  = LuaLibraryMath.huge;
+            math["pi"]  = LuaLibraryMath.pi;
+            math["e"]  = LuaLibraryMath.e;
+            math["mininteger"]  = LuaLibraryMath.mininteger;
+            math["maxinteger"]  = LuaLibraryMath.maxinteger;
+
+            math["abs"]   = new Func<double, double>(LuaLibraryMath.abs);
+            math["acos"]  = new Func<double, double>(LuaLibraryMath.acos);
+            math["asin"]  = new Func<double, double>(LuaLibraryMath.asin);
+            math["atan"]  = new Func<double, double>(LuaLibraryMath.atan);
+            math["atan2"] = new Func<double, double, double>(LuaLibraryMath.atan2);
+            math["ceil"]  = new Func<double, double>(LuaLibraryMath.ceil);
+            math["cos"]   = new Func<double, double>(LuaLibraryMath.cos);
+            math["cosh"]  = new Func<double, double>(LuaLibraryMath.cosh);
+            math["deg"]   = new Func<double, double>(LuaLibraryMath.deg);
+            math["exp"]   = new Func<double, double>(LuaLibraryMath.exp);
+            math["floor"]   = new Func<double, double>(LuaLibraryMath.floor);
+            math["fmod"]   = new Func<double, double, double>(LuaLibraryMath.fmod);
+            math["frexp"]   = new Func<double, Neo.IronLua.LuaResult>(LuaLibraryMath.frexp);
+            math["ldexp"]   = new Func<double, int, double>(LuaLibraryMath.ldexp);
+            math["log"]     = new Func<double, double, double>(LuaLibraryMath.log);
+            math["max"]     = new Func<double [], double>(LuaLibraryMath.max);
+            math["min"]     = new Func<double [], double>(LuaLibraryMath.min);
+            math["modf"]     = new Func<double, LuaResult>(LuaLibraryMath.modf);
+            math["pow"]     = new Func<double, double, double>(LuaLibraryMath.pow);
+            math["rad"]     = new Func<double, double>(LuaLibraryMath.rad);
+            math["random"]  = new Func<object, object, object>(LuaLibraryMath.random);
+            math["randomseed"]     = new Action<object>(LuaLibraryMath.randomseed);
+            math["sin"]     = new Func<double, double>(LuaLibraryMath.sin);
+            math["sinh"]     = new Func<double, double>(LuaLibraryMath.sinh);
+            math["sqrt"]     = new Func<double, double>(LuaLibraryMath.sqrt);
+            math["tan"]      = new Func<double, double>(LuaLibraryMath.tan);
+            math["tanh"]      = new Func<double, double>(LuaLibraryMath.tanh);
+            math["type"]      = new Func<object, string>(LuaLibraryMath.type);
+            math["tointeger"] = new Func<object, object>(LuaLibraryMath.tointeger);
+            math["ult"]       = new Func<long, long, bool>(LuaLibraryMath.ult);
+        }
+        #endregion
+
+        #region --- String Lib ------------------------------------------------
+
+        //Delegates for types that can't be stuffed into generics
+        private delegate LuaResult byteDelg(string s, int? i = null, int? j = null);
+        private delegate string charDelg(params int [] chars);
+        private delegate string formatDelg(string format, params object [] prms);
+
+        private void InitializeStringLibrary()
+        {
+            LuaTable str = new LuaTable();
+            this["string"] = str;
+            str["byte"]       = new byteDelg(Neo.IronLua.LuaLibraryString.@byte);
+            str["char"]       = new charDelg(Neo.IronLua.LuaLibraryString.@char);
+            str["dump"]       = new Func<Delegate, string>(Neo.IronLua.LuaLibraryString.dump);
+            str["find"]       = new Func<string, string, int, bool, LuaResult>(Neo.IronLua.LuaLibraryString.find);
+            str["format"]     = new formatDelg(Neo.IronLua.LuaLibraryString.format);
+            str["gmatch"]     = new Func<string, string, LuaResult>(Neo.IronLua.LuaLibraryString.gmatch);
+            str["gsub"]       = new Func<string, string, object, int, LuaResult>(Neo.IronLua.LuaLibraryString.gsub);
+            str["len"]        = new Func<string, int>(Neo.IronLua.LuaLibraryString.len);
+            str["lower"]      = new Func<string, string>(Neo.IronLua.LuaLibraryString.lower);
+            str["match"]      = new Func<string, string, int, LuaResult>(Neo.IronLua.LuaLibraryString.match);
+            str["rep"]        = new Func<string, int, string, string>(Neo.IronLua.LuaLibraryString.rep);
+            str["reverse"]    = new Func<string, string>(Neo.IronLua.LuaLibraryString.reverse);
+            str["sub"]        = new Func<string, int, int, string>(Neo.IronLua.LuaLibraryString.sub);
+            str["upper"]        = new Func<string, string>(Neo.IronLua.LuaLibraryString.upper);
+        }
+        #endregion
+
+        #region --- Table Lib ------------------------------------------------
+
+        private delegate string concatDelg(LuaTable t, string sep = null, int? i = null, int? j = null);
+
+        private void InitializeTableLibrary()
+        {
+            LuaTable tbl = new LuaTable();
+            this["table"] = tbl;
+            tbl["concat"]       = new concatDelg(LuaTable.concat);
+            tbl["insert"]       = new Action<LuaTable, object, object>(LuaTable.insert);
+            tbl["move"]         = new Action<LuaTable, int, int, int, LuaTable>(LuaTable.move);
+            tbl["pack"]         = new Func<object [], LuaTable>(LuaTable.pack);
+            tbl["remove"]       = new Func<LuaTable, object, object>(LuaTable.remove);
+            tbl["sort"]         = new Action<LuaTable, object>(LuaTable.sort);
+            tbl["unpack"]       = new Func<LuaTable, int, int, LuaResult>(LuaTable.unpack);
+        }
+        #endregion
+
+        #endregion
+
+        #region -- void RegisterPackage -----------------------------------------------
+
+        /// <summary>Registers a type as an library.</summary>
+        /// <param name="name"></param>
+        /// <param name="type"></param>
+        public void RegisterPackage(string name, Type type)
 		{
 			if (String.IsNullOrEmpty(name))
 				throw new ArgumentNullException(nameof(name));
@@ -354,32 +461,62 @@ namespace Neo.IronLua
 			if (mode == "b") // binary chunks are not implementeted
 				throw new NotImplementedException();
 
+            if(!File.Exists(filename))
+            {
+                return new LuaResult(null, string.Format(Properties.Resources.rsNoFile, filename));
+            }
+
 			// create the chunk
-			return LuaLoadReturn(Lua.CompileChunk(filename, DefaultCompileOptions, new KeyValuePair<string, Type>("...", typeof(object[]))), env);
+            try
+            {
+			    return LuaLoadReturn(Lua.CompileChunk(filename, DefaultCompileOptions, new KeyValuePair<string, Type>("...", typeof(object[]))), env);
+            }
+            catch(Exception exc)
+            {
+                //Load file does not propogate errors, it returns nil plus the error message
+                return new LuaResult(null, exc.Message);
+            }
 		} // func LuaLoadFile
 
 		#endregion
 
 		#region -- LuaRequire ---------------------------------------------------------
 
-		internal readonly Dictionary<object, object> loaded = new Dictionary<object, object>();
-
 		[LuaMember("require")]
 		private LuaResult LuaRequire(object modname)
 		{
 			if (modname == null)
 				throw new ArgumentNullException();
-
-			// check if the modul is loaded in this global
-			if (loaded.TryGetValue(modname, out var currentlyLoaded))
-				return new LuaResult(currentlyLoaded);
+            
+            object cachedResult;
+            if((cachedResult = LuaPackage.loaded[modname]) != null)
+            { 
+                return new LuaResult(cachedResult);
+            }
 
 			// check if the modul is loaded in a different global
-			var chunk = ((LuaLibraryPackage)LuaPackage).LuaRequire(this, modname as string);
-			if (chunk != null)
-				return new LuaResult(loaded[modname] = DoChunk(chunk)[0]);
+			LuaResult requireResult = ((LuaLibraryPackage)LuaPackage).LuaRequire(modname as string, out string checkedPathsOnFailed);
+			if (requireResult != null)
+            { 
+                //Requiring ONLY EVER returns the first value from the require.  If that value is null (or missing) require returns TRUE 
+                //for a required library.
+                //However it is possible that the chunk itself set the value for package.loaded, if that is the case, we return whatever it set
+                if(LuaPackage.loaded[modname] == null)
+                { 
+                    object propagatedRequireResult = (requireResult.Values.Length > 0 ? requireResult.Values[0] : null) ?? true;  //NEVER a null value
+				    LuaPackage.loaded[modname] = propagatedRequireResult;
+                }
+                
+                return new LuaResult(LuaPackage.loaded[modname]);
+            }
 			else
-				return LuaResult.Empty;
+            {
+                string errorMessage = string.Format(Properties.Resources.rsModuleNotFound, modname);
+                errorMessage += "\n";
+                errorMessage += checkedPathsOnFailed;
+
+                throw new LuaRuntimeException(errorMessage, 1, true);
+            }
 		} // func LuaRequire
 
 		#endregion
@@ -755,15 +892,6 @@ namespace Neo.IronLua
 
 		[LuaMember("debug")]
 		private static dynamic LuaLibraryDebug => LuaType.GetType(typeof(LuaLibraryDebug));
-
-		[LuaMember("math")]
-		private static dynamic LuaLibraryMath => LuaType.GetType(typeof(LuaLibraryMath));
-
-		[LuaMember("string")]
-		private static dynamic LuaLibraryString => LuaType.GetType(typeof(LuaLibraryString));
-
-		[LuaMember("table")]
-		private static dynamic LuaLibraryTable => LuaType.GetType(typeof(LuaTable));
 
 		/// <summary></summary>
 		[LuaMember("io")]

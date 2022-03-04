@@ -18,7 +18,7 @@
 // under the License.
 //
 #endregion
-#if !NETSTANDARD2_1 && !NETCOREAPP3_1 && !NET5_0
+#if !NETSTANDARD2_1 && !NETCOREAPP1_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;

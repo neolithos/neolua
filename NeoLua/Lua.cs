@@ -285,7 +285,7 @@ namespace Neo.IronLua
 		internal LuaChunk CompileChunkCore(ILuaLexer lex, LuaCompileOptions options, IEnumerable<KeyValuePair<string, Type>> args)
 		{
 			if (options == null)
-				options = new LuaCompileOptions();
+				options = DefaultCompileOptions ?? new LuaCompileOptions();
 
 			var registerMethods = options.DebugEngine != null && (options.DebugEngine.Level & LuaDebugLevel.RegisterMethods) == LuaDebugLevel.RegisterMethods;
 			if (registerMethods)
@@ -323,7 +323,7 @@ namespace Neo.IronLua
 		{
 			using (var l = LuaLexer.Create(name, new StringReader(code)))
 			{
-				var expr = Parser.ParseChunk(this, new LuaCompileOptions(), false, l, delegateType, returnType, arguments);
+				var expr = Parser.ParseChunk(this, DefaultCompileOptions ?? new LuaCompileOptions(), false, l, delegateType, returnType, arguments);
 
 				if (printExpressionTree != null)
 				{
@@ -547,7 +547,15 @@ namespace Neo.IronLua
 			}
 		} // prop Version
 
-#if !NETSTANDARD2_1 && !NETCOREAPP3_1 && !NET5_0
+        /// <summary>
+        /// Get/Set the default compile options
+        /// </summary>
+        public LuaCompileOptions DefaultCompileOptions
+        {
+            get; set; 
+        } = new LuaCompileOptions();
+
+#if !NETSTANDARD2_1 && !NETCOREAPP1_0_OR_GREATER
 		/// <summary>Stack trace compile options.</summary>
 		public static LuaCompileOptions StackTraceCompileOptions { get; } = new LuaCompileOptions { DebugEngine = LuaStackTraceDebugger.Default };
 #endif

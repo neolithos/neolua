@@ -3663,16 +3663,8 @@ namespace Neo.IronLua
 		/// <param name="f"></param>
 		/// <param name="e"></param>
 		/// <param name="t"></param>
-		public static void move(LuaTable t1, int f, int e, int t)
-			=> move(t1, f, e, t, t1);
-
-		/// <summary></summary>
-		/// <param name="t1"></param>
-		/// <param name="f"></param>
-		/// <param name="e"></param>
-		/// <param name="t"></param>
 		/// <param name="t2"></param>
-		public static void move(LuaTable t1, int f, int e, int t, LuaTable t2)
+		public static void move(LuaTable t1, int f, int e, int t, LuaTable t2=null)
 		{
 			if (f < 0)
 				throw new ArgumentOutOfRangeException(nameof(f));
@@ -3680,6 +3672,9 @@ namespace Neo.IronLua
 				throw new ArgumentOutOfRangeException(nameof(t));
 			if (f > e)
 				return;
+
+            if(t2 == null)
+                t2 = t1;
 
 			while (f < e)
 				t2[t++] = t1[f++];
@@ -3747,17 +3742,17 @@ namespace Neo.IronLua
 
 		#region -- remove --
 
-		/// <summary>Removes from list the last element.</summary>
-		/// <param name="t"></param>
-		public static object remove(LuaTable t)
-			=> remove(t, t.Length);
-
 		/// <summary>Removes from list the element at position pos, returning the value of the removed element.</summary>
 		/// <param name="t"></param>
 		/// <param name="pos"></param>
-		public static object remove(LuaTable t, int pos)
+		public static object remove(LuaTable t, object pos=null)
 		{
 			object r;
+            if(pos == null)
+            {
+                pos = t.Length;
+            }
+
 			if (IsIndexKey(pos, out var index))
 			{
 				if (index >= 1 && index <= t.arrayLength)  // remove the element and shift the follower
@@ -3836,24 +3831,16 @@ namespace Neo.IronLua
 
 		/// <summary>Returns the elements from the given table.</summary>
 		/// <param name="t"></param>
-		/// <returns></returns>
-		public static LuaResult unpack(LuaTable t)
-			=> unpack(t, 1, t.Length);
-
-		/// <summary>Returns the elements from the given table.</summary>
-		/// <param name="t"></param>
-		/// <param name="i"></param>
-		/// <returns></returns>
-		public static LuaResult unpack(LuaTable t, int i)
-			=> unpack(t, i, t.Length);
-
-		/// <summary>Returns the elements from the given table.</summary>
-		/// <param name="t"></param>
 		/// <param name="i"></param>
 		/// <param name="j"></param>
 		/// <returns></returns>
-		public static LuaResult unpack(LuaTable t, int i, int j)
-			=> new LuaResult(LuaResult.CopyMode.None, unpack(t, i, j, LuaResult.Empty.Values));
+		public static LuaResult unpack(LuaTable t, int i=-1, int j=-1)
+        { 
+            if(i < 0) i = 1;
+            if(j < 0) j = t.Length;
+
+			return new LuaResult(LuaResult.CopyMode.None, unpack(t, i, j, LuaResult.Empty.Values));
+        }
 
 		/// <summary>Returns the elements from the given table as a sequence.</summary>
 		/// <param name="t"></param>
