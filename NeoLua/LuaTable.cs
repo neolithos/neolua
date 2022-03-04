@@ -89,6 +89,9 @@ namespace Neo.IronLua
 		private const int indexNotFound = -1;
 		private const int removedIndex = -3;
 
+		private const string jsonPositiveInfinityValue = "\"+Infinity\"";
+		private const string jsonNegativeInfinityValue = "\"-Infinity\"";
+
 		#region -- class LuaTableMetaObject -----------------------------------------------
 
 		private sealed class LuaTableMetaObject : DynamicMetaObject
@@ -4129,6 +4132,17 @@ namespace Neo.IronLua
 					tw.Write(indent);
 			} // proc WriteIndent
 
+			void WriteNumber(string num)
+			{
+				if (num.IndexOfAny(new char[] { '.', 'e', 'E' }) == -1)
+				{
+					tw.Write(num);
+					tw.Write(".0");
+				}
+				else
+					tw.Write(num);
+			} // proc WriteNumber
+
 			void WriteValue(object value)
 			{
 				var type = value.GetType();
@@ -4191,18 +4205,33 @@ namespace Neo.IronLua
 						break;
 
 					case LuaEmitTypeCode.Single:
-					case LuaEmitTypeCode.Double:
-					case LuaEmitTypeCode.Decimal:
 						{
-							var num = Convert.ToString(value, CultureInfo.InvariantCulture);
-							if (num.IndexOfAny(new char[] { '.', 'e', 'E' }) == -1)
-							{
-								tw.Write(num);
-								tw.Write(".0");
-							}
+							var n = (float)value;
+							if (Single.IsNaN(n))
+								tw.Write("null");
+							else if (Single.IsPositiveInfinity(n))
+								tw.Write(jsonPositiveInfinityValue);
+							else if (Single.IsNegativeInfinity(n))
+								tw.Write(jsonNegativeInfinityValue);
 							else
-								tw.Write(num);
+								WriteNumber(n.ToString(CultureInfo.InvariantCulture));
 						}
+						break;
+					case LuaEmitTypeCode.Double:
+						{
+							var n = (double)value;
+							if (Double.IsNaN(n))
+								tw.Write("null");
+							else if (Double.IsPositiveInfinity(n))
+								tw.Write(jsonPositiveInfinityValue);
+							else if (Double.IsNegativeInfinity(n))
+								tw.Write(jsonNegativeInfinityValue);
+							else
+								WriteNumber(n.ToString(CultureInfo.InvariantCulture));
+						}
+						break;
+					case LuaEmitTypeCode.Decimal:
+						WriteNumber(((decimal)value).ToString(CultureInfo.InvariantCulture));
 						break;
 
 					case LuaEmitTypeCode.DateTime:
