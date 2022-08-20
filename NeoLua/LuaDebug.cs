@@ -198,7 +198,7 @@ namespace Neo.IronLua
 			protected override Expression VisitBlock(BlockExpression node)
 			{
 				var expr = LineProgressExpression(node.Expressions);
-				if (expr.Any()) 
+				if (!expr.Any()) 
 					return Expression.Empty();
 
 				return base.VisitBlock(Expression.Block(node.Type, node.Variables, expr));
