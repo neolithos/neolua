@@ -25,6 +25,7 @@
 	  <None Remove="Lua\Control11.lua" />
 	  <None Remove="Lua\Control12.lua" />
 	  <None Remove="Lua\Control19.lua" />
+	  <None Remove="Lua\Control20.lua" />
 	  <None Remove="Lua\Coroutines01.lua" />
 	  <None Remove="Lua\EnvDynamicCall01.lua" />
 	  <None Remove="Lua\Function08.lua" />
@@ -51,6 +52,7 @@
 	  <EmbeddedResource Include="Lua\Control11.lua" />
 	  <EmbeddedResource Include="Lua\Control12.lua" />
 	  <EmbeddedResource Include="Lua\Control19.lua" />
+	  <EmbeddedResource Include="Lua\Control20.lua" />
 	  <EmbeddedResource Include="Lua\Coroutines01.lua" />
 	  <EmbeddedResource Include="Lua\EnvDynamicCall01.lua" />
 	  <EmbeddedResource Include="Lua\Function08.lua" />
