@@ -1798,6 +1798,13 @@ namespace Neo.IronLua
 					result = Expression.Assign(Expression.Field(target != null ? Lua.EnsureType(target, targetType) : null, fieldInfo), set(fieldInfo.FieldType));
 					return LuaTrySetMemberReturn.ValidExpression;
 				}
+				else if (memberInfo is EventInfo eventInfo)
+				{
+					result = target == null
+						? Expression.Call(eventInfo.AddMethod, set(eventInfo.EventHandlerType))
+						: Expression.Call(target, eventInfo.AddMethod, set(eventInfo.EventHandlerType));
+					return LuaTrySetMemberReturn.ValidExpression;
+				}
 				else
 				{
 					result = null;
@@ -1831,7 +1838,7 @@ namespace Neo.IronLua
 			if (isParse && IsDynamicType(instanceType))
 			{
 				return DynamicExpression.Dynamic(runtime.GetSetIndexMember(new CallInfo(arguments.Length)), typeof(object),
-					CreateDynamicArgs<TARG>(getExpr(instance), instanceType, arguments, setTo, getExpr, getType)
+					CreateDynamicArgs(getExpr(instance), instanceType, arguments, setTo, getExpr, getType)
 				);
 			}
 
@@ -2769,7 +2776,7 @@ namespace Neo.IronLua
 				emitCall = convertedArguments => Expression.Call(null, methodInfo, convertedArguments);
 			}
 
-			result = BindParameter<TARG>(lua,
+			result = BindParameter(lua,
 				 emitCall,
 				 methodInfo.GetParameters(),
 				 callInfo,
