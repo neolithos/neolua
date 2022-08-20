@@ -449,7 +449,7 @@ namespace Neo.IronLua
 		private static Version versionInfo = null;
 
 		private static int registeredChunkLock = 0;
-		private static Dictionary<string, WeakReference> registeredChunks = new Dictionary<string, WeakReference>();
+		private static readonly Dictionary<string, WeakReference> registeredChunks = new Dictionary<string, WeakReference>();
 
 		#region -- Chunk Register ---------------------------------------------------------
 
@@ -548,7 +548,7 @@ namespace Neo.IronLua
 			}
 		} // prop Version
 
-#if !NETSTANDARD2_1 && !NETCOREAPP3_1 && !NET5_0
+#if !NETSTANDARD2_0 && !NETCOREAPP2_1 && !NET5_0
 		/// <summary>Stack trace compile options.</summary>
 		public static LuaCompileOptions StackTraceCompileOptions { get; } = new LuaCompileOptions { DebugEngine = LuaStackTraceDebugger.Default };
 #endif
