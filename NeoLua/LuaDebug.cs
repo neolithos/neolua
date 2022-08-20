@@ -196,7 +196,13 @@ namespace Neo.IronLua
 			} // func LineProgressExpression
 
 			protected override Expression VisitBlock(BlockExpression node)
-				=> base.VisitBlock(Expression.Block(node.Type, node.Variables, LineProgressExpression(node.Expressions)));
+			{
+				var expr = LineProgressExpression(node.Expressions);
+				if (expr.Any()) 
+					return Expression.Empty();
+
+				return base.VisitBlock(Expression.Block(node.Type, node.Variables, expr));
+			} // func VisitBlock
 
 			protected override Expression VisitDebugInfo(DebugInfoExpression node)
 				=> throw new InvalidOperationException();
