@@ -138,13 +138,14 @@ namespace Neo.IronLua
 	{
 		private TextWriter printExpressionTree = null;
 
-		private int numberType = (int)LuaIntegerType.Int32 | (int)LuaFloatType.Double;
+		private int numberType;
 
 		#region -- Ctor/Dtor ----------------------------------------------------------
 
 		/// <summary>Create a new lua-script-manager.</summary>
 		public Lua()
 		{
+			numberType = (int)(IntPtr.Size == 4 ? LuaIntegerType.Int32 : LuaIntegerType.Int64) | (int)LuaFloatType.Double;
 		} // ctor
 
 		/// <summary>Create a new lua-script-manager.</summary>
@@ -152,8 +153,8 @@ namespace Neo.IronLua
 		/// <param name="floatType"></param>
 		public Lua(LuaIntegerType integerType, LuaFloatType floatType)
 		{
-			this.IntegerType = integerType;
-			this.FloatType = floatType;
+			IntegerType = integerType;
+			FloatType = floatType;
 		} // ctor
 
 		/// <summary>Clear the cache.</summary>
@@ -547,7 +548,7 @@ namespace Neo.IronLua
 			}
 		} // prop Version
 
-#if !NETSTANDARD2_0 && !NETCOREAPP2_1 && !NET5_0
+#if !NETSTANDARD2_1 && !NETCOREAPP3_1 && !NET5_0
 		/// <summary>Stack trace compile options.</summary>
 		public static LuaCompileOptions StackTraceCompileOptions { get; } = new LuaCompileOptions { DebugEngine = LuaStackTraceDebugger.Default };
 #endif
