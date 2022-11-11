@@ -2235,6 +2235,12 @@ namespace Neo.IronLua
 
 			public bool IsBetter(MemberMatchInfo<TMEMBERTYPE> other) // is this better than other
 			{
+				if (IsPerfect)
+				{
+					Debug.WriteLine("  ==> IsPerfect");
+					return true;
+				}
+
 				if (other.IsPerfect)
 				{
 					Debug.WriteLine("  ==> other IsPerfect");
@@ -2243,7 +2249,7 @@ namespace Neo.IronLua
 
 				if (unboundedArguments && currentParameterLength > other.currentParameterLength)
 				{
-					Debug.WriteLine("  ==> other {0} && {1} > {2}", unboundedArguments, currentParameterLength, other.currentParameterLength);
+					Debug.WriteLine("  ==> other {unboundedArguments} && {currentParameterLength} > {other.currentParameterLength}");
 					return true;
 				}
 				else if (!unboundedArguments || currentParameterLength == other.currentParameterLength)
@@ -2340,7 +2346,7 @@ namespace Neo.IronLua
 						argsDebug.Append(callInfo.ArgumentNames[argNameIndex]).Append(": ");
 					argsDebug.Append(getType(arguments[i]));
 				}
-				Debug.WriteLine("Call: {0}", argsDebug.ToString());
+				Debug.WriteLine($"Call: {argsDebug}");
 #endif
 
 				// choose the algorithm
@@ -2354,17 +2360,17 @@ namespace Neo.IronLua
 				else
 					resetAlgorithm = ResetNamed;
 
-				Debug.WriteLine("Algorithm: {0}", resetAlgorithm.GetMethodInfo().Name);
+				Debug.WriteLine($"Algorithm: {resetAlgorithm.GetMethodInfo().Name}");
 			} // ctor
 
 			public void Reset(TMEMBERTYPE member, bool isMemberCall, MemberMatchInfo<TMEMBERTYPE> target)
 			{
-				Debug.WriteLine("Reset member: {0}", member);
+				Debug.WriteLine($"Reset member: {member}");
 
 				var parameterInfo = GetMemberParameter(member, isMemberCall);
 				target.Reset(member, parameterInfo);
 				resetAlgorithm(parameterInfo, target);
-				Debug.WriteLine("      Result: {0}", target);
+				Debug.WriteLine($"      Result: {target}");
 			} // proc Reset
 
 			private static ParameterInfo[] GetMemberParameter(TMEMBERTYPE mi, bool isMemberCall)
@@ -2583,7 +2589,7 @@ namespace Neo.IronLua
 					}
 				}
 
-				Debug.WriteLine("USED: {0}", memberMatchBind.CurrentMember);
+				Debug.WriteLine($"USED: {memberMatchBind.CurrentMember}");
 
 				return memberMatchBind.CurrentMember;
 			}
