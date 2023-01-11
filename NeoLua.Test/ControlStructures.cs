@@ -342,17 +342,17 @@ namespace LuaDLR.Test
 			TestCode(Lines(
 				"local a = 'a1';",
 				"do (b = 'aaaa')",
-				"  error('test');",
+				"  error('test ' .. b);",
 				"end(",
 				"  function (e)",
 				"    a = 'a2'",
 				"  end,",
 				"  function",
-				"    a = 'a3'",
+				"    a = 'a3' .. b",
 				"  end",
 				")",
 				"  return a;"
-				), "a3"
+				), "a3aaaa"
 			);
 		}
 

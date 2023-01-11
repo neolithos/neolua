@@ -181,6 +181,8 @@ namespace Neo.IronLua
 			public virtual Type ReturnType => parent.ReturnType;
 			/// <summary></summary>
 			public ParameterExpression[] Variables => scopeVariables == null ? new ParameterExpression[0] : (from v in scopeVariables.Values where v is ParameterExpression select (ParameterExpression)v).ToArray();
+
+			public virtual bool ActivateRethrow => parent != null && parent.ActivateRethrow;
 		} // class Scope
 
 		#endregion
@@ -393,7 +395,9 @@ namespace Neo.IronLua
 			} // func LookupExpression
 
 			public ParameterExpression ExceptionVariable { get; private set; }
-		} // class CatchScope
+
+			public override bool ActivateRethrow => true;
+        } // class CatchScope
 
 		#endregion
 
@@ -636,7 +640,7 @@ namespace Neo.IronLua
 			return name.ToString();
 		} // func CreateNameFromFile
 
-		private static void ParseBlock(Scope scope, ILuaLexer code, bool activateRethrow = false)
+		private static void ParseBlock(Scope scope, ILuaLexer code)
 		{
 			// Lese die Statement
 			var lastDebugInfo = -1;
@@ -673,7 +677,7 @@ namespace Neo.IronLua
 						if (!debugInfoEmitted && (scope.EmitDebug & LuaDebugLevel.Expression) != 0) // Start every statement with a debug point
 							scope.AddExpression(GetDebugInfo(code.Current, code.Current));
 
-						if (activateRethrow && code.Current.Typ == LuaToken.Identifier && code.Current.Value == "rethrow")
+						if (scope.ActivateRethrow && code.Current.Typ == LuaToken.Identifier && code.Current.Value == "rethrow")
 						{
 							code.Next();
 							scope.AddExpression(Expression.Rethrow());
@@ -1852,7 +1856,7 @@ namespace Neo.IronLua
 						FetchToken(LuaToken.BracketClose, code);
 
 						var exceptionScope = new CatchScope(outerScope, Expression.Parameter(exceptionType, exceptionName.Value));
-						ParseBlock(exceptionScope, code, true);
+						ParseBlock(exceptionScope, code);
 
 						exprCatch.Add(Expression.MakeCatchBlock(exceptionType, exceptionScope.ExceptionVariable, exceptionScope.ExpressionBlock, null));
 					}
