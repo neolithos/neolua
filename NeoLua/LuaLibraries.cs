@@ -731,6 +731,13 @@ namespace Neo.IronLua
 		public static double atan(double x)
 			=> Math.Atan(x);
 
+		/// <summary>Implementation of http://www.lua.org/manual/5.3/manual.html#pdf-math.atan </summary>
+		/// <param name="y"></param>
+		/// <param name="x"></param>
+		/// <returns></returns>
+		public static double atan(double y, double x)
+			=> Math.Atan2(y, x);
+
 		/// <summary>Implementation of http://www.lua.org/manual/5.2/manual.html#pdf-math.atan2 </summary>
 		/// <param name="y"></param>
 		/// <param name="x"></param>
