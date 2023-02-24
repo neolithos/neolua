@@ -381,7 +381,7 @@ namespace Neo.IronLua
 
 		// -- Static --------------------------------------------------------------
 
-#if NET45
+#if NET451
 		private static readonly object[] emptyArray = new object[0];
 #else
 		private static readonly object[] emptyArray = Array.Empty<object>();

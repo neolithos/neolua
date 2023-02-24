@@ -278,7 +278,7 @@ namespace Neo.IronLua
 				sb.Append('(');
 				foreach (var pi in m.GetParameters())
 				{
-#if NET45
+#if NET451
 					if (typeof(System.Runtime.CompilerServices.Closure).IsAssignableFrom(pi.ParameterType))
 						continue;
 #endif
