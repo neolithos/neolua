@@ -2075,7 +2075,6 @@ namespace Neo.IronLua
 						count++;
 
 					arrayList[arrayIndex] = value;
-					version++;
 
 					// correct the array length
 					if (arrayLength == arrayIndex) // arrayLength = arrayIndex - 1
