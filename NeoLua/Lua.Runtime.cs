@@ -257,7 +257,7 @@ namespace Neo.IronLua
 			CombineArrayWithResultMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtCombineArrayWithResult), ReflectionFlag.None, typeof(Array), typeof(LuaResult), typeof(Type));
 			ConvertArrayMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConvertArray), ReflectionFlag.None, typeof(Array), typeof(Type));
 			TableSetObjectsMethod = tiLua.FindDeclaredMethod(nameof(Lua.RtTableSetObjects), ReflectionFlag.None, typeof(LuaTable), typeof(object), typeof(int));
-			ConcatStringMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConcatString), ReflectionFlag.None | ReflectionFlag.NoArguments);
+			ConcatStringMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConcat), ReflectionFlag.None | ReflectionFlag.NoArguments);
 			ConvertDelegateMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConvertDelegate), ReflectionFlag.None | ReflectionFlag.NoArguments);
 			InitArray1MethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtInitArray), ReflectionFlag.None, typeof(Type), typeof(object));
 			InitArrayNMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtInitArray), ReflectionFlag.None, typeof(Type), typeof(object[]));
@@ -1290,27 +1290,37 @@ namespace Neo.IronLua
 
 		#region -- RtConcatString -----------------------------------------------------
 
-		private static string RtConcatStringTable(object[] args, int iIndex)
-		{
-			if (iIndex >= args.Length - 1)
-				return (string)RtConvertValue(args[iIndex], typeof(string));
-			else if (args[iIndex] is LuaTable)
-				return (string)RtConvertValue(((LuaTable)args[iIndex]).InternConcat(RtConcatStringTable(args, iIndex + 1)), typeof(string));
-			else
-				return (string)RtConvertValue(args[iIndex], typeof(string)) + RtConcatStringTable(args, iIndex + 1);
-		} // func RtConcatStringTable
 
-		internal static string RtConcatString(object[] args)
+		internal static object RtConcat(object[] args)
 		{
-			if (Array.Exists(args, a => a is LuaTable)) // do we have a table, than we use the metatable
-				return RtConcatStringTable(args, 0);
-			else
+			static bool HasConcatMetaMethod(object o, out LuaTable table)
 			{
-				var strings = new string[args.Length];
-				for (var i = 0; i < args.Length; i++)
-					strings[i] = (string)RtConvertValue(args[i], typeof(string));
-				return String.Concat(strings);
+				table = null;
+				if (o is LuaTable { MetaTable: { } mt } table1 && mt["__concat"] is not null)
+				{
+					table = table1;
+					return true;
+				}
+
+				return false;
 			}
+
+			if (args.Length == 2)
+			{
+				if (HasConcatMetaMethod(args[0], out var tableLhs))
+				{
+					return tableLhs.InternConcat(tableLhs, args[1]);
+				}
+				if (HasConcatMetaMethod(args[1], out var tableRhs))
+				{
+					return tableRhs.InternConcat(args[0], tableRhs);
+				}
+			}
+
+			var strings = new string[args.Length];
+			for (var i = 0; i < args.Length; i++)
+				strings[i] = (string)RtConvertValue(args[i], typeof(string));
+			return String.Concat(strings);
 		} // func RtConcatString
 
 		#endregion
