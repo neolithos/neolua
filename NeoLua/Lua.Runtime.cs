@@ -1293,35 +1293,34 @@ namespace Neo.IronLua
 
 		internal static object RtConcat(object[] args)
 		{
-            static bool HasConcatMetaMethod(object o, out LuaTable table)
-            {
-                table = null;
-                if (o is LuaTable { MetaTable: { } mt } table1 && mt["__concat"] is not null)
-                {
-                    table = table1;
-                    return true;
-                }
+			static bool HasConcatMetaMethod(object o, out LuaTable table)
+			{
+				table = null;
+				if (o is LuaTable { MetaTable: { } mt } table1 && mt["__concat"] is not null)
+				{
+					table = table1;
+					return true;
+				}
 
-                return false;
-            }
+				return false;
+			}
 
-            if (args.Length == 2)
-            {
-                if (HasConcatMetaMethod(args[0], out var tableLhs))
-                {
-                    return tableLhs.InternConcat(tableLhs, args[1]);
-                }
-                if (HasConcatMetaMethod(args[1], out var tableRhs))
-                {
-                    return tableRhs.InternConcat(args[0], tableRhs);
-                }
-            }
+			if (args.Length == 2)
+			{
+				if (HasConcatMetaMethod(args[0], out var tableLhs))
+				{
+					return tableLhs.InternConcat(tableLhs, args[1]);
+				}
+				if (HasConcatMetaMethod(args[1], out var tableRhs))
+				{
+					return tableRhs.InternConcat(args[0], tableRhs);
+				}
+			}
 
 			var strings = new string[args.Length];
 			for (var i = 0; i < args.Length; i++)
 				strings[i] = (string)RtConvertValue(args[i], typeof(string));
 			return String.Concat(strings);
-			
 		} // func RtConcatString
 
 		#endregion
