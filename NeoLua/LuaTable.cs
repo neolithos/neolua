@@ -2887,13 +2887,13 @@ namespace Neo.IronLua
 		private object UnaryOperation(string key)
 			=> TryInvokeMetaTableOperator<object>(key, true, out var o, this) ? o : null;
 
-        private object BinaryOperation(string key, object lhs, object rhs)
-            => TryInvokeMetaTableOperator<object>(key, true, out var o, lhs, rhs) ? o : null;
+		private object BinaryOperation(string key, object lhs, object rhs)
+			=> TryInvokeMetaTableOperator<object>(key, true, out var o, lhs, rhs) ? o : null;
 
-        private object BinaryOperation(string key, object rhs) 
-            => BinaryOperation(key, this, rhs);
+		private object BinaryOperation(string key, object rhs) 
+			=> BinaryOperation(key, this, rhs);
 
-        private bool BinaryBoolOperation(string key, object arg)
+		private bool BinaryBoolOperation(string key, object arg)
 			=> TryInvokeMetaTableOperator<bool>(key, true, out var o, this, arg) ? o : false;
 
 		/// <summary></summary>
@@ -2984,11 +2984,11 @@ namespace Neo.IronLua
 		/// <summary></summary>
 		/// <param name="rhs"></param>
 		/// <returns></returns>
-        protected virtual object OnConcat(object rhs)
-            => BinaryOperation("__concat", this, rhs);
+		protected virtual object OnConcat(object rhs)
+			=> BinaryOperation("__concat", this, rhs);
 
 
-        internal int InternLen()
+		internal int InternLen()
 			=> OnLen();
 
 		/// <summary></summary>
