@@ -2244,7 +2244,7 @@ namespace Neo.IronLua
 				if (other.IsPerfect)
 				{
 					Debug.WriteLine("  ==> other IsPerfect");
-					return true;
+					return false;
 				}
 
 				if (unboundedArguments && currentParameterLength > other.currentParameterLength)
@@ -2551,7 +2551,7 @@ namespace Neo.IronLua
 			where TMEMBERTYPE : MemberInfo
 			where TARG : class
 		{
-			var unboundedArguments = callInfo.ArgumentNames.Count == 0 && arguments.Length > 0 ? getType(arguments[arguments.Length - 1]) == typeof(LuaResult) : false;
+			var unboundedArguments = callInfo.ArgumentNames.Count == 0 && arguments.Length > 0 ? arguments[arguments.Length - 1] is LuaResult { Count: > 1} : false;
 			var memberMatch = new MemberMatch<TMEMBERTYPE, TARG>(callInfo, arguments, getType);
 			var memberMatchBind = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
 
