@@ -20,6 +20,7 @@ This library contains the desktop parts of the lua implementation.</PackageRelea
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>NeoLua.snk</AssemblyOriginatorKeyFile>
     <Nullable>disable</Nullable>
+    <LangVersion>9</LangVersion>
   </PropertyGroup>
 	<Import Project="..\NeoLua.NuGet\common.nupkg.targets" />
 	<ItemGroup>

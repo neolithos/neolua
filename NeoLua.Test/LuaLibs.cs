@@ -161,5 +161,50 @@ namespace LuaDLR.Test
 				23, 42
 			);
 		}
+
+		[TestMethod]
+		public void TestRequire01()
+		{
+			// Lua should find a module by replacing '?' with the module name in the package path.
+			Directory.CreateDirectory("lua_module");
+			File.WriteAllText(Path.Combine("lua_module", "ReqModule.lua"), "function foo() return 'bar' end");
+
+			TestCode(Lines(
+				"package.path = package.path..';./lua_module/?.lua'",
+				"require('ReqModule');",
+				"return foo();"),
+				"bar"
+			);
+		}
+
+		[TestMethod]
+		public void TestRequire02()
+		{
+			// Lua should find a module by searching for the module in package path directories
+			Directory.CreateDirectory("lua_module");
+			File.WriteAllText(Path.Combine("lua_module", "ReqModule.lua"), "function foo() return 'bar' end");
+
+			TestCode(Lines(
+					"package.path = package.path..';./lua_module'",
+					"require('ReqModule');",
+					"return foo();"),
+				"bar"
+			);
+		}
+
+		[TestMethod]
+		public void TestRequire03()
+		{
+			// Lua should find a module by replacing '?' with the module name in the environment LUA_PATH.
+			Directory.CreateDirectory("lua_module");
+			File.WriteAllText(Path.Combine("lua_module", "ReqModule.lua"), "function foo() return 'bar' end");
+			Environment.SetEnvironmentVariable("LUA_PATH", "./lua_module/?.lua");
+			TestCode(Lines(
+			
+					"require('ReqModule');",
+					"return foo();"),
+				"bar"
+			);
+		}
 	}
 }
