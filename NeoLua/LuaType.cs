@@ -1068,9 +1068,24 @@ namespace Neo.IronLua
 							{
 								try
 								{
+#if NETCOREAPP1_0_OR_GREATER
+									if (UseUnsafeLookup)
+									{
+										currentAssembly =
+											current.reflected =
+											Assembly.UnsafeLoadFrom(current.Name.FullName);
+									}
+									else
+									{
+										currentAssembly =
+											current.reflected =
+											Assembly.Load(current.Name.FullName);
+									}
+#else
 									currentAssembly =
 										current.reflected =
 										Assembly.ReflectionOnlyLoad(current.Name.FullName);
+#endif
 								}
 								catch
 								{
@@ -1709,6 +1724,14 @@ namespace Neo.IronLua
 		public static ILuaTypeResolver DefaultResolver { get; } = new AssemblyCacheList();
 		/// <summary>Should the type resolve also scan references assemblies (default is true).</summary>
 		public static bool LookupReferencedAssemblies { get; set; }
+		/// <summary>Should assemblies be loaded in an unsafe manner.<br/>
+		/// False by default, set it to true to speed up loading at the cost of safety. <br/>
+		/// Only has an effect if <see cref="LookupReferencedAssemblies"/> is true. <br/>
+		/// When this property is true assemblies are loaded through <see cref="Assembly.UnsafeLoadFrom"/> 
+		/// instead of <see cref="Assembly.Load(string)"/>.<br/>
+		/// This option is only used in .net core apps.
+		/// </summary>
+		public static bool UseUnsafeLookup { get; set; } = false;
 	} // class LuaType
 
 	#endregion
