@@ -1456,5 +1456,41 @@ namespace LuaDLR.Test
 			Assert.AreEqual("-Infinity", r["test5"]);
 		}
 
+		[DataTestMethod]
+		[DataRow("'abc-' .. rhs", "abc-table")]
+		[DataRow("lhs .. '-abc'", "table-abc")]
+		[DataRow("'abc' .. rhs_cc", "metaconcat-abc-rhs with concat")]
+		[DataRow("lhs_cc .. 'abc'", "metaconcat-lhs with concat-abc")]
+		[DataRow("lhs_cc .. rhs", "metaconcat-lhs with concat-table")]
+		[DataRow("lhs .. rhs_cc", "metaconcat-table-rhs with concat")]
+		public void CallsConcatMetaMethodOnTable(string concatTest, string expected)
+		{
+			var script = $@"
+
+local meta = {{}};
+function meta.__concat(lhs, rhs)
+	lhsStr = tostring(lhs)
+	rhsStr = tostring(rhs)
+	return 'metaconcat-' .. lhsStr .. '-' .. rhsStr
+end 
+function meta.__tostring(t)
+	return t.name
+end
+
+local rhs = {{}};
+local lhs = {{}};
+local rhs_cc = {{['name']='rhs with concat'}};
+local lhs_cc = {{['name']='lhs with concat'}};
+
+setmetatable(lhs_cc, meta);
+setmetatable(rhs_cc, meta);
+
+return {concatTest}
+";
+
+			TestCode(script, expected);
+		}
+
+
 	} // class LuaTableTests
 }
