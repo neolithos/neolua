@@ -131,3 +131,7 @@ If there is something unclear, wrong or misunderstanding please use the discussi
 
 * Article on CodeProject: http://www.codeproject.com/Articles/674128/NeoLua-Lua-for-the-net-dynamic-lanuguage-runtime
 * NuGet package: https://www.nuget.org/packages/NeoLua/
+
+You want pay for your request, contact us under https://tecware-gmbh.de/kontakt.html (only for members of the european union).
+
+Or you want todo something good for other people. Donate to https://angelman.de/unser-verein/spenden/ (only in german)
