@@ -318,7 +318,7 @@ namespace LuaDLR.Test
 		{
 			TestCode(Lines(
 			  "tm = {}",
-			  "tm.__concat = function (t, a) return t.s .. a; end;",
+			  "tm.__concat = function (a, b) if type(a) == 'table' then return a.s .. b; else return a .. b.s end; end;",
 			  "t = { __metatable = tm, s = 'a' };",
 			  "return t .. 'b', 'a' .. t .. 'b';"), "ab", "aab");
 		}

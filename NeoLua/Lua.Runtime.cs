@@ -29,6 +29,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Neo.IronLua
 {
@@ -1290,37 +1291,65 @@ namespace Neo.IronLua
 
 		#region -- RtConcatString -----------------------------------------------------
 
-
 		internal static object RtConcat(object[] args)
 		{
 			static bool HasConcatMetaMethod(object o, out LuaTable table)
 			{
-				table = null;
-				if (o is LuaTable { MetaTable: { } mt } table1 && mt["__concat"] is not null)
+				if (o is LuaTable { MetaTable: { } mt } t && mt["__concat"] is not null)
 				{
-					table = table1;
+					table = t;
 					return true;
 				}
 
+				table = null;
 				return false;
-			}
+			} // func HasConcatMetaMethod
 
+			static string ConcatString(string[] strings, int count)
+			{
+				return count == strings.Length
+					? String.Concat(strings)
+					: String.Concat(strings.Take(count));
+			} // func ConcatString
+
+			static object ConcatPart(object[] args, int offset)
+			{
+				var strings = new string[args.Length - offset];
+				var i = offset;
+				var j = 0;
+				while (i < args.Length)
+				{
+					var o = args[i++]; // take argument
+					if (HasConcatMetaMethod(o, out var table)) // check for table
+					{
+						if (j > 0) // lhs concat
+						{
+							o = table.InternConcat(ConcatString(strings, j), table);
+							j = 0; // reset list
+						}
+						else // rhs concat
+							return table.InternConcat(table, ConcatPart(args, i));
+					}
+					
+					// add normal string
+					strings[j++] = (string)RtConvertValue(o, typeof(string));
+				}
+
+				return ConcatString(strings, j);
+			} // func ConcatPart
+
+			// opimize binary operation
 			if (args.Length == 2)
 			{
 				if (HasConcatMetaMethod(args[0], out var tableLhs))
-				{
 					return tableLhs.InternConcat(tableLhs, args[1]);
-				}
-				if (HasConcatMetaMethod(args[1], out var tableRhs))
-				{
+				else if (HasConcatMetaMethod(args[1], out var tableRhs))
 					return tableRhs.InternConcat(args[0], tableRhs);
-				}
+				else
+					return String.Concat((string)RtConvertValue(args[0], typeof(string)), (string)RtConvertValue(args[1], typeof(string)));
 			}
-
-			var strings = new string[args.Length];
-			for (var i = 0; i < args.Length; i++)
-				strings[i] = (string)RtConvertValue(args[i], typeof(string));
-			return String.Concat(strings);
+			else // all other versions
+				return ConcatPart(args, 0);
 		} // func RtConcatString
 
 		#endregion
