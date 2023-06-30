@@ -1436,7 +1436,9 @@ namespace Neo.IronLua
 		public LuaLibraryPackage(LuaGlobal global)
 		{
 			this.loaded = new LuaLoadedTable(global);
-			this.path = CurrentDirectoryPathVariable;
+			this.path = Environment.GetEnvironmentVariable("LUA_PATH") is { } luaPath
+				? $"{CurrentDirectoryPathVariable};{luaPath}"
+				: CurrentDirectoryPathVariable;
 		} // ctor
 
 		internal LuaChunk LuaRequire(LuaGlobal global, string moduleName)
@@ -1505,27 +1507,29 @@ namespace Neo.IronLua
 			// replace dots blind to directory seperator, like lua it does.
 			if (modulName.IndexOf(System.IO.Path.DirectorySeparatorChar) >= 0)
 				modulName = modulName.Replace('.', System.IO.Path.DirectorySeparatorChar);
-			// add .lua
-			if (!modulName.EndsWith(".lua", StringComparison.OrdinalIgnoreCase))
-				modulName += ".lua";
-
+			
 			foreach (var c in paths)
 			{
 				if (String.IsNullOrEmpty(c))
 					continue;
-				else
+
+				string testFileName = c.Contains("?") ? c.Replace("?", modulName) : System.IO.Path.Combine(c, modulName);
+
+				// add .lua
+				if (!testFileName.EndsWith(".lua", StringComparison.OrdinalIgnoreCase))
+					testFileName += ".lua";
+
+
+				var testStamp = LuaRequireCheckFile(ref testFileName);
+				if (testStamp.HasValue)
 				{
-					var testFileName = System.IO.Path.Combine(c, modulName);
-					var testStamp = LuaRequireCheckFile(ref testFileName);
-					if (testStamp.HasValue)
+					if (fileName == null || stamp < testStamp.Value)
 					{
-						if (fileName == null || stamp < testStamp.Value)
-						{
-							fileName = testFileName;
-							stamp = testStamp.Value;
-						}
+						fileName = testFileName;
+						stamp = testStamp.Value;
 					}
 				}
+				
 			}
 
 			return fileName != null;
