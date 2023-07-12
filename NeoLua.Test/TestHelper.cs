@@ -2,9 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Neo.IronLua;
 
@@ -44,8 +41,8 @@ namespace LuaDLR.Test
 		public void TestExpr(string expression, params object[] expectedResult)
 			=> TestCode("return " + expression + ";", expectedResult);
 	
-		private static string FormatValue(object v)
-			=> String.Format("({0}){1}", v == null ? "object" : v.GetType().Name, v);
+		private static string FormatValue(object v) 
+			=> $"({(v == null ? "object" : v.GetType().Name)}){v}";
 
 		public static void TestResult(LuaResult result, params object[] expectedResult)
 		{
@@ -60,8 +57,9 @@ namespace LuaDLR.Test
 				}
 				else
 				{
-					Console.WriteLine("FAIL: no result != {0}", FormatValue(result[0]));
-					Assert.Fail();
+					var msg = $"FAIL: no result != {FormatValue(result[0])}";
+					Console.WriteLine(msg);
+					Assert.Fail(msg);
 				}
 			}
 			else
@@ -81,15 +79,17 @@ namespace LuaDLR.Test
 					else
 					{
 						var isOk = Equals(valueResult, valueExpected);
-						Console.WriteLine("{0}: {1} {2} {3}", isOk ? "OK" : "FAIL", FormatValue(valueResult), isOk ? "==" : "!=", FormatValue(valueExpected));
+						var msg = $"{(isOk ? "OK" : "FAIL")}: {FormatValue(valueResult)} {(isOk ? "==" : "!=")} {FormatValue(valueExpected)}";
+						Console.WriteLine(msg);
 						if (!isOk)
-							Assert.Fail();
+							Assert.Fail(msg);
 					}
 				}
 				if (result.Values.Length != expectedResult.Length)
 				{
-					Console.WriteLine("FAIL: Result Count {0} != {1}", result.Values.Length, expectedResult.Length);
-					Assert.Fail();
+					var format = $"FAIL: Result Count {result.Values.Length} != {expectedResult.Length}";
+					Console.WriteLine(format);
+					Assert.Fail(format);
 				}
 			}
 		} // proc TestResult
