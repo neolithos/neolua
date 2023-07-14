@@ -738,25 +738,87 @@ namespace LuaDLR.Test
 			TestExpr("~'2.1'", (long)~2);
 		}
 
-		[TestMethod]
-		public void TestArithmetic18()
+		[DataTestMethod]
+		[DataRow(2, -2)]
+		[DataRow(2.1, -2.1)]
+		[DataRow(ShortEnum.Zwei, (ShortEnum)(-2))]
+		public void TestArithmetic18(object input, object expected)
 		{
 			using (Lua l = new Lua())
 			{
 				l.PrintExpressionTree = Console.Out;
 
 				dynamic g = l.CreateEnvironment();
-				TestResult(g.dochunk("return -a", "dummy", "a", 2), -2);
-				TestResult(g.dochunk("return -a", "dummy", "a", 2.1), -2.1);
-				TestResult(g.dochunk("return -a", "dummy", "a", new TestOperator(2)), new TestOperator(-2));
-				TestResult(g.dochunk("return -a", "dummy", "a", new TestOperator2(2)), -2);
-				TestResult(g.dochunk("return -a", "dummy", "a", ShortEnum.Zwei), (ShortEnum)(-2));
+				TestResult(g.dochunk("return -a", "dummy", "a", input), expected);
+			}
+		}
 
-				TestResult(g.dochunk("return ~a", "dummy", "a", 2), ~2);
-				TestResult(g.dochunk("return ~a", "dummy", "a", 2.1), (long)~2);
+		[DataTestMethod]
+		[DataRow(2, ~2)]
+		[DataRow(2.1, (long)~2)]
+		[DataRow(ShortEnum.Zwei, (ShortEnum)(~2))]
+		public void TestArithmetic18_1(object input, object expected)
+		{
+			using (Lua l = new Lua())
+			{
+				l.PrintExpressionTree = Console.Out;
+
+				dynamic g = l.CreateEnvironment();
+				TestResult(g.dochunk("return ~a", "dummy", "a", input), expected);
+			}
+		}
+
+
+		[TestMethod]
+		public void TestArithmetic18_2()
+		{
+			using (Lua l = new Lua())
+			{
+				l.PrintExpressionTree = Console.Out;
+
+				dynamic g = l.CreateEnvironment();
+				
+				TestResult(g.dochunk("return -a", "dummy", "a", new TestOperator(2)), new TestOperator(-2));
+				
+			}
+		}
+
+		[TestMethod]
+		public void TestArithmetic18_3()
+		{
+			using (Lua l = new Lua())
+			{
+				l.PrintExpressionTree = Console.Out;
+
+				dynamic g = l.CreateEnvironment();
+
+				TestResult(g.dochunk("return -a", "dummy", "a", new TestOperator2(2)), -2.0);
+
+			}
+		}
+
+		[TestMethod]
+		public void TestArithmetic18_4()
+		{
+			using (Lua l = new Lua())
+			{
+				l.PrintExpressionTree = Console.Out;
+
+				dynamic g = l.CreateEnvironment();
+
 				TestResult(g.dochunk("return ~a", "dummy", "a", new TestOperator(2)), new TestOperator(~2));
-				TestResult(g.dochunk("return ~a", "dummy", "a", new TestOperator2(2)), ~2);
-				TestResult(g.dochunk("return ~a", "dummy", "a", ShortEnum.Zwei), (ShortEnum)~2);
+			}
+		}
+		[TestMethod]
+		public void TestArithmetic18_5()
+		{
+			using (Lua l = new Lua())
+			{
+				l.PrintExpressionTree = Console.Out;
+
+				dynamic g = l.CreateEnvironment();
+
+				TestResult(g.dochunk("return ~a", "dummy", "a", new TestOperator2(2)), (long)~2);
 			}
 		}
 
@@ -1088,7 +1150,7 @@ namespace LuaDLR.Test
 			TestCode(String.Join(Environment.NewLine,
 			  "local a : string = '2';",
 			  "return a == 2;"
-			  ), true);
+			  ),  true);
 		}
 
 		[TestMethod]

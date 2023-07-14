@@ -4,7 +4,7 @@
 		<AssemblyName>Neo.Lua.Dbg</AssemblyName>
 		<RootNamespace>Neo.IronLua</RootNamespace>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-		<TargetFrameworks>net452;netcoreapp2.1</TargetFrameworks>
+		<TargetFrameworks>net452;net60</TargetFrameworks>
 		<SignAssembly>true</SignAssembly>
 		<AssemblyOriginatorKeyFile>NeoLua.snk</AssemblyOriginatorKeyFile>
 		<PackageId>NeoLuaDebug</PackageId>

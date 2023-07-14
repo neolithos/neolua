@@ -258,7 +258,7 @@ namespace Neo.IronLua
 			CombineArrayWithResultMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtCombineArrayWithResult), ReflectionFlag.None, typeof(Array), typeof(LuaResult), typeof(Type));
 			ConvertArrayMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConvertArray), ReflectionFlag.None, typeof(Array), typeof(Type));
 			TableSetObjectsMethod = tiLua.FindDeclaredMethod(nameof(Lua.RtTableSetObjects), ReflectionFlag.None, typeof(LuaTable), typeof(object), typeof(int));
-			ConcatStringMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConcatString), ReflectionFlag.None | ReflectionFlag.NoArguments);
+			ConcatStringMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConcat), ReflectionFlag.None | ReflectionFlag.NoArguments);
 			ConvertDelegateMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConvertDelegate), ReflectionFlag.None | ReflectionFlag.NoArguments);
 			InitArray1MethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtInitArray), ReflectionFlag.None, typeof(Type), typeof(object));
 			InitArrayNMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtInitArray), ReflectionFlag.None, typeof(Type), typeof(object[]));

@@ -760,11 +760,25 @@ namespace LuaDLR.Test
 				Lines(
 					"local a = clr.System.Byte[];",
 					"local b = clr.System.Byte[]:GetType();",
-					"return a == b, b == a"
+					"return a == b"
 				),
-				true, true
+				true
 			);
 		}
+
+		[TestMethod]
+		public void CompareLuaTypeType02()
+		{
+			TestCode(
+				Lines(
+					"local a = clr.System.Byte[];",
+					"local b = clr.System.Byte[]:GetType();",
+					"return b == a"
+				),
+				true
+			);
+		}
+
 
 		[TestMethod]
 		public void TestTypeInitializer01()

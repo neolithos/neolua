@@ -30,6 +30,7 @@ namespace Neo.IronLua
 
 	///////////////////////////////////////////////////////////////////////////////
 	/// <summary></summary>
+	[Flags]
 	internal enum ReflectionFlag
 	{
 		None = 0,
@@ -351,7 +352,7 @@ namespace Neo.IronLua
 			MethodInfo mi;
 			ConstantExpression constInstance = instance as ConstantExpression;
 			LuaType t;
-			if (constInstance != null && (t = constInstance.Value as LuaType) != null && t.Type != null) // we have a type, bind the ctor
+			if (constInstance is not null && (t = constInstance.Value as LuaType) is not null && t.Type is not null) // we have a type, bind the ctor
 			{
 				var type = t.Type;
 				var typeInfo = type.GetTypeInfo();
@@ -384,7 +385,7 @@ namespace Neo.IronLua
 				);
 			}
 			else if (typeof(Delegate).GetTypeInfo().IsAssignableFrom(instance.Type.GetTypeInfo()) &&  // test if the type is assignable from delegate
-				(mi = instance.Type.GetRuntimeMethods().Where(c => !c.IsStatic && c.IsPublic && c.Name == "Invoke").FirstOrDefault()) != null) // Search the Invoke method for the arguments
+				(mi = instance.Type.GetRuntimeMethods().Where(c => !c.IsStatic && c.IsPublic && c.Name == "Invoke").FirstOrDefault()) is not null) // Search the Invoke method for the arguments
 			{
 				return EnsureInvokeResult(scope, tStart,
 					SafeExpression(() => LuaEmit.BindParameter<Expression>(

@@ -3763,16 +3763,16 @@ namespace Neo.IronLua
 		/// <param name="t"></param>
 		/// <param name="i"></param>
 		/// <returns></returns>
-		public static LuaResult unpack(LuaTable t, int i)
-			=> unpack(t, i, t.Length);
+		public static LuaResult unpack(LuaTable t, object i)
+			=> unpack(t, i is int index ? index : 1, t.Length);
 
 		/// <summary>Returns the elements from the given table.</summary>
 		/// <param name="t"></param>
 		/// <param name="i"></param>
 		/// <param name="j"></param>
 		/// <returns></returns>
-		public static LuaResult unpack(LuaTable t, int i, int j)
-			=> new LuaResult(LuaResult.CopyMode.None, unpack(t, i, j, LuaResult.Empty.Values));
+		public static LuaResult unpack(LuaTable t, object i, object j)
+			=> new LuaResult(LuaResult.CopyMode.None, unpack(t, i is int index ? index : 1, j is int length ? length : t.Length, LuaResult.Empty.Values));
 
 		/// <summary>Returns the elements from the given table as a sequence.</summary>
 		/// <param name="t"></param>

@@ -26,7 +26,9 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
+using Type = System.Type;
 
 namespace Neo.IronLua
 {
@@ -229,11 +231,11 @@ namespace Neo.IronLua
 			}
 		} // func GetTypeCode
 
-		internal static bool TypesMatch(Type typeTo, Type typeFrom, out bool isExcact, bool stringAutoConvert = true)
+		internal static bool TypesMatch(Type typeTo, Type typeFrom, out MemberMatchValue match, bool stringAutoConvert = true, bool toTypeIsParamsArray = false)
 		{
 			if (typeTo == typeFrom)
 			{
-				isExcact = true;
+				match = MemberMatchValue.Exact;
 				return true;
 			}
 
@@ -242,29 +244,47 @@ namespace Neo.IronLua
 
 			if (tiTo == tiFrom)
 			{
-				isExcact = true;
+				match = MemberMatchValue.Exact;
 				return true;
 			}
 			else if (tiTo.IsAssignableFrom(tiFrom))
 			{
-				isExcact = false;
+				bool arrayDecay = !typeTo.IsArray && (typeFrom.IsArray || typeFrom == typeof(LuaResult));
+				match = arrayDecay ? MemberMatchValue.ArrayDecay : MemberMatchValue.AssignableMatch;
 				return true;
+			}
+			else if (toTypeIsParamsArray)
+			{
+				var elementTypeMatches = TypesMatch(typeTo.GetElementType(), typeFrom, out match, stringAutoConvert, toTypeIsParamsArray: false);
+				return elementTypeMatches;
 			}
 			else
 			{
 				var tcTo = GetTypeCode(tiTo);
 				var tcFrom = GetTypeCode(tiFrom);
 
-				isExcact = false;
-
 				if (stringAutoConvert && tcTo == LuaEmitTypeCode.String && tcFrom != LuaEmitTypeCode.Object)
+				{
+					match = MemberMatchValue.StringAutoConvert;
 					return true;
-				else if (tcTo >= LuaEmitTypeCode.SByte && tcTo <= LuaEmitTypeCode.Double &&
-							(tcFrom >= LuaEmitTypeCode.SByte && tcFrom <= tcTo || tcTo == LuaEmitTypeCode.Single && tcFrom == LuaEmitTypeCode.Double)) // exception for single -> double
+				}
+					
+				else if (tcTo is >= LuaEmitTypeCode.SByte and <= LuaEmitTypeCode.Double &&
+				         (tcFrom >= LuaEmitTypeCode.SByte && tcFrom <= tcTo ||
+				          tcTo == LuaEmitTypeCode.Single &&
+				          tcFrom == LuaEmitTypeCode.Double)) // exception for single -> double
+				{
+					match = MemberMatchValue.NumericImplicitConvert;
 					return true;
-				else if (stringAutoConvert && tcFrom == LuaEmitTypeCode.String && tcTo >= LuaEmitTypeCode.SByte && tcTo <= LuaEmitTypeCode.Double)
+				}
+					
+				else if (stringAutoConvert && tcFrom == LuaEmitTypeCode.String && tcTo is >= LuaEmitTypeCode.SByte and <= LuaEmitTypeCode.Double)
+				{
+					match = MemberMatchValue.StringAutoConvert;
 					return true;
+				}
 
+				match = MemberMatchValue.None;
 				return false;
 			}
 		} // bool TypesMatch
@@ -335,21 +355,21 @@ namespace Neo.IronLua
 
 				if (currentMethodInfo == null) // no match until now, take first that fits
 				{
-					isExactFrom = testExactFrom;
-					isExactTo = testExactTo;
+					isExactFrom = testExactFrom == MemberMatchValue.Exact;
+					isExactTo = testExactTo == MemberMatchValue.Exact;
 					implicitMethod = testImplicit;
 					currentMethodInfo = mi;
 				}
-				else if (!isExactTo && testExactTo) // exactTo is matching -> is most important
+				else if (!isExactTo && testExactTo == MemberMatchValue.Exact) // exactTo is matching -> is most important
 				{
-					isExactFrom = testExactFrom;
-					isExactTo = testExactTo;
+					isExactFrom = testExactFrom == MemberMatchValue.Exact;
+					isExactTo = true;
 					implicitMethod = testImplicit;
 					currentMethodInfo = mi;
 				}
-				else if (testExactTo) // check only testExactFrom
+				else if (testExactTo == MemberMatchValue.Exact) // check only testExactFrom
 				{
-					if (testExactFrom) // nice
+					if (testExactFrom == MemberMatchValue.Exact) // nice
 					{
 						if (testImplicit) // perfect
 						{
@@ -373,8 +393,8 @@ namespace Neo.IronLua
 						var tcNew = GetTypeCode(parameters[0].ParameterType);
 						if (IsArithmeticType(tcCurrent) && IsArithmeticType(tcNew) && tcCurrent < tcNew)
 						{
-							isExactFrom = testExactFrom;
-							isExactTo = testExactTo;
+							isExactFrom = false;
+							isExactTo = false;
 							implicitMethod = testImplicit;
 							currentMethodInfo = mi;
 						}
@@ -386,8 +406,8 @@ namespace Neo.IronLua
 					var tcNew = GetTypeCode(mi.ReturnType);
 					if (IsArithmeticType(tcCurrent) && IsArithmeticType(tcNew) && tcCurrent < tcNew)
 					{
-						isExactFrom = testExactFrom;
-						isExactTo = testExactTo;
+						isExactFrom = testExactFrom == MemberMatchValue.Exact;
+						isExactTo = false;
 						implicitMethod = testImplicit;
 						currentMethodInfo = mi;
 					}
@@ -841,9 +861,9 @@ namespace Neo.IronLua
 			Type typeOp;
 			if (type1 == type2)
 				typeOp = type1;
-			else if (TypesMatch(type1, type2, out var isExact) && isExact)
+			else if (TypesMatch(type1, type2, out var match) && match == MemberMatchValue.Exact)
 				typeOp = type1;
-			else if (TypesMatch(type2, type1, out isExact) && isExact)
+			else if (TypesMatch(type2, type1, out match) && match == MemberMatchValue.Exact)
 				typeOp = type2;
 			else
 				typeOp = typeof(object);
@@ -943,13 +963,19 @@ namespace Neo.IronLua
 			Type compareInterface = null;
 			foreach (var typeTest in type1.GetTypeInfo().ImplementedInterfaces)
 			{
-				if (compareInterface == null && typeTest == typeof(IComparable) && TypesMatch(type1, type2, out isExact, false))
+				if (compareInterface == null && typeTest == typeof(IComparable) &&
+				    TypesMatch(type1, type2, out var match, false))
+				{
+					isExact = match == MemberMatchValue.Exact;
 					return typeTest;
+				}
+					
 				else if (!isExact && IsGenericCompare(typeTest))
 				{
 					var p = typeTest.GenericTypeArguments[0];
-					if (TypesMatch(p, type2, out isExact, false))
+					if (TypesMatch(p, type2, out match, false))
 					{
+						isExact = match == MemberMatchValue.Exact;
 						compareInterface = typeTest;
 						if (isExact)
 							break;
@@ -970,8 +996,9 @@ namespace Neo.IronLua
 				if (!isExact && typeTest.IsConstructedGenericType && typeTest.GetGenericTypeDefinition() == typeof(IEquatable<>))
 				{
 					var p = typeTest.GenericTypeArguments[0];
-					if (TypesMatch(p, Type2, out isExact, false))
+					if (TypesMatch(p, Type2, out var match, false))
 					{
+						isExact = match == MemberMatchValue.Exact;
 						equalableInterface = typeTest;
 						if (isExact)
 							break;
@@ -1942,6 +1969,7 @@ namespace Neo.IronLua
 				}
 				else if (lastArgumentIsResult) // start stretch of LuaResult
 				{
+
 					varLuaResult = Expression.Variable(typeof(LuaResult), "#result");
 					argumentExpression = GetResultExpression(
 						lua,
@@ -1950,6 +1978,7 @@ namespace Neo.IronLua
 						parameterType,
 						GetDefaultParameterExpression(parameter, parameterType)
 					);
+
 					lastArgumentStretchCount = 1;
 					argumentsIndex++; // move of last
 				}
@@ -2157,14 +2186,32 @@ namespace Neo.IronLua
 
 		#region -- FindMember ---------------------------------------------------------
 
+		private static ParameterInfo[] GetMemberParameter<TMEMBERTYPE>(TMEMBERTYPE mi, bool isMemberCall)
+		{
+			if (mi is MethodBase mb)
+			{
+				return isMemberCall && mb.IsStatic ?
+					mb.GetParameters().Skip(1).ToArray() :
+					mb.GetParameters();
+			}
+
+			return mi is PropertyInfo pi ? pi.GetIndexParameters() : new ParameterInfo[0];
+		} // func GetMemberParameter
+
 		#region -- enum MemberMatchValue ----------------------------------------------
 
-		private enum MemberMatchValue
+		internal enum MemberMatchValue
 		{
 			None,
 			Exact,
-			Implicit,
-			Explicit
+			GenericMatch,
+			AssignableMatch,
+			ImplicitConversion,
+			ArraySplatting,
+			ArrayDecay,
+			StringAutoConvert,
+			Explicit,
+			NumericImplicitConvert
 		} // enum MemberMatchValue
 
 		#endregion
@@ -2172,7 +2219,8 @@ namespace Neo.IronLua
 		#region -- struct MemberMatchInfo ---------------------------------------------
 
 		/// <summary>Holds the result of the member.</summary>
-		private sealed class MemberMatchInfo<TMEMBERTYPE>
+		[DebuggerDisplay("{DebuggerDisplay,nq}")]
+		private sealed class MemberMatchInfo<TMEMBERTYPE> : IComparable<MemberMatchInfo<TMEMBERTYPE>>
 			where TMEMBERTYPE : MemberInfo
 		{
 			private readonly int argumentsLength;     // number of arguments we need to match
@@ -2182,8 +2230,24 @@ namespace Neo.IronLua
 			internal int implicitMatches;
 			internal int explicitMatches;
 
+			// exaxt match has no penalty,
+			// generic match has a penalty of 1
+			// implicit conversion match has a penalty of 2
+			// array splatting has a penalty of 3
+			internal int conversionPenalty;
+
 			private TMEMBERTYPE currentMember;
 			internal int currentParameterLength;
+			private bool lastParameterIsArray;
+
+			private const int GenericMatchPenalty = 0;
+			private const int AssignableMatchPenalty = 0;
+			private const int ImplicitConversionPenalty = 2;
+			private const int ArraySplattingPenalty = 1;
+			private const int OtherMatchPenalty = 4;
+			private const int ArrayDecayToObjectPenalty = 5;
+			private const int ExplicitConvertPenalty = 7;
+			private const int StringAutoConvertPenalty = 10;
 
 			public MemberMatchInfo(bool unboundedArguments, int argumentsLength)
 			{
@@ -2191,10 +2255,11 @@ namespace Neo.IronLua
 				this.argumentsLength = argumentsLength;
 			} // ctor
 
+			public int CompareTo(MemberMatchInfo<TMEMBERTYPE> other) => conversionPenalty.CompareTo(other.conversionPenalty);
+
 			public override string ToString()
 			{
-				return String.Format("OnBegin={0}, Exact={1}, Implicit={2}, Explicit={3}, ParameterLength={4}, IsPerfect={5}",
-					matchesOnBeginning, exactMatches, implicitMatches, explicitMatches, currentParameterLength, IsPerfect);
+				return DebuggerDisplay;
 			} // func ToString
 
 			public void Reset(TMEMBERTYPE member, ParameterInfo[] parameter)
@@ -2203,35 +2268,34 @@ namespace Neo.IronLua
 				this.exactMatches = 0;
 				this.implicitMatches = 0;
 				this.explicitMatches = 0;
+				this.conversionPenalty = 0;
 				this.currentMember = member;
 
 				// get the parameter length
-				this.currentParameterLength = parameter.Length > 0 ?
-						parameter[parameter.Length - 1].ParameterType.IsArray ?
-							Int32.MaxValue :
-							parameter.Length :
-					0;
+				this.currentParameterLength = parameter.Length;
+				lastParameterIsArray =
+					currentParameterLength > 0 && parameter[parameter.Length - 1].ParameterType.IsArray;
+
 			} // proc Reset
 
 			public void SetMatch(MemberMatchValue value, bool positional)
 			{
-				switch (value)
+				var inc = value switch
 				{
-					case MemberMatchValue.Exact:
-						if (positional && explicitMatches == matchesOnBeginning)
-							matchesOnBeginning++;
-						exactMatches++;
-						goto case MemberMatchValue.Implicit;
-					case MemberMatchValue.Implicit:
-						implicitMatches++;
-						goto case MemberMatchValue.Explicit;
-					case MemberMatchValue.Explicit:
-						explicitMatches++;
-						break;
-					default:
-						throw new InvalidOperationException();
-				}
-			} // proc SetMatch
+					MemberMatchValue.Exact => 0,
+					MemberMatchValue.GenericMatch => GenericMatchPenalty,
+					MemberMatchValue.AssignableMatch => AssignableMatchPenalty,
+					MemberMatchValue.ImplicitConversion => ImplicitConversionPenalty,
+					MemberMatchValue.ArraySplatting => ArraySplattingPenalty,
+					MemberMatchValue.ArrayDecay => ArrayDecayToObjectPenalty,
+					MemberMatchValue.StringAutoConvert => StringAutoConvertPenalty,
+					MemberMatchValue.Explicit => ExplicitConvertPenalty,
+					_ => OtherMatchPenalty
+				};
+				conversionPenalty += inc;
+			}// proc SetMatch
+
+			
 
 			public bool IsBetter(MemberMatchInfo<TMEMBERTYPE> other) // is this better than other
 			{
@@ -2260,54 +2324,26 @@ namespace Neo.IronLua
 						return true;
 					}
 
-					else if (matchesOnBeginning > other.matchesOnBeginning ||
-						exactMatches > other.exactMatches ||
-						implicitMatches > other.implicitMatches) // good matches (more)
+					switch (this.CompareTo(other))
 					{
-						Debug.WriteLine("  ==> other is better");
-						return true;
-					}
-					else if (matchesOnBeginning == other.matchesOnBeginning ||
-						exactMatches == other.exactMatches ||
-						implicitMatches == other.implicitMatches) // good matches (equal)
-					{
-						var r = NoneMatches < other.NoneMatches; // too much bad machtes, so it might be not better
-#if DEBUG
-						if (r)
-							Debug.WriteLine("  ==> other is equal, but less bad matches");
-#endif
-						if (r)
+						case < 0:
+							Debug.WriteLine("  ==> is better");
 							return true;
+						default:
+							Debug.WriteLine("  ==> other is better");
+							return false;
 					}
-
-					// no else, check explicit matches
-
-					if (explicitMatches > other.explicitMatches)
-					{
-						Debug.WriteLine("   ==> other has more explicit matches");
-						return true;
-					}
-					else if (explicitMatches == other.explicitMatches)
-					{
-						var r = NoneMatches < other.NoneMatches;
-#if DEBUG
-						if (r)
-							Debug.WriteLine("  ==> other is equal, but less bad matches");
-#endif
-						return r;
-					}
-
-					else
-						return false;
 				}
-				else
-					return false;
+				
+				return false;
 			} // func IsBetter
 
 			public TMEMBERTYPE CurrentMember => currentMember;
 
-			public bool IsPerfect => currentParameterLength == argumentsLength && exactMatches == argumentsLength;
-			public int NoneMatches => currentParameterLength < Int32.MaxValue ? currentParameterLength - explicitMatches : 0;
+			public bool IsPerfect => currentParameterLength == argumentsLength && conversionPenalty == 0;
+			public int NoneMatches => lastParameterIsArray ? 0 : currentParameterLength - explicitMatches;
+
+			public string DebuggerDisplay => $"{currentMember} convPenalty: {conversionPenalty}";
 		} // struct MemberMatchInfo
 
 		#endregion
@@ -2322,7 +2358,7 @@ namespace Neo.IronLua
 			private readonly CallInfo callInfo;
 			private readonly int positionalArguments;
 			private readonly TARG[] arguments;
-			private readonly bool lastIsExpandable;
+			private readonly bool lastArgumentIsExpandable;
 			private readonly Func<TARG, Type> getType;
 			private readonly Action<ParameterInfo[], MemberMatchInfo<TMEMBERTYPE>> resetAlgorithm;
 
@@ -2333,7 +2369,7 @@ namespace Neo.IronLua
 				this.positionalArguments = arguments.Length - callInfo.ArgumentNames.Count; // number of positional arguments
 				this.arguments = arguments;
 				this.getType = getType;
-				this.lastIsExpandable = arguments.Length > 0 && getType(arguments[arguments.Length - 1]) == typeof(LuaResult);
+				this.lastArgumentIsExpandable = arguments.Length > 0 && getType(arguments[arguments.Length - 1]) == typeof(LuaResult);
 
 #if DEBUG
 				var argsDebug = new StringBuilder();
@@ -2352,7 +2388,7 @@ namespace Neo.IronLua
 				// choose the algorithm
 				if (arguments.Length == 0 || positionalArguments == arguments.Length)
 				{
-					if (lastIsExpandable)
+					if (lastArgumentIsExpandable)
 						resetAlgorithm = ResetPositionalMax;
 					else
 						resetAlgorithm = ResetPositional;
@@ -2373,31 +2409,44 @@ namespace Neo.IronLua
 				Debug.WriteLine($"      Result: {target}");
 			} // proc Reset
 
-			private static ParameterInfo[] GetMemberParameter(TMEMBERTYPE mi, bool isMemberCall)
+
+
+			private void ResetPositionalPart(ParameterInfo[] parameterInfos, int length, MemberMatchInfo<TMEMBERTYPE> target)
 			{
-				var mb = mi as MethodBase;
-				if (mb != null)
+				var lastParameterIsParamArray = parameterInfos.Length > 0 && parameterInfos[parameterInfos.Length - 1].IsParamArray();
+				for (var i = 0; i < length; i++)
 				{
-					return isMemberCall && mb.IsStatic ?
-						mb.GetParameters().Skip(1).ToArray() :
-						mb.GetParameters();
-				}
-				else
-				{
-					var pi = mi as PropertyInfo;
-					if (pi != null)
+					var parameterInfo = parameterInfos[i];
+					if (lastArgumentIsExpandable && i == length - 1)
 					{
-						return pi.GetIndexParameters();
+						if (lastParameterIsParamArray)
+						{
+							target.SetMatch(MemberMatchValue.ArraySplatting, true);
+						}
+						else
+						{
+							var argumentType = getType(arguments[i]).GetTypeInfo();
+							var memberMatchValue = GetParameterMatch(parameterInfo, argumentType);
+							target.SetMatch(MemberMatchValue.ArrayDecay, true);
+							target.SetMatch(memberMatchValue, true);
+						}
+						for (int argIndex = i; argIndex < arguments.Length; argIndex++)
+						{
+							var argumentType = getType(arguments[argIndex]).GetTypeInfo();
+							var memberMatchValue = GetParameterMatch(parameterInfo, argumentType, lastParameterIsParamArray);
+							memberMatchValue = memberMatchValue == MemberMatchValue.ArrayDecay ? MemberMatchValue.AssignableMatch : memberMatchValue;
+							target.SetMatch(memberMatchValue, true);
+						}
 					}
 					else
-						return new ParameterInfo[0];
-				}
-			} // func GetMemberParameter
+					{
+						var argumentType = getType(arguments[i]).GetTypeInfo();
+						var memberMatchValue = GetParameterMatch(parameterInfo, argumentType);
+						target.SetMatch(memberMatchValue, true);
+					}
 
-			private void ResetPositionalPart(ParameterInfo[] parameterInfo, int length, MemberMatchInfo<TMEMBERTYPE> target)
-			{
-				for (var i = 0; i < length; i++)
-					target.SetMatch(GetParameterMatch(parameterInfo[i].ParameterType.GetTypeInfo(), getType(arguments[i]).GetTypeInfo()), true);
+				}
+
 			} // proc ResetPositionalPart
 
 			private void ResetPositional(ParameterInfo[] parameterInfo, MemberMatchInfo<TMEMBERTYPE> target)
@@ -2412,16 +2461,17 @@ namespace Neo.IronLua
 					if (arguments.Length == parameterInfo.Length)
 					{
 						var argLastType = getType(arguments[arguments.Length - 1]);
-						var paramLastType = parameterInfo[parameterInfo.Length - 1].ParameterType;
-						if (argLastType.IsArray && paramLastType.IsArray)
+						var paramLastInfo = parameterInfo[parameterInfo.Length - 1];
+						if (argLastType.IsArray && paramLastInfo.ParameterType.IsArray)
 						{
-							target.SetMatch(GetParameterMatch(argLastType.GetTypeInfo(), paramLastType.GetTypeInfo()), true);
+							var memberMatchValue = GetParameterMatch(paramLastInfo, argLastType.GetTypeInfo(), parameterIsParamsArray: paramLastInfo.IsParamArray());
+							target.SetMatch(memberMatchValue, true);
 							return;
 						}
 					}
 
 					// test the array
-					var rest = lastIsExpandable ? Int32.MaxValue - length : arguments.Length - length;
+					var rest = lastArgumentIsExpandable ? Int32.MaxValue - length : arguments.Length - length;
 					var elementType = parameterInfo[parameterInfo.Length - 1].ParameterType.GetElementType();
 					if (elementType == typeof(object)) // all is possible
 					{
@@ -2440,14 +2490,16 @@ namespace Neo.IronLua
 
 			private void ResetPositionalMax(ParameterInfo[] parameterInfo, MemberMatchInfo<TMEMBERTYPE> target)
 			{
-				var checkArguments = arguments.Length - 1;
-				if (checkArguments >= parameterInfo.Length)
-					ResetPositionalPart(parameterInfo, parameterInfo.Length, target);
-				else // check the positional part
-					ResetPositionalPart(parameterInfo, checkArguments, target);
+				var lastParam = parameterInfo[parameterInfo.Length - 1];
+				var lastParamIsArray = lastParam.ParameterType.IsArray;
+				var checkArguments = arguments.Length == parameterInfo.Length || lastParamIsArray ? arguments.Length : arguments.Length - 1;
+
+				var paramsToCheck =  checkArguments >= parameterInfo.Length ? parameterInfo.Length : checkArguments;
+
+				ResetPositionalPart(parameterInfo, paramsToCheck, target);
 
 				// the last part will match
-				target.explicitMatches = Int32.MaxValue;
+				target.explicitMatches = lastArgumentIsExpandable && lastParamIsArray ? 0 : int.MaxValue;
 			} // proc ResetPositionalMax
 
 			private void ResetNamed(ParameterInfo[] parameterInfo, MemberMatchInfo<TMEMBERTYPE> target)
@@ -2463,14 +2515,14 @@ namespace Neo.IronLua
 					{
 						var index = Array.FindIndex(parameterInfo, positionalArguments, c => c.Name == cur);
 						if (index != -1)
-							target.SetMatch(GetParameterMatch(parameterInfo[index].ParameterType.GetTypeInfo(), getType(arguments[i++]).GetTypeInfo()), true); // -> mark as position, because the argument has the correct position
+							target.SetMatch(GetParameterMatch(parameterInfo[index], getType(arguments[i++]).GetTypeInfo()), true); // -> mark as position, because the argument has the correct position
 					}
 				}
 			} // proc ResetNamed
 
-			private MemberMatchValue GetParameterMatch(TypeInfo parameterType, TypeInfo argumentType)
+			private MemberMatchValue GetParameterMatch(ParameterInfo parameterInfo, TypeInfo argumentType, bool parameterIsParamsArray = false)
 			{
-				bool exact;
+				var parameterType = parameterInfo.ParameterType.GetTypeInfo();
 				if (parameterType == argumentType)
 					return MemberMatchValue.Exact;
 				else if (parameterType.IsGenericParameter) // special checks for generic parameter
@@ -2478,27 +2530,25 @@ namespace Neo.IronLua
 					#region -- check generic --
 					var typeConstraints = parameterType.GetGenericParameterConstraints();
 
-					exact = false;
-
 					// check "class"
 					if ((parameterType.GenericParameterAttributes & GenericParameterAttributes.ReferenceTypeConstraint) != 0 && argumentType.IsValueType)
-						return MemberMatchValue.Explicit;
+						return MemberMatchValue.GenericMatch;
 
 					// check struct
 					if ((parameterType.GenericParameterAttributes & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0 && !argumentType.IsValueType)
-						return MemberMatchValue.Explicit;
+						return MemberMatchValue.GenericMatch;
 
 					// check new()
 					if ((parameterType.GenericParameterAttributes & GenericParameterAttributes.DefaultConstructorConstraint) != 0)
 					{
 						// check default ctor
-						if (argumentType.FindDeclaredConstructor(ReflectionFlag.Public | ReflectionFlag.Instance, new Type[0]) == null)
-							return MemberMatchValue.Explicit;
+						if (argumentType.FindDeclaredConstructor(ReflectionFlag.Public | ReflectionFlag.Instance, Type.EmptyTypes) == null)
+							return MemberMatchValue.Exact;
 					}
 
 					// no contraints, all is allowed
 					if (typeConstraints.Length == 0)
-						return MemberMatchValue.Implicit;
+						return MemberMatchValue.GenericMatch;
 
 					// search for the constraint
 					var noneExactMatch = false;
@@ -2511,12 +2561,12 @@ namespace Neo.IronLua
 							noneExactMatch = true;
 					}
 
-					return noneExactMatch ? MemberMatchValue.Implicit : MemberMatchValue.Explicit;
+					return noneExactMatch ? MemberMatchValue.ImplicitConversion : MemberMatchValue.Explicit;
 					#endregion
 				}
-				else if (TypesMatch(parameterType.AsType(), argumentType.AsType(), out exact)) // is at least assignable
+				else if (TypesMatch(parameterType.AsType(), argumentType.AsType(), out var match, toTypeIsParamsArray: parameterIsParamsArray)) // is at least assignable
 				{
-					return exact ? MemberMatchValue.Exact : MemberMatchValue.Implicit;
+					return match;
 				}
 				else
 				{
@@ -2524,7 +2574,7 @@ namespace Neo.IronLua
 					var isExactFrom = false;
 					var isExactTo = false;
 					FindConvertOperator(argumentType.AsType(), parameterType.AsType(), null, ref implicitMatch, ref isExactFrom, ref isExactTo);
-					return implicitMatch ? MemberMatchValue.Implicit : MemberMatchValue.Explicit;
+					return implicitMatch ? MemberMatchValue.ImplicitConversion : MemberMatchValue.None;
 				}
 			} // func GetParameterMatch
 		} // class MemberMatch
@@ -2547,16 +2597,34 @@ namespace Neo.IronLua
 			return mi;
 		} // func FindMethod
 
+
 		public static TMEMBERTYPE FindMember<TMEMBERTYPE, TARG>(IEnumerable<TMEMBERTYPE> members, CallInfo callInfo, TARG[] arguments, Func<TARG, Type> getType, bool isMemberCall)
 			where TMEMBERTYPE : MemberInfo
 			where TARG : class
 		{
+			
 			var unboundedArguments = callInfo.ArgumentNames.Count == 0 && arguments.Length > 0 ? arguments[arguments.Length - 1] is LuaResult { Count: > 1} : false;
 			var memberMatch = new MemberMatch<TMEMBERTYPE, TARG>(callInfo, arguments, getType);
 			var memberMatchBind = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
 
+#if DEBUG
+			var candidateMembers = members.ToList();
+			IEnumerable<TMEMBERTYPE> filteredMembers = candidateMembers;
+			for (int i = candidateMembers.Count - 1; i >= 0; i--)
+			{
+				var candidateMember = candidateMembers[i];
+				if (!IsMemberCandidate(candidateMember, arguments, isMemberCall))
+				{
+					candidateMembers.RemoveAt(i);
+				}
+			}
+
+#else
+			var filteredMembers = members.Where(c => IsMemberCandidate(c, arguments, isMemberCall));
+#endif
+
 			// get argument list
-			using (var memberEnum = members.GetEnumerator())
+			using (var memberEnum = filteredMembers.Distinct().GetEnumerator())
 			{
 				// reset the result with the first one
 				if (memberEnum.MoveNext())
@@ -2564,28 +2632,16 @@ namespace Neo.IronLua
 				else
 					return null;
 
-				// text the rest if there is better one
-				if (memberEnum.MoveNext() && !memberMatchBind.IsPerfect)
+				var memberMatchCurrent = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
+				// test the rest if there is better one
+				while (memberEnum.MoveNext() && !memberMatchBind.IsPerfect)
 				{
-					var memberMatchCurrent = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
-
 					// test
 					memberMatch.Reset(memberEnum.Current, isMemberCall, memberMatchCurrent);
 					if (memberMatchCurrent.IsBetter(memberMatchBind))
 					{
 						memberMatchBind = memberMatchCurrent;
 						memberMatchCurrent = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
-					}
-
-					while (memberEnum.MoveNext() && !memberMatchBind.IsPerfect)
-					{
-						// test
-						memberMatch.Reset(memberEnum.Current, isMemberCall, memberMatchCurrent);
-						if (memberMatchCurrent.IsBetter(memberMatchBind))
-						{
-							memberMatchBind = memberMatchCurrent;
-							memberMatchCurrent = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
-						}
 					}
 				}
 
@@ -2594,6 +2650,154 @@ namespace Neo.IronLua
 				return memberMatchBind.CurrentMember;
 			}
 		} // func FindMember
+
+		private static bool IsMemberCandidate<TMEMBERTYPE, TARG>(TMEMBERTYPE candidateMember, TARG[] arguments, bool isMemberCall) where TMEMBERTYPE : MemberInfo where TARG : class
+		{
+			var parameterInfo = GetMemberParameter(candidateMember, isMemberCall);
+			var argumentsLength = arguments.Length;
+			var parameterInfoLength = parameterInfo.Length;
+			if (parameterInfoLength == 0 && argumentsLength > 0) return false;
+			
+			if (argumentsLength == 0)
+			{
+				return parameterInfoLength switch
+				{
+					0 => true,
+					1 when parameterInfo[0] is { } paramInfo && (paramInfo.IsOptional || paramInfo.IsParamArray()) => true,
+					_ => false
+				};
+			}
+
+			var luaResult = arguments[argumentsLength - 1] as LuaResult;
+			var lastIsLuaResult = luaResult is not null;
+
+			
+			if (argumentsLength <= parameterInfoLength)
+			{
+				for (int i = 0; i < argumentsLength; i++)
+				{
+					var paramInfo = parameterInfo[i];
+					var argInfo = arguments[i];
+					var isParamArrayParameter = i == parameterInfoLength - 1 && paramInfo.ParameterType.IsArray && paramInfo.IsParamArray();
+					
+					if (!IsPossibleParameter(paramInfo.ParameterType, argInfo, isParamArrayParameter))
+						return false;
+				}
+				// all parameters checked out. We have an exact match, or a match with implicit conversions
+				
+				if (argumentsLength == parameterInfoLength) return true;
+
+
+				// OK if the remaining parameters are out or optional
+				for (int i = argumentsLength; i < parameterInfoLength; i++)
+				{
+					if (!(parameterInfo[i].IsOut || parameterInfo[i].IsOptional)) return false;
+				}
+
+				return true;
+			}
+			
+			if (argumentsLength > parameterInfoLength)
+			{
+				if (parameterInfo[parameterInfoLength - 1].GetCustomAttribute<ParamArrayAttribute>() is null)
+				{
+					// Error, we don't have a params array.
+					return false;
+				}
+				// Check if the arguments matches the available parameters
+				for (int i = 0; i < parameterInfoLength; i++)
+				{
+					var paramInfo = parameterInfo[i];
+					var argInfo = arguments[i];
+
+					if (i == parameterInfoLength - 1)
+					{
+						// params array. Ensure remaining arguments can be converted to the params array type
+						var parameterType = paramInfo.ParameterType.GetElementType()!;
+						if (parameterType == typeof(object)) return true; // everything can be converted to object
+						
+						for (int j = i; j < argumentsLength; j++)
+						{
+							if (!IsPossibleParameter(parameterType, argInfo)) return false;
+						}
+
+						return true;
+					}
+					else
+					{
+						if (!IsPossibleParameter(paramInfo.ParameterType, argInfo)) return false;
+					}
+				}
+
+				return true;
+			}
+
+			return false;
+
+			static bool IsPossibleParameter(Type parameterType, object arg, bool isParamArrayParameter = false)
+			{
+				if (parameterType.IsGenericParameter || parameterType == typeof(object)) return true;
+
+				var argType = arg switch
+				{
+					DynamicMetaObject dmo => dmo.LimitType,
+					Expression ex => ex.Type,
+					Type t => t,
+					_ => arg.GetType()
+				};
+				if (argType == parameterType || argType == typeof(LuaResult)) return true;
+
+				if (isParamArrayParameter)
+				{
+					if (IsPossibleParameter(parameterType.GetElementType(), arg, false)) return true;
+				}
+
+				if (parameterType.IsByRef && parameterType.GetElementType() == argType) return true;
+				if (GenericTypesMatches(argType, parameterType)) return true;
+
+				if (argType.IsPrimitive && (parameterType.IsPrimitive || parameterType == typeof(string)))
+				{
+					return true;
+				}
+
+				if (parameterType.IsArray && arg is LuaResult)
+				{
+					return true;
+				}
+
+				return parameterType.IsAssignableFrom(argType)
+			       || argType.HasImplicitConversionToType(parameterType)
+			       || parameterType.HasImplicitConversionFromType(argType)
+			       || argType.CanConvertTo(parameterType)
+			       || parameterType.CanConvertFrom(argType);
+
+			}
+
+			static bool GenericTypesMatches(Type sourceType, Type destinationType)
+			{
+				if (sourceType.IsGenericType && destinationType.IsGenericType)
+				{
+					var argTypeGenericTypeArguments = sourceType.GenericTypeArguments;
+					var parameterTypeGenericTypeArguments = destinationType.GenericTypeArguments;
+					if (argTypeGenericTypeArguments.Length == parameterTypeGenericTypeArguments.Length)
+					{
+						for (int i = 0; i < argTypeGenericTypeArguments.Length; i++)
+						{
+							var paramType = parameterTypeGenericTypeArguments[i];
+							var argType = argTypeGenericTypeArguments[i];
+							if (paramType.IsGenericParameter || paramType == argType)
+								continue;
+							return false;
+						}
+
+						return true;
+					}
+				}
+
+				return false;
+			}
+		}
+
 
 		private static MethodInfo MakeNonGenericMethod<TARG>(MethodInfo mi, TARG[] arguments, Func<TARG, Type> getType)
 			where TARG : class
@@ -2673,7 +2877,7 @@ namespace Neo.IronLua
 				return typeof(object);
 		} // func CombineType
 
-		#endregion
+#endregion
 
 		public static bool TryInvokeMember<TARG>(Lua lua, LuaType targetType, TARG target, CallInfo callInfo, TARG[] arguments, string memberName, bool ignoreCase, Func<TARG, Expression> getExpr, Func<TARG, Type> getType, bool allowDynamic, out Expression result)
 			where TARG : class
@@ -2794,7 +2998,7 @@ namespace Neo.IronLua
 			return result;
 		} // func InvokeMethod
 
-		#endregion
+#endregion
 
 		#region -- Reflection Helper --------------------------------------------------
 
@@ -2911,5 +3115,5 @@ namespace Neo.IronLua
 		#endregion
 	} // class LuaEmit
 
-	#endregion
+#endregion
 }

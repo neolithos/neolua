@@ -3,7 +3,7 @@
   <PropertyGroup>
 		<AssemblyName>Neo.Lua</AssemblyName>
 		<RootNamespace>Neo.IronLua</RootNamespace>
-		<TargetFrameworks>net451;net48;netstandard2.0;netcoreapp2.1;net6.0</TargetFrameworks>
+		<TargetFrameworks>net451;net48;netstandard2.0;net6.0</TargetFrameworks>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<Description>A Lua implementation for the Dynamic Language Runtime (DLR).</Description>
 		<PackageId>NeoLua</PackageId>

@@ -189,7 +189,7 @@ namespace Neo.IronLua
 				var type = luaType;
 				var restrictions = BindingRestrictions.GetInstanceRestriction(Expression, Value);
 
-				if (type != null)
+				if (type is not null)
 				{
 					Expression result;
 					var r = LuaEmit.TrySetMember(null, type, binder.Name, binder.IgnoreCase,
@@ -522,7 +522,7 @@ namespace Neo.IronLua
 			{
 				if (String.IsNullOrEmpty(name))
 					throw new ArgumentNullException();
-				else if (parent == null)
+				else if (parent is null)
 					throw new ArgumentNullException();
 			}
 
@@ -532,9 +532,9 @@ namespace Neo.IronLua
 			this.name = name;
 
 			// set full name
-			if (parent == null)
+			if (parent is null)
 				fullName = String.Empty;
-			else if (parent.parent == null)
+			else if (parent.parent is null)
 				fullName = name;
 			else if (name[0] != '[')  // is generic type or array
 				if (parent.IsNamespace)
@@ -714,7 +714,7 @@ namespace Neo.IronLua
 		{
 			// to the root
 			var c = this;
-			while (c.parent != null && c.resolvedVersion >= 0)
+			while (c.parent is not null && c.resolvedVersion >= 0)
 			{
 				c.resolvedVersion = resolvedAsNamespace;
 				c = c.parent;
@@ -903,7 +903,7 @@ namespace Neo.IronLua
 				}
 
 				// Enum generic extensions
-				if (parent != null && parent.genericExtensionMethods != null)
+				if (parent?.genericExtensionMethods is not null)
 				{
 					MemberInfo[] copyOfExtensionMethods;
 					lock (currentTypeLock)
@@ -922,7 +922,7 @@ namespace Neo.IronLua
 			}
 
 			// Enum base members
-			if (baseType != null)
+			if (baseType is not null)
 			{
 				foreach (var c in baseType.EnumerateMembers<T>(enumeratedTypes, searchType, getDeclaredMembers))
 					yield return c;
@@ -1333,6 +1333,41 @@ namespace Neo.IronLua
 		public static implicit operator Type(LuaType type)
 			=> type?.Type;
 
+		
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="clrType"></param>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		public static bool operator ==(LuaType type, Type clrType)
+			=> type?.Type == clrType;
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="lhs"></param>
+		/// <param name="rhs"></param>
+		/// <returns></returns>
+		public static bool operator ==(LuaType lhs, LuaType rhs)
+			=> Object.ReferenceEquals(lhs, rhs);
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="lhs"></param>
+		/// <param name="rhs"></param>
+		/// <returns></returns>
+		public static bool operator !=(LuaType lhs, LuaType rhs) => !(lhs == rhs);
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="clrType"></param>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		public static bool operator !=(LuaType type, Type clrType)
+			=> type?.Type != clrType;
 		#endregion
 
 		#region -- AddType ------------------------------------------------------------
@@ -1602,16 +1637,13 @@ namespace Neo.IronLua
 				typeName = sb.ToString();
 
 			// search the type in the cache
-			var luaType = GetCachedType(typeName);
-
 			// create the lua type
-			if (luaType == null)
-				luaType = GetType(clr, 0, typeName, ignoreCase, null);
+			var luaType = GetCachedType(typeName) ?? GetType(clr, 0, typeName, ignoreCase, null);
 
 			// Test the result
 			if (lateAllowed)
 				return luaType;
-			else if (luaType.Type != null)
+			else if (luaType.Type is not null)
 				return luaType;
 			else
 				return null;
@@ -1674,7 +1706,7 @@ namespace Neo.IronLua
 						if (currentType.IsGenericParameter)
 							continue; // we do not support generic types
 
-						if (lastType == null || currentType != lastType.Type)
+						if (lastType is null || currentType != lastType.Type)
 							lastType = GetType(currentType);
 
 						// register the method
