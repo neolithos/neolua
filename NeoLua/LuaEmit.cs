@@ -2255,7 +2255,44 @@ namespace Neo.IronLua
 				this.argumentsLength = argumentsLength;
 			} // ctor
 
-			public int CompareTo(MemberMatchInfo<TMEMBERTYPE> other) => conversionPenalty.CompareTo(other.conversionPenalty);
+			/// <summary>
+			/// Compares the current member with the new member.
+			/// </summary>
+			/// <param name="other"></param>
+			/// <returns>negative is this member is a better match than <paramref name="other"/>, 0 if they are equal (should never happen) and positive if the other is a better overload.</returns>
+			public int CompareTo(MemberMatchInfo<TMEMBERTYPE> other)
+			{
+				if (IsPerfect)
+				{
+					Debug.WriteLine($"{this}  ==> IsPerfect");
+					return -1;
+				}
+
+				if (other.IsPerfect)
+				{
+					Debug.WriteLine($"{other}  ==> other IsPerfect");
+					return 1;
+				}
+
+				if (unboundedArguments && currentParameterLength > other.currentParameterLength)
+				{
+					Debug.WriteLine("  ==> other {unboundedArguments} && {currentParameterLength} > {other.currentParameterLength}");
+					return -1;
+				}
+				if (!unboundedArguments || currentParameterLength == other.currentParameterLength)
+				{
+					if (argumentsLength == 0 && currentParameterLength == 0) // zero arguments
+					{
+						Debug.WriteLine("  ==> other Zero Args");
+						return -1;
+					}
+
+					return conversionPenalty.CompareTo(other.conversionPenalty);
+				}
+
+				Debug.Assert(false, "Algorithm error! Two overloads should never be equally good");
+				return 0;
+			}
 
 			public override string ToString()
 			{
@@ -2295,48 +2332,7 @@ namespace Neo.IronLua
 				conversionPenalty += inc;
 			}// proc SetMatch
 
-			
 
-			public bool IsBetter(MemberMatchInfo<TMEMBERTYPE> other) // is this better than other
-			{
-				if (IsPerfect)
-				{
-					Debug.WriteLine("  ==> IsPerfect");
-					return true;
-				}
-
-				if (other.IsPerfect)
-				{
-					Debug.WriteLine("  ==> other IsPerfect");
-					return false;
-				}
-
-				if (unboundedArguments && currentParameterLength > other.currentParameterLength)
-				{
-					Debug.WriteLine("  ==> other {unboundedArguments} && {currentParameterLength} > {other.currentParameterLength}");
-					return true;
-				}
-				else if (!unboundedArguments || currentParameterLength == other.currentParameterLength)
-				{
-					if (argumentsLength == 0 && currentParameterLength == 0) // zero arguments
-					{
-						Debug.WriteLine("  ==> other Zero Args");
-						return true;
-					}
-
-					switch (this.CompareTo(other))
-					{
-						case < 0:
-							Debug.WriteLine("  ==> is better");
-							return true;
-						default:
-							Debug.WriteLine("  ==> other is better");
-							return false;
-					}
-				}
-				
-				return false;
-			} // func IsBetter
 
 			public TMEMBERTYPE CurrentMember => currentMember;
 
@@ -2602,11 +2598,39 @@ namespace Neo.IronLua
 			where TMEMBERTYPE : MemberInfo
 			where TARG : class
 		{
-			
-			var unboundedArguments = callInfo.ArgumentNames.Count == 0 && arguments.Length > 0 ? arguments[arguments.Length - 1] is LuaResult { Count: > 1} : false;
-			var memberMatch = new MemberMatch<TMEMBERTYPE, TARG>(callInfo, arguments, getType);
-			var memberMatchBind = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
+			var filteredMembers = GetMatchingOverloads(members, arguments, isMemberCall);
+			return SelectBestOverload(filteredMembers, arguments, isMemberCall, callInfo, getType);
+		}
 
+		private static TMEMBERTYPE SelectBestOverload<TMEMBERTYPE, TARG>(IEnumerable<TMEMBERTYPE> overloadCandidates,
+			TARG[] arguments, bool isMemberCall, CallInfo callInfo, Func<TARG, Type> getType)
+			where TMEMBERTYPE : MemberInfo where TARG : class
+		{
+			var unboundedArguments = callInfo.ArgumentNames.Count == 0 && arguments.Length > 0 ? arguments[arguments.Length - 1] is LuaResult { Count: > 1 } : false;
+			var memberMatch = new MemberMatch<TMEMBERTYPE, TARG>(callInfo, arguments, getType);
+			
+			var bestSoFar = GetBestOverload(overloadCandidates);
+
+			var currentMember = bestSoFar?.CurrentMember;
+			Debug.WriteLine(currentMember is null ? "NO MATCH" : $"USED: {currentMember}");
+
+			return currentMember;
+
+			// GetBestOverload creates new MemberMatchInfo objects, and uses the Min algorithm to compare them and select the smallest one, according to the CompareTo method.
+			MemberMatchInfo<TMEMBERTYPE> GetBestOverload(IEnumerable<TMEMBERTYPE> memberInfos) => memberInfos.Select(CreateMemberMatchInfo).Min();
+
+			// CreateMemberMatchInfo creates a new MemberMatchInfo object, given an possible overload MemberInfo.
+			MemberMatchInfo<TMEMBERTYPE> CreateMemberMatchInfo(TMEMBERTYPE member)
+			{
+				var match = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
+				memberMatch.Reset(member, isMemberCall, match);
+				return match;
+			}
+		}
+
+		internal static IEnumerable<TMEMBERTYPE> GetMatchingOverloads<TMEMBERTYPE, TARG>(IEnumerable<TMEMBERTYPE> members, TARG[] arguments,
+			bool isMemberCall) where TMEMBERTYPE : MemberInfo where TARG : class
+		{
 #if DEBUG
 			var candidateMembers = members.ToList();
 			IEnumerable<TMEMBERTYPE> filteredMembers = candidateMembers;
@@ -2622,36 +2646,11 @@ namespace Neo.IronLua
 #else
 			var filteredMembers = members.Where(c => IsMemberCandidate(c, arguments, isMemberCall));
 #endif
+			return filteredMembers.Distinct();
+		}
+		// func FindMember
 
-			// get argument list
-			using (var memberEnum = filteredMembers.Distinct().GetEnumerator())
-			{
-				// reset the result with the first one
-				if (memberEnum.MoveNext())
-					memberMatch.Reset(memberEnum.Current, isMemberCall, memberMatchBind);
-				else
-					return null;
-
-				var memberMatchCurrent = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
-				// test the rest if there is better one
-				while (memberEnum.MoveNext() && !memberMatchBind.IsPerfect)
-				{
-					// test
-					memberMatch.Reset(memberEnum.Current, isMemberCall, memberMatchCurrent);
-					if (memberMatchCurrent.IsBetter(memberMatchBind))
-					{
-						memberMatchBind = memberMatchCurrent;
-						memberMatchCurrent = new MemberMatchInfo<TMEMBERTYPE>(unboundedArguments, arguments.Length);
-					}
-				}
-
-				Debug.WriteLine($"USED: {memberMatchBind.CurrentMember}");
-
-				return memberMatchBind.CurrentMember;
-			}
-		} // func FindMember
-
-		private static bool IsMemberCandidate<TMEMBERTYPE, TARG>(TMEMBERTYPE candidateMember, TARG[] arguments, bool isMemberCall) where TMEMBERTYPE : MemberInfo where TARG : class
+		internal static bool IsMemberCandidate<TMEMBERTYPE, TARG>(TMEMBERTYPE candidateMember, TARG[] arguments, bool isMemberCall) where TMEMBERTYPE : MemberInfo where TARG : class
 		{
 			var parameterInfo = GetMemberParameter(candidateMember, isMemberCall);
 			var argumentsLength = arguments.Length;
@@ -2798,7 +2797,7 @@ namespace Neo.IronLua
 			}
 		}
 
-
+	
 		private static MethodInfo MakeNonGenericMethod<TARG>(MethodInfo mi, TARG[] arguments, Func<TARG, Type> getType)
 			where TARG : class
 		{
