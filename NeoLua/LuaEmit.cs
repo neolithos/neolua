@@ -2599,9 +2599,21 @@ namespace Neo.IronLua
 			where TARG : class
 		{
 			var filteredMembers = GetMatchingOverloads(members, arguments, isMemberCall);
-			return SelectBestOverload(filteredMembers, arguments, isMemberCall, callInfo, getType);
-		}
+			var bestOverload = SelectBestOverload(filteredMembers, arguments, isMemberCall, callInfo, getType);
+			return bestOverload;
+		} // func FindMember
 
+		/// <summary>
+		/// Select the best overload from a set of callable candidate overloads.
+		/// </summary>
+		/// <typeparam name="TMEMBERTYPE">The type of the <paramref name="overloadCandidates"/>.</typeparam>
+		/// <typeparam name="TARG">The type of the <paramref name="arguments"/>.</typeparam>
+		/// <param name="overloadCandidates"></param>
+		/// <param name="arguments"></param>
+		/// <param name="isMemberCall"><see langword="true"/> if this is a lua member call, otherwise <see langword="false"/>.</param>
+		/// <param name="callInfo"></param>
+		/// <param name="getType">A <see cref="Func{TARG, Type}"/> that gets the type given one of the arguments in <paramref name="arguments"/>. </param>
+		/// <returns>The best matching overload in <paramref name="overloadCandidates"/>.</returns>
 		private static TMEMBERTYPE SelectBestOverload<TMEMBERTYPE, TARG>(IEnumerable<TMEMBERTYPE> overloadCandidates,
 			TARG[] arguments, bool isMemberCall, CallInfo callInfo, Func<TARG, Type> getType)
 			where TMEMBERTYPE : MemberInfo where TARG : class
@@ -2628,11 +2640,20 @@ namespace Neo.IronLua
 			}
 		}
 
-		internal static IEnumerable<TMEMBERTYPE> GetMatchingOverloads<TMEMBERTYPE, TARG>(IEnumerable<TMEMBERTYPE> members, TARG[] arguments,
+		/// <summary>
+		/// Get all members that are invokable given the arguments.
+		/// </summary>
+		/// <typeparam name="TMEMBERTYPE">The type of the <paramref name="candidateOverloads"/>. A Subclass of <see cref="MemberInfo"/></typeparam>
+		/// <typeparam name="TARG">The type of the <paramref name="arguments"/></typeparam>
+		/// <param name="candidateOverloads">A set of members that are potentially callable given the <paramref name="arguments"/>.</param>
+		/// <param name="arguments">The arguments to use to determine if the members are callable.</param>
+		/// <param name="isMemberCall"></param>
+		/// <returns></returns>
+		internal static IEnumerable<TMEMBERTYPE> GetMatchingOverloads<TMEMBERTYPE, TARG>(IEnumerable<TMEMBERTYPE> candidateOverloads, TARG[] arguments,
 			bool isMemberCall) where TMEMBERTYPE : MemberInfo where TARG : class
 		{
 #if DEBUG
-			var candidateMembers = members.ToList();
+			var candidateMembers = candidateOverloads.ToList();
 			IEnumerable<TMEMBERTYPE> filteredMembers = candidateMembers;
 			for (int i = candidateMembers.Count - 1; i >= 0; i--)
 			{
@@ -2642,14 +2663,21 @@ namespace Neo.IronLua
 					candidateMembers.RemoveAt(i);
 				}
 			}
-
 #else
 			var filteredMembers = members.Where(c => IsMemberCandidate(c, arguments, isMemberCall));
 #endif
 			return filteredMembers.Distinct();
 		}
-		// func FindMember
 
+		/// <summary>
+		/// Determines if the <paramref name="candidateMember"/> is a possible to call given the <paramref name="arguments"/>.
+		/// </summary>
+		/// <typeparam name="TMEMBERTYPE">The type of the candidate member.</typeparam>
+		/// <typeparam name="TARG">The type of the arguments</typeparam>
+		/// <param name="candidateMember">The <see cref="MemberInfo"/> to check for if it can be invoked.</param>
+		/// <param name="arguments">The arguments used to determine if it is possible to invoke <paramref name="candidateMember"/>.</param>
+		/// <param name="isMemberCall"></param>
+		/// <returns><see langword="true"/> if <paramref name="candidateMember"/> can be invoked with <paramref name="arguments"/>, otherwise <see langword="false"/>.</returns>
 		internal static bool IsMemberCandidate<TMEMBERTYPE, TARG>(TMEMBERTYPE candidateMember, TARG[] arguments, bool isMemberCall) where TMEMBERTYPE : MemberInfo where TARG : class
 		{
 			var parameterInfo = GetMemberParameter(candidateMember, isMemberCall);
