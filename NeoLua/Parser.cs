@@ -882,11 +882,17 @@ namespace Neo.IronLua
 					var exprVar = scope.LookupExpression(tVar.Value, true) as ParameterExpression;
 					if (exprVar == null)
 					{
-						exprVar = Expression.Variable(typeVar, tVar.Value);
-						if (registerLocals == null)
-							registerLocals = new List<ParameterExpression>();
-						registerLocals.Add(exprVar);
-					}
+                        registerLocals ??= new List<ParameterExpression>();
+                        if (registerLocals.Find(e => e.Name == tVar.Value) is { } localExpr)
+                        {
+                            exprVar = localExpr;
+                        }
+						else
+                        {
+                            exprVar = Expression.Variable(typeVar, tVar.Value);
+                            registerLocals.Add(exprVar);
+                        }
+                    }
 					else if (exprVar.Type != typeVar)
 						throw ParseError(tVar, Properties.Resources.rsParseTypeRedef);
 

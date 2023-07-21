@@ -1498,6 +1498,18 @@ namespace LuaDLR.Test
 				1, 2);
 		}
 
+		[TestMethod]
+		public void TestAssign03()
+		{
+			TestCode(@"
+function Test()
+   local _, _, x = 1, 2, 3;
+   return x;
+end;
+
+return Test()
+", 3);
+		}
 		#endregion
 
 		/*
