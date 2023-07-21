@@ -879,13 +879,16 @@ namespace Neo.IronLua
 				{
 					ParseIdentifierAndType(scope, code, out var tVar, out var typeVar);
 
-					var exprVar = scope.LookupExpression(tVar.Value, true) as ParameterExpression;
-					if (exprVar is null)
+					if (scope.LookupExpression(tVar.Value, true) is not ParameterExpression exprVar)
 					{
-						exprVar = Expression.Variable(typeVar, tVar.Value);
-						if (registerLocals is null)
-							registerLocals = new List<ParameterExpression>();
-						registerLocals.Add(exprVar);
+						registerLocals ??= new List<ParameterExpression>();
+						if (registerLocals.Find(e => e.Name == tVar.Value) is ParameterExpression localExpr)
+							exprVar = localExpr;
+						else
+						{
+							exprVar = Expression.Variable(typeVar, tVar.Value);
+							registerLocals.Add(exprVar);
+						}
 					}
 					else if (exprVar.Type != typeVar)
 						throw ParseError(tVar, Properties.Resources.rsParseTypeRedef);
