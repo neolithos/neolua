@@ -87,7 +87,7 @@ namespace Neo.IronLua
 
 			private void RegisterVariableOrConst(string name, Expression expr)
 			{
-				if (scopeVariables == null)
+				if (scopeVariables is null)
 					scopeVariables = new Dictionary<string, Expression>();
 				scopeVariables[name] = expr;
 			} // proc EnsureVariables
@@ -156,7 +156,7 @@ namespace Neo.IronLua
 						var variables = Variables;
 						if (variables.Length == 0)
 							return Expression.Block(block);
-						else if (ExpressionBlockType == null)
+						else if (ExpressionBlockType is null)
 							return Expression.Block(variables, block);
 						else
 							return Expression.Block(ExpressionBlockType, variables, block);
@@ -180,7 +180,7 @@ namespace Neo.IronLua
 			/// <summary>Return type of the current Lambda-Scope</summary>
 			public virtual Type ReturnType => parent.ReturnType;
 			/// <summary></summary>
-			public ParameterExpression[] Variables => scopeVariables == null ? new ParameterExpression[0] : (from v in scopeVariables.Values where v is ParameterExpression select (ParameterExpression)v).ToArray();
+			public ParameterExpression[] Variables => scopeVariables is null ? new ParameterExpression[0] : (from v in scopeVariables.Values where v is ParameterExpression select (ParameterExpression)v).ToArray();
 
 			public virtual bool ActivateRethrow => parent != null && parent.ActivateRethrow;
 		} // class Scope
@@ -291,9 +291,9 @@ namespace Neo.IronLua
 			{
 				if (name == csReturnLabel)
 					return returnLabel;
-				if (labels == null)
+				if (labels is null)
 					labels = new Dictionary<string, LabelTarget>();
-				if (type == null)
+				if (type is null)
 					type = typeof(void);
 
 				// Lookup the label
@@ -323,7 +323,7 @@ namespace Neo.IronLua
 			{
 				get
 				{
-					AddExpression(Expression.Label(returnLabel, returnDefaultValue == null ? Expression.Default(returnLabel.Type) : returnDefaultValue));
+					AddExpression(Expression.Label(returnLabel, returnDefaultValue is null ? Expression.Default(returnLabel.Type) : returnDefaultValue));
 					return base.ExpressionBlock;
 				}
 			} // prop ExpressionBlock
@@ -363,7 +363,7 @@ namespace Neo.IronLua
 			{
 				this.runtime = runtime;
 				this.options = options;
-				this.debug = options.DebugEngine == null ? LuaDebugLevel.None : options.DebugEngine.Level;
+				this.debug = options.DebugEngine is null ? LuaDebugLevel.None : options.DebugEngine.Level;
 			} // ctor
 
 			/// <summary>Access to the binders</summary>
@@ -483,11 +483,11 @@ namespace Neo.IronLua
 			public Expression GenerateSet(Scope scope, Expression exprToSet)
 			{
 				Expression expr;
-				if (Instance != null && Member == null && Indices != null && Arguments == null)
+				if (Instance != null && Member is null && Indices != null && Arguments is null)
 					expr = IndexSetExpression(scope.Runtime, Position, Instance, Indices, exprToSet);
-				else if (Instance != null && Member != null && Indices == null && Arguments == null)
+				else if (Instance != null && Member != null && Indices is null && Arguments is null)
 					return MemberSetExpression(scope.Runtime, Position, Instance, Member, MethodMember, exprToSet);
-				else if (Instance != null && Member == null && Indices == null && Arguments == null && Instance is ParameterExpression)
+				else if (Instance != null && Member is null && Indices is null && Arguments is null && Instance is ParameterExpression)
 				{
 					// Assign the value to a variable
 					expr = Expression.Assign(Instance, ConvertExpression(scope.Runtime, Position, exprToSet, Instance.Type));
@@ -500,7 +500,7 @@ namespace Neo.IronLua
 
 			public Expression GenerateGet(Scope scope, InvokeResult result)
 			{
-				if (Instance != null && Member == null && Indices != null && Arguments == null)
+				if (Instance != null && Member is null && Indices != null && Arguments is null)
 				{
 					if (Indices.Length > 0)
 					{
@@ -511,7 +511,7 @@ namespace Neo.IronLua
 					Instance = IndexGetExpression(scope, Position, Instance, Indices);
 					Indices = null;
 				}
-				else if (Instance != null && Member != null && Indices == null && Arguments == null && !MethodMember)
+				else if (Instance != null && Member != null && Indices is null && Arguments is null && !MethodMember)
 				{
 					// Convert the member to an instance
 					Instance = WrapDebugInfo(scope.EmitExpressionDebug, true, Position, Position, Instance);
@@ -519,11 +519,11 @@ namespace Neo.IronLua
 					Member = null;
 					MethodMember = false;
 				}
-				else if (Instance != null && Member == null && Indices == null && Arguments == null)
+				else if (Instance != null && Member is null && Indices is null && Arguments is null)
 				{
 					// Nothing to todo, we have already an instance
 				}
-				else if (Instance != null && Indices == null && (Arguments != null || MethodMember))
+				else if (Instance != null && Indices is null && (Arguments != null || MethodMember))
 				{
 					Arguments = Arguments ?? new ArgumentsList();
 					if (Arguments.Count > 0)
@@ -580,7 +580,7 @@ namespace Neo.IronLua
 		public static LambdaExpression ParseChunk(Lua runtime, LuaCompileOptions options, bool hasEnvironment, ILuaLexer code, Type typeDelegate, Type returnType, IEnumerable<KeyValuePair<string, Type>> args)
 		{
 			var parameters = new List<ParameterExpression>();
-			if (returnType == null)
+			if (returnType is null)
 				returnType = typeof(LuaResult);
 			var globalScope = new GlobalScope(runtime, options, returnType, returnType == typeof(LuaResult) ? Expression.Property(null, Lua.ResultEmptyPropertyInfo) : null);
 
@@ -600,7 +600,7 @@ namespace Neo.IronLua
 			}
 
 			// Get the first token
-			if (code.Current == null)
+			if (code.Current is null)
 				code.Next();
 
 			// Get the name for the chunk and clean it from all unwanted chars
@@ -615,7 +615,7 @@ namespace Neo.IronLua
 				throw ParseError(code.Current, Properties.Resources.rsParseEof);
 
 			// Create the function
-			return typeDelegate == null ?
+			return typeDelegate is null ?
 				Expression.Lambda(globalScope.ExpressionBlock, chunkName, parameters) :
 				Expression.Lambda(typeDelegate, globalScope.ExpressionBlock, chunkName, parameters);
 		} // func ParseChunk
@@ -924,7 +924,7 @@ namespace Neo.IronLua
 							prefixes[0].GenerateSet(scope, expr.Current ?? Expression.Constant(null, typeof(object)))
 						);
 					}
-					else if (expr.Current == null) // No expression, assign null
+					else if (expr.Current is null) // No expression, assign null
 					{
 						for (var i = 0; i < prefixes.Count; i++)
 							scope.AddExpression(prefixes[i].GenerateSet(scope, Expression.Constant(null, typeof(object))));
@@ -1003,7 +1003,7 @@ namespace Neo.IronLua
 			{
 				for (var i = 0; i < prefixes.Count; i++)
 				{
-					if (prefixes[i].Arguments == null) // do not execute getMember
+					if (prefixes[i].Arguments is null) // do not execute getMember
 						throw ParseError(prefixes[i].Position, Properties.Resources.rsParseAssignmentExpected);
 
 					scope.AddExpression(prefixes[i].GenerateGet(scope, InvokeResult.None));
@@ -1097,7 +1097,7 @@ namespace Neo.IronLua
 					try
 					{
 						var r = EvaluateExpression(exprConst);
-						if (r == null) // Eval via compile
+						if (r is null) // Eval via compile
 						{
 							var typeFunc = Expression.GetFuncType(exprConst.Type);
 							var exprEval = Expression.Lambda(typeFunc, exprConst);
@@ -1172,10 +1172,10 @@ namespace Neo.IronLua
 						else
 							memberName = t.Value;
 						var p = scope.LookupExpression(memberName);
-						if (t.Typ == LuaToken.DotDotDot && p == null)
+						if (t.Typ == LuaToken.DotDotDot && p is null)
 							throw ParseError(t, Properties.Resources.rsParseNoArgList);
 						code.Next();
-						if (p == null) // No local variable found
+						if (p is null) // No local variable found
 							info = new PrefixMemberInfo(tStart, scope.LookupExpression(csEnv), t.Value, null, null);
 						else
 							info = new PrefixMemberInfo(tStart, p, null, null, null);
@@ -1321,7 +1321,7 @@ namespace Neo.IronLua
 				var tFirst = code.Current;
 				var expr = ParseExpression(scope, code, InvokeResult.LuaResult, scope.EmitExpressionDebug);
 
-				if (tName == null)
+				if (tName is null)
 					argumentsList.AddPositionalArgument(tFirst, expr);
 				else
 					argumentsList.AddNamedArgument(tName, expr);
@@ -1717,7 +1717,7 @@ namespace Neo.IronLua
 
 					if (genericeTypes.Count == 0) // create a array at the end
 					{
-						if (currentType.Type == null)
+						if (currentType.Type is null)
 							throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
 
 						currentType = LuaType.GetType(currentType.AddType("[]", false, 1));
@@ -1741,7 +1741,7 @@ namespace Neo.IronLua
 				}
 			}
 
-			if (needType && currentType.Type == null)
+			if (needType && currentType.Type is null)
 				throw ParseError(code.Current, String.Format(Properties.Resources.rsParseUnknownType, currentType.FullName));
 
 			return currentType;
@@ -1751,7 +1751,7 @@ namespace Neo.IronLua
 		{
 			var typeName = FetchToken(LuaToken.Identifier, code).Value;
 			var luaType = LuaType.GetCachedType(typeName);
-			if (luaType == null)
+			if (luaType is null)
 			{
 				return scope.LookupExpression(typeName, false) is ConstantExpression cexpr && cexpr.Type == typeof(LuaType)
 					? (LuaType)cexpr.Value
@@ -2197,7 +2197,7 @@ namespace Neo.IronLua
 
 				var funcVar = scope.LookupExpression(t.Value) as ParameterExpression;
 				Expression exprFunction;
-				if (funcVar == null)
+				if (funcVar is null)
 				{
 					exprFunction = ParseLamdaDefinition(scope, code, t.Value, false,
 						typeDelegate => funcVar = scope.RegisterVariable(typeDelegate, t.Value)
@@ -2237,7 +2237,7 @@ namespace Neo.IronLua
 				}
 				else
 				{
-					if (assignee == null)
+					if (assignee is null)
 					{
 						// there was no member access, so try to find a local to assign to
 						var local = scope.LookupExpression(memberName);
@@ -2258,10 +2258,10 @@ namespace Neo.IronLua
 
 		private static Expression ParseFunctionAddChain(Scope scope, Token tStart, Expression assignee, string memberName)
 		{
-			if (assignee == null)
+			if (assignee is null)
 			{
 				var expr = scope.LookupExpression(memberName);
-				if (expr == null)
+				if (expr is null)
 					assignee = ParseFunctionAddChain(scope, tStart, scope.LookupExpression(csEnv), memberName);
 				else
 					assignee = expr;
@@ -2506,7 +2506,7 @@ namespace Neo.IronLua
 
 		public static string ExpressionToString(Expression expr)
 		{
-			if (propertyDebugView == null)
+			if (propertyDebugView is null)
 				propertyDebugView = typeof(Expression).GetTypeInfo().FindDeclaredProperty("DebugView", ReflectionFlag.NoException | ReflectionFlag.NonPublic | ReflectionFlag.Instance);
 
 			return (string)propertyDebugView.GetValue(expr, null);

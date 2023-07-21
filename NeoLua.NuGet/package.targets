@@ -6,7 +6,7 @@
 	
 	<Import Project="$(MSBuildCommunityTasksPath)\MSBuild.Community.Tasks.Targets" Condition="Exists('$(MSBuildCommunityTasksPath)\MSBuild.Community.Tasks.Targets')" />
 	<Import Project="common.targets" />
-	<Import Project="package.apikey.targets" />
+	<Import Project="package.apikey.targets" Condition="Exists('package.apikey.targets')" />
 
 	<ItemGroup>
 		<ZipFileCmd Include="$(MSBuildProjectDirectory)\..\NeoCmd\bin\Release\net47\NeoCmd.exe" />

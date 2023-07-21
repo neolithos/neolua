@@ -543,7 +543,7 @@ namespace Neo.IronLua
 		/// <param name="repl"></param>
 		/// <param name="n"></param>
 		/// <returns></returns>
-		public static LuaResult gsub(this string s, string pattern, object repl, int n)
+		public static LuaResult gsub(this string s, string pattern, object repl, int? n = null)
 		{
 			var regex = new Regex(TranslateRegularExpression(pattern).Item1);
 
@@ -558,7 +558,7 @@ namespace Neo.IronLua
 			else
 				matchEvaluator = new GSubStringMatchEvaluator((string)Lua.RtConvertValue(repl, typeof(string)));
 
-			var r = regex.Replace(s, matchEvaluator.MatchEvaluator, n);
+			var r = regex.Replace(s, matchEvaluator.MatchEvaluator, n ?? Int32.MaxValue);
 
 			return new LuaResult(r, matchEvaluator.MatchCount);
 		} // func gsub

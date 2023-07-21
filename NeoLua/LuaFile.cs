@@ -323,13 +323,13 @@ namespace Neo.IronLua
 		/// <summary></summary>
 		/// <param name="args"></param>
 		/// <returns></returns>
-		public LuaResult lines(object[] args)
+		public LuaResult lines(params object[] args)
 			=> Lua.GetEnumIteratorResult(new LuaLinesEnumerator(this, false, args, 0));
 
 		/// <summary></summary>
 		/// <param name="args"></param>
 		/// <returns></returns>
-		public LuaResult read(object[] args)
+		public LuaResult read(params object[] args)
 		{
 			if (tr == null)
 				return new LuaResult(null, Properties.Resources.rsFileNotReadable);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Neo.IronLua;
@@ -80,21 +81,30 @@ namespace LuaDLR.Test
       TestCode(GetLines("Lua.Coroutines01.lua"));
     }
 
-		[TestMethod]
-		public void StringFormat01()
+		[DataTestMethod]
+		[DataRow("return clr.System.String:Format(\"{0}\", values[0]);", "1.1")]
+		[DataRow("return clr.System.String:Format(\"{0}; {1}; {2}; {3}\", values);", "1.1; 2.2; 3.3; 4.4")]
+		[DataRow("return clr.System.String:Format(clr.System.Globalization.CultureInfo.InvariantCulture, \"{0}; {1}; {2}; {3}\", values);", "1.1; 2.2; 3.3; 4.4")]
+		public void StringFormat01(string code, string expectedResult)
 		{
-			object[] values = new object[] { 1.1, 2.2, 3.3, 4.4 };
-			
-			using (Lua l = new Lua())
+			object[] values = { 1.1, 2.2, 3.3, 4.4 };
+			var culture = Thread.CurrentThread.CurrentCulture;
+			try
 			{
-				//l.PrintExpressionTree =Console.Out;
-				var g = l.CreateEnvironment();
+				using (Lua l = new Lua())
+				{
+					//l.PrintExpressionTree =Console.Out;
+					var g = l.CreateEnvironment();
+					Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
 
-				g.SetMemberValue("values", values);
+					g.SetMemberValue("values", values);
 
-				TestResult(g.DoChunk("return clr.System.String:Format(\"{0}\", values[0]);", "test0.lua"), values[0].ToString());
-				TestResult(g.DoChunk("return clr.System.String:Format(\"{0}; {1}; {2}; {3}\", values);", "test1.lua"), String.Format("{0}; {1}; {2}; {3}", values));
-				TestResult(g.DoChunk("return clr.System.String:Format(clr.System.Globalization.CultureInfo.InvariantCulture, \"{0}; {1}; {2}; {3}\", values);", "test2.lua"), "1.1; 2.2; 3.3; 4.4");
+					TestResult(g.DoChunk(code, "test0.lua"), expectedResult);
+				}
+			}
+			finally
+			{
+				Thread.CurrentThread.CurrentCulture = culture;
 			}
 		}
 

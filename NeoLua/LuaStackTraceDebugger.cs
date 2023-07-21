@@ -323,7 +323,7 @@ namespace Neo.IronLua
 				// search the end
 				for (var i = startAt; i < length; i++)
 				{
-					if (debugInfos[i].MethodName != sMethodName)
+					if (debugInfos[i].MethodName != sMethodName || debugInfos[i].IsClear)
 					{
 						endAt = i - 1;
 						return true;
