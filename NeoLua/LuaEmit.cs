@@ -2664,7 +2664,7 @@ namespace Neo.IronLua
 				}
 			}
 #else
-			var filteredMembers = candidateOverloads.Where(c => IsMemberCandidate(c, arguments, isMemberCall));
+			var filteredMembers = members.Where(c => IsMemberCandidate(c, arguments, isMemberCall));
 #endif
 			return filteredMembers.Distinct();
 		}
