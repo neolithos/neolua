@@ -22,6 +22,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Dynamic;
 using System.Globalization;
 using System.IO;
@@ -29,6 +30,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Neo.IronLua
 {
@@ -80,6 +82,8 @@ namespace Neo.IronLua
 
 	/// <summary>Implementation of a the lua table. A lua table is a combination 
 	/// of a hash dictionary, a string dictionary and a array list.</summary>
+	[DebuggerTypeProxy(typeof(LuaTableDebuggerProxy))]
+	[DebuggerDisplay("{DebuggerDisplay,nq}")]
 	public class LuaTable : IDynamicMetaObjectProvider, INotifyPropertyChanged, IDictionary<object, object>
 	{
 		/// <summary>Member name of the metatable</summary>
@@ -4856,6 +4860,50 @@ namespace Neo.IronLua
 			=> table.OnBNot();
 
 		#endregion
+
+		private string DebuggerDisplay
+		{
+			get
+			{
+				StringBuilder builder = new(1024);
+				builder.AppendLine("{");
+				foreach (var mem in this)
+				{
+					builder.AppendLine($"  [{mem.Key}] = {mem.Value}");
+				}
+				builder.Append('}');
+
+				return builder.ToString();
+			}
+		}
+
+		class LuaTableDebuggerProxy
+		{
+			private readonly LuaTable table;
+			private KeyValuePair<string, object>[] members;
+
+			public LuaTableDebuggerProxy(LuaTable table)
+			{
+				this.table = table;
+			}
+
+			[DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+			public KeyValuePair<string, object>[] Members => members ??= GetMembers();
+
+			private KeyValuePair<string, object>[] GetMembers()
+			{
+				var locals = new List<KeyValuePair<string, object>>(20);
+				foreach (var kv in table)
+				{
+
+					locals.Add(new KeyValuePair<string, object>(kv.Key.ToString()!, kv.Value));
+				}
+				
+				return locals.ToArray();
+			}
+
+			public int Count => Members?.Length ?? 0;
+		}
 	} // class LuaTable
 
 	#endregion

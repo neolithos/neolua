@@ -11,6 +11,7 @@
 		<Description>A Lua implementation for the Dynamic Language Runtime (DLR). Debug-Extension.</Description>
 		<PackageTags>Lua C# .net DLR Dynamic Language Debug</PackageTags>
 		<NeutralLanguage></NeutralLanguage>
+		<LangVersion>9</LangVersion>
 	</PropertyGroup>
 	<Import Project="..\NeoLua.NuGet\common.nupkg.targets" />
 	<ItemGroup>

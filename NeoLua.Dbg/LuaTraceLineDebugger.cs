@@ -21,6 +21,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using Microsoft.Scripting;
@@ -31,7 +32,10 @@ namespace Neo.IronLua
 {
 	#region -- class LuaTraceLineEventArgs ----------------------------------------------
 
+	
 	/// <summary></summary>
+	[DebuggerDisplay("{DebuggerDisplay, nq}")]
+	[DebuggerTypeProxy(typeof(LuaTraceLineEventArgsDebuggerProxy))]
 	public class LuaTraceLineEventArgs : EventArgs
 	{
 		private readonly string name;
@@ -57,6 +61,37 @@ namespace Neo.IronLua
 
 		/// <summary></summary>
 		public IDictionary<object, object> Locals => locals.Value;
+
+		private string DebuggerDisplay => $"{SourceName}:{SourceLine} {ScopeName}";
+
+		class LuaTraceLineEventArgsDebuggerProxy
+		{
+			private readonly LuaTraceLineEventArgs eventArgs;
+		    private KeyValuePair<string, object>[] locals;
+
+		    public LuaTraceLineEventArgsDebuggerProxy(LuaTraceLineEventArgs eventArgs)
+		    {
+		        this.eventArgs = eventArgs;
+		        var eventLocals = eventArgs.Locals;
+		    }
+
+
+		    [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+		    public KeyValuePair<string, object>[] Locals => locals ??= GetLocals();
+
+		    private KeyValuePair<string, object>[] GetLocals()
+		    {
+		        var eventArgsLocals = eventArgs.Locals;
+		        KeyValuePair<string, object>[] locals = new KeyValuePair<string, object>[eventArgsLocals.Count];
+		        int i = 0;
+		        foreach (var kv in eventArgsLocals)
+		        {
+		            locals[i++] = new KeyValuePair<string, object>(kv.Key.ToString()!, kv.Value);
+		        }
+
+		        return locals;
+		    }
+		}
 	} // class LuaTraceLineEventArgs
 
 	#endregion
@@ -64,6 +99,8 @@ namespace Neo.IronLua
 	#region -- class LuaTraceLineExceptionEventArgs -------------------------------------
 
 	/// <summary></summary>
+
+	[DebuggerDisplay("{DebuggerDisplay,nq}")]
 	public class LuaTraceLineExceptionEventArgs : LuaTraceLineEventArgs
 	{
 		private readonly Exception exception;
@@ -76,6 +113,8 @@ namespace Neo.IronLua
 
 		/// <summary></summary>
 		public Exception Exception => exception;
+
+		private string DebuggerDisplay => $"{SourceName}:{SourceLine} {ScopeName} - {Exception.Message}";
 	} // class LuaTraceLineExceptionEventArgs
 
 	#endregion
