@@ -872,7 +872,7 @@ namespace Neo.IronLua
 			var registerLocals = (List<ParameterExpression>)null;
 			var prefixes = new List<PrefixMemberInfo>();
 
-			// parse the assgiee list (var0, var1, var2, ...)
+			// parse the assignee list (var0, var1, var2, ...)
 			while (true)
 			{
 				if (isLocal) // parse local variables
@@ -893,7 +893,12 @@ namespace Neo.IronLua
 					else if (exprVar.Type != typeVar)
 						throw ParseError(tVar, Properties.Resources.rsParseTypeRedef);
 
-					prefixes.Add(new PrefixMemberInfo(tVar, exprVar, null, null, null));
+					var prefixMemberInfo = new PrefixMemberInfo(tVar, exprVar, null, null, null);
+					prefixes.Add(prefixMemberInfo);
+					if (code.Current.Typ != LuaToken.Assign)
+					{
+						scope.AddExpression(prefixMemberInfo.GenerateSet(scope, Expression.Constant(null, typeof(object))));
+					}
 				}
 				else // parse a assignee
 				{
