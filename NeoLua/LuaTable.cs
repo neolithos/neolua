@@ -4861,6 +4861,8 @@ namespace Neo.IronLua
 
 		#endregion
 
+		#region -- Debbugger ----------------------------------------------------------
+
 		private string DebuggerDisplay
 		{
 			get
@@ -4877,7 +4879,7 @@ namespace Neo.IronLua
 			}
 		}
 
-		class LuaTableDebuggerProxy
+		private class LuaTableDebuggerProxy
 		{
 			private readonly LuaTable table;
 			private KeyValuePair<string, object>[] members;
@@ -4903,7 +4905,9 @@ namespace Neo.IronLua
 			}
 
 			public int Count => Members?.Length ?? 0;
-		}
+		} // class LuaTableDebuggerProxy
+
+		#endregion
 	} // class LuaTable
 
 	#endregion
