@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Neo.IronLua;
@@ -152,6 +153,12 @@ namespace LuaDLR.Test
 		} // proc TestRuntimeLua13
 
 		[TestMethod]
+		public void TestMatch01()
+		{
+			TestCode("return string.match('(abc=123)', '%(([%s%a%d%-,=%_]*)');", "abc=123");
+		} // proc TestRuntimeLua13
+
+		[TestMethod]
 		public void TestLoad01()
 		{
 			TestCode(Lines(
@@ -205,6 +212,30 @@ namespace LuaDLR.Test
 					"return foo();"),
 				"bar"
 			);
+		}
+
+		[DataTestMethod]
+		[DataRow("%a", "\\p{L}")]
+		[DataRow("%%", "%")]
+		[DataRow("%_", "_")]
+		[DataRow("%(([%s%a%d%-,=%_]*)", @"\(([\s\p{L}\d\-,=_]*)")]
+		public void CanTranslatesRegularExpression(string from, string to)
+		{
+			var (translatedPattern, _) = LuaLibraryString.TranslateRegularExpression(from);
+			Assert.AreEqual(to, translatedPattern);
+			// ensure it parses
+			var re = new Regex(translatedPattern);
+		}
+
+		
+		[DataTestMethod]
+		[DataRow("kt foobar win64 ", "(kt)%s+(foobar[a-zA-Z]*)%s+([%a%d_]+)%s+", 2, "win64")]
+		[DataRow("kt foobar win64 LKG_AutoPlayer_Tests:Autoplayer_", "(kt)%s+(foobar[a-zA-Z]*)%s+([%a%d_]+)%s+", 2, "win64")]
+		// 
+		public void CanMatchRegularExpression(string line, string pattern, int resultIndex, string expected)
+		{
+			var res = LuaLibraryString.match(line, pattern);
+			Assert.AreEqual(expected, res[resultIndex]);
 		}
 	}
 }

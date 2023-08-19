@@ -65,7 +65,7 @@ namespace Neo.IronLua
 				len = s.Length - offset;
 		} // proc NormalizeStringArguments
 
-		private static Tuple<string, bool[]> TranslateRegularExpression(string regEx)
+		internal static Tuple<string, bool[]> TranslateRegularExpression(string regEx)
 		{
 			if (!translateRegEx)
 				return new Tuple<string, bool[]>(regEx, null);
@@ -83,9 +83,9 @@ namespace Neo.IronLua
 				var c = regEx[i];
 				if (escapeCode)
 				{
-					if (c == '%')
+					if (c == '%' || c == '_')
 					{
-						sb.Append('%');
+						sb.Append(c);
 						escapeCode = false;
 					}
 					else
