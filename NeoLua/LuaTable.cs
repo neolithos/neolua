@@ -4398,6 +4398,8 @@ namespace Neo.IronLua
 						value |= c - 'a' + 10;
 					else
 						throw UnExpected("Hex expected.");
+
+					lex.Next();
 				}
 
 				return value;
