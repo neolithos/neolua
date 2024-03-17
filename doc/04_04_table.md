@@ -21,6 +21,8 @@ using (Lua l = new Lua())
 
 In all examples `l` is a script engine and `g` is a environment (`dg` is the dynamic environment).
 
+All hooks that had been made in the script are persistent. All hooks have to be manually removed before reloading a script.
+
 ## Execute script
 
 To execute a single script on an environment you have to call `DoChunk`. Every script returns a `LuaResult`. If there is no return-command in the script, the result is empty.
