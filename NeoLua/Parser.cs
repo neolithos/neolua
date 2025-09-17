@@ -1176,9 +1176,16 @@ namespace Neo.IronLua
 							memberName = "foreach";
 						else
 							memberName = t.Value;
+
+						// try find member
 						var p = scope.LookupExpression(memberName);
-						if (t.Typ == LuaToken.DotDotDot && p is null)
+						if (p is null && memberName == "arg") // special case for arg vs ...
+							p = scope.LookupExpression(csArgList);
+
+						// argument list requested, but there is no one
+						if (t.Typ == LuaToken.DotDotDot && p is null) 
 							throw ParseError(t, Properties.Resources.rsParseNoArgList);
+
 						code.Next();
 						if (p is null) // No local variable found
 							info = new PrefixMemberInfo(tStart, scope.LookupExpression(csEnv), t.Value, null, null);

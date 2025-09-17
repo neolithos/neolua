@@ -1456,7 +1456,7 @@ namespace LuaDLR.Test
 			Assert.AreEqual("-Infinity", r["test5"]);
 		}
 
-		[DataTestMethod]
+		[TestMethod]
 		[DataRow("'abc-' .. rhs", "abc-table")]
 		[DataRow("lhs .. '-abc'", "table-abc")]
 		[DataRow("'abc' .. rhs_cc", "metaconcat-abc-rhs with concat")]

@@ -4,7 +4,7 @@
 		<AssemblyName>Neo.Lua.Dbg</AssemblyName>
 		<RootNamespace>Neo.IronLua</RootNamespace>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-		<TargetFrameworks>net452;net60</TargetFrameworks>
+		<TargetFrameworks>net462;net60</TargetFrameworks>
 		<SignAssembly>true</SignAssembly>
 		<AssemblyOriginatorKeyFile>NeoLua.snk</AssemblyOriginatorKeyFile>
 		<PackageId>NeoLuaDebug</PackageId>
@@ -23,7 +23,7 @@
 	  <None Include="..\NeoLua\NeoLua.licenseheader" Link="NeoLua.licenseheader" />
 	</ItemGroup>
 	<ItemGroup>
-	  <PackageReference Include="DynamicLanguageRuntime" Version="1.3.3" />
+	  <PackageReference Include="DynamicLanguageRuntime" Version="1.3.5" />
 	</ItemGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\NeoLua\NeoLua.csproj" />

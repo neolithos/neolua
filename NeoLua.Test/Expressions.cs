@@ -46,7 +46,6 @@ namespace LuaDLR.Test
 
 		#endregion
 
-
 		#region -- TestHelper --
 
 		public struct TestOperator2
@@ -738,7 +737,7 @@ namespace LuaDLR.Test
 			TestExpr("~'2.1'", (long)~2);
 		}
 
-		[DataTestMethod]
+		[TestMethod]
 		[DataRow(2, -2)]
 		[DataRow(2.1, -2.1)]
 		[DataRow(ShortEnum.Zwei, (ShortEnum)(-2))]
@@ -753,7 +752,7 @@ namespace LuaDLR.Test
 			}
 		}
 
-		[DataTestMethod]
+		[TestMethod]
 		[DataRow(2, ~2)]
 		[DataRow(2.1, (long)~2)]
 		[DataRow(ShortEnum.Zwei, (ShortEnum)(~2))]
@@ -1486,7 +1485,7 @@ namespace LuaDLR.Test
 		{
 			TestCode(Lines(
 			  "function test(...)",
-			  "  local a : table = {...};",
+			  "  local a : table = {arg};",
 			  "  return a[2];",
 			  "end;",
 			  "return test(1,2,3);"),
@@ -1502,6 +1501,29 @@ namespace LuaDLR.Test
 			  "end;",
 			  "return test(1,2,3);"),
 			  2);
+		}
+
+		[TestMethod]
+		public void TestVarArg04()
+		{
+			TestCode(Lines(
+			  "local function select(n, ...)",
+			  "  return arg[n];",
+			  "end;",
+			  "return select(1, 1,2,3);"),
+			  2);
+		}
+
+		[TestMethod]
+		public void TestVarArg05()
+		{
+			TestCode(Lines(
+			  "function mres()",
+			  "  return 1,2,3;",
+			  "end;",
+			  "local _, _, n = mres();",
+			  "return n;"),
+			  3);
 		}
 
 		#endregion

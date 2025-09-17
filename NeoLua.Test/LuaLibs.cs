@@ -214,7 +214,7 @@ namespace LuaDLR.Test
 			);
 		}
 
-		[DataTestMethod]
+		[TestMethod]
 		[DataRow("%a", "\\p{L}")]
 		[DataRow("%%", "%")]
 		[DataRow("%_", "_")]
@@ -228,7 +228,7 @@ namespace LuaDLR.Test
 		}
 
 		
-		[DataTestMethod]
+		[TestMethod]
 		[DataRow("kt foobar win64 ", "(kt)%s+(foobar[a-zA-Z]*)%s+([%a%d_]+)%s+", 2, "win64")]
 		[DataRow("kt foobar win64 LKG_AutoPlayer_Tests:Autoplayer_", "(kt)%s+(foobar[a-zA-Z]*)%s+([%a%d_]+)%s+", 2, "win64")]
 		// 

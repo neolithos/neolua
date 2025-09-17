@@ -62,8 +62,8 @@
 	  <EmbeddedResource Include="Lua\Runtime12.lua" />
 	</ItemGroup>
 	<ItemGroup>
-	  <PackageReference Include="MSTest.TestAdapter" Version="3.0.4" />
-	  <PackageReference Include="MSTest.TestFramework" Version="3.0.4" />
+	  <PackageReference Include="MSTest.TestAdapter" Version="3.10.4" />
+	  <PackageReference Include="MSTest.TestFramework" Version="3.10.4" />
 	</ItemGroup>
 	<ItemGroup>
 	  <Folder Include="Properties\" />

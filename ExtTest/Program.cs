@@ -93,10 +93,43 @@ namespace NeoTest1
 
 		#endregion
 
+		#region -- Issue 192 --
+
+		public class ObjWrapper
+		{
+			public string Function { get; set; }
+			public object[] Arguments { get; set; }
+
+			public void yield(string function, params object[] args)
+			{
+				Function = function;
+				Arguments = args;
+			}
+		}
+
+		public static void NeoLua_Params()
+		{
+			var condition = 
+				"function select(...)" + Environment.NewLine +
+				"  return obj.yield('select', arg)" + Environment.NewLine +
+				"end" + Environment.NewLine +
+				"select('something', 'something2');";
+			var lua = new Lua();
+			var env = lua.CreateEnvironment();
+			var wrapper = new ObjWrapper();
+			env["obj"] = wrapper;
+			env.DoChunk(condition, "code.lua");
+			Console.WriteLine("{0} == select", wrapper.Function);
+			Console.WriteLine("{0}, {1}, n={2} === something,something2,2", wrapper.Arguments[0], wrapper.Arguments[1], wrapper.Arguments.Length);
+		}
+
+		#endregion
 
 		static void Main(string[] args)
 		{
-			Example();
+			NeoLua_Params();
+
+			// Example();
 
 			//Console.WriteLine(TestAsync().Result);
 
