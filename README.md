@@ -11,7 +11,7 @@ The goal is to follow the reference of the C-Lua implementation and combine this
 .NET Framework support. That means, it should be easy to call .NET functions from Lua and it should 
 be easy access variables and functions from a .net language (e.g. C#, VB.NET, ...).
 
-NeoLua is implemented in C# and uses the [Dynamic Language Runtime](https://dlr.codeplex.com/). It therefore 
+NeoLua is implemented in C# and uses the [Dynamic Language Runtime](https://github.com/IronLanguages/dlr). It therefore 
 integrates very well with the .NET Framework.
 
 ### Quickstart

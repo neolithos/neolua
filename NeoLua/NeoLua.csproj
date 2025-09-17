@@ -1,15 +1,15 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-		<AssemblyName>Neo.Lua</AssemblyName>
-		<RootNamespace>Neo.IronLua</RootNamespace>
-		<TargetFrameworks>net451;net48;netstandard2.0;net6.0</TargetFrameworks>
-		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-		<Description>A Lua implementation for the Dynamic Language Runtime (DLR).</Description>
-		<PackageId>NeoLua</PackageId>
-		<PackageReleaseNotes>A Lua implementation for the Dynamic Language Runtime (DLR).
+        <AssemblyName>Neo.Lua</AssemblyName>
+        <RootNamespace>Neo.IronLua</RootNamespace>
+        <TargetFrameworks>net451;net48;netstandard2.0;net6.0</TargetFrameworks>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <Description>A Lua implementation for the Dynamic Language Runtime (DLR).</Description>
+        <PackageId>NeoLua</PackageId>
+        <PackageReleaseNotes>A Lua implementation for the Dynamic Language Runtime (DLR).
 
-NeoLua is an implementation of the Lua language. Currently the implementation is on the level of Lua 
+NeoLua is an implementation of the Lua language. Currently the implementation is on the level of Lua
 5.3 http://www.lua.org/manual/5.3/manual.html). The goal is to match the reference of the C-Lua implementation and combine this with full .net framework support.
 
 NeoLua is implemented in C# and uses the Dynamic Language Runtime. It therefore integrates very well with the .net framework.
@@ -20,16 +20,16 @@ This library contains the desktop parts of the lua implementation.</PackageRelea
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>NeoLua.snk</AssemblyOriginatorKeyFile>
     <Nullable>disable</Nullable>
-	  <LangVersion>9</LangVersion>
+      <LangVersion>9</LangVersion>
   </PropertyGroup>
-	<Import Project="..\NeoLua.NuGet\common.nupkg.targets" />
-	<ItemGroup>
-		<None Remove="NeoLua.snk" />
+    <Import Project="..\NeoLua.NuGet\common.nupkg.targets" />
+    <ItemGroup>
+        <None Remove="NeoLua.snk" />
   </ItemGroup>
-	<ItemGroup>
+    <ItemGroup>
     <EmbeddedResource Include="NeoLua.snk" />
   </ItemGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net451' or '$(TargetFramework)' == 'net48' or '$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
   </ItemGroup>
   <ItemGroup>
