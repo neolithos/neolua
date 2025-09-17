@@ -791,7 +791,7 @@ namespace LuaDLR.Test
 
 				dynamic g = l.CreateEnvironment();
 
-				TestResult(g.dochunk("return -a", "dummy", "a", new TestOperator2(2)), -2.0);
+				TestResult(g.dochunk("return -a", "dummy", "a", new TestOperator2(2)), -2);
 
 			}
 		}
@@ -817,7 +817,7 @@ namespace LuaDLR.Test
 
 				dynamic g = l.CreateEnvironment();
 
-				TestResult(g.dochunk("return ~a", "dummy", "a", new TestOperator2(2)), (long)~2);
+				TestResult(g.dochunk("return ~a", "dummy", "a", new TestOperator2(2)), ~2);
 			}
 		}
 
