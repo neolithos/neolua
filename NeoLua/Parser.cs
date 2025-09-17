@@ -748,9 +748,12 @@ namespace Neo.IronLua
 			Expression exprReturnValue;
 			if (exprs.Length == 1)
 			{
-				exprReturnValue = exprs[0].Type == typeof(LuaResult)
-					  ? exprs[0]
-					  : Expression.New(Lua.ResultConstructorInfoArg1, ConvertExpression(scope.Runtime, tStart, exprs[0], typeof(object)));
+				if (exprs[0].Type == typeof(LuaResult))
+					exprReturnValue = exprs[0];
+				else if (exprs[0].Type == typeof(LuaVarArg))
+					exprReturnValue = Expression.New(Lua.ResultConstructorInfoArgN, Expression.Property(exprs[0], Lua.VarArgValuesPropertyInfo));
+				else
+					exprReturnValue = Expression.New(Lua.ResultConstructorInfoArg1, ConvertExpression(scope.Runtime, tStart, exprs[0], typeof(object)));
 			}
 			else
 			{
@@ -972,7 +975,8 @@ namespace Neo.IronLua
 						{
 							if (i < assignTempVars.Count - expressionVarOffset) // are the variables
 							{
-								if (i == assignTempVars.Count - expressionVarOffset - 1 && assignTempVars[i + expressionVarOffset].Type == typeof(LuaResult)) // check if the last expression is a LuaResult
+								if (i == assignTempVars.Count - expressionVarOffset - 1 
+									&& (assignTempVars[i + expressionVarOffset].Type == typeof(LuaResult) || assignTempVars[i + expressionVarOffset].Type == typeof(LuaVarArg))) // check if the last expression is a LuaResult
 								{
 									lastVariable = assignTempVars[i + expressionVarOffset];
 									assignExprs.Add(prefixes[i].GenerateSet(scope, GetResultExpression(scope.Runtime, code.Current, lastVariable, j++)));
@@ -2357,9 +2361,9 @@ namespace Neo.IronLua
 		private static void ParseLamdaDefinitionArgList(LambdaScope scope, List<ParameterExpression> parameters)
 		{
 			var paramArgList = scope.RegisterParameter(typeof(object[]), csArgListP);
-			var varArgList = scope.RegisterVariable(typeof(LuaResult), csArgList);
+			var varArgList = scope.RegisterVariable(typeof(LuaVarArg), csArgList);
 			parameters.Add(paramArgList);
-			scope.AddExpression(Expression.Assign(varArgList, Expression.New(Lua.ResultConstructorInfoArgN, paramArgList)));
+			scope.AddExpression(Expression.Assign(varArgList, Expression.New(Lua.VarArgConstructorInfoArgN, paramArgList)));
 		} // proc ParseLamdaDefinitionArgList
 
 		#endregion

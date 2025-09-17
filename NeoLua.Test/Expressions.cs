@@ -1469,10 +1469,22 @@ namespace LuaDLR.Test
 		#region -- TestVarArg01 -----------------------------------------------------------
 
 		[TestMethod]
-		public void TestVarArg01()
+		public void TestVarArg01dyn()
 		{
 			TestCode(Lines(
 			  "function sum(...)",
+			  "  local a, b, c = ...;",
+			  "  return a + b + c;",
+			  "end;",
+			  "return sum(3, 20, 100);"),
+			  123);
+		}
+
+		[TestMethod]
+		public void TestVarArg01stat()
+		{
+			TestCode(Lines(
+			  "local function sum(...)",
 			  "  local a, b, c = ...;",
 			  "  return a + b + c;",
 			  "end;",
@@ -1497,7 +1509,7 @@ namespace LuaDLR.Test
 		{
 			TestCode(Lines(
 			  "function test(...)",
-			  "  return ...[1];",
+			  "  return ...[2];",
 			  "end;",
 			  "return test(1,2,3);"),
 			  2);
@@ -1510,7 +1522,7 @@ namespace LuaDLR.Test
 			  "local function select(n, ...)",
 			  "  return arg[n];",
 			  "end;",
-			  "return select(1, 1,2,3);"),
+			  "return select(2, 1,2,3);"),
 			  2);
 		}
 
@@ -1524,6 +1536,17 @@ namespace LuaDLR.Test
 			  "local _, _, n = mres();",
 			  "return n;"),
 			  3);
+		}
+
+		[TestMethod]
+		public void TestVarArg06()
+		{
+			TestCode(Lines(
+			  "local function test(...)",
+			  "  return arg;",
+			  "end;",
+			  "return test(1,2,3);"),
+			  1, 2, 3);
 		}
 
 		#endregion

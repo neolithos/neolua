@@ -29,7 +29,7 @@ namespace Neo.IronLua
 	#region -- class LuaResult --------------------------------------------------------
 
 	/// <summary>Dynamic result object for lua functions.</summary>
-	public sealed class LuaResult : IDynamicMetaObjectProvider, System.Collections.IEnumerable, System.Collections.ICollection, IConvertible
+	public sealed class LuaResult : ILuaValues, IDynamicMetaObjectProvider, System.Collections.IEnumerable, System.Collections.ICollection, IConvertible
 	{
 		#region -- enum CopyMode ------------------------------------------------------
 
@@ -150,8 +150,10 @@ namespace Neo.IronLua
 		{
 			if (v != null && v.GetType() == typeof(object[]))
 				result = CopyResult((object[])v);
-			else if (v is LuaResult)
-				result = (LuaResult)v;
+			else if (v is LuaResult r)
+				result = r.result;
+			else if (v is ILuaValues lv)
+				result = lv.Values;
 			else
 				result = new object[] { v };
 		} // ctor
@@ -159,7 +161,7 @@ namespace Neo.IronLua
 		internal LuaResult(CopyMode copyMode, object[] values)
 		{
 			if (copyMode != CopyMode.None)
-				throw new ArgumentException(nameof(copyMode));
+				throw new ArgumentOutOfRangeException(nameof(copyMode));
 
 			result = values;
 		} // ctor
@@ -167,9 +169,7 @@ namespace Neo.IronLua
 		/// <summary>Creates a empty result-object.</summary>
 		/// <param name="values">Result values</param>
 		public LuaResult(params object[] values)
-		{
-			result = CopyResult(values);
-		} // ctor
+			=> result = CopyResult(values);
 
 		/// <summary></summary>
 		/// <returns></returns>
@@ -191,18 +191,18 @@ namespace Neo.IronLua
 		} // func ToString
 
 		private static object GetObject(object v)
-			=> v is LuaResult ? ((LuaResult)v)[0] : v;
+			=> v is ILuaValues lv ? lv.Value : v;
 
 		private static object[] CopyResult(object[] values)
 		{
 			// are there values
 			if (values == null || values.Length == 0)
 				return emptyArray;
-			else if (values.Length == 1 && values[0] is LuaResult) // Only on element, that is a result no copy necessary
-				return (LuaResult)values[0];
-			else if (values[values.Length - 1] is LuaResult) // is the last result an an result -> concat the arrays
+			else if (values.Length == 1 && values[0] is ILuaValues lv) // Only on element, that is a result no copy necessary
+				return lv.Values;
+			else if (values[values.Length - 1] is ILuaValues lv2) // is the last result an an result -> concat the arrays
 			{
-				var l = (object[])(LuaResult)values[values.Length - 1];
+				var l = lv2.Values;
 				var n = new object[values.Length - 1 + l.Length];
 
 				// copy the first values
@@ -373,9 +373,11 @@ namespace Neo.IronLua
 		/// <summary>Return values.</summary>
 		/// <param name="index"></param>
 		/// <returns></returns>
-		public object this[int index] => result != null && index >= 0 && index < result.Length ? result[index] : null;
+		public object this[int index] => index >= 0 && index < result.Length ? result[index] : null;
 		/// <summary>Access to the raw-result values.</summary>
 		public object[] Values => result;
+		/// <summary>First value.</summary>
+		public object Value => result.Length > 0 ? result[0] : null;
 		/// <summary>Get's the number of results.</summary>
 		public int Count => result.Length;
 
@@ -386,7 +388,6 @@ namespace Neo.IronLua
 #else
 		private static readonly object[] emptyArray = Array.Empty<object>();
 #endif
-		private static readonly LuaResult empty = new LuaResult();
 
 		/// <summary></summary>
 		/// <param name="r"></param>
@@ -401,7 +402,7 @@ namespace Neo.IronLua
 			=> new LuaResult(v);
 
 		/// <summary>Represents a empty result</summary>
-		public static LuaResult Empty => empty;
+		public static LuaResult Empty { get; } = new();
 	} // struct LuaResult
 
 #endregion

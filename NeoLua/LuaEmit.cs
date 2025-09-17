@@ -136,6 +136,26 @@ namespace Neo.IronLua
 
 	#endregion
 
+	#region -- interface ILuaValues ---------------------------------------------------
+
+	/// <summary>Return values stored in a result or variable arguments.</summary>
+	public interface ILuaValues
+	{
+		/// <summary>Access a single value.</summary>
+		/// <param name="index"></param>
+		/// <returns></returns>
+		object this[int index] { get; }
+
+		/// <summary>All values.</summary>
+		object[] Values { get; }
+		/// <summary>First value</summary>
+		object Value { get; }
+		/// <summary>Number of values.</summary>
+		int Count { get; }
+	} // interface ILuaValues
+
+	#endregion
+
 	#region -- class LuaEmit ----------------------------------------------------------
 
 	internal static class LuaEmit
@@ -548,9 +568,15 @@ namespace Neo.IronLua
 				result = expr;
 				return true;
 			}
-			else if (fromType == typeof(LuaResult)) // LuaResult -> convert first value
+			else if (fromType == typeof(LuaResult) || fromType == typeof(LuaVarArg)) // LuaResult,LuaValues -> convert first value
 			{
-				return TryConvertCore(GetResultExpression(expr, 0), toType, getDynamicConvertBinder, out result);
+				if (toType == typeof(ILuaValues))
+				{
+					result = Expression.Convert(expr, toType);
+					return true;
+				}
+				else
+					return TryConvertCore(GetResultExpression(expr, 0), toType, getDynamicConvertBinder, out result);
 			}
 			else if (toType == typeof(LuaResult)) // type to LuaResult
 			{
@@ -685,7 +711,7 @@ namespace Neo.IronLua
 
 			if (getDynamicConvertBinder != null)
 			{
-				if (expr.Type == typeof(LuaResult) && toType != typeof(LuaResult)) // shortcut for LuaResult ==> expr[0]
+				if (expr.Type == typeof(LuaResult) && !typeof(ILuaValues).IsAssignableFrom(toType)) // shortcut for LuaResult ==> expr[0]
 				{
 					if (expr.NodeType == ExpressionType.New) // new LuaResult(?)
 					{
@@ -767,9 +793,9 @@ namespace Neo.IronLua
 		public static Expression GetResultExpression(Expression target, int index)
 		{
 			return Expression.MakeIndex(
-				Lua.EnsureType(target, typeof(LuaResult)),
-				Lua.ResultIndexPropertyInfo,
-				new Expression[] { Expression.Constant(index) }
+				Lua.EnsureType(target, typeof(ILuaValues)),
+				Lua.ValuesIndexPropertyInfo,
+				new Expression[] { Expression.Constant(target.Type == typeof(LuaVarArg) ? index + 1 : index) }
 			);
 		} // func GetResultExpression
 
@@ -1929,15 +1955,15 @@ namespace Neo.IronLua
 			var positionalArguments = arguments.Length - callInfo.ArgumentNames.Count; // number of positional arguments
 
 			var argumentsIndex = 0; // index of the argument, that is processed
-			var lastArgumentStretchCount = 0; // numer of LuaResult arguments, processed
-			var lastArgumentIsResult = arguments.Length > 0 && argumentsWorkedWith == null && getType(arguments[arguments.Length - 1]) == typeof(LuaResult); // is last argumetn a result
-			var argumentsCount = lastArgumentIsResult ? positionalArguments - 1 : positionalArguments;
+			var lastArgumentStretchCount = 0; // number of LuaResult arguments, processed
+			var lastArgumentIsValues = arguments.Length > 0 && argumentsWorkedWith == null && typeof(ILuaValues).IsAssignableFrom(getType(arguments[arguments.Length - 1])); // is last argument a values
+			var argumentsCount = lastArgumentIsValues ? positionalArguments - 1 : positionalArguments;
 
 			var parameterIndex = 0; // index of the parameter, that is processed
 			var lastParameterIsArray = parameterInfo.Length > 0 && argumentsWorkedWith == null && parameterInfo[parameterInfo.Length - 1].ParameterType.IsArray; // is the last argument a array
 			var parameterCount = lastParameterIsArray ? parameterInfo.Length - 1 : (argumentsWorkedWith == null ? parameterInfo.Length : positionalArguments); // number of "normal" parameters
 
-			ParameterExpression varLuaResult = null;
+			ParameterExpression varLuaValues = null;
 
 			if (argumentsWorkedWith != null)
 			{
@@ -1965,15 +1991,14 @@ namespace Neo.IronLua
 				}
 				else if (lastArgumentStretchCount > 0) // stretch LuaResult
 				{
-					argumentExpression = GetResultExpression(lua, varLuaResult, lastArgumentStretchCount++, parameterType, GetDefaultParameterExpression(parameter, parameterType));
+					argumentExpression = GetResultExpression(lua, varLuaValues, lastArgumentStretchCount++, parameterType, GetDefaultParameterExpression(parameter, parameterType));
 				}
-				else if (lastArgumentIsResult) // start stretch of LuaResult
+				else if (lastArgumentIsValues) // start stretch of LuaValues
 				{
-
-					varLuaResult = Expression.Variable(typeof(LuaResult), "#result");
+					varLuaValues = Expression.Variable(typeof(ILuaValues), "#values");
 					argumentExpression = GetResultExpression(
 						lua,
-						Expression.Assign(varLuaResult, ConvertWithRuntime(null, getExpr(arguments[argumentsIndex]), typeof(LuaResult), typeof(LuaResult))),
+						Expression.Assign(varLuaValues, ConvertWithRuntime(null, getExpr(arguments[argumentsIndex]), getType(arguments[argumentsIndex]), typeof(ILuaValues))),
 						0,
 						parameterType,
 						GetDefaultParameterExpression(parameter, parameterType)
@@ -2033,17 +2058,17 @@ namespace Neo.IronLua
 				var lastParameter = parameterInfo[parameterCount];
 				var arrayType = lastParameter.ParameterType.GetElementType();
 
-				if (lastArgumentStretchCount > 0) // finish LuaResult
+				if (lastArgumentStretchCount > 0) // finish LuaValues
 				{
 					argumentExpression = Expression.Convert(
 						Expression.Call(
-							Lua.GetResultValuesMethodInfo,
-							varLuaResult,
+							Lua.GetValuesMethodInfo,
+							varLuaValues,
 							Expression.Constant(lastArgumentStretchCount), Expression.Constant(arrayType)),
 						lastParameter.ParameterType
 					);
 				}
-				else if (argumentsCount - argumentsIndex == 1 && !lastArgumentIsResult && getType(arguments[argumentsIndex]).IsArray)
+				else if (argumentsCount - argumentsIndex == 1 && !lastArgumentIsValues && getType(arguments[argumentsIndex]).IsArray)
 				{
 					if (getType(arguments[argumentsIndex]) == lastParameter.ParameterType) // same type
 						argumentExpression = Expression.Convert(getExpr(arguments[argumentsIndex]), lastParameter.ParameterType);
@@ -2067,15 +2092,15 @@ namespace Neo.IronLua
 						collectedArguments.Add(ConvertWithRuntime(lua, getExpr(arguments[argumentsIndex]), getType(arguments[argumentsIndex]), arrayType));
 
 					// the last argument is a LuaResult
-					if (lastArgumentIsResult)
+					if (lastArgumentIsValues)
 					{
 						// combine the arguments and the last result to the correct array
 						var tmpExpr = getExpr(arguments[arguments.Length - 1]);
 						var tmpType = getType(arguments[arguments.Length - 1]);
 						argumentExpression = Expression.Convert(
-							Expression.Call(null, Lua.CombineArrayWithResultMethodInfo,
+							Expression.Call(null, Lua.CombineArrayWithValuesMethodInfo,
 								Expression.Convert(Expression.NewArrayInit(arrayType, collectedArguments), typeof(Array)),
-								ConvertWithRuntime(lua, tmpExpr, tmpType, tmpType),
+								ConvertWithRuntime(lua, tmpExpr, tmpType, typeof(ILuaValues)),
 								Expression.Constant(arrayType)
 							),
 							lastParameter.ParameterType
@@ -2084,14 +2109,14 @@ namespace Neo.IronLua
 					else // create a array of the collected arguments
 						argumentExpression = Expression.NewArrayInit(arrayType, collectedArguments);
 				}
-				else if (lastArgumentIsResult) // there is a result to take care of
+				else if (lastArgumentIsValues) // there is a result to take care of
 				{
 					var tmpExpr = getExpr(arguments[arguments.Length - 1]);
 					var tmpType = getType(arguments[arguments.Length - 1]);
 					argumentExpression = Expression.Convert(
 						Expression.Call(
-							Lua.GetResultValuesMethodInfo,
-							ConvertWithRuntime(null, tmpExpr, tmpType, tmpType),
+							Lua.GetValuesMethodInfo,
+							ConvertWithRuntime(null, tmpExpr, tmpType, typeof(ILuaValues)),
 							Expression.Constant(0),
 							Expression.Constant(arrayType)),
 						lastParameter.ParameterType
@@ -2106,8 +2131,8 @@ namespace Neo.IronLua
 			}
 
 			#region -- emit call block --
-			var argumentsLeft = argumentsWorkedWith == null ? argumentsIndex < arguments.Length : Array.Exists(argumentsWorkedWith, c => c == false); // not argumentsCount, because we include really all arguments
-			if (variablesToReturn.Count > 0 || varLuaResult != null || (forParse && argumentsLeft)) // we have variables or arguments are left out
+			var argumentsLeft = argumentsWorkedWith == null ? argumentsIndex < argumentsCount : Array.Exists(argumentsWorkedWith, c => c == false); // why I wrote this comment? Old: not argumentsCount, because we include really all arguments
+			if (variablesToReturn.Count > 0 || varLuaValues != null || (forParse && argumentsLeft)) // we have variables or arguments are left out
 			{
 				// add the call
 				var exprCall = emitCall(argumentExpressions);
@@ -2126,7 +2151,7 @@ namespace Neo.IronLua
 				{
 					if (argumentsWorkedWith == null)
 					{
-						for (; argumentsIndex < arguments.Length; argumentsIndex++)
+						for (; argumentsIndex < argumentsCount; argumentsIndex++)
 							callBlock.Add(getExpr(arguments[argumentsIndex]));
 					}
 					else
@@ -2140,11 +2165,11 @@ namespace Neo.IronLua
 				}
 
 				// create the variable definition
-				var varResultExists = varLuaResult != null ? 1 : 0;
-				var variables = new ParameterExpression[variablesToReturn.Count + varResultExists];
-				variablesToReturn.CopyTo(variables, varResultExists);
-				if (varResultExists > 0)
-					variables[0] = varLuaResult;
+				var varValuesExists = varLuaValues != null ? 1 : 0;
+				var variables = new ParameterExpression[variablesToReturn.Count + varValuesExists];
+				variablesToReturn.CopyTo(variables, varValuesExists);
+				if (varValuesExists > 0)
+					variables[0] = varLuaValues;
 
 				if (variablesToReturn.Count == 0) // no multi or return variables results
 				{

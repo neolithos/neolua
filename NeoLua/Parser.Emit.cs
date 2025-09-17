@@ -125,10 +125,8 @@ namespace Neo.IronLua
 				throw ParseError(tokenStart, ((LuaEmitException)result).Message);
 		} // func ConvertExpression
 
-		private static Expression GetResultExpression(Lua runtime, Token tStart, Expression expr, int iIndex)
-		{
-			return SafeExpression(() => LuaEmit.GetResultExpression(expr, iIndex), tStart);
-		} // func GetResultExpression
+		private static Expression GetResultExpression(Lua runtime, Token tStart, Expression expr, int index)
+			=> SafeExpression(() => LuaEmit.GetResultExpression(expr, index), tStart);
 
 		private static Expression UnaryOperationExpression(Lua runtime, Token tStart, ExpressionType op, Expression expr)
 		{
@@ -285,13 +283,13 @@ namespace Neo.IronLua
 					);
 				}
 			}
-			else if (instance.Type == typeof(LuaResult) && indexes.Length == 1)
+			else if ((instance.Type == typeof(LuaResult) || instance.Type == typeof(LuaVarArg)) && indexes.Length == 1)
 			{
 				return MemberGetSandbox(
 					scope,
 					Expression.MakeIndex(
-						instance,
-						Lua.ResultIndexPropertyInfo,
+						Expression.Convert(instance, typeof(ILuaValues)),
+						Lua.ValuesIndexPropertyInfo,
 						new Expression[] { ConvertExpression(scope.Runtime, tStart, indexes[0], typeof(int)) }
 					),
 					instance, null

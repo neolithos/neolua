@@ -46,9 +46,13 @@ namespace Neo.IronLua
 		// LuaResult
 		internal readonly static ConstructorInfo ResultConstructorInfoArg1;
 		internal readonly static ConstructorInfo ResultConstructorInfoArgN;
-		internal readonly static PropertyInfo ResultIndexPropertyInfo;
 		internal readonly static PropertyInfo ResultValuesPropertyInfo;
 		internal readonly static PropertyInfo ResultEmptyPropertyInfo;
+		// LuaVarArg
+		internal readonly static ConstructorInfo VarArgConstructorInfoArgN;
+		internal readonly static PropertyInfo VarArgValuesPropertyInfo;
+		// ILuaValues
+		internal readonly static PropertyInfo ValuesIndexPropertyInfo;
 		// LuaException
 		internal readonly static ConstructorInfo RuntimeExceptionConstructorInfo;
 		// LuaTable
@@ -117,8 +121,8 @@ namespace Neo.IronLua
 		internal readonly static MethodInfo ParseNumberTypedMethodInfo;
 		internal readonly static MethodInfo RuntimeLengthMethodInfo;
 		internal readonly static MethodInfo ConvertValueMethodInfo;
-		internal readonly static MethodInfo GetResultValuesMethodInfo;
-		internal readonly static MethodInfo CombineArrayWithResultMethodInfo;
+		internal readonly static MethodInfo GetValuesMethodInfo;
+		internal readonly static MethodInfo CombineArrayWithValuesMethodInfo;
 		internal readonly static MethodInfo ConvertArrayMethodInfo;
 		internal readonly static MethodInfo TableSetObjectsMethod;
 		internal readonly static MethodInfo ConcatStringMethodInfo;
@@ -165,9 +169,17 @@ namespace Neo.IronLua
 			var tiLuaResult = typeof(LuaResult).GetTypeInfo();
 			ResultConstructorInfoArg1 = tiLuaResult.FindDeclaredConstructor(ReflectionFlag.None, typeof(object));
 			ResultConstructorInfoArgN = tiLuaResult.FindDeclaredConstructor(ReflectionFlag.None, typeof(object[]));
-			ResultIndexPropertyInfo = tiLuaResult.FindDeclaredProperty("Item", ReflectionFlag.None);
 			ResultEmptyPropertyInfo = tiLuaResult.FindDeclaredProperty(nameof(LuaResult.Empty), ReflectionFlag.None);
 			ResultValuesPropertyInfo = tiLuaResult.FindDeclaredProperty(nameof(LuaResult.Values), ReflectionFlag.None);
+
+			// LuaVarArg
+			var tiLuaVarArg = typeof(LuaVarArg).GetTypeInfo();
+			VarArgConstructorInfoArgN = tiLuaVarArg.FindDeclaredConstructor(ReflectionFlag.None, typeof(object[]));
+			VarArgValuesPropertyInfo = tiLuaVarArg.FindDeclaredProperty(nameof(LuaVarArg.Values), ReflectionFlag.None);
+
+			// ILuaValues
+			var tiLuaValues = typeof(ILuaValues).GetTypeInfo();
+			ValuesIndexPropertyInfo = tiLuaValues.FindDeclaredProperty("Item", ReflectionFlag.None);
 
 			// LuaException
 			var tiLuaRuntimeException = typeof(LuaRuntimeException).GetTypeInfo();
@@ -254,8 +266,8 @@ namespace Neo.IronLua
 			ParseNumberTypedMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtParseNumber), ReflectionFlag.None, typeof(string), typeof(Type));
 			RuntimeLengthMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtLength), ReflectionFlag.None | ReflectionFlag.NoArguments);
 			ConvertValueMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConvertValue), ReflectionFlag.None, typeof(object), typeof(Type));
-			GetResultValuesMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtGetResultValues), ReflectionFlag.None, typeof(LuaResult), typeof(int), typeof(Type));
-			CombineArrayWithResultMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtCombineArrayWithResult), ReflectionFlag.None, typeof(Array), typeof(LuaResult), typeof(Type));
+			GetValuesMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtGetValues), ReflectionFlag.None, typeof(ILuaValues), typeof(int), typeof(Type));
+			CombineArrayWithValuesMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtCombineArrayWithValues), ReflectionFlag.None, typeof(Array), typeof(ILuaValues), typeof(Type));
 			ConvertArrayMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConvertArray), ReflectionFlag.None, typeof(Array), typeof(Type));
 			TableSetObjectsMethod = tiLua.FindDeclaredMethod(nameof(Lua.RtTableSetObjects), ReflectionFlag.None, typeof(LuaTable), typeof(object), typeof(int));
 			ConcatStringMethodInfo = tiLua.FindDeclaredMethod(nameof(Lua.RtConcat), ReflectionFlag.None | ReflectionFlag.NoArguments);
@@ -1108,13 +1120,13 @@ namespace Neo.IronLua
 		#region -- RtGetResultValues, RtCombineArrayWithResult, RtConvertArray --------
 
 		/// <summary>Get the part of the result as an array. If there are not enough values in the array, it returns a empty array.</summary>
-		/// <param name="result"></param>
+		/// <param name="v"></param>
 		/// <param name="startAt"></param>
 		/// <param name="typeElementType">Type of the elements of the result array.</param>
 		/// <returns></returns>
-		internal static Array RtGetResultValues(LuaResult result, int startAt, Type typeElementType)
+		internal static Array RtGetValues(ILuaValues v, int startAt, Type typeElementType)
 		{
-			var values = result.Values;
+			var values = v.Values;
 			var length = values.Length - startAt;
 			if (length > 0)
 			{
@@ -1125,16 +1137,16 @@ namespace Neo.IronLua
 			}
 			else
 				return Array.CreateInstance(typeElementType, 0); // empty array
-		} // func GetResultValues
+		} // func GetValues
 
 		/// <summary>Combines a array with the result.</summary>
 		/// <param name="args"></param>
-		/// <param name="result"></param>
+		/// <param name="v"></param>
 		/// <param name="typeArray"></param>
 		/// <returns></returns>
-		internal static Array RtCombineArrayWithResult(Array args, LuaResult result, Type typeArray)
+		internal static Array RtCombineArrayWithValues(Array args, ILuaValues v, Type typeArray)
 		{
-			var values = result.Values;
+			var values = v.Values;
 			var argsLength = args.Length;
 			var valuesLength = values.Length;
 
@@ -1149,7 +1161,7 @@ namespace Neo.IronLua
 				r.SetValue(RtConvertValue(values[i], typeArray), argsLength + i);
 
 			return r;
-		} // func CombineArrayWithResult
+		} // func CombineArrayWithValues
 
 		internal static Array RtConvertArray(Array src, Type typeArray)
 		{
@@ -1226,6 +1238,11 @@ namespace Neo.IronLua
 			{
 				for (var i = 0; i < r.Count; i++)
 					t.SetArrayValue(startIndex++, r[i], true);
+			}
+			else if (value is LuaVarArg va)
+			{
+				for (var i = 1; i <= va.Count; i++)
+					t.SetArrayValue(startIndex++, va[i], true);
 			}
 			else if (value != null)
 				t.SetArrayValue(startIndex, value, true);
