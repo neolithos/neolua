@@ -2121,6 +2121,7 @@ namespace Neo.IronLua
 							Expression.Constant(arrayType)),
 						lastParameter.ParameterType
 					);
+					argumentsIndex++; // move over to last, because it is used
 				}
 				else // nothing left, create empty array
 					argumentExpression = Expression.NewArrayInit(arrayType);
@@ -2131,7 +2132,7 @@ namespace Neo.IronLua
 			}
 
 			#region -- emit call block --
-			var argumentsLeft = argumentsWorkedWith == null ? argumentsIndex < argumentsCount : Array.Exists(argumentsWorkedWith, c => c == false); // why I wrote this comment? Old: not argumentsCount, because we include really all arguments
+			var argumentsLeft = argumentsWorkedWith == null ? argumentsIndex < arguments.Length : Array.Exists(argumentsWorkedWith, c => c == false); // not argumentsCount, because we include really all arguments, also the last LuaValues must be executed
 			if (variablesToReturn.Count > 0 || varLuaValues != null || (forParse && argumentsLeft)) // we have variables or arguments are left out
 			{
 				// add the call
@@ -2151,7 +2152,7 @@ namespace Neo.IronLua
 				{
 					if (argumentsWorkedWith == null)
 					{
-						for (; argumentsIndex < argumentsCount; argumentsIndex++)
+						for (; argumentsIndex < arguments.Length; argumentsIndex++)
 							callBlock.Add(getExpr(arguments[argumentsIndex]));
 					}
 					else

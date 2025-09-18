@@ -1549,6 +1549,42 @@ namespace LuaDLR.Test
 			  1, 2, 3);
 		}
 
+		[TestMethod]
+		public void TestVarArg07()
+		{
+			TestCode(Lines(
+				"local calls : int = 0;",
+				"local function a()",
+				"  calls = calls + 1;",
+				"  return 1,2,3;",
+				"end;",
+				"local function b(n)",
+				"  calls = calls + n;",
+				"end;",
+				"b(1, a());",
+				"return calls;"),
+				2
+			);
+		}
+
+		[TestMethod]
+		public void TestVarArg08()
+		{
+			TestCode(Lines(
+				"local calls : int = 0;",
+				"local function a()",
+				"  calls = calls + 1;",
+				"  return 1,2,3;",
+				"end;",
+				"local function b(n, ...)",
+				"  calls = calls + n + arg[1] + arg[2] + arg[3];",
+				"end;",
+				"b(1, a());",
+				"return calls;"),
+				8
+			);
+		}
+
 		#endregion
 
 		#region -- DynamicObjectCompatibility ---------------------------------------------
