@@ -548,7 +548,7 @@ namespace Neo.IronLua
 			}
 		} // prop Version
 
-#if !NETSTANDARD2_0 && !NETCOREAPP2_1 && !NET6_0
+#if !NETSTANDARD2_0 && !NETCOREAPP2_1 && !NET6_0_OR_GREATER
 		/// <summary>Stack trace compile options.</summary>
 		public static LuaCompileOptions StackTraceCompileOptions { get; } = new LuaCompileOptions { DebugEngine = LuaStackTraceDebugger.Default };
 #endif
