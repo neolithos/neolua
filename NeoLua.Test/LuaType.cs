@@ -645,6 +645,17 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
+		public void OverloadTest09()
+		{
+			TestCode(Lines(
+					"const Version typeof System.Version;",
+					"local fvi = { FileMajorPart = 1, FileMinorPart = 31, FileBuildPart = 0, FilePrivatePart = 123};",
+					"return clr.System.Version(fvi.FileMajorPart, fvi.FileMinorPart, fvi.FileBuildPart, fvi.FilePrivatePart);"
+				), new Version(1, 31, 0, 123)
+			);
+		} // proc OverloadTest09
+
+		[TestMethod]
 		public void AbstractCall01()
 		{
 			var c = new TestImpl();

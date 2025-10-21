@@ -2675,8 +2675,8 @@ namespace Neo.IronLua
 		/// <param name="arguments">The arguments to use to determine if the members are callable.</param>
 		/// <param name="isMemberCall"></param>
 		/// <returns></returns>
-		internal static IEnumerable<TMEMBERTYPE> GetMatchingOverloads<TMEMBERTYPE, TARG>(IEnumerable<TMEMBERTYPE> candidateOverloads, TARG[] arguments,
-			bool isMemberCall) where TMEMBERTYPE : MemberInfo where TARG : class
+		internal static IEnumerable<TMEMBERTYPE> GetMatchingOverloads<TMEMBERTYPE, TARG>(IEnumerable<TMEMBERTYPE> candidateOverloads, TARG[] arguments, bool isMemberCall)
+			where TMEMBERTYPE : MemberInfo where TARG : class
 		{
 #if DEBUG
 			var candidateMembers = candidateOverloads.ToList();
@@ -2685,9 +2685,7 @@ namespace Neo.IronLua
 			{
 				var candidateMember = candidateMembers[i];
 				if (!IsMemberCandidate(candidateMember, arguments, isMemberCall))
-				{
 					candidateMembers.RemoveAt(i);
-				}
 			}
 #else
 			var filteredMembers = candidateOverloads.Where(c => IsMemberCandidate(c, arguments, isMemberCall));
@@ -2706,126 +2704,6 @@ namespace Neo.IronLua
 		/// <returns><see langword="true"/> if <paramref name="candidateMember"/> can be invoked with <paramref name="arguments"/>, otherwise <see langword="false"/>.</returns>
 		internal static bool IsMemberCandidate<TMEMBERTYPE, TARG>(TMEMBERTYPE candidateMember, TARG[] arguments, bool isMemberCall) where TMEMBERTYPE : MemberInfo where TARG : class
 		{
-			var parameterInfo = GetMemberParameter(candidateMember, isMemberCall);
-			var argumentsLength = arguments.Length;
-			var parameterInfoLength = parameterInfo.Length;
-			if (parameterInfoLength == 0 && argumentsLength > 0) return false;
-			
-			if (argumentsLength == 0)
-			{
-				return parameterInfoLength switch
-				{
-					0 => true,
-					1 when parameterInfo[0] is { } paramInfo && (paramInfo.IsOptional || paramInfo.IsParamArray()) => true,
-					_ => false
-				};
-			}
-
-			var luaResult = arguments[argumentsLength - 1] as LuaResult;
-			var lastIsLuaResult = luaResult is not null;
-
-			
-			if (argumentsLength <= parameterInfoLength)
-			{
-				for (int i = 0; i < argumentsLength; i++)
-				{
-					var paramInfo = parameterInfo[i];
-					var argInfo = arguments[i];
-					var isParamArrayParameter = i == parameterInfoLength - 1 && paramInfo.ParameterType.IsArray && paramInfo.IsParamArray();
-					
-					if (!IsPossibleParameter(paramInfo.ParameterType, argInfo, isParamArrayParameter))
-						return false;
-				}
-				// all parameters checked out. We have an exact match, or a match with implicit conversions
-				
-				if (argumentsLength == parameterInfoLength) return true;
-
-
-				// OK if the remaining parameters are out or optional
-				for (int i = argumentsLength; i < parameterInfoLength; i++)
-				{
-					if (!(parameterInfo[i].IsOut || parameterInfo[i].IsOptional)) return false;
-				}
-
-				return true;
-			}
-			
-			if (argumentsLength > parameterInfoLength)
-			{
-				if (parameterInfo[parameterInfoLength - 1].GetCustomAttribute<ParamArrayAttribute>() is null)
-				{
-					// Error, we don't have a params array.
-					return false;
-				}
-				// Check if the arguments matches the available parameters
-				for (int i = 0; i < parameterInfoLength; i++)
-				{
-					var paramInfo = parameterInfo[i];
-					var argInfo = arguments[i];
-
-					if (i == parameterInfoLength - 1)
-					{
-						// params array. Ensure remaining arguments can be converted to the params array type
-						var parameterType = paramInfo.ParameterType.GetElementType()!;
-						if (parameterType == typeof(object)) return true; // everything can be converted to object
-						
-						for (int j = i; j < argumentsLength; j++)
-						{
-							if (!IsPossibleParameter(parameterType, argInfo)) return false;
-						}
-
-						return true;
-					}
-					else
-					{
-						if (!IsPossibleParameter(paramInfo.ParameterType, argInfo)) return false;
-					}
-				}
-
-				return true;
-			}
-
-			return false;
-
-			static bool IsPossibleParameter(Type parameterType, object arg, bool isParamArrayParameter = false)
-			{
-				if (parameterType.IsGenericParameter || parameterType == typeof(object)) return true;
-
-				var argType = arg switch
-				{
-					DynamicMetaObject dmo => dmo.LimitType,
-					Expression ex => ex.Type,
-					Type t => t,
-					_ => arg.GetType()
-				};
-				if (argType == parameterType || argType == typeof(LuaResult)) return true;
-
-				if (isParamArrayParameter)
-				{
-					if (IsPossibleParameter(parameterType.GetElementType(), arg, false)) return true;
-				}
-
-				if (parameterType.IsByRef && parameterType.GetElementType() == argType) return true;
-				if (GenericTypesMatches(argType, parameterType)) return true;
-
-				if (argType.IsPrimitive && (parameterType.IsPrimitive || parameterType == typeof(string)))
-				{
-					return true;
-				}
-
-				if (parameterType.IsArray && arg is LuaResult)
-				{
-					return true;
-				}
-
-				return parameterType.IsAssignableFrom(argType)
-			       || argType.HasImplicitConversionToType(parameterType)
-			       || parameterType.HasImplicitConversionFromType(argType)
-			       || argType.CanConvertTo(parameterType)
-			       || parameterType.CanConvertFrom(argType);
-
-			}
-
 			static bool GenericTypesMatches(Type sourceType, Type destinationType)
 			{
 				if (sourceType.IsGenericType && destinationType.IsGenericType)
@@ -2848,10 +2726,135 @@ namespace Neo.IronLua
 				}
 
 				return false;
-			}
-		}
+			} // func GenericTypesMatches
 
-	
+			static bool IsPossibleParameter(Type parameterType, object arg, bool isParamArrayParameter = false)
+			{
+				if (parameterType.IsGenericParameter || parameterType == typeof(object))
+					return true;
+
+				var argType = arg switch
+				{
+					DynamicMetaObject dmo => dmo.LimitType,
+					Expression ex => ex.Type,
+					Type t => t,
+					_ => arg.GetType()
+				};
+
+				// arg type is equal type, or it is a dynamic type
+				if (argType == parameterType || argType == typeof(LuaResult) || argType == typeof(object))
+					return true;
+
+				// check array types
+				if (isParamArrayParameter && IsPossibleParameter(parameterType.GetElementType(), arg, false))
+					return true;
+
+				// chech ref parameter
+				if (parameterType.IsByRef && parameterType.GetElementType() == argType)
+					return true;
+
+				// check generic parameters
+				if (GenericTypesMatches(argType, parameterType))
+					return true;
+
+				if (argType.IsPrimitive && (parameterType.IsPrimitive || parameterType == typeof(string)))
+					return true;
+
+				if (parameterType.IsArray && arg is LuaResult)
+					return true;
+
+				// test for other possible combinations
+				return parameterType.IsAssignableFrom(argType)
+				   || argType.HasImplicitConversionToType(parameterType)
+				   || parameterType.HasImplicitConversionFromType(argType)
+				   || argType.CanConvertTo(parameterType)
+				   || parameterType.CanConvertFrom(argType);
+			} // func IsPossibleParameter
+
+			var parameterInfo = GetMemberParameter(candidateMember, isMemberCall);
+			var argumentsLength = arguments.Length;
+			var parameterInfoLength = parameterInfo.Length;
+			if (parameterInfoLength == 0 && argumentsLength > 0)
+				return false;
+			
+			if (argumentsLength == 0)
+			{
+				return parameterInfoLength switch
+				{
+					0 => true,
+					1 when parameterInfo[0] is { } paramInfo && (paramInfo.IsOptional || paramInfo.IsParamArray()) => true,
+					_ => false
+				};
+			}
+
+			var luaResult = arguments[argumentsLength - 1] as LuaResult;
+			var lastIsLuaResult = luaResult is not null;
+
+			if (argumentsLength <= parameterInfoLength)
+			{
+				for (int i = 0; i < argumentsLength; i++)
+				{
+					var paramInfo = parameterInfo[i];
+					var argInfo = arguments[i];
+					var isParamArrayParameter = i == parameterInfoLength - 1 && paramInfo.ParameterType.IsArray && paramInfo.IsParamArray();
+					
+					if (!IsPossibleParameter(paramInfo.ParameterType, argInfo, isParamArrayParameter))
+						return false;
+				}
+				// all parameters checked out. We have an exact match, or a match with implicit conversions
+				
+				if (argumentsLength == parameterInfoLength)
+					return true;
+
+				// OK if the remaining parameters are out or optional
+				for (int i = argumentsLength; i < parameterInfoLength; i++)
+				{
+					if (!(parameterInfo[i].IsOut || parameterInfo[i].IsOptional))
+						return false;
+				}
+
+				return true;
+			}
+			
+			if (argumentsLength > parameterInfoLength)
+			{
+				if (parameterInfo[parameterInfoLength - 1].GetCustomAttribute<ParamArrayAttribute>() is null)
+					return false; // Error, we don't have a params array.
+
+				// Check if the arguments matches the available parameters
+				for (int i = 0; i < parameterInfoLength; i++)
+				{
+					var paramInfo = parameterInfo[i];
+					var argInfo = arguments[i];
+
+					if (i == parameterInfoLength - 1)
+					{
+						// params array. Ensure remaining arguments can be converted to the params array type
+						var parameterType = paramInfo.ParameterType.GetElementType()!;
+						if (parameterType == typeof(object))
+							return true; // everything can be converted to object
+						
+						for (int j = i; j < argumentsLength; j++)
+						{
+							if (!IsPossibleParameter(parameterType, argInfo))
+								return false;
+						}
+
+						return true;
+					}
+					else
+					{
+						if (!IsPossibleParameter(paramInfo.ParameterType, argInfo))
+							return false;
+					}
+				}
+
+				return true;
+			}
+
+			return false;
+		} // func IsMemberCandidate
+
 		private static MethodInfo MakeNonGenericMethod<TARG>(MethodInfo mi, TARG[] arguments, Func<TARG, Type> getType)
 			where TARG : class
 		{
