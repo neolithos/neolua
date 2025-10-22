@@ -271,6 +271,11 @@ namespace Neo.IronLua
 				match = arrayDecay ? MemberMatchValue.DynamicAutoConvert : MemberMatchValue.AssignableMatch;
 				return true;
 			}
+			else if (IsDynamicType(tiFrom))
+			{
+				match = MemberMatchValue.DynamicAutoConvert;
+				return true;
+			}
 			else if (toTypeIsParamsArray)
 			{
 				var elementTypeMatches = TypesMatch(typeTo.GetElementType(), typeFrom, out match, stringAutoConvert, toTypeIsParamsArray: false);
@@ -286,16 +291,16 @@ namespace Neo.IronLua
 					match = MemberMatchValue.StringAutoConvert;
 					return true;
 				}
-					
+
 				else if (tcTo is >= LuaEmitTypeCode.SByte and <= LuaEmitTypeCode.Double &&
-				         (tcFrom >= LuaEmitTypeCode.SByte && tcFrom <= tcTo ||
-				          tcTo == LuaEmitTypeCode.Single &&
-				          tcFrom == LuaEmitTypeCode.Double)) // exception for single -> double
+						 (tcFrom >= LuaEmitTypeCode.SByte && tcFrom <= tcTo ||
+						  tcTo == LuaEmitTypeCode.Single &&
+						  tcFrom == LuaEmitTypeCode.Double)) // exception for single -> double
 				{
 					match = MemberMatchValue.NumericImplicitConvert;
 					return true;
 				}
-					
+
 				else if (stringAutoConvert && tcFrom == LuaEmitTypeCode.String && tcTo is >= LuaEmitTypeCode.SByte and <= LuaEmitTypeCode.Double)
 				{
 					match = MemberMatchValue.StringAutoConvert;

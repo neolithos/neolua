@@ -21,6 +21,9 @@ namespace LuaDLR.Test
 		{
 			return i;
 		} // proc Test
+
+		public static ConsoleColor GetColor(ConsoleColor color)
+			=> color;
 	} // class ComplexTestClass
 
 	[TestClass]

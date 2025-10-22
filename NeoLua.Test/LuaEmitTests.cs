@@ -2,6 +2,7 @@
 using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Net;
 using System.Reflection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Neo.IronLua;
@@ -180,6 +181,39 @@ namespace LuaDLR.Test
 				CreateCallInfo(typeof(int)),
 				CreateSignature(typeof(ConsoleColor))
 			);
-		} // proc FindMemberSplit
+		} // proc FindMemberEnum
+
+		[TestMethod]
+		public void FindMemberIPEndPoint01()
+		{
+			// issue #117
+			// >> uses Long because it comes first
+			TestMethodInfoForArguments(typeof(IPEndPoint), "#ctor",
+				CreateCallInfo(typeof(LuaResult), typeof(int)),
+				CreateSignature(typeof(long), typeof(int))
+			);
+		} // proc FindMemberIPEndPoint01
+
+		[TestMethod]
+		public void FindMemberIPEndPoint02()
+		{
+			// issue #117
+			// >> uses Long because it comes first
+			TestMethodInfoForArguments(typeof(IPEndPoint), "#ctor",
+				CreateCallInfo(typeof(object), typeof(int)),
+				CreateSignature(typeof(long), typeof(int))
+			);
+		} // proc FindMemberIPEndPoint02
+
+		[TestMethod]
+		public void FindMemberIPEndPoint03()
+		{
+			// issue #117
+			// >> uses Long because it comes first
+			TestMethodInfoForArguments(typeof(IPEndPoint), "#ctor",
+				CreateCallInfo(typeof(IPAddress), typeof(int)),
+				CreateSignature(typeof(IPAddress), typeof(int))
+			);
+		} // proc FindMemberIPEndPoint03
 	}
 }
