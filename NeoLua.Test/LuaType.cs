@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
@@ -663,6 +664,16 @@ namespace LuaDLR.Test
 				"return a[0], a[1], a[2];"
 			), "3", "2", "1");
 		} // proc OverloadTest10
+
+		[TestMethod]
+		public void OverloadTest11()
+		{
+			TestCode(Lines(
+				"const IPAddress typeof System.Net.IPAddress;",
+				"return clr.System.Net.IPEndPoint(IPAddress:Parse('192.168.1.1'), 8080);"
+			), new IPEndPoint(IPAddress.Parse("192.168.1.1"), 8080));
+		} // proc OverloadTest11
+		
 
 		[TestMethod]
 		public void AbstractCall01()

@@ -315,7 +315,7 @@ namespace Neo.IronLua
 				var stringComparison = binder.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 				var restrictions = BindingRestrictions.GetInstanceRestriction(Expression, Value);
 
-				if (args.Length == 0 && String.Compare(binder.Name, "GetType", stringComparison) == 0) // :GetType is always existent
+				if (args.Length == 0 && String.Compare(binder.Name, nameof(Object.GetType), stringComparison) == 0) // :GetType is always existent
 				{
 					return new DynamicMetaObject(
 						Lua.EnsureType(
@@ -857,18 +857,18 @@ namespace Neo.IronLua
 			var typeInfo = type.GetTypeInfo();
 			foreach (var c in (getDeclaredMembers == null ? typeInfo.DeclaredMembers : getDeclaredMembers(typeInfo.DeclaredMembers)))
 			{
-				if (!(c is T))
+				if (c is not T)
 					continue;
 
-				if (c is MethodBase && !IsCallableMethod((MethodBase)c, searchStatic))
+				if (c is MethodBase mi && !IsCallableMethod(mi, searchStatic))
 					continue;
-				else if (c is PropertyInfo && !IsCallableMethod(((PropertyInfo)c).GetMethod, searchStatic))
+				else if (c is PropertyInfo pi && !IsCallableMethod(pi.GetMethod, searchStatic))
 					continue;
-				else if (c is FieldInfo && !IsCallableField((FieldInfo)c, searchStatic))
+				else if (c is FieldInfo fi && !IsCallableField(fi, searchStatic))
 					continue;
-				else if (c is EventInfo && !IsCallableMethod(((EventInfo)c).AddMethod, searchStatic))
+				else if (c is EventInfo ev && !IsCallableMethod(ev.AddMethod, searchStatic))
 					continue;
-				else if (c is TypeInfo && !((TypeInfo)c).IsNestedPublic)
+				else if (c is TypeInfo ti && !ti.IsNestedPublic)
 					continue;
 
 				yield return (T)c;
@@ -884,9 +884,12 @@ namespace Neo.IronLua
 			// avoid re-enum
 			enumeratedTypes.Add(type);
 
-			// Enum members
-			foreach (var c in EnumerateMembers<T>(searchType == LuaMethodEnumerate.Static, getDeclaredMembers))
-				yield return c;
+			// Enum members, first enumerate public members
+			if (type.IsPublic)
+			{
+				foreach (var c in EnumerateMembers<T>(searchType == LuaMethodEnumerate.Static, getDeclaredMembers))
+					yield return c;
+			}
 
 			// Do we look for methods
 			if (typeof(T).GetTypeInfo().IsAssignableFrom(typeof(MethodInfo).GetTypeInfo()))
@@ -925,6 +928,13 @@ namespace Neo.IronLua
 			if (baseType is not null)
 			{
 				foreach (var c in baseType.EnumerateMembers<T>(enumeratedTypes, searchType, getDeclaredMembers))
+					yield return c;
+			}
+
+			// Enum members, first enumerate public members
+			if (!type.IsPublic)
+			{
+				foreach (var c in EnumerateMembers<T>(searchType == LuaMethodEnumerate.Static, getDeclaredMembers))
 					yield return c;
 			}
 

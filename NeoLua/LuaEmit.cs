@@ -161,7 +161,6 @@ namespace Neo.IronLua
 		private const string csImplicit = "op_Implicit";
 		private const string csExplicit = "op_Explicit";
 		private const string csParse = "Parse";
-		private const string csToString = "ToString";
 
 #pragma warning disable IDE1006 // Naming Styles
 		private static readonly TypeInfo DynamicMetaObjectProviderTypeInfo = typeof(IDynamicMetaObjectProvider).GetTypeInfo();
@@ -271,15 +270,15 @@ namespace Neo.IronLua
 				match = arrayDecay ? MemberMatchValue.DynamicAutoConvert : MemberMatchValue.AssignableMatch;
 				return true;
 			}
-			else if (IsDynamicType(tiFrom))
-			{
-				match = MemberMatchValue.DynamicAutoConvert;
-				return true;
-			}
 			else if (toTypeIsParamsArray)
 			{
 				var elementTypeMatches = TypesMatch(typeTo.GetElementType(), typeFrom, out match, stringAutoConvert, toTypeIsParamsArray: false);
 				return elementTypeMatches;
+			}
+			else if (IsDynamicType(tiFrom))
+			{
+				match = MemberMatchValue.DynamicAutoConvert;
+				return true;
 			}
 			else
 			{
@@ -2564,13 +2563,14 @@ namespace Neo.IronLua
 				var lastParam = parameterInfo[parameterInfo.Length - 1];
 				var lastParamIsArray = IsParamArray(lastParam);
 
-				ResetPositionalPart(parameterInfo, lastParamIsArray ? parameterInfo.Length-1 : parameterInfo.Length, target);
+				var length = lastParamIsArray ? parameterInfo.Length - 1 : parameterInfo.Length;
+				ResetPositionalPart(parameterInfo, length, target);
 
 				// the last part will match
 				if (lastParamIsArray && lastArgumentIsExpandable)
 				{
 					var memberMatch = GetParameterMatch(lastParam, typeof(object).GetTypeInfo(), true);
-					target.SetMatch(memberMatch, matches: Int32.MaxValue - parameterInfo.Length);
+					target.SetMatch(memberMatch, matches: Int32.MaxValue - length);
 				}
 			} // proc ResetPositionalMax
 

@@ -402,7 +402,18 @@ namespace Neo.IronLua
 
 		private static Expression InvokeMemberExpression(Scope scope, Token tStart, Expression instance, string memberName, InvokeResult result, ArgumentsList arguments)
 		{
-			if (LuaEmit.IsDynamicType(instance.Type) || arguments.Expressions.Any(c => LuaEmit.IsDynamicType(c.Type)))
+			if (instance is ConstantExpression constant && constant.Value is LuaType luaType && memberName != nameof(Object.GetType)  && luaType.Type != null ) // static invoke on LuaType
+			{
+				return EnsureInvokeResult(scope, tStart,
+					SafeExpression(() =>
+					{
+						if (!LuaEmit.TryInvokeMember(scope.Runtime, luaType, null, arguments.CallInfo, arguments.Expressions, memberName, false, GetExpression, GetExpressionType, true, out Expression expr))
+							throw new LuaEmitException(LuaEmitException.MemberNotFound, instance.Type, memberName);
+						return expr;
+					}, tStart), result, null, memberName
+				);
+			}
+			else if (LuaEmit.IsDynamicType(instance.Type) || arguments.Expressions.Any(c => LuaEmit.IsDynamicType(c.Type)))
 			{
 				var dynamicArguments = new Expression[arguments.Count + 1];
 
@@ -432,8 +443,7 @@ namespace Neo.IronLua
 				return EnsureInvokeResult(scope, tStart,
 					SafeExpression(() =>
 					{
-						Expression expr;
-						if (!LuaEmit.TryInvokeMember<Expression>(scope.Runtime, LuaType.GetType(instance.Type), instance, arguments.CallInfo, arguments.Expressions, memberName, false, e => e, e => e.Type, true, out expr))
+						if (!LuaEmit.TryInvokeMember(scope.Runtime, LuaType.GetType(instance.Type), instance, arguments.CallInfo, arguments.Expressions, memberName, false, GetExpression, GetExpressionType, true, out Expression expr))
 							throw new LuaEmitException(LuaEmitException.MemberNotFound, instance.Type, memberName);
 						return expr;
 					}, tStart), result, instance, memberName
@@ -483,14 +493,10 @@ namespace Neo.IronLua
 		} // func CreateDelegateFromMethodInfo
 
 		private static Type GetExpressionType(Expression e)
-		{
-			return e.Type;
-		} // func GetExpressionType
+			=> e.Type;
 
 		private static Expression GetExpression(Expression e)
-		{
-			return e;
-		} // func GetExpression
+			=> e;
 	} // class Parser
 
 	#endregion
