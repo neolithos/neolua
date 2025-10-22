@@ -656,6 +656,15 @@ namespace LuaDLR.Test
 		} // proc OverloadTest09
 
 		[TestMethod]
+		public void OverloadTest10()
+		{
+			TestCode(Lines(
+				"local a = '3,2,1':Split(',');",
+				"return a[0], a[1], a[2];"
+			), "3", "2", "1");
+		} // proc OverloadTest10
+
+		[TestMethod]
 		public void AbstractCall01()
 		{
 			var c = new TestImpl();

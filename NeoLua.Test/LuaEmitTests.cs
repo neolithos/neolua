@@ -3,103 +3,183 @@ using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Neo.IronLua;
 
 namespace LuaDLR.Test
 {
 	[TestClass]
-	public class LuaEmitTests
+	public class LuaEmitTests : TestHelper
 	{
-		private LuaType LuaTypeString = LuaType.GetType(typeof(string));
-
-		[TestMethod]
-		public void FindMember_StringJoin_WithLuaResultMatchesObjectArrayOverload()
+		private class MockArgument
 		{
-			var arguments = GetDynamicMetaObjectArguments(" ", new LuaResult("Hello", "World", "!!"));
-			TestMethodInfoForArguments(typeof(string), nameof(string.Join), arguments, new[] { typeof(string), typeof(object[]) });
-		}
+			public MockArgument(Type type)
+				=> Type = type;
 
-		[TestMethod]
-		public void FindMember_StringStringFormat_WithStringObj()
-		{
-			var arguments = GetDynamicMetaObjectArguments("Hello {0}", "World");
-			TestMethodInfoForArguments(typeof(string), nameof(string.Format), arguments, new[] { typeof(string), typeof(object) });
-		}
-
-		[TestMethod]
-		public void FindMember_StringStringFormat_WithStringObjArray()
-		{
-			var arguments = GetDynamicMetaObjectArguments("Hello {0}{1}", new object[] { "World", "!!" });
-			TestMethodInfoForArguments(typeof(string), nameof(string.Format), arguments, new[] { typeof(string), typeof(object[]) });
-		}
-
-		[TestMethod]
-		public void FindMember_StringConcat_WithStringsAndLuaResultMatchesObjectArrayOverload()
-		{
-			var arguments = GetDynamicMetaObjectArguments("Test", ":", new LuaResult("Hello", "World", "!!"));
-			TestMethodInfoForArguments(typeof(string), nameof(string.Concat), arguments, new[] { typeof(object[]) });
-		}
-
-		[TestMethod]
-		public void FindMember_LuaResultGSub()
-		{
-			var arguments = GetDynamicMetaObjectArguments("abc", "a", "b");
-			TestMethodInfoForArguments(typeof(LuaLibraryString), nameof(LuaLibraryString.gsub), arguments, new[] { typeof(string) , typeof(string) , typeof(object), typeof(int) });
-		}
-
-
-		[TestMethod]
-		public void FindMember_ParamArrayWithNoArg()
-		{
-			var arguments = GetDynamicMetaObjectArguments();
-			TestMethodInfoForArguments(typeof(LuaFile), nameof(LuaFile.write), arguments, new[] { typeof(object[]) });
-		}
-
-		[TestMethod]
-		public void FindMember_ParamArrayWithSingleArg()
-		{
-			var arguments = GetDynamicMetaObjectArguments("Hello World");
-			TestMethodInfoForArguments(typeof(LuaFile), nameof(LuaFile.write), arguments, new[] { typeof(object[]) });
-		}
-
-		[TestMethod]
-		public void FindMember_ParamArrayWithMultipleArgs()
-		{
-			var arguments = GetDynamicMetaObjectArguments("Hello World", "Some more", "and another");
-			TestMethodInfoForArguments(typeof(LuaFile), nameof(LuaFile.write), arguments, new[] { typeof(object[]) });
-		}
-
-		void TestMethodInfoForArguments(Type type, string memberName, DynamicMetaObject[] arguments, Type[] argumentTypesForExpectedOverload)
-		{
-			var methodAlternatives = type.GetMember(memberName).Cast<MethodInfo>().ToArray();
-			var callInfo = new CallInfo(arguments.Length);
-			var methodInfo = LuaEmit.FindMember(methodAlternatives, callInfo, arguments, GetArgumentType, false);
-			Assert.IsNotNull(methodInfo, $"Found no valid overload for {type.Name}:{memberName}");
-			var expected = type.GetMethod(memberName, argumentTypesForExpectedOverload);
-			Assert.AreEqual(expected, methodInfo);
-		}
-
-		static Type GetArgumentType(DynamicMetaObject obj) => obj.LimitType;
-
-		DynamicMetaObject[] GetDynamicMetaObjectArguments(params object[] arguments)
-		{
-			DynamicMetaObject[] res = new DynamicMetaObject[arguments.Length];
-			for (int i = 0; i < arguments.Length; i++)
+			public MockArgument(string name, Type type)
 			{
-				object argument = arguments[i];
-				var name = $"$arg{i + 1}";
-				res[i] = CreateMetaObjectParameter(name, argument);
-			}
+				Name = name;
+				Type = type;
+			} // ctor
 
-			return res;
-		}
-		
-		DynamicMetaObject CreateMetaObjectParameter(string name, object value)
+			public string Name {  get; }
+			public Type Type { get;  }
+
+			public bool IsNamed => !String.IsNullOrEmpty(Name);
+		} // class MockArgument
+
+		private static Type GetArgumentType(MockArgument arg)
+			=> arg.Type;
+
+		private static MockArgument[] CreateCallInfo(params object[] types)
+			=> types.Select(c => c is MockArgument a ? a : new MockArgument((Type)c)).ToArray();
+
+		private static MockArgument Arg(string name, Type type)
+			=> new MockArgument(name, type);
+
+		private static Type[] CreateSignature(params Type[] types)
+			=> types.ToArray();
+
+		private void TestMethodInfoForArguments(Type type, string memberName, MockArgument[] arguments, Type[] argumentTypesForExpectedOverload)
 		{
-			var type = value is string ? LuaTypeString : value.GetType();
-			return DynamicMetaObject.Create(value, Expression.Parameter(type, name));
+			var methods = memberName == "#ctor"
+				? type.GetConstructors(BindingFlags.Instance | BindingFlags.Public)
+				: type.GetMember(memberName, BindingFlags.Public | BindingFlags.InvokeMethod | BindingFlags.Static | BindingFlags.Instance);
+
+			var callInfo = new CallInfo(arguments.Length, arguments.Where(c => c.IsNamed).Select(c => c.Name).ToArray());
+			var methodInfo = LuaEmit.FindMember(methods, callInfo, arguments, GetArgumentType, false);
+
+			Assert.IsNotNull(methodInfo, $"Found no valid overload for {type.Name}:{memberName}");
+			var expected = memberName == "#ctor"
+				? (MemberInfo)type.GetConstructor(argumentTypesForExpectedOverload)
+				: type.GetMethod(memberName, argumentTypesForExpectedOverload);
+			Assert.AreEqual(expected, methodInfo);
+		} // proc TestMethodInfoForArguments
+
+		[TestMethod]
+		public void FindMemberJoinWithLuaResultMatchesObjectArrayOverload()
+		{
+			TestMethodInfoForArguments(typeof(string), nameof(string.Join),
+				CreateCallInfo(typeof(string), typeof(LuaResult)),
+				CreateSignature(typeof(string), typeof(object[]))
+			);
+		} // proc FindMemberJoinWithLuaResultMatchesObjectArrayOverload
+
+		[TestMethod]
+		public void FindMemberStringFormat01()
+		{
+			TestMethodInfoForArguments(typeof(string), nameof(string.Format),
+				CreateCallInfo(typeof(string), typeof(string)),
+				CreateSignature(typeof(string), typeof(object))
+			);
+		} // proc FindMemberStringFormat01
+
+		[TestMethod]
+		public void FindMemberStringFormat02()
+		{
+			TestMethodInfoForArguments(typeof(string), nameof(string.Format),
+				CreateCallInfo(typeof(string), typeof(string), typeof(string), typeof(string), typeof(string), typeof(string), typeof(string), typeof(string), typeof(string), typeof(string), typeof(string)),
+				CreateSignature(typeof(string), typeof(object[]))
+			);
+		} // proc FindMemberStringFormat02
+
+		[TestMethod]
+		public void FindMemberStringFormat03()
+		{
+			TestMethodInfoForArguments(typeof(string), nameof(string.Format),
+				CreateCallInfo(typeof(string), typeof(object[])),
+				CreateSignature(typeof(string), typeof(object[]))
+			);
+		} // proc FindMemberStringFormat03
+
+		[TestMethod]
+		public void FindMemberStringFormat04()
+		{
+			TestMethodInfoForArguments(typeof(string), nameof(string.Format),
+				CreateCallInfo(typeof(string), typeof(string), typeof(string), typeof(string)),
+				CreateSignature(typeof(string), typeof(object), typeof(object), typeof(object))
+			);
+		} // proc FindMemberStringFormat04
+
+		[TestMethod]
+		public void FindMemberStringConcat01()
+		{
+			TestMethodInfoForArguments(typeof(string), nameof(string.Concat),
+				CreateCallInfo(typeof(string), typeof(string), typeof(LuaResult)),
+				CreateSignature(typeof(object[]))
+			);
+		} // proc FindMemberStringConcat01
+
+		[TestMethod]
+		public void FindMemberLuaResultGSub()
+		{
+			TestMethodInfoForArguments(typeof(LuaLibraryString), nameof(LuaLibraryString.gsub),
+				CreateCallInfo(typeof(string), typeof(string), typeof(string)),
+				CreateSignature(typeof(string), typeof(string), typeof(object), typeof(int))
+			);
+		} // proc FindMemberLuaResultGSub
+
+		[TestMethod]
+		public void FindMemberParamArrayWithNoArg()
+		{
+			TestMethodInfoForArguments(typeof(LuaFile), nameof(LuaFile.write),
+				CreateCallInfo(),
+				CreateSignature(typeof(object[]))
+			);
+		} // proc FindMemberParamArrayWithNoArg
+
+		[TestMethod]
+		public void FindMemberParamArrayWithSingleArg()
+		{
+			TestMethodInfoForArguments(typeof(LuaFile), nameof(LuaFile.write),
+				CreateCallInfo(typeof(string)),
+				CreateSignature(typeof(object[]))
+			);
+		} // proc FindMemberParamArrayWithSingleArg
+
+		[TestMethod]
+		public void FindMemberParamArrayWithMultipleArgs()
+		{
+			TestMethodInfoForArguments(typeof(LuaFile), nameof(LuaFile.write),
+				CreateCallInfo(typeof(string), typeof(string), typeof(string)),
+				CreateSignature(typeof(object[]))
+			);
+		} // func FindMemberParamArrayWithMultipleArgs
+
+		[TestMethod]
+		public void FindMemberVersionNamed()
+		{
+			TestMethodInfoForArguments(typeof(Version), "#ctor",
+				CreateCallInfo(Arg("major", typeof(int)), Arg("minor", typeof(int))),
+				CreateSignature(typeof(int), typeof(int))
+			);
 		}
+
+		[TestMethod]
+		public void FindMemberVersionMixed()
+		{
+			TestMethodInfoForArguments(typeof(Version), "#ctor",
+				CreateCallInfo(typeof(int), Arg("minor", typeof(int))),
+				CreateSignature(typeof(int), typeof(int))
+			);
+		}
+
+		[TestMethod]
+		public void FindMemberSplit()
+		{
+			TestMethodInfoForArguments(typeof(String), nameof(String.Split),
+				CreateCallInfo(typeof(string)),
+				CreateSignature(typeof(char[]))
+			);
+		} // proc FindMemberSplit
+
+		[TestMethod]
+		public void FindMemberEnum()
+		{
+			TestMethodInfoForArguments(typeof(ComplexTestClass), nameof(ComplexTestClass.GetColor),
+				CreateCallInfo(typeof(int)),
+				CreateSignature(typeof(ConsoleColor))
+			);
+		} // proc FindMemberSplit
 	}
 }

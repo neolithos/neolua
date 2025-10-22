@@ -8,6 +8,11 @@
     <RootNamespace>LuaDLR.Test</RootNamespace>
   </PropertyGroup>
 	<ItemGroup>
+	  <Compile Remove="Properties\**" />
+	  <EmbeddedResource Remove="Properties\**" />
+	  <None Remove="Properties\**" />
+	</ItemGroup>
+	<ItemGroup>
 	  <None Remove="CompTests\bitwise.lua" />
 	  <None Remove="CompTests\calls.lua" />
 	  <None Remove="CompTests\literals.lua" />
@@ -64,9 +69,6 @@
 	<ItemGroup>
 	  <PackageReference Include="MSTest.TestAdapter" Version="3.10.4" />
 	  <PackageReference Include="MSTest.TestFramework" Version="3.10.4" />
-	</ItemGroup>
-	<ItemGroup>
-	  <Folder Include="Properties\" />
 	</ItemGroup>
 	<ItemGroup>
 	  <None Include="..\NeoLua\NeoLua.licenseheader" Link="NeoLua.licenseheader" />
