@@ -1805,7 +1805,8 @@ namespace Neo.IronLua
 						result = Expression.New(Lua.OverloadedMethodConstructorInfo,
 							target ?? Expression.Default(typeof(object)),
 							Expression.Constant(luaTargetType.EnumerateMembers<MethodInfo>(enumerateType, memberName, ignoreCase).ToArray()),
-							Expression.Constant(false)
+							Expression.Constant(false),
+							Expression.Constant(methodInfo.DeclaringType != targetType ? targetType : null, typeof(Type))
 						);
 						return LuaTryGetMemberReturn.ValidExpression;
 					}
@@ -1814,7 +1815,8 @@ namespace Neo.IronLua
 						result = Expression.New(Lua.MethodConstructorInfo,
 							target ?? Expression.Default(typeof(object)),
 							Expression.Constant(methodInfo, typeof(MethodInfo)),
-							Expression.Constant(false)
+							Expression.Constant(false),
+							Expression.Constant(methodInfo.DeclaringType != targetType ? targetType : null, typeof(Type))
 						);
 						return LuaTryGetMemberReturn.ValidExpression;
 					}
@@ -2764,15 +2766,13 @@ namespace Neo.IronLua
 			}
 			else // bind member
 			{
-				if (memberInfo is MethodInfo)
+				if (memberInfo is MethodInfo mi)
 				{
-					result = InvokeMethod(lua, (MethodInfo)memberInfo, target, callInfo, arguments, getExpr, getType, allowDynamic);
+					result = InvokeMethod(lua, mi, target, callInfo, arguments, getExpr, getType, allowDynamic);
 					return true;
 				}
-				else if (memberInfo is PropertyInfo)
+				else if (memberInfo is PropertyInfo pi)
 				{
-					var pi = (PropertyInfo)memberInfo;
-
 					if (!pi.CanRead)
 						throw new LuaEmitException(LuaEmitException.CanNotReadMember, targetType.FullName, memberName);
 
@@ -2798,24 +2798,24 @@ namespace Neo.IronLua
 						return true;
 					}
 				}
-				else if (memberInfo is FieldInfo)
+				else if (memberInfo is FieldInfo fi)
 				{
 					var instance = target == null ? null : Lua.EnsureType(getExpr(target), getType(target));
-					result = Expression.Field(instance, (FieldInfo)memberInfo);
+					result = Expression.Field(instance, fi);
 					return true;
 				}
-				else if (memberInfo is EventInfo)
+				else if (memberInfo is EventInfo ev)
 				{
 					var instance = target == null ? Expression.Default(typeof(object)) : Lua.EnsureType(getExpr(target), getType(target));
 					result = Expression.New(Lua.EventConstructorInfo,
 						instance,
-						Expression.Constant((EventInfo)memberInfo)
+						Expression.Constant(ev)
 					);
 					return true;
 				}
-				else if (memberInfo is TypeInfo)
+				else if (memberInfo is TypeInfo ti)
 				{
-					result = Expression.Call(Lua.TypeGetTypeMethodInfoArgType, Expression.Constant(((TypeInfo)memberInfo).AsType()));
+					result = Expression.Call(Lua.TypeGetTypeMethodInfoArgType, Expression.Constant(ti.AsType()));
 					return true;
 				}
 				else

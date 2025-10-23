@@ -823,6 +823,51 @@ namespace LuaDLR.Test
 			TestCode(Lines("const testGen typeof LuaDLR.Test.LuaTypeTests.TestGen[System.Object]",
 				"return testGen(42).D;"), 42);
 		}
+
+		[TestMethod]
+		public void TestExtension01()
+		{
+			TestCode(Lines("return '%s %s'.format('a', 'b');"), "a b");
+		} // proc TestExtension01
+
+		[TestMethod]
+		public void TestExtension02()
+		{
+			TestCode(Lines("return '%s %s':format('a', 'b');"), "a b");
+		} // proc TestExtension02
+
+		[TestMethod]
+		public void TestExtension03()
+		{
+			TestCode(Lines(
+					"local a = '%s %s';",
+					"return a.format('a', 'b');"
+				),
+				"a b"
+			);
+		} // proc TestExtension03
+
+		[TestMethod]
+		public void TestExtension04()
+		{
+			TestCode(Lines(
+					"local a = '%s %s';",
+					"return a:format('a', 'b');"
+				),
+				"a b"
+			);
+		} // proc TestExtension04
+
+		[TestMethod]
+		public void TestExtension05()
+		{
+			TestCode(Lines(
+					"local a : string = '%s %s';",
+					"return a:format('a', 'b');"
+				),
+				"a b"
+			);
+		} // proc TestExtension05
 	} // class LuaTypeTests 
 
 	public static class TypeExt

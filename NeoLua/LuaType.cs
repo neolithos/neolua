@@ -1791,6 +1791,8 @@ namespace Neo.IronLua
 		object Instance { get; }
 		/// <summary>Is the first parameter a self parameter.</summary>
 		bool IsMemberCall { get; }
+		/// <summary>Is this an extension method.</summary>
+		bool IsExtension { get; }
 	} // interface ILuaMethod
 
 	#endregion
@@ -1841,6 +1843,7 @@ namespace Neo.IronLua
 		#endregion
 
 		private readonly object instance;
+		private readonly Type instanceTargetType;
 		private readonly bool isMemberCall;
 		private readonly MethodInfo method;
 
@@ -1850,9 +1853,11 @@ namespace Neo.IronLua
 		/// <param name="instance"></param>
 		/// <param name="method"></param>
 		/// <param name="isMemberCall"></param>
-		public LuaMethod(object instance, MethodInfo method, bool isMemberCall = false)
+		/// <param name="instanceTargetType"></param>
+		public LuaMethod(object instance, MethodInfo method, bool isMemberCall = false, Type instanceTargetType = null)
 		{
 			this.instance = instance;
+			this.instanceTargetType = instanceTargetType;
 			this.method = method ?? throw new ArgumentNullException(nameof(method));
 			this.isMemberCall = isMemberCall;
 		} // ctor
@@ -1876,7 +1881,7 @@ namespace Neo.IronLua
 		/// <summary>Name of the member.</summary>
 		public string Name => method.Name;
 		/// <summary>Type that is the owner of the member list</summary>
-		public Type Type => method.DeclaringType;
+		public Type Type => instanceTargetType ?? method.DeclaringType;
 		/// <summary>Instance, that belongs to the member.</summary>
 		public object Instance => instance;
 		/// <summary>Use self parameter</summary>
@@ -1885,6 +1890,8 @@ namespace Neo.IronLua
 		public MethodInfo Method => method;
 		/// <summary>Delegate of the Method</summary>
 		public Delegate Delegate => Parser.CreateDelegate(instance, Method);
+		/// <summary>Is this an extension method.</summary>
+		public bool IsExtension => instanceTargetType is not null;
 
 		// -- Static ----------------------------------------------------------
 
@@ -2098,6 +2105,7 @@ namespace Neo.IronLua
 		#endregion
 
 		private readonly object instance;
+		private readonly Type instanceTargetType;
 		private readonly bool isMemberCall;
 		private readonly MethodInfo[] methods;
 
@@ -2107,9 +2115,11 @@ namespace Neo.IronLua
 		/// <param name="instance"></param>
 		/// <param name="methods"></param>
 		/// <param name="isMemberCall"></param>
-		public LuaOverloadedMethod(object instance, MethodInfo[] methods, bool isMemberCall = false)
+		/// <param name="instanceTargetType"></param>
+		public LuaOverloadedMethod(object instance, MethodInfo[] methods, bool isMemberCall = false, Type instanceTargetType = null)
 		{
 			this.instance = instance;
+			this.instanceTargetType = instanceTargetType;
 			this.methods = methods;
 			this.isMemberCall = isMemberCall;
 
@@ -2239,13 +2249,15 @@ namespace Neo.IronLua
 		/// <summary>Name of the member.</summary>
 		public string Name => methods[0].Name;
 		/// <summary>Type that is the owner of the member list</summary>
-		public Type Type => methods[0].DeclaringType;
+		public Type Type => instanceTargetType ?? methods[0].DeclaringType;
 		/// <summary>Instance, that belongs to the member.</summary>
 		public object Instance => instance;
 		/// <summary>Self parameter</summary>
 		public bool IsMemberCall => isMemberCall;
 		/// <summary>Count of overloade members.</summary>
 		public int Count => methods.Length;
+		/// <summary>Is this an extension method.</summary>
+		public bool IsExtension => instanceTargetType is not null;
 	} // class LuaOverloadedMethod
 
 	#endregion
@@ -2290,7 +2302,8 @@ namespace Neo.IronLua
 						Expression.New(Lua.MethodConstructorInfo,
 							Expression.Property(Lua.EnsureType(Expression, typeof(ILuaMethod)), Lua.MethodInstancePropertyInfo),
 							Expression.Property(Lua.EnsureType(Expression, typeof(LuaEvent)), piMethodGet),
-							Expression.Constant(false)
+							Expression.Constant(false),
+							Expression.Constant(null, typeof(Type))
 						),
 						binder.ReturnType
 					),
@@ -2377,6 +2390,7 @@ namespace Neo.IronLua
 		/// <summary>Instance, that belongs to the member.</summary>
 		public object Instance => instance;
 
+		bool ILuaMethod.IsExtension => false;
 		bool ILuaMethod.IsMemberCall => false;
 
 		internal MethodInfo AddMethodInfo => eventInfo.AddMethod;

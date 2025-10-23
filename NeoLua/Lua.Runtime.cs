@@ -239,12 +239,12 @@ namespace Neo.IronLua
 
 			// LuaMethod
 			var tiLuaMethod = typeof(LuaMethod).GetTypeInfo();
-			MethodConstructorInfo = tiLuaMethod.FindDeclaredConstructor(ReflectionFlag.None, typeof(object), typeof(MethodInfo), typeof(bool));
+			MethodConstructorInfo = tiLuaMethod.FindDeclaredConstructor(ReflectionFlag.None, typeof(object), typeof(MethodInfo), typeof(bool), typeof(Type));
 			MethodMethodPropertyInfo = tiLuaMethod.FindDeclaredProperty(nameof(LuaMethod.Method), ReflectionFlag.None);
 
 			// LuaOverloadedMethod
 			var tiLuaOverloadedMethod = typeof(LuaOverloadedMethod).GetTypeInfo();
-			OverloadedMethodConstructorInfo = tiLuaOverloadedMethod.FindDeclaredConstructor(ReflectionFlag.None, typeof(object), typeof(MethodInfo[]), typeof(bool));
+			OverloadedMethodConstructorInfo = tiLuaOverloadedMethod.FindDeclaredConstructor(ReflectionFlag.None, typeof(object), typeof(MethodInfo[]), typeof(bool), typeof(Type));
 			OverloadedMethodGetMethodMethodInfo = tiLuaOverloadedMethod.FindDeclaredMethod(nameof(LuaOverloadedMethod.GetMethod), ReflectionFlag.None, typeof(bool), typeof(Type[]));
 
 			// ILuaMethod
