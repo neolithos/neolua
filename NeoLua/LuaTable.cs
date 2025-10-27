@@ -3571,15 +3571,17 @@ namespace Neo.IronLua
 		/// <param name="t"></param>
 		/// <param name="pos"></param>
 		/// <param name="value"></param>
-		public static void insert(LuaTable t, int pos, object value)
+		public static void insert(LuaTable t, object pos, object value)
 		{
+			if (value == null && pos != null) // check for wrong overload
+				insert(t, pos);
+
 			// insert the value at the position
-			int index;
-			if (IsIndexKey(pos, out index) && index >= 1 && index <= t.arrayLength + 1)
+			if (IsIndexKey(pos, out int index) && index >= 1 && index <= t.arrayLength + 1)
 				t.ArrayOnlyInsert(index - 1, value);
 			else
 				t.SetValue(pos, value, true);
-        } // proc insert
+		} // proc insert
 
 		#endregion
 

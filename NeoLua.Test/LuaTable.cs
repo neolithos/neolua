@@ -454,6 +454,29 @@ namespace LuaDLR.Test
 		}
 
 		[TestMethod]
+		public void TestInsert03()
+		{
+			TestCode(Lines(
+				"local t = {};",
+				"table.insert(t, 2);",
+				"return t[1];"), 2
+			);
+		}
+
+		[TestMethod]
+		public void TestInsert04()
+		{
+			TestCode(Lines(
+				"local t = {};",
+				"function get2()",
+				"  return 2;",
+				"end;",
+				"table.insert(t, get2());",
+				"return t[1];"), 2
+			);
+		}
+
+		[TestMethod]
 		public void TestCollect01()
 		{
 			LuaTable t = new LuaTable();
