@@ -26,6 +26,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 
 namespace Neo.IronLua
@@ -911,6 +912,8 @@ namespace Neo.IronLua
 		{
 			if (op == ExpressionType.OrElse || op == ExpressionType.AndAlso) // and, or are conditions no operations
 				return BinaryOperationConditionExpression(lua, op, expr1, type1, expr2, type2);
+			else if (TryBinaryOperationNullCompareExpression(op, expr1, type1, expr2, type2, out var expr)) // null compares
+				return expr;
 			else if (forParse && (IsDynamicType(type1) || IsDynamicType(type2))) // is one of the type a dynamic type, than make a dynamic expression
 				return BinaryOperationDynamicExpression(lua, op, expr1, type1, expr2, type2);
 			else if (op == ExpressionType.Power)
@@ -1501,6 +1504,13 @@ namespace Neo.IronLua
 
 			#endregion
 
+			#region -- null compares --
+
+			if (TryBinaryOperationNullCompareExpression(op, expr1, type1, expr2, type2, out var exprNullCompare))
+				return exprNullCompare;
+
+			#endregion
+
 			#region -- Is it allowed to convert to an arithmetic type --
 
 			switch (op)
@@ -1548,8 +1558,6 @@ namespace Neo.IronLua
 
 			switch (op)
 			{
-				case ExpressionType.Equal:
-				case ExpressionType.NotEqual:
 				case ExpressionType.LessThan:
 				case ExpressionType.LessThanOrEqual:
 				case ExpressionType.GreaterThan:
@@ -1611,9 +1619,9 @@ namespace Neo.IronLua
 							var equalableInterface2 = GetEqualableInterface(type2, type1, ref isExact2);
 							if (isExact2)
 								return BinaryOperationEqualableToExpression(lua, equalableInterface, op, expr2, type2, expr1, type1);
-
 						}
-						if (equalableInterface != null)
+
+						if (equalableInterface is not null)
 							return BinaryOperationEqualableToExpression(lua, equalableInterface, op, expr1, type1, expr2, type2);
 						else
 						{
@@ -1632,11 +1640,7 @@ namespace Neo.IronLua
 							expr1 = ConvertWithRuntime(lua, expr1, type1, typeof(object));
 							expr2 = ConvertWithRuntime(lua, expr2, type2, typeof(object));
 
-							Expression expr = Expression.OrElse(
-								Expression.Call(Lua.ObjectReferenceEqualsMethodInfo, expr1, expr2),
-								Expression.Call(Lua.ObjectEqualsMethodInfo, expr1, expr2)
-							);
-
+							var expr = Expression.Call(Lua.ObjectEqualsMethodInfo, expr1, expr2);
 							return op == ExpressionType.NotEqual ? Expression.Not(expr) : expr;
 						}
 					}
@@ -1658,6 +1662,24 @@ namespace Neo.IronLua
 
 			throw new LuaEmitException(LuaEmitException.OperatorNotDefined, op, type1org.Name, type2org.Name);
 		} // func BinaryOperationArithmeticExpression
+
+		private static bool TryBinaryOperationNullCompareExpression(ExpressionType op, Expression expr1, Type type1, Expression expr2, Type type2, out Expression expr)
+		{
+			if ((op == ExpressionType.Equal || op == ExpressionType.NotEqual)
+				&& (expr1 is ConstantExpression c && c.Value is null || expr2 is ConstantExpression c2 && c2.Value is null) // null compare
+			)
+			{
+				expr = Expression.Call(Lua.ObjectReferenceEqualsMethodInfo,
+					Convert(expr1, type1, typeof(object), null),
+					Convert(expr2, type2, typeof(object), null)
+				);
+				expr = op == ExpressionType.NotEqual ? Expression.Not(expr) : expr;
+				return true;
+			}
+
+			expr = null;
+			return false;
+		} // func TryBinaryOperationNullCompareExpression
 
 		/// <summary>Compares the to types and returns the "higest".</summary>
 		/// <param name="type1"></param>

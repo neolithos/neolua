@@ -68,6 +68,7 @@ namespace LuaDLR.Test
 
 		public class ComparableObject : IComparable
 		{
+			private int compareCalled = 0;
 			private int i;
 
 			public ComparableObject(int i)
@@ -77,9 +78,15 @@ namespace LuaDLR.Test
 
 			public int CompareTo(object obj)
 			{
+				if (obj is null)
+					throw new ArgumentNullException();
+
+				compareCalled++;
 				Console.WriteLine("CompareTo object");
 				return ((IComparable)obj).CompareTo(obj);
 			}
+
+			public int CompareCalled => compareCalled;
 		}
 
 		public class CompareTyped : IComparable<int>, IComparable<string>
@@ -1232,6 +1239,53 @@ namespace LuaDLR.Test
 				"if a[0] == '_' then return 42 else return -1 end;"
 			), 42);
 		}
+
+		private ComparableObject GetCO()
+		{
+			return null;
+		}
+
+		[TestMethod]
+		public void TestCompare18()
+		{
+			TestCode(
+				Lines(
+					"const CO typeof LuaDLR.Test.Expressions.ComparableObject;",
+					"local a : CO = CO(1);",
+					"local b = 0;",
+					"if a ~= nil then",
+					"   b = 1;",
+					"end;",
+					"return b, a.CompareCalled;"
+				), 1, 0
+			);
+		}
+
+
+		[TestMethod]
+		public void TestCompare19()
+		{
+			TestCode(
+				Lines(
+					"const CO typeof LuaDLR.Test.Expressions.ComparableObject;",
+					"local function getCO() : CO",
+					"  return nil;",
+					"end;",
+					"local a : CO = CO(1);",
+					"local b = 0;",
+					"if a ~= getCO() then",
+					"   b = 1;",
+					"end;",
+					"return b, a.CompareCalled;"
+				), 1, 0
+			);
+		}
+
+		[TestMethod]
+		public void TestCompare20() { TestExpr("nil == 2", false); }
+
+		[TestMethod]
+		public void TestCompare21() { TestExpr("nil == 0", false); }
 
 		#endregion
 
