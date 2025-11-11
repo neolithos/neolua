@@ -215,5 +215,16 @@ namespace LuaDLR.Test
 				CreateSignature(typeof(IPAddress), typeof(int))
 			);
 		} // proc FindMemberIPEndPoint03
+
+		[TestMethod]
+		public void FindMemberStringTrim01()
+		{
+			// issue #117
+			// >> uses Long because it comes first
+			TestMethodInfoForArguments(typeof(String), nameof(String.Trim),
+				CreateCallInfo(typeof(string)),
+				CreateSignature(typeof(char[]))
+			);
+		} // proc FindMemberIPEndPoint03
 	}
 }

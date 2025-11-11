@@ -2429,23 +2429,25 @@ namespace Neo.IronLua
 					Debug.WriteLine($"  ==> none matches {other.NonAssigned} > {NonAssigned}");
 					return true;
 				}
-
-				if (other.conversionPenalty > conversionPenalty)
+				else if (other.NonAssigned == NonAssigned)
 				{
-					Debug.WriteLine($"  ==> penalty {other.conversionPenalty} > {conversionPenalty}");
-					return true;
-				}
+					if (other.conversionPenalty > conversionPenalty)
+					{
+						Debug.WriteLine($"  ==> penalty {other.conversionPenalty} > {conversionPenalty}");
+						return true;
+					}
 
-				if (other.matchesOnBeginning < matchesOnBeginning)
-				{
-					Debug.WriteLine($"  ==> on beginning {other.matchesOnBeginning} < {matchesOnBeginning}");
-					return true;
-				}
+					if (other.matchesOnBeginning < matchesOnBeginning)
+					{
+						Debug.WriteLine($"  ==> on beginning {other.matchesOnBeginning} < {matchesOnBeginning}");
+						return true;
+					}
 
-				if (other.matchCount < matchCount)
-				{
-					Debug.WriteLine($"  ==> total matches {other.matchCount} < {matchCount}");
-					return true;
+					if (other.matchCount < matchCount)
+					{
+						Debug.WriteLine($"  ==> total matches {other.matchCount} < {matchCount}");
+						return true;
+					}
 				}
 
 				Debug.WriteLine($"  === not better");
