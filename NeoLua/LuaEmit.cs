@@ -2586,6 +2586,9 @@ namespace Neo.IronLua
 
 			private void ResetPositionalMax(ParameterInfo[] parameterInfo, MemberMatchInfo<TMEMBERTYPE> target)
 			{
+				if (parameterInfo.Length == 0)
+					return;
+
 				var lastParam = parameterInfo[parameterInfo.Length - 1];
 				var lastParamIsArray = IsParamArray(lastParam);
 

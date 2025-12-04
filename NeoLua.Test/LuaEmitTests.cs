@@ -225,6 +225,15 @@ namespace LuaDLR.Test
 				CreateCallInfo(typeof(string)),
 				CreateSignature(typeof(char[]))
 			);
-		} // proc FindMemberIPEndPoint03
+		} // proc FindMemberStringTrim01
+
+		[TestMethod]
+		public void FindMemberWriteLine()
+		{
+			TestMethodInfoForArguments(typeof(Console), nameof(Console.WriteLine),
+				CreateCallInfo(typeof(LuaResult)),
+				CreateSignature(typeof(string), typeof(object[]))
+			);
+		} // proc FindMemberWriteLine
 	}
 }
