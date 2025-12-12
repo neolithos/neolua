@@ -1760,7 +1760,7 @@ namespace Neo.IronLua
 					var nextIndex = entries[currentIndex].nextHash;
 					if (nextIndex == index)
 					{
-						entries[currentIndex].nextHash = entries[index].nextHash; // remove item from lest
+						entries[currentIndex].nextHash = entries[index].nextHash; // remove item from last
 						break;
 					}
 					currentIndex = nextIndex;

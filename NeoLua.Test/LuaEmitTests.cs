@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Dynamic;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Net;
 using System.Reflection;
+using System.Xml.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Neo.IronLua;
 
@@ -235,5 +237,32 @@ namespace LuaDLR.Test
 				CreateSignature(typeof(string), typeof(object[]))
 			);
 		} // proc FindMemberWriteLine
+
+		[TestMethod]
+		public void FindCtorXElement()
+		{
+			TestMethodInfoForArguments(typeof(XElement), "#ctor",
+				CreateCallInfo(typeof(string), typeof(string)),
+				CreateSignature(typeof(XName), typeof(object))
+			);
+		}
+
+		[TestMethod]
+		public void FindMemberStringCombine()
+		{
+			//TestMethodInfoForArguments(typeof(Path), nameof(Path.Combine),
+			//	CreateCallInfo(typeof(string), typeof(object)),
+			//	CreateSignature(typeof(string), typeof(string))
+			//);
+
+			TestCode(Lines(
+				"const Path typeof System.IO.Path;",
+				"const FileInfo typeof System.IO.FileInfo;",
+				"local fi : FileInfo = FileInfo('c:\\\\b.txt');",
+				"local t = { p = 'a.txt' };",
+				"return Path:Combine(fi.DirectoryName, t.p);"
+				), "c:\\a.txt"
+			);
+		}
 	}
 }

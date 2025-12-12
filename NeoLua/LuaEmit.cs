@@ -404,7 +404,9 @@ namespace Neo.IronLua
 
 		private static MethodInfo FindConvertOperator(Type fromType, Type toType, MethodInfo currentMethodInfo, ref bool implicitMethod, ref bool isExactFrom, ref bool isExactTo)
 		{
-			foreach (var mi in LuaType.GetType(fromType).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static))
+			foreach (var mi in LuaType.GetType(fromType).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static)
+				.Concat(LuaType.GetType(toType).EnumerateMembers<MethodInfo>(LuaMethodEnumerate.Static))
+			)
 			{
 				var parameters = mi.GetParameters();
 
@@ -810,7 +812,7 @@ namespace Neo.IronLua
 		public static Expression Convert(Expression expr, Type fromType, Type toType, Func<Type, ConvertBinder> getDynamicConvertBinder)
 			=> TryConvertCore(ConvertToSingleResultExpression(expr, fromType, toType, getDynamicConvertBinder), toType, getDynamicConvertBinder, out var result)
 				? (Expression)result
-				: throw (LuaEmitException) result;
+				: throw (LuaEmitException)result;
 
 		public static Expression ConvertWithRuntime(Lua lua, Expression expr, Type fromType, Type toType)
 		{
@@ -884,8 +886,8 @@ namespace Neo.IronLua
 			}
 			else if (op == ExpressionType.ArrayLength)
 			{
-				return type.IsArray 
-					? (Expression)Expression.ArrayLength(Lua.EnsureType(expr, type)) 
+				return type.IsArray
+					? (Expression)Expression.ArrayLength(Lua.EnsureType(expr, type))
 					: Expression.Call(Lua.RuntimeLengthMethodInfo, Lua.EnsureType(expr, typeof(object)));
 			}
 			else if (forParse && IsDynamicType(type))
@@ -1053,12 +1055,12 @@ namespace Neo.IronLua
 			foreach (var typeTest in type1.GetTypeInfo().ImplementedInterfaces)
 			{
 				if (compareInterface == null && typeTest == typeof(IComparable) &&
-				    TypesMatch(type1, type2, out var match, false))
+					TypesMatch(type1, type2, out var match, false))
 				{
 					isExact = match == MemberMatchValue.Exact;
 					return typeTest;
 				}
-					
+
 				else if (!isExact && IsGenericCompare(typeTest))
 				{
 					var p = typeTest.GenericTypeArguments[0];
@@ -2351,7 +2353,7 @@ namespace Neo.IronLua
 			private readonly int argumentsLength;     // number of arguments we need to match
 			private int matchCount = 0;
 			private int matchesOnBeginning = 0;
-			private int conversionPenalty=0;
+			private int conversionPenalty = 0;
 
 			private TMEMBERTYPE currentMember;
 			internal int currentParameterLength;
@@ -2402,7 +2404,14 @@ namespace Neo.IronLua
 			{
 				if (IsFailed)
 				{
-					Debug.WriteLine($"  === failed");
+					if (other.IsFailed // both failed, try match argument counter
+						&& currentParameterLength != other.currentParameterLength && argumentsLength == currentParameterLength)
+					{
+						Debug.WriteLine($" === failed (equal)");
+						return true;
+					}
+					else
+						Debug.WriteLine("  === failed");
 					return false;
 				}
 
@@ -2692,7 +2701,7 @@ namespace Neo.IronLua
 				}
 
 				Debug.WriteLine($"{(memberMatchBind.IsFailed ? "FAILED" : "USED")}: {memberMatchBind.CurrentMember}");
-				
+
 				return memberMatchBind.CurrentMember;
 			}
 		} // func FindMember
@@ -2775,7 +2784,7 @@ namespace Neo.IronLua
 				return typeof(object);
 		} // func CombineType
 
-#endregion
+		#endregion
 
 		public static bool TryInvokeMember<TARG>(Lua lua, LuaType targetType, TARG target, CallInfo callInfo, TARG[] arguments, string memberName, bool ignoreCase, Func<TARG, Expression> getExpr, Func<TARG, Type> getType, bool allowDynamic, out Expression result)
 			where TARG : class
