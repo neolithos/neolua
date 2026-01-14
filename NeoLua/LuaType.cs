@@ -1713,7 +1713,7 @@ namespace Neo.IronLua
 					{
 						// Get the lua type
 						var currentType = mi.GetParameters()[0].ParameterType;
-						if (currentType.IsGenericParameter)
+						if (currentType.ContainsGenericParameters)
 							continue; // we do not support generic types
 
 						if (lastType is null || currentType != lastType.Type)
