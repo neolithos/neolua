@@ -617,6 +617,10 @@ namespace Neo.IronLua
 					if (idx < 0)
 						idx = 0;
 				}
+				else if (idx > 0)
+				{
+					idx--; // convert 1-based Lua index to 0-based CLR array index
+				}
 				if (idx < values.Length)
 				{
 					var r = new object[values.Length - idx];
