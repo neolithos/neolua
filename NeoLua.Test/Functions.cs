@@ -440,5 +440,32 @@ return f()
 			}
 		}
 
+		[TestMethod]
+		public void TestSelectIndexConversion()
+		{
+			// select(1, ...) should return the first argument (Lua uses 1-based indexing)
+			TestCode(Lines(
+				"return select(1, 'a', 'b', 'c');"),
+				"a", "b", "c");
+		}
+
+		[TestMethod]
+		public void TestSelectIndexConversion02()
+		{
+			// select(2, ...) should skip the first argument and return from the second onward
+			TestCode(Lines(
+				"return select(2, 'a', 'b', 'c');"),
+				"b", "c");
+		}
+
+		[TestMethod]
+		public void TestSelectIndexConversion03()
+		{
+			// select(3, ...) on three args should return only the third element
+			TestCode(Lines(
+				"return select(3, 10, 20, 30);"),
+				30);
+		}
+
 	} // class Functions
 }
