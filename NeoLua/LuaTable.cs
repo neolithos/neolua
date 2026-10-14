@@ -3558,19 +3558,32 @@ namespace Neo.IronLua
 
 		#region -- insert --
 
-		private static void InsertCore(LuaTable t, object pos, object value)
+		private static void InsertCore(LuaTable t, object pos, object value, int length)
 		{
-			if (IsIndexKey(pos, out int index) && index >= 1 && index <= t.arrayLength + 1)
-				t.ArrayOnlyInsert(index - 1, value);
+			if (IsIndexKey(pos, out int index) && index >= 1 && index <= length + 1)
+			{
+				if (t.metaTable == null && length == t.arrayLength)
+					t.ArrayOnlyInsert(index - 1, value);
+				else
+				{
+					// Shifting and the final assignment are ordinary Lua table accesses.
+					for (var i = length + 1; i > index; i--)
+						t.SetArrayValue(i, t.GetArrayValue(i - 1));
+					t.SetArrayValue(index, value);
+				}
+			}
 			else
-				t.SetValue(pos, value, true);
+				t.SetValue(pos, value, false);
 		} // proc InsertCore
 
 		/// <summary></summary>
 		/// <param name="t"></param>
 		/// <param name="value"></param>
 		public static void insert(LuaTable t, object value)
-			=> InsertCore(t, t.Length <= 0 ? 1 : t.Length + 1, value); // the pos is optional
+		{
+			var length = t.OnLen();
+			InsertCore(t, length + 1, value, length);
+		} // proc insert
 
 		/// <summary></summary>
 		/// <param name="t"></param>
@@ -3584,7 +3597,7 @@ namespace Neo.IronLua
 				return;
 			}
 			else // insert the value at the position
-				InsertCore(t, pos, value);
+				InsertCore(t, pos, value, t.OnLen());
 		} // proc insert
 
 		#endregion
@@ -3767,14 +3780,14 @@ namespace Neo.IronLua
 		/// <param name="t"></param>
 		/// <returns></returns>
 		public static LuaResult unpack(LuaTable t)
-			=> unpack(t, 1, t.Length);
+			=> unpack(t, 1, t.OnLen());
 
 		/// <summary>Returns the elements from the given table.</summary>
 		/// <param name="t"></param>
 		/// <param name="i"></param>
 		/// <returns></returns>
 		public static LuaResult unpack(LuaTable t, object i)
-			=> unpack(t, i is int index ? index : 1, t.Length);
+			=> unpack(t, i is int index ? index : 1, t.OnLen());
 
 		/// <summary>Returns the elements from the given table.</summary>
 		/// <param name="t"></param>
@@ -3782,7 +3795,7 @@ namespace Neo.IronLua
 		/// <param name="j"></param>
 		/// <returns></returns>
 		public static LuaResult unpack(LuaTable t, object i, object j)
-			=> new LuaResult(LuaResult.CopyMode.None, unpack(t, i is int index ? index : 1, j is int length ? length : t.Length, LuaResult.Empty.Values));
+			=> new LuaResult(LuaResult.CopyMode.None, unpack(t, i is int index ? index : 1, j is int length ? length : t.OnLen(), LuaResult.Empty.Values));
 
 		/// <summary>Returns the elements from the given table as a sequence.</summary>
 		/// <param name="t"></param>
